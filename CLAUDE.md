@@ -51,9 +51,10 @@ It then:
 - **Audit:** log every login, failed login, password change and password reset in `audit_log`.
 
 ## ROLES & PERMISSIONS
-Roles: `owner`, `admin`, `manager`, `agent`, `automation`. The automation role is a service account for Claude and for workflows; every one of its actions is audited.
+Roles: `owner`, `admin`, `manager`, `accountant`, `agent`, `automation`. The automation role is a service account for Claude and for workflows; every one of its actions is audited.
 - **Agents** see only their own leads and conversations. They can move their cards forward. Marking a lead Lost requires a reason. They cannot export.
 - **Managers** see their team, can reassign, and can move any stage.
+- **Accountants** work in Emir Books (see its permissions). They cannot see WhatsApp conversations or leads.
 - **Owner and admin** see everything, manage integrations, templates and workflows, and can export.
 - **Enforcement** happens on the server for every endpoint and query, not only in the UI.
 
@@ -200,6 +201,202 @@ Fallback:
   - appointment_confirm, appointment_reminder, agent_new_lead_alert (Utility)
   - new_launch_alert (Marketing)
 
+
+## EMIR BOOKS — SEPARATE ACCOUNTING APP
+A complete accounting system for the brokerage. It is a **separate app** from the CRM, with its own navigation, colour (cool indigo instead of teal) and permissions. It shares the same login, database, design system and codebase.
+
+**How to reach it:**
+- An **app switcher at the bottom of the sidebar** (CRM | Books) swaps the whole navigation.
+- On mobile, the switcher is in the bottom bar.
+- Leads never appear inside Books, and accounting never appears inside the CRM. The only link between them is the deal: Won deals and ad spend flow into Books automatically.
+- Users who only have the `accountant` role open straight into Books and don't see the CRM switcher.
+
+**Books navigation:**
+- **Home**
+- **AI:** AI copilot (with the Ask Books chat available on every screen)
+- **Money in:** Invoices, Commissions
+- **Money out:** AI inbox, Expenses, Payroll, Agent payouts, Office & rent, Marketing spend
+- **Control:** Banking, VAT & reports, Automations
+- **Books settings:** company details, TRN, bank details, logo, invoice template, numbering, categories, chart of accounts
+
+**Tables:**
+- **Money in:** `invoices`, `invoice_lines`, `credit_notes`, `payments`, `commissions`, `recurring_invoices`
+- **Money out:**
+  - `bills`, `expenses`, `expense_categories`, `suppliers`
+  - `documents` (uploaded file + AI-extracted fields + status)
+  - `employees`, `payroll_runs`, `payslips`
+  - `agent_splits`, `agent_payouts`
+  - `leases`, `rent_cheques`, `recurring_costs`
+  - `licences` (trade licence, broker cards, insurance, Ejari), `marketing_budgets`
+- **Control:** `bank_accounts`, `bank_transactions`, `reconciliations`, `ledger_entries`, `accounts` (chart of accounts), `vat_periods`, `period_locks`, `automation_rules`, `company_settings`
+
+**Money rules (non-negotiable):**
+- Store amounts as integers in fils. Never use floats for money.
+- Double-entry ledger: every posting writes balanced debit and credit rows. All reports come from the ledger.
+- Posted invoices, payments and journal entries can never be edited or deleted. Corrections are made with credit notes or reversing entries.
+- Month close locks a period. Only the owner can reopen it, and reopening is audited.
+- Nothing is ever filed with a government authority automatically. VAT and corporate-tax outputs are summaries for the accountant or tax agent to review.
+
+**Home:**
+- Headline numbers: commission received, due from developers, expenses, net profit (after agent commissions).
+- Panels: income vs expenses by month, cash and bank balances, receivables by age (0–30, 31–60, 61–90, 90+ days).
+- A "needs attention" list, where each item links to its screen: overdue invoices, deals not invoiced, payouts due, VAT due, missing receipts, expiring licences and visas, upcoming rent cheques.
+
+**Invoices:**
+- **Automatic invoices:**
+  - When a CRM deal moves to Won, create the commission and a **draft** tax invoice to the developer.
+  - The accountant reviews and sends it. Auto-created invoices show an "Auto" badge.
+- **Manual invoices:** "New invoice" editor with bill-to (developer or other client), multiple line items (description, qty, amount), VAT 5%, live totals and a live invoice preview.
+- **Recurring invoices** are supported.
+- **Invoice content:**
+  - company legal name and TRN; client name and TRN
+  - sequential gap-free number, issue date and due date
+  - lines, subtotal, VAT shown separately, total in AED
+  - bank details
+- **Output:** PDF, emailed to the client's finance contact.
+- **Payments and filters:**
+  - partial payments and credit notes
+  - "Mark paid", which releases the linked agent payout
+  - filters: All, Unpaid, Overdue, Paid
+- **Reminders** at 7, 30 and 60 days overdue, each approved before sending.
+
+**Commissions:**
+- One row per Won deal: sale price, developer, rate, commission, VAT, agent, status (Not invoiced, Invoiced, Partly received, Received, Overdue, Cancelled).
+- Co-broker and referral splits.
+
+**AI inbox (document upload):**
+- **How documents arrive:**
+  - drag-and-drop or photo upload of bills, receipts, contracts and statements (PDF or image)
+  - an email-forwarding address (e.g. books@company) also feeds this inbox
+- **AI extraction:**
+  - fields: supplier, supplier TRN, date, amount, VAT, currency, suggested category, a confidence score for each field, and a duplicate check
+  - each card shows "Reading…" while it works, then the extracted fields with Edit and Approve buttons
+- **Approval:** approving creates the expense or bill, attaches the file and posts to the ledger. Nothing is posted without human approval.
+
+**Expenses:**
+- **Categories:**
+  - Marketing, Salaries & visas, Office rent, Utilities, Internet & phones
+  - Cleaning & maintenance, Parking, Software, Licences & permits, Insurance
+  - Transport & fuel, Referral fees, Bank charges, Entertainment, Other
+- **Each expense records:** date, supplier, amount, input VAT, payment method, account and receipt. Expenses without a receipt are flagged.
+- **Recurring expenses** are supported.
+- **Display:** spending by category with animated bars, plus a recent-expenses table.
+
+**Payroll:**
+- **Employee records:**
+  - role, basic salary, housing allowance, transport allowance, other allowances, deductions
+  - bank/IBAN, visa and Emirates ID expiry dates, joining date
+- **Monthly payroll run, step by step:**
+  1. Calculate
+  2. Owner approval
+  3. Generate the WPS salary file (SIF)
+  4. Email payslips
+- **End-of-service gratuity:** track accruals per employee.
+- **Alerts:** warn 30 and 7 days before visas or IDs expire.
+- **Sales agents:** their base salary goes through payroll, while their commission is paid through Agent payouts.
+- **Disclaimer:** show that the accountant must check payroll and gratuity figures.
+
+**Agent payouts:**
+- Default split per agent, which can be overridden per deal.
+- An agent's share becomes "Ready to pay" only after the developer has paid the brokerage.
+- Payouts need approval before they are paid.
+- Monthly statements are emailed to agents. Agents can view their own statement read-only.
+
+**Office & rent:**
+- **Lease record:** premises, annual rent, number of cheques, Ejari expiry, security deposit, and the contract file.
+- **Rent cheque schedule:** cheque number, date, amount, status (Upcoming, Due, Cleared, Bounced).
+- **Recurring office costs:** utilities, internet, cleaning, parking, software, supplies. Each shows its next due date and an "Auto" badge when it's added automatically.
+- **Licences and renewals:** trade licence, broker cards, insurance, Ejari. Each has an expiry reminder.
+
+**Marketing spend:**
+- **Budget vs actual per channel:** Meta, Google, property portals, events, design/print, influencers. Over-budget channels are flagged.
+- **Daily sync:** pull spend from Meta and Google automatically.
+- **Headline numbers:** spent vs budget, cost per lead, cost per deal, return on spend (commission ÷ spend). Cost per deal is also shown per channel.
+- **AI suggestions** on where to move budget, as suggestions only.
+
+**Banking:**
+- **Accounts:** operating, client deposits (kept separate from company money), petty cash.
+- **Statement import:** CSV or PDF.
+- **AI matching:** suggest a match for each transaction against invoices, expenses, payroll or rent cheques, showing matched / suggested / no match.
+- **Human confirmation:** a person confirms each suggestion before it is reconciled.
+
+**VAT & reports:**
+- **VAT return summary per quarter:** output VAT minus input VAT equals net VAT, with the due date (28 days after the period ends) and an export for the tax agent.
+- **Reports:**
+  - profit & loss, balance sheet, cash flow, trial balance, general ledger
+  - commission by agent, commission by developer
+  - marketing cost per deal, payroll summary
+  - corporate tax estimate
+  - audit trail
+- **Export:** Excel/CSV and PDF.
+
+**AI copilot (Books):** a dedicated screen plus AI features across the app.
+- **Morning money brief:**
+  - three plain-language points shown at the top of Books Home
+  - optional email at 8 AM
+- **Cash forecast, next 90 days:**
+  - built from open invoices (each developer's average payment delay), scheduled rent cheques, payroll, VAT due, agent payouts and expected new deals
+  - chart shows actual cash, the forecast line, a likely range and markers for big payments
+  - lists the assumptions it used
+- **Anomaly detection:**
+  - duplicate bills
+  - short or over-payments versus the invoice
+  - unusual cost jumps against the 3-month average
+  - payouts about to go out before the developer has paid
+  - unmatched deposits
+  - each finding has a one-click action (merge, draft query, review, hold payout, match)
+- **Smart collections:**
+  - predicts each invoice's payment date and risk score from that developer's payment history
+  - drafts the reminder email: polite or firm, shorter, English or Arabic
+  - the accountant edits and sends it; nothing is sent automatically
+- **Month-end close assistant:** runs the checklist and flags what blocks locking the month.
+  - bank reconciled
+  - receipts complete
+  - recurring costs posted
+  - Won deals invoiced
+  - payroll posted
+  - payouts reviewed
+  - VAT checked
+- **Learned rules:** after 3 similar approvals, suggest a rule (e.g. bank text "FACEBK ADS" → Marketing · Meta ads). Rules can be switched on and off.
+- **Ask Books:** a floating chat on every Books screen that answers questions from the company's own ledger data (spend, money owed, profit, VAT, payroll, rent, cash, "can we afford…").
+  - It only uses real numbers from the database, through safe read-only queries or tools.
+  - It says so when it doesn't know.
+  - It never changes data.
+- **Receipts on WhatsApp:** agents send a receipt photo to the company WhatsApp number, and it lands in the AI inbox.
+- **AI rules that always apply:**
+  - AI only suggests and drafts; a human approves every posting, payment, email and filing
+  - every AI suggestion stores its confidence score and source document
+  - personal salary data is never sent to the AI except when needed for payroll questions asked by the owner or the accountant
+
+**Automations** (each can be switched on or off):
+- auto-draft the commission invoice on Won
+- overdue reminders
+- AI document reading
+- AI bank matching (suggestions only)
+- recurring bills
+- daily ad-spend sync
+- release the agent payout when the developer pays
+- expiry warnings for licences, visas and cheques
+- prepare the VAT summary (never filed automatically)
+- anomaly detection
+- 90-day cash forecast
+- morning brief
+- month-end close prep
+- collection email drafts
+- WhatsApp receipts
+- learned rules
+
+**Permissions:**
+
+| Role | Access to Books |
+|---|---|
+| `accountant` | Full access to Books, except reopening a closed month |
+| `owner` | Everything, including approvals and reopening periods |
+| `manager` | Read-only for reports, and approves their team's payouts |
+| `agent` | Only their own commission statement |
+
+Salaries are visible only to the owner and the accountant.
+
 ## INTELLIGENCE & GROWTH FEATURES
 - **Lead score (0–100)** from these signals: valid number, budget fit, timeline, WhatsApp reply, CALL_ME, pricing or brochure requests, re-inquiry, spam signals. A score of 70 or more is `hot` and triggers a manager push.
 - **AI extraction** of budget, unit type, purpose, timeline, language and sentiment from messages. It fills empty fields only and shows an "AI-filled" chip for the agent to confirm.
@@ -212,6 +409,12 @@ Fallback:
   - these feed the weekly "King of Emir" leaderboard
 - **Branded brochure links:** `/b/{project}?a={agent}` tracks opens and notifies the agent when a lead opens the brochure.
 
+## DESIGN
+- Follow the approved design preview exactly: https://claude.ai/artifact/5cWxuZLa6VujaDK3QrSH77
+- Style: minimal Apple-style frosted glass, one cool teal main colour, calm muted stage colours, smooth animations (count-up numbers, charts that draw in, screens that slide in), and full respect for the reduce-motion setting.
+- Add a "Reduce glass effect" option in Settings for older devices.
+- CRM uses cool teal; Emir Books uses cool indigo. The same glass design is used in both, with the CRM | Books switcher at the bottom of the sidebar.
+
 ## HARD RULES
 - Never invent prices, handover dates, payment plans or ROI. Only use verified data from the `projects` table.
 - Never send WhatsApp outside the 24-hour window without an approved template.
@@ -219,6 +422,7 @@ Fallback:
 - Handle secrets properly: keep them in environment variables, encrypt tokens at rest, and never commit or log secrets or full phone and email lists.
 - Keep external API versions in one config constant; don't scatter them through the code.
 - Every data-changing action writes to `audit_log`, with actor, role, before and after.
+- Posted invoices, payments and ledger entries are never edited or deleted. Corrections are made with credit notes or reversing entries.
 - Only the owner or admin can export or bulk-delete. Every such action is logged.
 - If a requirement is ambiguous or an action is destructive (schema drop, data migration, bulk message), stop and ask the owner first.
 
@@ -232,7 +436,8 @@ Fallback:
    5. Workflow engine and workflows A/B/C, round-robin, SLA, push
    6. Unified inbox
    7. CAPI / Google feedback, scoring, AI, reports
-   8. Hardening
+   8. Emir Books app: ledger & settings → invoices & commissions → AI inbox & expenses → payroll → payouts → office & rent → marketing spend → banking → VAT & reports → automations → AI copilot & Ask Books
+   9. Hardening
 3. **Test as you go:**
    - Unit tests for normalization, identity resolution, round-robin and intent matching.
    - Replay tests using the sample webhook payloads in `/fixtures`.
