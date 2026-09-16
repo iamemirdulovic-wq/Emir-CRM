@@ -13,7 +13,7 @@ import { setDnc } from '../services/contacts.js';
 import { moveStage } from '../services/opportunities.js';
 import { resolveIntent, type Intent, type IntentResult } from './intent.js';
 import { stopSequence } from './workflow-b.js';
-import { startRun, completeRun, setStep } from './runs.js';
+import { startRunOnce, completeRun, setStep } from './runs.js';
 
 /**
  * Workflow C — inbound WhatsApp routing.
@@ -40,12 +40,23 @@ export type WorkflowCResult = {
 };
 
 export async function runWorkflowC(input: WorkflowCInput): Promise<WorkflowCResult> {
-  const runId = await startRun({
+  /*
+   * Exactly once per inbound message. Without this, a retried job replies to the
+   * lead a second time and creates a duplicate call-back task — the same class
+   * of defect as a double welcome, and just as visible to the customer.
+   */
+  const runId = await startRunOnce({
     workflowKey: 'C_inbound_routing',
     contactId: input.contactId,
     opportunityId: input.opportunityId,
     context: { messageId: input.messageId },
+    singletonKey: `C:${input.messageId}`,
   });
+
+  if (runId === null) {
+    logger.info('workflow C already handled this message; skipping', { messageId: input.messageId });
+    return { intent: 'UNKNOWN', intentSource: 'none', action: 'already_handled' };
+  }
 
   // Step 1 — the inbound message stops the follow-up sequence.
   await setStep(runId, 'cancel_followups');

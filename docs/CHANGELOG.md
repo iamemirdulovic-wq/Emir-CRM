@@ -76,3 +76,44 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   two contacts.
 - Replay tests over every fixture in `/fixtures`, including redelivery of the same payload.
 - 159 tests green; the 31 database-backed tests skip cleanly when no server is reachable.
+
+## Phase 8 — Web app (PWA), demo data and exactly-once workflows
+
+**Added**
+- React + Vite + Tailwind PWA served from the same origin as the API, so the session
+  cookie stays httpOnly and SameSite=Lax with no CORS surface: login, forced
+  temporary-password change, Kanban board, unified inbox, Contact 360, contacts,
+  projects, templates, reports and team management.
+- Responsive Material-style layout: a navigation rail on desktop, a bottom bar on
+  mobile, safe-area padding for installed iOS, and an installable manifest with a
+  service worker that caches the shell but never CRM data.
+- RTL-ready Arabic throughout, including a language switch that persists to the user record.
+- `npm run demo` loads a realistic dataset by driving the real pipeline — ingestion,
+  assignment, workflows — rather than inserting rows, so a demo shows what the system
+  actually does.
+
+**Fixed**
+- Workflow A and Workflow C are now exactly-once, enforced by a unique index rather
+  than a read-then-write check. A retried job was sending a lead a second welcome
+  message, and re-running inbound routing replied twice and created a duplicate
+  call-back task. Ten concurrent retries now produce exactly one welcome, and five
+  concurrent retries of one inbound message produce one reply and one task.
+- Icons are inline SVG instead of a CDN icon font. With the font host unreachable —
+  offline, a restricted network, or a blocked region — every icon rendered as raw
+  ligature text ("view_kanban", "logout"), which is exactly the condition a field
+  agent's phone hits.
+- The inbox thread endpoint never joined `contacts`, so the thread header showed
+  "Unknown" with no phone number.
+- The inbox defaulted every role to the "Mine" filter, so an owner or manager — who
+  rarely owns conversations — opened an empty inbox that looked broken. Managers now
+  start on "All".
+- The language toggle wrote only to local storage, and the next session refresh
+  reset it from the server, so switching to Arabic appeared to do nothing.
+- The desktop and mobile navigations shared the accessible name "Main".
+
+**Verified**
+- 317 tests green.
+- 13 browser steps driven through real Chromium at desktop and phone viewports: the
+  login gate, wrong-password rejection, the forced password change, all seven board
+  columns, the inbox thread, Contact 360, projects, reports, team, the mobile bottom
+  navigation, and the Arabic RTL switch persisting across a reload.

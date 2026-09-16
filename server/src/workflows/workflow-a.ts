@@ -13,7 +13,7 @@ import { sendEmail } from '../messaging/email/send.js';
 import { templateNameFor } from '../messaging/templates/library.js';
 import { findVerifiedProject } from '../services/projects.js';
 import { chooseAgent, type Candidate } from './assignment.js';
-import { startRun, setStep, completeRun, failRun } from './runs.js';
+import { startRunOnce, setStep, completeRun, failRun } from './runs.js';
 
 /**
  * Workflow A — Instant capture. Target: under 30 seconds end to end.
@@ -42,12 +42,37 @@ export type WorkflowAResult = {
 };
 
 export async function runWorkflowA(input: WorkflowAInput): Promise<WorkflowAResult> {
-  const runId = await startRun({
+  /*
+   * Exactly once per opportunity. A lead must never receive two welcome
+   * messages, and this can be reached more than once: a worker that dies after
+   * sending but before marking the job done retries it, and a caller may run it
+   * directly while the queued job is still pending.
+   *
+   * The claim is a unique-key INSERT, so it is atomic — a read-then-write check
+   * loses this race under concurrency.
+   */
+  const runId = await startRunOnce({
     workflowKey: 'A_instant_capture',
     contactId: input.contactId,
     opportunityId: input.opportunityId,
     context: { skipWelcomeTemplate: Boolean(input.skipWelcomeTemplate) },
+    singletonKey: `A:${input.opportunityId}`,
   });
+
+  if (runId === null) {
+    const owner = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?',
+      [input.opportunityId],
+    );
+    logger.info('workflow A already claimed for this opportunity; skipping', { opportunityId: input.opportunityId });
+    return {
+      assignedUserId: owner?.owner_user_id ?? null,
+      assignmentReason: 'already_run',
+      welcomeSent: false,
+      welcomeChannel: 'none',
+      pushed: 0,
+    };
+  }
 
   try {
     await setStep(runId, 'assign');

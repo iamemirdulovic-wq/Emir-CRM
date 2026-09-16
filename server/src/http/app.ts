@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Express, type Request, type Response } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -79,6 +82,34 @@ export function createApp(): Express {
 
   // Keeps SSE connections alive through proxies that time out idle streams.
   startHeartbeat();
+
+  /*
+   * Serve the built SPA from the same origin as the API. That is what lets the
+   * session cookie be httpOnly and SameSite=Lax without any CORS surface.
+   * In development Vite proxies to this server instead.
+   */
+  const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'web', 'dist');
+  if (existsSync(webDist)) {
+    app.use(
+      express.static(webDist, {
+        index: false,
+        setHeaders: (res, path) => {
+          // Hashed asset filenames can be cached hard; index.html cannot.
+          if (path.includes(`${'/assets/'}`)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        },
+      }),
+    );
+
+    // Client-side routing: anything that is not an API or webhook path renders
+    // the app shell.
+    app.get(/^(?!\/(api|webhooks|b|health)\b).*/, (_req, res, next) => {
+      const indexPath = join(webDist, 'index.html');
+      if (!existsSync(indexPath)) return next();
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(indexPath);
+    });
+    logger.info('serving the web app', { from: webDist });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

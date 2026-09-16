@@ -117,10 +117,22 @@ inboxRouter.get(
       reply_lock_expires_at: Date | null;
       unread_count: number;
       status: string;
+      full_name: string | null;
+      phone_e164: string | null;
+      email: string | null;
+      language: string | null;
+      lead_score: number;
+      dnc: number;
+      assignee_name: string | null;
     }>(
-      `SELECT id, contact_id, assigned_user_id, wa_window_expires_at, reply_lock_user_id,
-              reply_lock_expires_at, unread_count, status
-         FROM conversations WHERE id = ?`,
+      `SELECT cv.id, cv.contact_id, cv.assigned_user_id, cv.wa_window_expires_at, cv.reply_lock_user_id,
+              cv.reply_lock_expires_at, cv.unread_count, cv.status,
+              c.full_name, c.phone_e164, c.email, c.language, c.lead_score, c.dnc,
+              u.name AS assignee_name
+         FROM conversations cv
+         JOIN contacts c ON c.id = cv.contact_id
+         LEFT JOIN users u ON u.id = cv.assigned_user_id
+        WHERE cv.id = ?`,
       [conversationId],
     );
     if (!conversation) throw notFound('Conversation not found');

@@ -1,20 +1,63 @@
-import { execute, queryOne, type Executor, getPool } from '../db/client.js';
+import { execute, isDuplicateKeyError, queryOne, type Executor, getPool } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 
 export type WorkflowKey = 'A_instant_capture' | 'B_no_response_followup' | 'C_inbound_routing';
 
 export async function startRun(
-  input: { workflowKey: WorkflowKey; contactId: string; opportunityId?: string | null; context?: Record<string, unknown> },
+  input: {
+    workflowKey: WorkflowKey;
+    contactId: string;
+    opportunityId?: string | null;
+    context?: Record<string, unknown>;
+    /**
+     * Set for workflows that must run exactly once per opportunity. The unique
+     * index on `singleton_key` turns the INSERT itself into the lock, so two
+     * concurrent callers cannot both start a run.
+     */
+    singletonKey?: string | null;
+  },
   exec: Executor = getPool(),
 ): Promise<string> {
   const id = newId();
   await execute(
-    `INSERT INTO workflow_runs (id, workflow_key, contact_id, opportunity_id, status, context)
-     VALUES (?, ?, ?, ?, 'running', ?)`,
-    [id, input.workflowKey, input.contactId, input.opportunityId ?? null, input.context ? JSON.stringify(input.context) : null],
+    `INSERT INTO workflow_runs (id, workflow_key, contact_id, opportunity_id, status, context, singleton_key)
+     VALUES (?, ?, ?, ?, 'running', ?, ?)`,
+    [
+      id,
+      input.workflowKey,
+      input.contactId,
+      input.opportunityId ?? null,
+      input.context ? JSON.stringify(input.context) : null,
+      input.singletonKey ?? null,
+    ],
     exec,
   );
   return id;
+}
+
+/**
+ * Start a run that may only exist once, identified by `singletonKey`.
+ *
+ * Returns null when another caller already holds the claim — the expected
+ * outcome of a retry, not an error. The uniqueness comes from the index, so
+ * this is safe under concurrency in a way a read-then-write check is not.
+ */
+export async function startRunOnce(
+  input: {
+    workflowKey: WorkflowKey;
+    contactId: string;
+    opportunityId?: string | null;
+    context?: Record<string, unknown>;
+    singletonKey: string;
+  },
+  exec: Executor = getPool(),
+): Promise<string | null> {
+  try {
+    return await startRun(input, exec);
+  } catch (err) {
+    if (isDuplicateKeyError(err)) return null;
+    throw err;
+  }
 }
 
 export async function setStep(runId: string, step: string, exec: Executor = getPool()): Promise<void> {

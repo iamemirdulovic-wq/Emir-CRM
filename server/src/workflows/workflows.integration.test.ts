@@ -690,3 +690,106 @@ describeWithDb('workflows (integration)', () => {
     expect(result.intent).toBe('PRICING');
   });
 });
+
+describeWithDb('workflow idempotency (integration)', () => {
+  beforeAll(async () => {
+    await prepareTestDatabase();
+  });
+  beforeEach(async () => {
+    await resetTables();
+    await approveTemplates();
+    setWhatsAppAdapterForTesting(new LogAdapter());
+  });
+  afterEach(() => setWhatsAppAdapterForTesting(null));
+  afterAll(async () => {
+    await closeTestDatabase();
+  });
+
+  it('never sends a second welcome when Workflow A runs twice', async () => {
+    await createTestUser({ role: 'agent' });
+    const ingested = await arriveLead();
+
+    const first = await runWorkflowA({ opportunityId: ingested.opportunityId, contactId: ingested.contactId });
+    const second = await runWorkflowA({ opportunityId: ingested.opportunityId, contactId: ingested.contactId });
+
+    expect(first.welcomeSent).toBe(true);
+    expect(second.welcomeSent).toBe(false);
+    expect(second.assignmentReason).toBe('already_run');
+    // The agent keeps the lead; the second call just reports it.
+    expect(second.assignedUserId).toBe(first.assignedUserId);
+
+    const sent = await query(
+      `SELECT id FROM messages WHERE contact_id = ? AND direction = 'outbound'`,
+      [ingested.contactId],
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  it('handles an inbound message once, however many times Workflow C is retried', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const ingested = await arriveLead();
+    await execute('UPDATE opportunities SET owner_user_id = ? WHERE id = ?', [agent.id, ingested.opportunityId]);
+
+    const messageId = newId();
+    await execute(
+      `INSERT INTO messages (id, conversation_id, contact_id, channel, direction, provider, provider_message_id, body, status)
+       VALUES (?, ?, ?, 'whatsapp', 'inbound', 'whatsapp_cloud', ?, 'Call me please', 'received')`,
+      [messageId, ingested.conversationId, ingested.contactId, `wamid.${messageId}`],
+    );
+    await execute('UPDATE conversations SET wa_window_expires_at = DATE_ADD(NOW(3), INTERVAL 24 HOUR) WHERE id = ?', [
+      ingested.conversationId,
+    ]);
+
+    const run = () =>
+      runWorkflowC({
+        contactId: ingested.contactId,
+        conversationId: ingested.conversationId,
+        messageId,
+        opportunityId: ingested.opportunityId,
+        text: 'Call me please',
+        buttonPayload: null,
+      });
+
+    const results = await Promise.all([run(), run(), run(), run(), run()]);
+
+    expect(results.filter((r) => r.action === 'call_requested')).toHaveLength(1);
+    expect(results.filter((r) => r.action === 'already_handled')).toHaveLength(4);
+
+    // One reply to the lead, one call-back task — not five of each.
+    const replies = await query(
+      `SELECT id FROM messages WHERE contact_id = ? AND direction = 'outbound' AND is_automated = 1`,
+      [ingested.contactId],
+    );
+    expect(replies).toHaveLength(1);
+
+    const tasks = await query('SELECT id FROM tasks WHERE contact_id = ?', [ingested.contactId]);
+    expect(tasks).toHaveLength(1);
+  });
+
+  it('sends exactly one welcome when ten retries race each other', async () => {
+    await createTestUser({ role: 'agent' });
+    const ingested = await arriveLead();
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        runWorkflowA({ opportunityId: ingested.opportunityId, contactId: ingested.contactId }),
+      ),
+    );
+
+    // Exactly one caller wins the claim; the rest report what it did.
+    expect(results.filter((r) => r.welcomeSent)).toHaveLength(1);
+    expect(results.filter((r) => r.assignmentReason === 'already_run')).toHaveLength(9);
+
+    const sent = await query(
+      `SELECT id FROM messages WHERE contact_id = ? AND direction = 'outbound'`,
+      [ingested.contactId],
+    );
+    expect(sent).toHaveLength(1);
+
+    const runs = await query(
+      `SELECT id FROM workflow_runs WHERE workflow_key = 'A_instant_capture' AND opportunity_id = ?`,
+      [ingested.opportunityId],
+    );
+    expect(runs).toHaveLength(1);
+  });
+});
