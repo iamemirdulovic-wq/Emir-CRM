@@ -117,3 +117,31 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   login gate, wrong-password rejection, the forced password change, all seven board
   columns, the inbox thread, Contact 360, projects, reports, team, the mobile bottom
   navigation, and the Arabic RTL switch persisting across a reload.
+
+## Phase 9 — Documentation, hardening and CI
+
+**Added**
+- `docs/ARCHITECTURE.md`, `docs/WEBHOOKS.md`, `docs/WORKFLOWS.md` and
+  `docs/DEPLOYMENT.md`. The deployment guide answers the hosting question the
+  specification asks: what the plan must support, what degrades if it does not, and
+  which steps need the owner rather than code (Meta app review, WhatsApp template
+  approval, SPF/DKIM/DMARC, a Google Ads developer token).
+- Rate limiting on the unauthenticated surface — login, webhooks and brochure links —
+  as a cheap layer in front of the existing per-account lockout and per-IP budget.
+- A runtime identifier guard on the few dynamic column lists. Every user-supplied
+  value already goes through a placeholder and every interpolated column name already
+  comes from a fixed allowlist, but nothing enforced that; now a later edit that feeds
+  request keys into a patch object fails loudly instead of opening a hole.
+- GitHub Actions CI: typecheck, the full suite against a real MySQL 8 service
+  container, and the production build.
+
+- `e2e/ui.mjs` (`npm run e2e`), the browser smoke test, kept in the repository so the
+  team can rerun it. It is idempotent: the owner's temporary password only works once,
+  so the sign-in step falls back to the replaced password and skips the gate rather
+  than failing on a second run.
+
+**Verified**
+- 328 tests green, and green again with no database reachable (59 skip cleanly).
+- Clean install from an empty server: 4 migrations, 31 tables, seed, build, run.
+- The compiled production build serves the API and the SPA from one origin.
+- 13 browser steps pass, twice in a row against the same environment.

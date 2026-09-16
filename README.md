@@ -55,6 +55,7 @@ terminals; Vite proxies the API so the session cookie still works.
 | `npm run demo` | Load a realistic demo dataset (never in production) |
 | `npm test` | Unit and integration tests |
 | `npm run typecheck` | TypeScript, no emit |
+| `npm run e2e` | Browser smoke test (needs a running server and `npx playwright install chromium`) |
 
 The database-backed test suites skip themselves when no server is reachable, so
 `npm test` is green on a machine without MySQL. Point them at one with
@@ -116,7 +117,10 @@ database layer around them is thin on purpose.
   welcome; five retries of one inbound message produce one reply and one task.
 - **Guards.** Every rule, its precedence, and both deliberate exceptions.
 - **Browser.** Thirteen steps through real Chromium at desktop and phone
-  viewports, including the Arabic RTL switch.
+  viewports, including the Arabic RTL switch (`npm run e2e`). This is the only
+  suite that catches bugs which appear solely once a browser renders the page —
+  it is how the CDN icon font, the empty-looking inbox default and the silently
+  reset language toggle were all found.
 
 ## Security notes
 
