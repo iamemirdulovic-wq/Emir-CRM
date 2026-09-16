@@ -124,10 +124,10 @@ server/src/
 web/src/
   lib/           API client, auth context, realtime, i18n, formatting
   styles/        the design system's CSS, ported from the approved design
-  design/        shell, icons, charts, theme — see docs/DESIGN.md
-  components/    shell, inline SVG icons, shared UI
-  pages/         login, board, inbox, contact 360, contacts, projects,
-                 templates, reports, team
+  design/        shell, icons, charts, theme, shared UI — see docs/DESIGN.md
+  components/    the signed-in layout and the lead drawer
+  pages/         login, change password, dashboard, pipeline, inbox,
+                 contacts, contact 360, tasks, projects, automations, settings
 ```
 
 ## Data model in one paragraph

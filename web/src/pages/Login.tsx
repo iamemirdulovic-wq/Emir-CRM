@@ -3,109 +3,118 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.js';
 import { ApiError } from '../lib/api.js';
 import { t } from '../lib/i18n.js';
-import { Icon } from '../components/ui.js';
 
 /**
- * The login screen: email, password, a sign-in button. Nothing else.
- * There is no public sign-up and no forgot-password flow by design — an owner
- * or admin resets a password from the Team page.
+ * Email, password, a sign-in button. Nothing else.
+ *
+ * There is no public sign-up and no forgot-password flow by design: an owner or
+ * admin creates accounts and resets passwords from Settings, so the only way in
+ * is a credential a person already has.
+ *
+ * Ported from the login screen in design/emir-crm-design.html.
  */
 export function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = async (event: FormEvent) => {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
       const user = await signIn(email, password, rememberMe);
-      navigate(user.mustChangePassword ? '/change-password' : '/board', { replace: true });
+      navigate(user.mustChangePassword ? '/change-password' : '/dashboard', { replace: true });
     } catch (err) {
+      // The server deliberately does not say which of the two was wrong.
       setError(err instanceof ApiError ? err.message : 'Could not sign in. Please try again.');
     } finally {
       setBusy(false);
     }
-  };
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-sand-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-e1">
-            <Icon name="home_work" className="!text-[28px]" />
-          </span>
-          <div className="text-center">
-            <h1 className="text-xl font-semibold text-slate-900">Emir CRM</h1>
-            <p className="text-sm text-slate-500">Dubai &amp; Abu Dhabi off-plan</p>
+    <section id="login">
+      <div className="login-card">
+        <div className="login-art">
+          <div className="brand">
+            <div className="brand-mark">E</div>
+            Emir CRM
+          </div>
+          <div>
+            <h2>{t('signInHeadline')}</h2>
+            <p>{t('signInBlurb')}</p>
+          </div>
+          {/* The stripes are the pipeline in miniature, in stage order. */}
+          <div className="stripes" aria-hidden="true">
+            <span style={{ background: 'var(--s-new)', height: '100%' }} />
+            <span style={{ background: 'var(--s-att)', height: '78%' }} />
+            <span style={{ background: 'var(--s-eng)', height: '58%' }} />
+            <span style={{ background: 'var(--s-apt)', height: '40%' }} />
+            <span style={{ background: 'var(--s-deal)', height: '26%' }} />
+            <span style={{ background: 'var(--s-won)', height: '16%' }} />
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="card space-y-4 p-6">
-          <div>
-            <label className="label" htmlFor="email">
-              {t('email')}
+        <div className="login-form">
+          <form onSubmit={onSubmit} noValidate>
+            <h1>{t('signIn')}</h1>
+            <p className="sub">{t('signInSubtitle')}</p>
+
+            {error && (
+              <div className="err" style={{ display: 'block' }} role="alert">
+                {error}
+              </div>
+            )}
+
+            <label className="field">
+              <span>{t('email')}</span>
+              <input
+                id="email"
+                className="input"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </label>
-            <input
-              id="email"
-              className="field"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy}
-            />
-          </div>
 
-          <div>
-            <label className="label" htmlFor="password">
-              {t('password')}
+            <label className="field">
+              <span>{t('password')}</span>
+              <input
+                id="password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </label>
-            <input
-              id="password"
-              className="field"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-            />
-          </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              disabled={busy}
-            />
-            {t('rememberMe')}
-          </label>
+            <div className="row-between" style={{ marginBottom: 20 }}>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                />
+                {t('keepSignedIn')}
+              </label>
+            </div>
 
-          {error ? (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <button type="submit" className="btn-primary w-full" disabled={busy || !email || !password}>
-            {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : null}
-            {t('signIn')}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Accounts are created by your administrator.
-        </p>
+            <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+              {busy ? `${t('signIn')}…` : t('signIn')}
+            </button>
+            <p className="hint">{t('forgotPassword')}</p>
+          </form>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

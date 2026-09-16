@@ -1,32 +1,33 @@
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth.js';
-import { Shell } from './components/Shell.js';
-import { Spinner } from './components/ui.js';
+import { Layout } from './components/Layout.js';
+import { Spinner } from './design/ui.js';
 import { Login } from './pages/Login.js';
 import { ChangePassword } from './pages/ChangePassword.js';
-import { Board } from './pages/Board.js';
+import { Dashboard } from './pages/Dashboard.js';
+import { Pipeline } from './pages/Pipeline.js';
 import { Inbox } from './pages/Inbox.js';
 import { Contacts } from './pages/Contacts.js';
 import { ContactDetail } from './pages/ContactDetail.js';
+import { Tasks } from './pages/Tasks.js';
 import { Projects } from './pages/Projects.js';
-import { Templates } from './pages/Templates.js';
-import { Reports } from './pages/Reports.js';
-import { Team } from './pages/Team.js';
-import type { ReactNode } from 'react';
+import { Automations } from './pages/Automations.js';
+import { Settings } from './pages/Settings.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading…" />;
+  if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
-  return <Shell>{children}</Shell>;
+  return <>{children}</>;
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
-  if (user && !user.mustChangePassword) return <Navigate to="/board" replace />;
+  if (user && !user.mustChangePassword) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -43,72 +44,30 @@ export function App() {
           }
         />
         <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/" element={<Navigate to="/board" replace />} />
+
+        {/* One shell around every signed-in screen, as the design has it. */}
         <Route
-          path="/board"
           element={
             <Protected>
-              <Board />
+              <Layout />
             </Protected>
           }
-        />
-        <Route
-          path="/inbox"
-          element={
-            <Protected>
-              <Inbox />
-            </Protected>
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <Protected>
-              <Contacts />
-            </Protected>
-          }
-        />
-        <Route
-          path="/contacts/:id"
-          element={
-            <Protected>
-              <ContactDetail />
-            </Protected>
-          }
-        />
-        <Route
-          path="/projects"
-          element={
-            <Protected>
-              <Projects />
-            </Protected>
-          }
-        />
-        <Route
-          path="/templates"
-          element={
-            <Protected>
-              <Templates />
-            </Protected>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <Protected>
-              <Reports />
-            </Protected>
-          }
-        />
-        <Route
-          path="/team"
-          element={
-            <Protected>
-              <Team />
-            </Protected>
-          }
-        />
-        <Route path="*" element={<Navigate to="/board" replace />} />
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/contacts/:id" element={<ContactDetail />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/automations" element={<Automations />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Keep the old board URL working for anyone who bookmarked it. */}
+        <Route path="/board" element={<Navigate to="/pipeline" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AuthProvider>
   );

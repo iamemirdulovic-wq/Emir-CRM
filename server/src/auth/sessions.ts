@@ -13,6 +13,8 @@ export type SessionUser = {
   mustChangePassword: boolean;
   managerId: string | null;
   locale: string;
+  /** Drives the sidebar's "available for new leads" switch. */
+  availability: 'available' | 'busy' | 'off';
 };
 
 export type CreatedSession = { token: string; expiresAt: Date };
@@ -50,6 +52,7 @@ type SessionRow = {
   must_change_password: number;
   manager_id: string | null;
   locale: string;
+  availability: 'available' | 'busy' | 'off';
 };
 
 /** Resolve a cookie token to a live user, or null. Also refreshes last_seen_at. */
@@ -61,7 +64,7 @@ export async function resolveSession(
   const id = hashToken(token);
   const row = await queryOne<SessionRow>(
     `SELECT s.id AS session_id, s.expires_at,
-            u.id, u.name, u.email, u.role, u.is_active, u.must_change_password, u.manager_id, u.locale
+            u.id, u.name, u.email, u.role, u.is_active, u.must_change_password, u.manager_id, u.locale, u.availability
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.id = ? AND s.expires_at > NOW(3)`,
@@ -85,6 +88,7 @@ export async function resolveSession(
       mustChangePassword: row.must_change_password === 1,
       managerId: row.manager_id,
       locale: row.locale,
+      availability: row.availability,
     },
   };
 }

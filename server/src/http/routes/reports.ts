@@ -5,6 +5,7 @@ import { blockUntilPasswordChanged, currentUser, requireAuth, requireManager } f
 import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
 import { cronHealth } from '../../jobs/cron.js';
+import { DASHBOARD_RANGES, loadDashboard, type DashboardRange } from '../../reports/dashboard.js';
 import { clientCount } from '../../realtime/hub.js';
 
 export const reportsRouter = Router();
@@ -20,6 +21,27 @@ function range(input: z.infer<typeof rangeSchema>): { from: Date; to: Date } {
   const from = input.from ? new Date(input.from) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
   return { from, to };
 }
+
+const dashboardSchema = z.object({
+  days: z.coerce.number().int().optional(),
+});
+
+/**
+ * Everything the dashboard draws, in one request.
+ *
+ * Deliberately not manager-only: an agent's dashboard is their own leads, and
+ * the scoping happens in SQL inside `loadDashboard`, so the same endpoint is
+ * safe for every role.
+ */
+reportsRouter.get(
+  '/dashboard',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const { days } = dashboardSchema.parse(req.query);
+    const range = (DASHBOARD_RANGES.find((r) => r === days) ?? 30) as DashboardRange;
+    res.json(await loadDashboard(user, range));
+  }),
+);
 
 /**
  * Source quality per ad: CPL → valid% → contacted% → qualified% → appointment%

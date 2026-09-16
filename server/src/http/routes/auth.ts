@@ -52,6 +52,7 @@ type UserRow = {
   must_change_password: number;
   manager_id: string | null;
   locale: string;
+  availability: 'available' | 'busy' | 'off';
 };
 
 authRouter.post(
@@ -85,7 +86,7 @@ authRouter.post(
     }
 
     const user = await queryOne<UserRow>(
-      `SELECT id, name, email, role, password_hash, is_active, must_change_password, manager_id, locale
+      `SELECT id, name, email, role, password_hash, is_active, must_change_password, manager_id, locale, availability
          FROM users WHERE email = ?`,
       [email],
     );
@@ -130,6 +131,7 @@ authRouter.post(
         email: user.email,
         role: user.role,
         locale: user.locale,
+        availability: user.availability,
         mustChangePassword: user.must_change_password === 1,
         permissions: permissionsFor(user.role),
       },
@@ -162,6 +164,7 @@ authRouter.get(
         email: user.email,
         role: user.role,
         locale: user.locale,
+        availability: user.availability,
         mustChangePassword: user.mustChangePassword,
         permissions: permissionsFor(user.role),
       },

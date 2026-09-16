@@ -3,349 +3,369 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { budgetLabel, formatDateTime, humanize, relativeTime } from '../lib/format.js';
-import { t } from '../lib/i18n.js';
+import { formatDateTime, humanize } from '../lib/format.js';
 import type { Contact360 } from '../lib/types.js';
-import { Avatar, EmptyState, ErrorNote, Icon, Modal, ScoreChip, Spinner, StageChip, Tag, Toast } from '../components/ui.js';
+import { Icon } from '../design/index.js';
+import { sourceStyle, stageStyle } from '../design/stages.js';
+import {
+  ago, Avatar, budgetLabel, Empty, ErrorNote, Field, Panel, Score, Select, Spinner, StagePill, Tag,
+  TextArea, Toolbar, useToast,
+} from '../design/ui.js';
 
-/** Contact 360: everything known about one person, and the quick actions. */
+const TASK_TYPES = ['call', 'whatsapp', 'email', 'meeting', 'other'] as const;
+
+/** Timeline dot colour by activity type. */
+function activityColour(type: string): string {
+  if (type.startsWith('message') || type.includes('whatsapp')) return 'var(--wa)';
+  if (type.includes('stage')) return 'var(--s-apt)';
+  if (type.includes('assign')) return 'var(--s-eng)';
+  if (type.includes('brochure') || type.includes('open')) return 'var(--hot)';
+  return 'var(--s-new)';
+}
+
+/**
+ * Contact 360: one person, everything known about them, and the quick actions
+ * an agent needs without leaving the page.
+ */
 export function ContactDetail() {
   const { id = '' } = useParams();
-  const { can } = useAuth();
+  const { user } = useAuth();
+  const toast = useToast();
   const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${id}`), [id]);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [dncOpen, setDncOpen] = useState(false);
   const [note, setNote] = useState('');
-  const [dncReason, setDncReason] = useState('');
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const flash = (message: string, tone: 'success' | 'error' = 'success') => {
-    setToast({ message, tone });
-    window.setTimeout(() => setToast(null), 3000);
-  };
-
-  if (detail.error) return <ErrorNote message={detail.error} onRetry={detail.reload} />;
-  if (!detail.data) return <Spinner label={t('loading')} />;
-
-  const { contact, opportunities, activities, tasks, tags, consents, conversation, aiSuggestions } = detail.data;
-  const primary = opportunities[0];
-
-  const addNote = async () => {
+  async function addNote() {
+    if (!note.trim()) return;
+    setBusy(true);
     try {
       await api.post(`/api/contacts/${id}/notes`, { body: note });
       setNote('');
-      setNoteOpen(false);
+      toast('Note added');
       detail.reload();
-      flash('Note added');
     } catch (err) {
-      flash(err instanceof Error ? err.message : 'Could not add the note', 'error');
+      toast(err instanceof Error ? err.message : 'Could not add the note');
+    } finally {
+      setBusy(false);
     }
-  };
+  }
 
-  const addDnc = async () => {
+  async function setDnc(dnc: boolean) {
+    setBusy(true);
     try {
-      await api.post(`/api/contacts/${id}/dnc`, { reason: dncReason });
-      setDncReason('');
-      setDncOpen(false);
+      await api.post(`/api/contacts/${id}/dnc`, { dnc, reason: dnc ? 'Set by an agent' : 'Cleared by an agent' });
+      toast(dnc ? 'Added to do-not-contact' : 'Removed from do-not-contact');
       detail.reload();
-      flash('Added to the do-not-contact list');
     } catch (err) {
-      flash(err instanceof Error ? err.message : 'Could not update', 'error');
+      toast(err instanceof Error ? err.message : 'Could not change the consent status');
+    } finally {
+      setBusy(false);
     }
-  };
+  }
+
+  async function completeTask(taskId: string) {
+    try {
+      await api.post(`/api/tasks/${taskId}/complete`);
+      toast('Task completed');
+      detail.reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not complete the task');
+    }
+  }
+
+  if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
+  if (!detail.data) return <Spinner />;
+
+  const { contact, opportunities, activities, tasks, tags, consents } = detail.data;
+  const opportunity = opportunities[0];
+  const style = stageStyle(opportunity?.stage_key);
+  const source = sourceStyle((contact.first_source as string) ?? null);
+  const openTasks = tasks.filter((task) => !task.completed_at);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4">
-      <header className="card p-4">
-        <div className="flex flex-wrap items-start gap-4">
-          <Avatar name={contact.full_name} size="lg" />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-slate-900">{contact.full_name ?? 'Unnamed contact'}</h1>
-              <ScoreChip score={contact.lead_score} />
-              {contact.dnc === 1 ? <span className="chip bg-rose-100 text-rose-700">Do not contact</span> : null}
-              {primary ? <StageChip stage={primary.stage_key} /> : null}
+    <>
+      <Toolbar
+        right={
+          <>
+            {contact.phone_e164 && (
+              <a className="btn" href={`tel:${contact.phone_e164}`}>
+                <Icon name="phone" />
+                <span>Call</span>
+              </a>
+            )}
+            <Link className="btn btn-wa" to={`/inbox?contact=${contact.id}`}>
+              <Icon name="message-circle" />
+              <span>WhatsApp</span>
+            </Link>
+          </>
+        }
+      >
+        <Link className="chip" to="/contacts">
+          <Icon name="arrow-left" />
+          All contacts
+        </Link>
+      </Toolbar>
+
+      <div className="dash">
+        <Panel span={4} index={1}>
+          <div className="p360-top" style={{ borderBottom: 0 }}>
+            <Avatar name={contact.full_name} size={60} colour={style.colour} />
+            <h4>{contact.full_name ?? 'Unnamed contact'}</h4>
+            <p>{contact.phone_e164 ?? contact.email ?? '—'}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {opportunity && <StagePill stage={opportunity.stage_key} label={humanize(opportunity.stage_key)} />}
+              <Score value={contact.lead_score} />
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
-              {contact.phone_e164 ? (
-                <a className="flex items-center gap-1 hover:text-brand-700" href={`tel:${contact.phone_e164}`}>
-                  <Icon name="call" className="!text-[16px]" />
-                  {contact.phone_e164}
-                </a>
-              ) : null}
-              {contact.email ? (
-                <a className="flex items-center gap-1 hover:text-brand-700" href={`mailto:${contact.email}`}>
-                  <Icon name="mail" className="!text-[16px]" />
-                  {contact.email}
-                </a>
-              ) : null}
-              <span className="flex items-center gap-1">
-                <Icon name="person" className="!text-[16px]" />
-                {contact.owner_name ?? 'Unassigned'}
+          </div>
+
+          {contact.ai_summary && (
+            <div className="ai">
+              <b>
+                <Icon name="sparkles" />
+                AI summary
+              </b>
+              <p>{contact.ai_summary}</p>
+            </div>
+          )}
+
+          <dl className="facts" style={{ marginTop: 14 }}>
+            <dt>Source</dt>
+            <dd>{source.label}</dd>
+            <dt>Project</dt>
+            <dd>{(opportunity?.project_name as string) ?? '—'}</dd>
+            <dt>Budget</dt>
+            <dd>
+              {budgetLabel(
+                (opportunity?.budget_min_aed as number) ?? null,
+                (opportunity?.budget_max_aed as number) ?? null,
+                (opportunity?.budget_band as string) ?? null,
+              )}
+            </dd>
+            <dt>Purpose</dt>
+            <dd>{humanize((opportunity?.purpose as string) ?? null)}</dd>
+            <dt>Timeline</dt>
+            <dd>{humanize((opportunity?.timeline as string) ?? null)}</dd>
+            <dt>Language</dt>
+            <dd>{contact.language.toUpperCase()}</dd>
+            <dt>Owner</dt>
+            <dd>{contact.owner_name ?? 'Unassigned'}</dd>
+            <dt>Campaign</dt>
+            <dd>{(opportunity?.campaign_name as string) ?? '—'}</dd>
+          </dl>
+
+          {tags.length > 0 && (
+            <>
+              <div className="sec-t">Tags</div>
+              <div className="tags">
+                {tags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="sec-t">Consent</div>
+          {consents.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No consent recorded.</p>}
+          {consents.map((consent) => (
+            <div className="kv" key={`${consent.channel}-${consent.created_at}`}>
+              <span>
+                {humanize(consent.channel)}
+                {/* The text shown to the lead is stored, as UAE PDPL requires. */}
+                {consent.consent_text && (
+                  <small className="muted" style={{ display: 'block' }}>{consent.consent_text}</small>
+                )}
               </span>
+              <b className={consent.granted ? 'pill ok' : 'pill due'}>{consent.granted ? 'Given' : 'Withdrawn'}</b>
             </div>
-          </div>
+          ))}
 
-          <div className="flex flex-wrap gap-2">
-            {conversation ? (
-              <Link to={`/inbox?conversation=${conversation.id}`} className="btn-tonal">
-                <Icon name="forum" className="!text-[18px]" />
-                Open thread
-              </Link>
-            ) : null}
-            <button type="button" className="btn-ghost" onClick={() => setNoteOpen(true)}>
-              <Icon name="note_add" className="!text-[18px]" />
-              Note
-            </button>
-            {contact.dnc !== 1 ? (
-              <button type="button" className="btn-ghost text-rose-700" onClick={() => setDncOpen(true)}>
-                <Icon name="block" className="!text-[18px]" />
-                DNC
+          <div style={{ marginTop: 14 }}>
+            {contact.dnc === 1 ? (
+              <>
+                <p className="err" style={{ display: 'block' }}>
+                  On the do-not-contact list. Automated messages are suppressed.
+                </p>
+                <button type="button" className="btn" disabled={busy} onClick={() => void setDnc(false)}>
+                  <Icon name="circle-check" />
+                  Remove from DNC
+                </button>
+              </>
+            ) : (
+              <button type="button" className="btn" disabled={busy} onClick={() => void setDnc(true)}>
+                <Icon name="ban" />
+                Add to do-not-contact
               </button>
-            ) : null}
+            )}
           </div>
-        </div>
+        </Panel>
 
-        {tags.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <Tag key={tag} value={tag} />
-            ))}
+        <Panel span={8} index={2} icon="activity" title="Activity">
+          {activities.length === 0 ? (
+            <Empty icon="activity" title="Nothing recorded yet" />
+          ) : (
+            <div className="timeline">
+              {activities.map((activity) => (
+                <div className="ev" key={activity.id} style={{ ['--c' as string]: activityColour(activity.type) }}>
+                  {activity.title}
+                  {activity.body && (
+                    <div className="muted" style={{ fontSize: 12.5 }}>{activity.body}</div>
+                  )}
+                  <small>
+                    {formatDateTime(activity.created_at)}
+                    {activity.user_name ? ` · ${activity.user_name}` : ''}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="sec-t">Add an internal note</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            <TextArea
+              rows={2}
+              placeholder="Visible to your team only"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              disabled={busy}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void addNote()}
+              disabled={busy || !note.trim()}
+            >
+              <Icon name="send" />
+            </button>
           </div>
-        ) : null}
+        </Panel>
 
-        {contact.ai_summary ? (
-          <div className="mt-3 rounded-lg bg-brand-50 p-3">
-            <p className="mb-1 flex items-center gap-1 text-xs font-semibold text-brand-800">
-              <Icon name="auto_awesome" className="!text-[15px]" />
-              AI summary
+        <Panel span={6} index={3} icon="check-square" title={`Tasks (${openTasks.length} open)`}>
+          {tasks.length === 0 && <Empty icon="check-circle-2" title="No tasks" />}
+          {tasks.map((task) => (
+            <div className="task" key={task.id}>
+              <button
+                type="button"
+                className="rowbtn"
+                onClick={() => void completeTask(task.id)}
+                disabled={Boolean(task.completed_at)}
+                aria-label={task.completed_at ? 'Already done' : 'Mark done'}
+              >
+                <Icon name={task.completed_at ? 'check-circle-2' : 'circle'} size={16} />
+              </button>
+              <span style={{ textDecoration: task.completed_at ? 'line-through' : undefined }}>{task.title}</span>
+              <span className="due">{task.completed_at ? 'Done' : ago(task.due_at)}</span>
+            </div>
+          ))}
+          <NewTask contactId={contact.id} opportunityId={opportunity?.id ?? null} onCreated={detail.reload} />
+        </Panel>
+
+        <Panel span={6} index={4} icon="layers" title="Inquiries">
+          {opportunities.length === 0 && <Empty icon="kanban" title="No opportunities" />}
+          {opportunities.map((item) => (
+            <div className="kv" key={item.id}>
+              <span>
+                {(item.project_name as string) ?? 'No project'}
+                <small className="muted" style={{ display: 'block' }}>
+                  {humanize(item.source as string)} · {formatDateTime(item.created_at as string)}
+                </small>
+              </span>
+              <b>
+                <span
+                  className="pill"
+                  style={{ color: stageStyle(item.stage_key).colour, borderColor: 'transparent' }}
+                >
+                  {humanize(item.stage_key)}
+                </span>
+              </b>
+            </div>
+          ))}
+          {user?.role !== 'agent' && (
+            <p className="note" style={{ marginTop: 12 }}>
+              <Icon name="info" />
+              <span>A re-inquiry within 30 days on the same project is recorded here, not opened again.</span>
             </p>
-            <p className="whitespace-pre-wrap text-sm text-brand-900">{contact.ai_summary}</p>
-          </div>
-        ) : null}
-      </header>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <section className="card p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Opportunities</h2>
-            {opportunities.length === 0 ? (
-              <EmptyState icon="inventory_2" title="No opportunities yet" />
-            ) : (
-              <ul className="space-y-3">
-                {opportunities.map((opportunity) => (
-                  <li key={opportunity.id} className="rounded-lg border border-slate-200 p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StageChip stage={opportunity.stage_key} />
-                      {opportunity.sub_status ? (
-                        <span className="chip bg-slate-100 text-slate-600">{humanize(String(opportunity.sub_status))}</span>
-                      ) : null}
-                      {opportunity.status === 'lost' && opportunity.lost_reason ? (
-                        <span className="chip bg-rose-100 text-rose-700">{humanize(String(opportunity.lost_reason))}</span>
-                      ) : null}
-                      <span className="ms-auto text-xs text-slate-400">{relativeTime(String(opportunity.created_at))}</span>
-                    </div>
-                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-                      <Field label={t('project')} value={opportunity.project_name as string | null} />
-                      <Field
-                        label={t('budget')}
-                        value={budgetLabel(
-                          opportunity.budget_min_aed as number | null,
-                          opportunity.budget_max_aed as number | null,
-                          opportunity.budget_band as string | null,
-                        )}
-                      />
-                      <Field label="Unit" value={opportunity.unit_type as string | null} />
-                      <Field label="Timeline" value={humanize(opportunity.timeline as string)} />
-                      <Field label="Purpose" value={humanize(opportunity.purpose as string)} />
-                      <Field label={t('source')} value={humanize(opportunity.source as string)} />
-                      {opportunity.campaign_name ? (
-                        <Field label="Campaign" value={opportunity.campaign_name as string} />
-                      ) : null}
-                      {opportunity.golden_visa_interest === 1 ? <Field label="Golden Visa" value="Interested" /> : null}
-                    </dl>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="card p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('activity')}</h2>
-            {activities.length === 0 ? (
-              <EmptyState icon="history" title="Nothing recorded yet" />
-            ) : (
-              <ol className="space-y-3">
-                {activities.map((activity) => (
-                  <li key={activity.id} className="flex gap-3">
-                    <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                      <Icon name={activityIcon(activity.type)} className="!text-[16px]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-slate-800">{activity.title}</p>
-                      {activity.body ? (
-                        <p className="whitespace-pre-wrap text-xs text-slate-500">{activity.body}</p>
-                      ) : null}
-                      <p className="text-[11px] text-slate-400">
-                        {formatDateTime(activity.created_at)}
-                        {activity.user_name ? ` · ${activity.user_name}` : ' · system'}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
-
-        <div className="space-y-4">
-          <section className="card p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('tasks')}</h2>
-            {tasks.length === 0 ? (
-              <p className="text-sm text-slate-400">No tasks.</p>
-            ) : (
-              <ul className="space-y-2">
-                {tasks.map((task) => (
-                  <li key={task.id} className="flex items-start gap-2">
-                    <button
-                      type="button"
-                      className="mt-0.5"
-                      aria-label="Complete task"
-                      disabled={Boolean(task.completed_at)}
-                      onClick={async () => {
-                        await api.post(`/api/contacts/tasks/${task.id}/complete`);
-                        detail.reload();
-                      }}
-                    >
-                      <Icon
-                        name={task.completed_at ? 'check_circle' : 'radio_button_unchecked'}
-                        className={`!text-[18px] ${task.completed_at ? 'text-emerald-600' : 'text-slate-400'}`}
-                      />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${task.completed_at ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                        {task.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        {task.priority === 'urgent' ? '🔴 ' : ''}
-                        {relativeTime(task.due_at)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="card p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Consent</h2>
-            {consents.length === 0 ? (
-              <p className="text-sm text-slate-400">No consent recorded.</p>
-            ) : (
-              <ul className="space-y-2">
-                {consents.map((consent, index) => (
-                  <li key={index} className="text-sm">
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        name={consent.granted ? 'check_circle' : 'cancel'}
-                        className={`!text-[16px] ${consent.granted ? 'text-emerald-600' : 'text-rose-500'}`}
-                      />
-                      <span className="capitalize text-slate-700">{consent.channel}</span>
-                      <span className="text-xs text-slate-400">via {humanize(consent.source)}</span>
-                    </div>
-                    {consent.consent_text ? (
-                      <p className="ms-6 mt-0.5 text-[11px] italic text-slate-500">“{consent.consent_text}”</p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {aiSuggestions.length > 0 ? (
-            <section className="card p-4">
-              <h2 className="mb-3 flex items-center gap-1 text-sm font-semibold text-slate-900">
-                <Icon name="auto_awesome" className="!text-[16px] text-brand-600" />
-                AI-filled fields
-              </h2>
-              <ul className="space-y-1.5">
-                {aiSuggestions.map((suggestion) => (
-                  <li key={suggestion.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-slate-600">{humanize(suggestion.field)}</span>
-                    <span className="chip bg-brand-50 text-brand-700">{suggestion.value}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-[11px] text-slate-400">Confirm these against what the lead actually said.</p>
-            </section>
-          ) : null}
-        </div>
+          )}
+        </Panel>
       </div>
-
-      <Modal
-        open={noteOpen}
-        title="Add a note"
-        onClose={() => setNoteOpen(false)}
-        footer={
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setNoteOpen(false)}>
-              {t('cancel')}
-            </button>
-            <button type="button" className="btn-primary" disabled={!note.trim()} onClick={() => void addNote()}>
-              {t('save')}
-            </button>
-          </>
-        }
-      >
-        <textarea className="field" rows={5} value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
-      </Modal>
-
-      <Modal
-        open={dncOpen}
-        title="Add to do-not-contact"
-        onClose={() => setDncOpen(false)}
-        footer={
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setDncOpen(false)}>
-              {t('cancel')}
-            </button>
-            <button type="button" className="btn-primary" disabled={!dncReason.trim()} onClick={() => void addDnc()}>
-              Add to DNC
-            </button>
-          </>
-        }
-      >
-        <p className="mb-3 text-sm text-slate-600">
-          No further automated messages will be sent, on any channel. This also suppresses the number and email address.
-        </p>
-        <label className="label" htmlFor="dnc-reason">
-          Reason
-        </label>
-        <input id="dnc-reason" className="field" value={dncReason} onChange={(e) => setDncReason(e.target.value)} autoFocus />
-      </Modal>
-
-      {toast ? <Toast message={toast.message} tone={toast.tone} /> : null}
-    </div>
+    </>
   );
 }
 
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
+function NewTask({
+  contactId, opportunityId, onCreated,
+}: { contactId: string; opportunityId: string | null; onCreated: () => void }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<(typeof TASK_TYPES)[number]>('call');
+  const [title, setTitle] = useState('');
+  const [inHours, setInHours] = useState(2);
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    setBusy(true);
+    try {
+      await api.post(`/api/contacts/${contactId}/tasks`, {
+        opportunityId,
+        type,
+        title: title || `Follow up by ${type}`,
+        priority: 'normal',
+        dueAt: new Date(Date.now() + inHours * 3600 * 1000).toISOString(),
+      });
+      setTitle('');
+      setOpen(false);
+      toast('Task added');
+      onCreated();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not add the task');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="btn" style={{ marginTop: 10 }} onClick={() => setOpen(true)}>
+        <Icon name="plus" />
+        Add a task
+      </button>
+    );
+  }
+
   return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wide text-slate-400">{label}</dt>
-      <dd className="text-slate-700">{value ?? '—'}</dd>
+    <div className="inv-calc">
+      <Field label="What">
+        <Select value={type} onChange={(event) => setType(event.target.value as typeof type)}>
+          {TASK_TYPES.map((value) => (
+            <option key={value} value={value}>
+              {humanize(value)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Title">
+        <input
+          className="input"
+          value={title}
+          placeholder={`Follow up by ${type}`}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </Field>
+      <Field label="Due in">
+        <Select value={inHours} onChange={(event) => setInHours(Number(event.target.value))}>
+          <option value={1}>1 hour</option>
+          <option value={2}>2 hours</option>
+          <option value={24}>Tomorrow</option>
+          <option value={72}>In 3 days</option>
+        </Select>
+      </Field>
+      <div className="two">
+        <button type="button" className="btn" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void create()}>
+          Add task
+        </button>
+      </div>
     </div>
   );
-}
-
-function activityIcon(type: string): string {
-  if (type.startsWith('message')) return 'chat';
-  if (type.startsWith('stage')) return 'moving';
-  if (type.startsWith('lead.assigned')) return 'person_add';
-  if (type.startsWith('sla')) return 'timer_off';
-  if (type.startsWith('intent')) return 'psychology';
-  if (type === 'note') return 'sticky_note_2';
-  if (type.startsWith('contact.dnc')) return 'block';
-  if (type.startsWith('brochure')) return 'picture_as_pdf';
-  return 'circle';
 }

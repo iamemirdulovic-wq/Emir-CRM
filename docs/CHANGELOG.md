@@ -2,6 +2,60 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Phase 11 — The CRM screens on the new design
+
+**Added**
+- Every CRM screen rebuilt on the Phase 10 design system: login, change password,
+  dashboard, pipeline, inbox, Contact 360, contacts, tasks, projects, automations and
+  settings. Tailwind is gone; the app now loads only the ported design stylesheets.
+- **Dashboard**, new: four KPIs with sparklines, leads over time against the previous
+  period, a speed-to-lead gauge with the 5-minute SLA count, sources, the quality funnel,
+  an arrivals heatmap and the "King of Emir" leaderboard. One request
+  (`GET /api/reports/dashboard`) fills the screen, scoped in SQL to what the viewer may
+  see — an agent's dashboard is their own leads, a manager's is their team's.
+- **Tasks**, new: the follow-ups Workflows A and B create, plus anything agents add, with
+  overdue first. `GET /api/tasks`, and complete/reopen on a shared service so the Tasks
+  screen and Contact 360 behave identically.
+- **Automations**, new: the workflows, their last-7-days run counts, and on/off switches
+  for owners and admins. Switching one off is audited with before and after.
+- **Settings**, new, absorbing the old Team, Templates and Reports pages: your account and
+  interface language, appearance (light / dark / system) and "Reduce glass effect", the
+  team with password resets, the WhatsApp template library, and an operational health tab.
+- The lead drawer from the design, over the board: stage bar, AI summary, facts, the
+  activity trail and call / WhatsApp / open actions.
+- `availability` on the session user, so the sidebar's "available for new leads" switch
+  shows the real state rather than assuming it.
+- Interface language is now a self-service setting rather than an administrative one.
+- The contacts list returns each person's current stage and project.
+- The browser smoke test rewritten for the new screens: 16 steps including the dashboard
+  drawing from real data, the 24-hour window indicator, the dark theme applying without a
+  reload, and Arabic mirroring the layout.
+
+**Fixed**
+- The sidebar's unread badge asked `/api/inbox/conversations?filter=unread&limit=50`.
+  Neither is a valid parameter, so the request 400'd on every navigation and the badge was
+  always empty. It now uses the same scope the Inbox screen defaults to.
+- `scrollIntoView` on the message list scrolled every ancestor, dragging the whole inbox
+  off the top of the screen. The list scrolls itself now.
+- The inbox overflowed its own height, because a grid child defaults to `min-height:auto`
+  and would not let the tall composer shrink.
+- The 90px reserve at the foot of a view is for the phone bar, which is hidden on desktop;
+  keeping it there pushed the full-height inbox under the sticky top bar.
+- Anchors styled as buttons (Call, WhatsApp, All contacts) carried an underline.
+- `humanize('1_3_months')` read as "1 3 Months"; ranges and a few source names now have
+  proper phrasings.
+
+**Not in this phase**
+- Bulk import, lists, campaigns and team assignment: Phase 12.
+- Emir Books, and the CRM | Books switcher. The sidebar still reserves its space.
+- Arabic covers navigation, the login screen and the shared labels, as before. Screen body
+  copy is English; the layout mirrors correctly either way.
+
+**Verified**
+- 374 tests green (350 server, 24 web); no TypeScript errors.
+- 16 browser steps pass against a real MariaDB with demo data, with no console errors and
+  no failed requests. Every screen rendered at 1440px and 390px.
+
 ## Phase 10 — Design system
 
 **Added**

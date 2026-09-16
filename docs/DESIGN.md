@@ -26,6 +26,8 @@ web/src/design/
   CountUp.tsx      animated headline numbers
   theme.ts         light / dark / system, "Reduce glass effect", reduced motion
   gallery.tsx      the dev-only gallery page (never bundled)
+  ui.tsx           avatar, stage pill, score, chips, panels, drawer, toast
+  stages.ts        stage and source colours and icons, keyed to server values
   charts/
     geometry.ts    smooth(), the design's curve maths
     ChartDefs.tsx  the gradient fills the charts paint with
@@ -47,6 +49,10 @@ The gallery renders the shell, every chart, the theme controls and all 109 icons
 on one page. It is served in development only: Vite serves every `.html` in the
 project root but bundles only the entries named in the build config, and the
 gallery is deliberately not one of them. It never ships.
+
+Every CRM screen is built on this system as of Phase 11; nothing loads the old
+stylesheet any more. The table below is how they were ported, and how the next
+ones should be.
 
 ## Porting a screen from the design file
 

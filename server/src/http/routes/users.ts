@@ -108,8 +108,9 @@ usersRouter.patch(
     const targetId = String(req.params.id);
     const body = updateSchema.parse(req.body);
 
-    // An agent may set their own availability; everything else is admin-only.
-    const selfServiceOnly = Object.keys(body).every((k) => k === 'availability');
+    // An agent may set their own availability and interface language;
+    // everything else is admin-only.
+    const selfServiceOnly = Object.keys(body).every((k) => k === 'availability' || k === 'locale');
     const isSelf = targetId === actingUser.id;
     if (!(isSelf && selfServiceOnly) && actingUser.role !== 'owner' && actingUser.role !== 'admin') {
       throw badRequest('Only an owner or admin can change another user');

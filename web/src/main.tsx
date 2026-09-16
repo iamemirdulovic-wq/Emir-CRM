@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { App } from './App.js';
 import { applyDirection } from './lib/i18n.js';
-import './index.css';
+import { initTheme } from './design/theme.js';
+import './styles/index.css';
 
 /**
  * VITE_PREVIEW=1 builds a self-contained demo: the API is served from memory
@@ -20,6 +21,7 @@ async function start(): Promise<void> {
   }
 
   applyDirection();
+  initTheme();
 
   const container = document.getElementById('root');
   if (!container) throw new Error('Root element is missing from index.html');

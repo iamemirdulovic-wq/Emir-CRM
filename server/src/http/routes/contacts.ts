@@ -23,6 +23,7 @@ import {
   updateContact,
 } from '../../services/contacts.js';
 import { writeAudit } from '../../audit/audit.js';
+import { completeTask } from '../../services/tasks.js';
 
 export const contactsRouter = Router();
 contactsRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -65,9 +66,18 @@ contactsRouter.get(
 
     const offset = (params.page - 1) * params.pageSize;
     const items = await query(
+      // The contacts list shows where each person currently sits, so it carries
+      // their most recent opportunity. A correlated subquery rather than a join:
+      // a contact with several inquiries must still produce exactly one row.
       `SELECT c.id, c.full_name, c.phone_e164, c.wa_id, c.email, c.language, c.lead_score, c.dnc,
-              c.owner_user_id, c.first_source, c.last_inbound_at, c.created_at, u.name AS owner_name
-         FROM contacts c LEFT JOIN users u ON u.id = c.owner_user_id
+              c.owner_user_id, c.first_source, c.last_inbound_at, c.created_at, u.name AS owner_name,
+              o.stage_key, o.project_name
+         FROM contacts c
+         LEFT JOIN users u ON u.id = c.owner_user_id
+         LEFT JOIN opportunities o
+                ON o.id = (SELECT id FROM opportunities
+                            WHERE contact_id = c.id
+                            ORDER BY created_at DESC LIMIT 1)
         WHERE ${where.join(' AND ')}
         ORDER BY c.created_at DESC
         LIMIT ${params.pageSize} OFFSET ${offset}`,
@@ -230,16 +240,9 @@ contactsRouter.post(
   '/tasks/:taskId/complete',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
-    const taskId = String(req.params.taskId);
-    const task = await queryOne<{ contact_id: string }>('SELECT contact_id FROM tasks WHERE id = ?', [taskId]);
-    if (!task) throw badRequest('Task not found');
-    await assertCanViewContact(task.contact_id, await visibleUserIds(user));
-
-    await execute('UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ? WHERE id = ? AND completed_at IS NULL', [
-      user.id,
-      taskId,
-    ]);
-    await writeAudit({ actor: actorFrom(req), action: 'task.completed', entityType: 'task', entityId: taskId });
+    // Delegated so that completing a task from Contact 360 and from the Tasks
+    // screen do exactly the same thing, including the audit entry.
+    await completeTask(actorFrom(req), String(req.params.taskId), await visibleUserIds(user));
     res.json({ ok: true });
   }),
 );

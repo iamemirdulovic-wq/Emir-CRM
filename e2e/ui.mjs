@@ -73,7 +73,7 @@ const step = async (name, fn) => {
 };
 
 await step('login page renders', async () => {
-  await page.goto(`${BASE}/board`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/pipeline`, { waitUntil: 'networkidle' });
   await page.waitForSelector('text=Emir CRM', { timeout: 10000 });
   if (!page.url().includes('/login')) throw new Error(`expected redirect to /login, got ${page.url()}`);
   await shot(page, '01-login.png');
@@ -97,14 +97,14 @@ await step('signs in', async () => {
   await page.fill('#password', TEMP_PASSWORD);
   await page.click('button[type=submit]');
   try {
-    await page.waitForURL(/change-password|board/, { timeout: 8000 });
+    await page.waitForURL(/change-password|dashboard/, { timeout: 8000 });
     sawPasswordGate = page.url().includes('change-password');
   } catch {
     // The temporary password has already been replaced by an earlier run.
     await page.fill('#email', OWNER_EMAIL);
     await page.fill('#password', NEW_PASSWORD);
     await page.click('button[type=submit]');
-    await page.waitForURL(/\/board/, { timeout: 15000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
   }
 });
 
@@ -115,29 +115,40 @@ await step('forces the temporary password change', async () => {
   await page.fill('#confirm', NEW_PASSWORD);
   await shot(page, '02-change-password.png');
   await page.click('button[type=submit]');
-  await page.waitForURL(/\/board/, { timeout: 15000 });
+  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+});
+
+await step('the dashboard draws its charts from real data', async () => {
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.kpi .val', { timeout: 15000 });
+  const drawn = await page.locator('.chart-wrap svg path.area-line').count();
+  if (drawn === 0) throw new Error('the leads-over-time chart did not draw');
+  await shot(page, '03-dashboard.png');
 });
 
 await step('board renders all seven stages', async () => {
+  await page.goto(`${BASE}/pipeline`, { waitUntil: 'networkidle' });
   await page.waitForSelector('section[aria-label="New Lead"]', { timeout: 15000 });
   const stages = ['New Lead', 'Attempted Contact', 'Engaged / Qualified', 'Appointment Scheduled', 'Deal Sent', 'Won', 'Lost'];
   for (const stage of stages) {
     const found = await page.locator(`section[aria-label="${stage}"]`).count();
     if (found === 0) throw new Error(`missing stage column: ${stage}`);
   }
-  await shot(page, '03-board.png');
+  await shot(page, '04-board.png');
 });
 
-await step('inbox renders a thread', async () => {
+await step('inbox renders a thread with the 24-hour window indicator', async () => {
   await page.click('a[href="/inbox"]');
-  await page.waitForSelector('text=Inbox', { timeout: 10000 });
+  await page.waitForSelector('.threads', { timeout: 10000 });
   await page.waitForTimeout(1500);
-  const threads = await page.locator('li button').count();
-  if (threads > 0) {
-    await page.locator('li button').first().click();
-    await page.waitForTimeout(2000);
+  const threads = await page.locator('.thread').count();
+  if (threads === 0) skip('no conversations in this environment');
+  await page.locator('.thread').first().click();
+  await page.waitForTimeout(2000);
+  if ((await page.locator('.window').count()) === 0) {
+    throw new Error('the WhatsApp window indicator is missing');
   }
-  await shot(page, '04-inbox.png');
+  await shot(page, '05-inbox.png');
 });
 
 await step('contact 360 opens', async () => {
@@ -148,25 +159,34 @@ await step('contact 360 opens', async () => {
     await page.locator('a[href^="/contacts/"]').first().click();
     await page.waitForTimeout(2000);
   }
-  await shot(page, '05-contact.png');
+  await shot(page, '06-contact.png');
+});
+
+await step('tasks page lists the follow-ups', async () => {
+  await page.goto(`${BASE}/tasks`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.toolbar .chip', { timeout: 10000 });
+  await shot(page, '07-tasks.png');
 });
 
 await step('projects page shows verification state', async () => {
   await page.goto(`${BASE}/projects`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Projects', { timeout: 10000 });
-  await shot(page, '06-projects.png');
+  await page.waitForSelector('text=Verified only', { timeout: 10000 });
+  await shot(page, '08-projects.png');
 });
 
-await step('reports page renders', async () => {
-  await page.goto(`${BASE}/reports`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Agent performance', { timeout: 10000 });
-  await shot(page, '07-reports.png');
+await step('automations page lists the workflows', async () => {
+  await page.goto(`${BASE}/automations`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('text=Automations', { timeout: 10000 });
+  await shot(page, '09-automations.png');
 });
 
-await step('team page renders', async () => {
-  await page.goto(`${BASE}/team`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Add user', { timeout: 10000 });
-  await shot(page, '08-team.png');
+await step('settings shows the team and the appearance controls', async () => {
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('text=Reduce glass effect', { timeout: 10000 });
+  await shot(page, '10-settings.png');
+  await page.getByRole('button', { name: 'Team' }).click();
+  await page.waitForSelector('text=Reset password', { timeout: 10000 });
+  await shot(page, '11-settings-team.png');
 });
 
 await step('mobile layout works', async () => {
@@ -176,27 +196,38 @@ await step('mobile layout works', async () => {
   await m.fill('#email', OWNER_EMAIL);
   await m.fill('#password', NEW_PASSWORD);
   await m.click('button[type=submit]');
-  await m.waitForURL(/\/board/, { timeout: 15000 });
+  await m.waitForURL(/\/dashboard/, { timeout: 15000 });
   await m.waitForSelector('nav[aria-label="Primary mobile"]', { timeout: 10000 });
-  await shot(m, '09-mobile-board.png');
+  // The sidebar is the desktop path; at phone width it must be out of the way.
+  if (await m.locator('.side').isVisible()) throw new Error('the sidebar is showing at phone width');
+  await shot(m, '12-mobile-dashboard.png');
+  await m.goto(`${BASE}/pipeline`, { waitUntil: 'networkidle' });
+  await m.waitForTimeout(1200);
+  await shot(m, '13-mobile-pipeline.png');
   await m.goto(`${BASE}/inbox`, { waitUntil: 'networkidle' });
   await m.waitForTimeout(1500);
-  await shot(m, '10-mobile-inbox.png');
+  await shot(m, '14-mobile-inbox.png');
   await mobile.close();
 });
 
-await step('the language toggle switches to Arabic and mirrors the layout', async () => {
-  await page.goto(`${BASE}/board`, { waitUntil: 'networkidle' });
-  // The toggle offers the language you are not currently in.
-  if ((await page.evaluate(() => document.documentElement.dir)) === 'rtl') {
-    await page.getByRole('button', { name: 'English' }).click();
-    await page.waitForTimeout(2500);
-  }
-  await page.getByRole('button', { name: 'العربية' }).click();
+await step('the dark theme applies without a reload', async () => {
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Dark' }).click();
+  await page.waitForTimeout(800);
+  const theme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  if (theme !== 'dark') throw new Error(`expected data-theme=dark, got ${theme}`);
+  await shot(page, '15-dark.png');
+  await page.getByRole('button', { name: 'Light' }).click();
+  await page.waitForTimeout(500);
+});
+
+await step('the language switch mirrors the layout for Arabic', async () => {
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
+  await page.selectOption('select', 'ar');
   await page.waitForTimeout(2500);
   const dir = await page.evaluate(() => document.documentElement.dir);
-  if (dir !== 'rtl') throw new Error(`expected dir=rtl after the toggle, got ${dir}`);
-  await shot(page, '11-arabic-rtl.png');
+  if (dir !== 'rtl') throw new Error(`expected dir=rtl after the switch, got ${dir}`);
+  await shot(page, '16-arabic-rtl.png');
 });
 
 await step('the Arabic preference survives a reload', async () => {
@@ -204,7 +235,7 @@ await step('the Arabic preference survives a reload', async () => {
   await page.waitForTimeout(1500);
   const dir = await page.evaluate(() => document.documentElement.dir);
   if (dir !== 'rtl') throw new Error(`the language preference did not persist (dir=${dir})`);
-  await page.getByRole('button', { name: 'English' }).click();
+  await page.selectOption('select', 'en');
   await page.waitForTimeout(2000);
 });
 

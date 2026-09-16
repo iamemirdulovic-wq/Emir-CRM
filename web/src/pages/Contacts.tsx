@@ -3,103 +3,173 @@ import { Link } from 'react-router-dom';
 import { api, qs } from '../lib/api.js';
 import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { relativeTime } from '../lib/format.js';
-import { t } from '../lib/i18n.js';
-import { Avatar, EmptyState, ErrorNote, Icon, ScoreChip, Spinner } from '../components/ui.js';
+import { formatDateTime, humanize } from '../lib/format.js';
+import { useShellSearch } from '../components/Layout.js';
+import type { Card, StageKey } from '../lib/types.js';
+import { Icon } from '../design/index.js';
+import { sourceStyle, stageStyle } from '../design/stages.js';
+import { Avatar, Chip, Empty, ErrorNote, Panel, Score, Spinner, Toolbar, useToast } from '../design/ui.js';
 
-type Row = {
+type ContactRow = {
   id: string;
   full_name: string | null;
   phone_e164: string | null;
   email: string | null;
+  language: string | null;
   lead_score: number;
-  dnc: number;
-  owner_name: string | null;
   first_source: string | null;
-  last_inbound_at: string | null;
+  dnc: number;
   created_at: string;
+  owner_name: string | null;
+  stage_key: StageKey | null;
+  project_name: string | null;
 };
 
+/**
+ * Every person in the CRM, as a list rather than a board. Agents see their own,
+ * managers their team's, owners everything — the server decides, not this page.
+ */
 export function Contacts() {
-  const { can } = useAuth();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const debounced = useDebounced(search);
+  const { user, can } = useAuth();
+  const toast = useToast();
+  const shellSearch = useShellSearch();
+  const search = useDebounced(shellSearch.value);
+  const [dncOnly, setDncOnly] = useState(false);
 
-  const list = useAsync<{ items: Row[]; total: number; pageSize: number }>(
-    () => api.get(`/api/contacts${qs({ search: debounced, page })}`),
-    [debounced, page],
+  const list = useAsync<{ items: ContactRow[] }>(
+    () => api.get(`/api/contacts${qs({ search, pageSize: 100 })}`),
+    [search],
+  );
+  // Agents cannot see the duplicate queue, so a 403 here is expected, not an
+  // error worth surfacing.
+  const duplicates = useAsync<{ items: unknown[] }>(
+    () =>
+      api
+        .get<{ items: unknown[] }>('/api/contacts/duplicates/pending')
+        .catch(() => ({ items: [] as unknown[] })),
+    [],
   );
 
-  const pages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize)) : 1;
+  const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
+  const items = (list.data?.items ?? []).filter((row) => !dncOnly || row.dnc === 1);
+
+  async function exportCsv() {
+    try {
+      // The server logs every export; this only follows the link.
+      window.location.href = '/api/contacts/export/csv';
+      toast('Preparing the export…');
+    } catch {
+      toast('Could not start the export');
+    }
+  }
+
+  if (list.error) return <ErrorNote>{list.error}</ErrorNote>;
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold text-slate-900">{t('contacts')}</h1>
-        <div className="relative ms-auto w-full sm:w-72">
-          <Icon name="search" className="pointer-events-none absolute start-2 top-1/2 !text-[18px] -translate-y-1/2 text-slate-400" />
-          <input
-            className="field ps-9"
-            placeholder="Name, phone or email"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        {can('export') ? (
-          <a className="btn-tonal" href="/api/contacts/export/csv">
-            <Icon name="download" className="!text-[18px]" />
-            Export CSV
-          </a>
-        ) : null}
-      </header>
+    <>
+      <Toolbar
+        right={
+          can('export') ? (
+            <button type="button" className="btn" onClick={() => void exportCsv()}>
+              <Icon name="download" />
+              <span>Export CSV</span>
+            </button>
+          ) : undefined
+        }
+      >
+        <Chip on={!dncOnly} onClick={() => setDncOnly(false)} icon="users">
+          All contacts
+        </Chip>
+        <Chip on={dncOnly} onClick={() => setDncOnly(true)} icon="ban">
+          Do not contact
+        </Chip>
+        {isManager && (duplicates.data?.items.length ?? 0) > 0 && (
+          <span className="pill wait">
+            {duplicates.data?.items.length} possible duplicate
+            {duplicates.data?.items.length === 1 ? '' : 's'} to review
+          </span>
+        )}
+      </Toolbar>
 
-      {list.error ? <ErrorNote message={list.error} onRetry={list.reload} /> : null}
-      {list.loading && !list.data ? <Spinner /> : null}
-      {list.data?.items.length === 0 ? <EmptyState icon="contacts" title={t('noResults')} /> : null}
+      <Panel index={1} icon="users" title={`${items.length} contact${items.length === 1 ? '' : 's'}`}>
+        {list.loading && items.length === 0 && <Spinner />}
+        {!list.loading && items.length === 0 && (
+          <Empty icon="users" title="No contacts match" hint="Try a different search." />
+        )}
 
-      {list.data && list.data.items.length > 0 ? (
-        <div className="card overflow-hidden">
-          <ul className="divide-y divide-slate-100">
-            {list.data.items.map((row) => (
-              <li key={row.id}>
-                <Link to={`/contacts/${row.id}`} className="flex items-center gap-3 p-3 transition hover:bg-slate-50">
-                  <Avatar name={row.full_name} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900">{row.full_name ?? 'Unnamed'}</p>
-                    <p className="truncate text-xs text-slate-500">{row.phone_e164 ?? row.email ?? '—'}</p>
-                  </div>
-                  <div className="hidden text-end sm:block">
-                    <p className="text-xs text-slate-500">{row.owner_name ?? 'Unassigned'}</p>
-                    <p className="text-[11px] text-slate-400">{relativeTime(row.created_at)}</p>
-                  </div>
-                  {row.dnc === 1 ? <span className="chip bg-rose-100 text-rose-700">DNC</span> : null}
-                  <ScoreChip score={row.lead_score} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {pages > 1 ? (
-            <div className="flex items-center justify-between border-t border-slate-100 p-3 text-sm">
-              <button type="button" className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                <Icon name="chevron_left" className="!text-[18px]" />
-                Previous
-              </button>
-              <span className="text-slate-500">
-                Page {page} of {pages}
-              </span>
-              <button type="button" className="btn-ghost" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
-                Next
-                <Icon name="chevron_right" className="!text-[18px]" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+        {items.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Stage</th>
+                  <th>Project</th>
+                  <th>Source</th>
+                  <th>Owner</th>
+                  <th>Score</th>
+                  <th>Added</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row) => {
+                  const source = sourceStyle(row.first_source);
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <div className="rank">
+                          <Avatar name={row.full_name} size={26} />
+                          <div style={{ minWidth: 0 }}>
+                            <Link to={`/contacts/${row.id}`} style={{ fontWeight: 600, color: 'var(--ink)' }}>
+                              {row.full_name ?? 'Unnamed'}
+                            </Link>
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              {row.phone_e164 ?? row.email ?? '—'}
+                            </div>
+                          </div>
+                          {row.dnc === 1 && <span className="pill due">DNC</span>}
+                        </div>
+                      </td>
+                      <td>
+                        {row.stage_key ? (
+                          <span
+                            className="pill"
+                            style={{ color: stageStyle(row.stage_key).colour, borderColor: 'transparent' }}
+                          >
+                            {humanize(row.stage_key)}
+                          </span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                      <td>{row.project_name ?? <span className="muted">—</span>}</td>
+                      <td>
+                        <span className="src">
+                          <span className="ch" style={{ background: source.colour }}>
+                            <Icon name={source.icon} />
+                          </span>
+                          {source.label}
+                        </span>
+                      </td>
+                      <td>{row.owner_name ?? <span className="muted">Unassigned</span>}</td>
+                      <td>
+                        <Score value={row.lead_score} />
+                      </td>
+                      <td className="muted">{formatDateTime(row.created_at)}</td>
+                      <td>
+                        <Link className="rowbtn" to={`/inbox?contact=${row.id}`}>
+                          Open thread
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </>
   );
 }

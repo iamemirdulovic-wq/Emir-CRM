@@ -52,57 +52,27 @@ export function formatAed(amount: number | null | undefined): string {
   return new Intl.NumberFormat(locale() === 'ar' ? 'ar-AE' : 'en-AE', { maximumFractionDigits: 0 }).format(amount);
 }
 
-export function budgetLabel(min: number | null, max: number | null, band: string | null): string {
-  if (min && max && min !== max) return `AED ${formatAed(min)} – ${formatAed(max)}`;
-  if (max) return `AED ${formatAed(max)}`;
-  if (min) return `AED ${formatAed(min)}+`;
-  return band ?? '—';
-}
-
-export function initials(name: string | null | undefined): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return (parts[0] as string).slice(0, 2).toUpperCase();
-  return `${(parts[0] as string)[0]}${(parts[parts.length - 1] as string)[0]}`.toUpperCase();
-}
-
-/** Deterministic avatar colour, so a person keeps the same one. */
-export function avatarColor(seed: string | null | undefined): string {
-  const palette = ['bg-brand-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-violet-500', 'bg-cyan-600'];
-  const key = seed ?? '';
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  return palette[hash % palette.length] as string;
-}
-
-export function scoreTone(score: number): string {
-  if (score >= 70) return 'bg-rose-100 text-rose-700';
-  if (score >= 40) return 'bg-amber-100 text-amber-800';
-  return 'bg-slate-100 text-slate-600';
-}
-
-export function stageTone(stage: string): string {
-  switch (stage) {
-    case 'new_lead':
-      return 'bg-slate-100 text-slate-700';
-    case 'attempted_contact':
-      return 'bg-amber-100 text-amber-800';
-    case 'engaged_qualified':
-      return 'bg-sky-100 text-sky-800';
-    case 'appointment_scheduled':
-      return 'bg-violet-100 text-violet-800';
-    case 'deal_sent':
-      return 'bg-indigo-100 text-indigo-800';
-    case 'won':
-      return 'bg-emerald-100 text-emerald-800';
-    case 'lost':
-      return 'bg-rose-100 text-rose-700';
-    default:
-      return 'bg-slate-100 text-slate-600';
-  }
-}
+/**
+ * Enum values whose underscores are ranges rather than word breaks, so the
+ * generic rule below would render "1_3_months" as "1 3 Months".
+ */
+const PHRASES: Record<string, string> = {
+  '1_3_months': '1–3 months',
+  '3_6_months': '3–6 months',
+  '6_12_months': '6–12 months',
+  '12_plus': '12 months or more',
+  end_use: 'End use',
+  meta_ctwa: 'Click-to-WhatsApp',
+  meta_lead_ads: 'Meta lead ads',
+  whatsapp_direct: 'WhatsApp',
+  ras_al_khaimah: 'Ras Al Khaimah',
+  umm_al_quwain: 'Umm Al Quwain',
+  abu_dhabi: 'Abu Dhabi',
+};
 
 export function humanize(value: string | null | undefined): string {
   if (!value) return '—';
+  const phrase = PHRASES[value];
+  if (phrase) return phrase;
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

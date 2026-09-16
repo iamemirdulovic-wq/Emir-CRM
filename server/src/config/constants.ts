@@ -2,6 +2,17 @@
 
 export const TIMEZONE = 'Asia/Dubai';
 
+/**
+ * Asia/Dubai is UTC+4 all year — the UAE has not observed daylight saving since
+ * 1990. Reporting SQL adds this offset directly instead of calling CONVERT_TZ,
+ * which silently returns NULL on a server whose timezone tables were never
+ * loaded, and that is a common default on shared hosting.
+ */
+export const TIMEZONE_UTC_OFFSET_HOURS = 4;
+
+/** Speed-to-lead target: the specification asks for a first reply inside 30s. */
+export const SPEED_TO_LEAD_TARGET_SECONDS = 30;
+
 /** Quiet hours: no automated messages between 22:00 and 08:00 Asia/Dubai. */
 export const QUIET_HOURS = { startHour: 22, endHour: 8 } as const;
 

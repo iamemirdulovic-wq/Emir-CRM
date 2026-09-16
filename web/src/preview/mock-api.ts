@@ -1,14 +1,18 @@
 import {
+  AUTOMATIONS,
   LEADS,
   LOST_REASONS,
   PROJECTS,
   STAGES,
+  TASKS,
   TEMPLATES,
   THREADS,
   UNMAPPED_QUESTIONS,
   USERS,
   ago,
   fallbackThread,
+  previewArrivals,
+  previewSeries,
 } from './data.js';
 
 /**
@@ -41,6 +45,7 @@ const currentUser = () => ({
   email: OWNER.email,
   role: OWNER.role,
   locale: session.locale,
+  availability: 'available' as const,
   mustChangePassword: false,
   permissions: PERMISSIONS,
 });
@@ -396,7 +401,109 @@ const ROUTES: Route[] = [
     return { ok: true };
   } },
 
+  // --- tasks --------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/tasks$/, handler: ({ query }) => {
+    const filter = query.get('filter') ?? 'open';
+    const rows = TASKS.map((t) => {
+      const lead = LEADS.find((l) => l.id === t.leadId);
+      return {
+        id: t.id, type: t.type, title: t.title, notes: t.notes, priority: t.priority,
+        due_at: ago(-t.dueMinutesFromNow),
+        completed_at: t.completed ? ago(120) : null,
+        contact_id: lead?.contactId ?? null,
+        opportunity_id: t.leadId,
+        full_name: lead?.name ?? null,
+        phone_e164: lead?.phone ?? null,
+        lead_score: lead?.score ?? null,
+        stage_key: lead?.stage ?? null,
+        project_name: lead?.project ?? null,
+        assigned_user_id: lead?.owner ?? OWNER.id,
+        assignee_name: userName(lead?.owner ?? OWNER.id),
+      };
+    });
+    const overdue = (r: typeof rows[number]) => !r.completed_at && new Date(r.due_at).getTime() < Date.now();
+    const today = (r: typeof rows[number]) =>
+      !r.completed_at && new Date(r.due_at).toDateString() === new Date().toDateString();
+    const items = rows.filter((r) =>
+      filter === 'done' ? r.completed_at : filter === 'overdue' ? overdue(r) : filter === 'today' ? today(r) : !r.completed_at,
+    );
+    return {
+      items,
+      counts: {
+        overdue: rows.filter(overdue).length,
+        today: rows.filter(today).length,
+        open: rows.filter((r) => !r.completed_at).length,
+        done: rows.filter((r) => r.completed_at).length,
+      },
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/tasks\/([^/]+)\/complete$/, handler: ({ params }) => {
+    const task = TASKS.find((t) => t.id === params[0]);
+    if (task) task.completed = true;
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/tasks\/([^/]+)\/reopen$/, handler: ({ params }) => {
+    const task = TASKS.find((t) => t.id === params[0]);
+    if (task) task.completed = false;
+    return { ok: true };
+  } },
+
+  // --- automations --------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/automations$/, handler: () => ({
+    items: AUTOMATIONS.map((a) => ({
+      key: a.key, name: a.name, description: a.description, isActive: a.isActive, runs: a.runs,
+      lastRunAt: a.lastRunMinutesAgo === null ? null : ago(a.lastRunMinutesAgo),
+    })),
+  }) },
+  { method: 'PATCH', pattern: /^\/api\/automations\/([^/]+)$/, handler: ({ params, body }) => {
+    const automation = AUTOMATIONS.find((a) => a.key === params[0]);
+    if (automation) automation.isActive = Boolean(body.isActive);
+    return { ok: true };
+  } },
+
   // --- reports ------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/reports\/dashboard$/, handler: ({ query }) => {
+    const days = Number(query.get('days') ?? 30);
+    const series = previewSeries(days);
+    const total = series.reduce((sum, day) => sum + day.value, 0);
+    const spark = series.slice(-8).map((day) => day.value);
+    const won = LEADS.filter((l) => l.status === 'won').length;
+    const appointments = LEADS.filter((l) =>
+      ['appointment_scheduled', 'deal_sent', 'won'].includes(l.stage)).length;
+    return {
+      range: { days, from: ago(days * 1440), to: new Date().toISOString() },
+      kpis: {
+        newLeads: { value: spark[spark.length - 1] ?? 0, previous: spark[spark.length - 2] ?? 0, spark },
+        whatsappRepliedPct: { value: 64, previous: 58, spark: [48, 52, 50, 55, 58, 57, 61, 64] },
+        appointments: { value: Math.max(appointments, 17), previous: 13, spark: [8, 9, 11, 10, 13, 12, 15, 17] },
+        reservations: { value: Math.max(won, 12), previous: 9, spark: [3, 4, 4, 6, 7, 8, 10, 12], pipelineValueAed: 31400000 },
+      },
+      series,
+      sources: [
+        { label: 'Meta forms', value: Math.round(total * 0.53), colour: '#0AA3BA' },
+        { label: 'Click-to-WhatsApp', value: Math.round(total * 0.24), colour: '#5CC4C9' },
+        { label: 'Google Ads', value: Math.round(total * 0.13), colour: '#9FB6C8' },
+        { label: 'Website', value: Math.round(total * 0.10), colour: '#C9D6E0' },
+      ],
+      totalLeads: total,
+      funnel: [
+        { label: 'Leads', value: total },
+        { label: 'Valid number', value: Math.round(total * 0.79) },
+        { label: 'Contacted', value: Math.round(total * 0.70) },
+        { label: 'Qualified', value: Math.round(total * 0.26) },
+        { label: 'Appointments', value: Math.round(total * 0.09) },
+        { label: 'Reservations', value: Math.round(total * 0.016) },
+      ],
+      speedToLead: { medianSeconds: 24, targetSeconds: 30, maxSeconds: 60, slaBreaches: 3 },
+      arrivals: previewArrivals(),
+      leaderboard: [
+        { userId: 'u-layla', name: 'Layla Hassan', initials: 'LH', medianFirstReplySeconds: 18, qualified: 14, deals: 2 },
+        { userId: 'u-omar', name: 'Omar Farouk', initials: 'OF', medianFirstReplySeconds: 26, qualified: 11, deals: 1 },
+        { userId: 'u-priya', name: 'Priya Nair', initials: 'PN', medianFirstReplySeconds: 31, qualified: 9, deals: 1 },
+        { userId: 'u-raj', name: 'Raj Kapoor', initials: 'RK', medianFirstReplySeconds: 130, qualified: 6, deals: 0 },
+      ],
+    };
+  } },
   { method: 'GET', pattern: /^\/api\/reports\/source-quality$/, handler: () => ({
     from: ago(43200), to: new Date().toISOString(),
     note: 'CPL requires ad spend from Meta/Google Ads; join on campaign_id or ad_id.',

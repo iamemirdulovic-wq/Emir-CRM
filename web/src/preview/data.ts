@@ -318,3 +318,103 @@ export const STAGES = [
 export const LOST_REASONS = ['not_interested', 'budget_mismatch', 'bought_elsewhere', 'unresponsive', 'invalid'];
 
 export { ago };
+
+/* ── Tasks, automations and the dashboard ─────────────────────────────── */
+
+export type PreviewTask = {
+  id: string;
+  type: 'call' | 'whatsapp' | 'email' | 'meeting' | 'other';
+  title: string;
+  notes: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  dueMinutesFromNow: number;
+  completed: boolean;
+  leadId: string | null;
+};
+
+export const TASKS: PreviewTask[] = [
+  { id: 't-1', type: 'call', title: 'Call back — asked for the payment plan', notes: 'Prefers a call after 6 PM.', priority: 'urgent', dueMinutesFromNow: -95, completed: false, leadId: 'o-1' },
+  { id: 't-2', type: 'call', title: 'Follow-up call (Workflow B, +2h)', notes: null, priority: 'normal', dueMinutesFromNow: -40, completed: false, leadId: 'o-3' },
+  { id: 't-3', type: 'whatsapp', title: 'Send the Saadiyat brochure', notes: null, priority: 'normal', dueMinutesFromNow: 55, completed: false, leadId: 'o-4' },
+  { id: 't-4', type: 'meeting', title: 'Site visit — confirm the time', notes: 'Sales centre, Dubai Hills.', priority: 'high', dueMinutesFromNow: 220, completed: false, leadId: 'o-2' },
+  { id: 't-5', type: 'email', title: 'Email the floor plans', notes: null, priority: 'low', dueMinutesFromNow: 1450, completed: false, leadId: 'o-5' },
+  { id: 't-6', type: 'call', title: 'Qualification call', notes: null, priority: 'normal', dueMinutesFromNow: -1500, completed: true, leadId: 'o-6' },
+];
+
+export const AUTOMATIONS = [
+  {
+    key: 'workflow_a',
+    name: 'Workflow A — Instant capture',
+    description: 'Assign, send the welcome template and push the agent, inside 30 seconds.',
+    isActive: true,
+    runs: { running: 3, completed: 184, cancelled: 0, failed: 0 },
+    lastRunMinutesAgo: 4,
+  },
+  {
+    key: 'workflow_b',
+    name: 'Workflow B — No-response follow-up',
+    description: '+2h, +24h, +72h templates and call tasks, then Lost at +96h. Cancels itself when the lead replies.',
+    isActive: true,
+    runs: { running: 11, completed: 92, cancelled: 41, failed: 1 },
+    lastRunMinutesAgo: 26,
+  },
+  {
+    key: 'workflow_c',
+    name: 'Workflow C — Inbound WhatsApp routing',
+    description: 'Reads intent, answers pricing from verified projects, sends the location or brochure, flags CALL_ME.',
+    isActive: true,
+    runs: { running: 0, completed: 311, cancelled: 2, failed: 0 },
+    lastRunMinutesAgo: 1,
+  },
+  {
+    key: 'capi_feedback',
+    name: 'Ad platform feedback',
+    description: 'Reports lead quality back to Meta and Google so the ads optimise for real buyers.',
+    isActive: false,
+    runs: { running: 0, completed: 0, cancelled: 0, failed: 0 },
+    lastRunMinutesAgo: null,
+  },
+];
+
+/** Leads per day for the dashboard's area chart, oldest first. */
+export function previewSeries(days: number): { label: string; value: number; previous: number }[] {
+  const out: { label: string; value: number; previous: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(now - i * 86_400_000);
+    // A calm, weekday-heavy shape. Deterministic, so the preview never flickers.
+    const weekday = date.getUTCDay();
+    const base = weekday === 5 || weekday === 6 ? 14 : 26;
+    const wave = Math.round(Math.sin(i / 2.7) * 5);
+    const drift = Math.round((days - i) / 6);
+    const value = Math.max(4, base + wave + drift);
+    out.push({
+      label: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      value,
+      previous: Math.max(3, Math.round(value * 0.78)),
+    });
+  }
+  return out;
+}
+
+/** The arrivals heatmap: busiest on weekday evenings, as UAE property leads are. */
+export function previewArrivals(): {
+  hours: string[];
+  rows: { label: string; values: number[] }[];
+  busiest: string;
+} {
+  const hours = ['8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p', '12a', '2a', '4a', '6a'];
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return {
+    hours,
+    rows: days.map((label, r) => ({
+      label,
+      values: hours.map((_, c) => {
+        const evening = c >= 5 && c <= 7 ? 16 : 0;
+        const night = c >= 9 ? -6 : 0;
+        const weekend = r >= 5 ? 5 : 0;
+        return Math.max(0, Math.round(8 + evening + night + weekend + Math.sin(c / 1.7) * 4 - r));
+      }),
+    })),
+    busiest: 'Busiest: Sun, 6–8 PM',
+  };
+}

@@ -113,7 +113,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-352 tests. The ones worth knowing about:
+374 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -126,8 +126,9 @@ database layer around them is thin on purpose.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
-- **Browser.** Thirteen steps through real Chromium at desktop and phone
-  viewports, including the Arabic RTL switch (`npm run e2e`). This is the only
+- **Browser.** Sixteen steps through real Chromium at desktop and phone
+  viewports, covering every screen, the 24-hour window indicator, the dark
+  theme and the Arabic RTL switch (`npm run e2e`). This is the only
   suite that catches bugs which appear solely once a browser renders the page —
   it is how the CDN icon font, the empty-looking inbox default and the silently
   reset language toggle were all found.

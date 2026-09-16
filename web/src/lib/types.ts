@@ -6,6 +6,7 @@ export type CurrentUser = {
   email: string;
   role: Role;
   locale: string;
+  availability: 'available' | 'busy' | 'off';
   mustChangePassword: boolean;
   permissions: string[];
 };
@@ -186,4 +187,86 @@ export type TemplateRow = {
   status: string;
   rejected_reason: string | null;
   last_synced_at: string | null;
+};
+
+/* ── Dashboard ────────────────────────────────────────────────────────── */
+
+export type Kpi = {
+  value: number;
+  previous: number;
+  /** Eight daily points for the sparkline, oldest first. */
+  spark: number[];
+};
+
+export type DashboardResponse = {
+  range: { days: number; from: string; to: string };
+  kpis: {
+    newLeads: Kpi;
+    whatsappRepliedPct: Kpi;
+    appointments: Kpi;
+    reservations: Kpi & { pipelineValueAed: number };
+  };
+  series: { label: string; value: number; previous: number }[];
+  sources: { label: string; value: number; colour: string }[];
+  totalLeads: number;
+  funnel: { label: string; value: number }[];
+  speedToLead: {
+    medianSeconds: number | null;
+    targetSeconds: number;
+    maxSeconds: number;
+    slaBreaches: number;
+  };
+  arrivals: {
+    hours: string[];
+    rows: { label: string; values: number[] }[];
+    busiest: string | null;
+  };
+  leaderboard: {
+    userId: string;
+    name: string;
+    initials: string;
+    medianFirstReplySeconds: number | null;
+    qualified: number;
+    deals: number;
+  }[];
+};
+
+/* ── Tasks ────────────────────────────────────────────────────────────── */
+
+export type TaskScope = 'mine' | 'team' | 'all';
+export type TaskFilter = 'open' | 'overdue' | 'today' | 'done';
+
+export type TaskRow = {
+  id: string;
+  type: 'call' | 'whatsapp' | 'email' | 'meeting' | 'other';
+  title: string;
+  notes: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  due_at: string;
+  completed_at: string | null;
+  contact_id: string | null;
+  opportunity_id: string | null;
+  full_name: string | null;
+  phone_e164: string | null;
+  lead_score: number | null;
+  stage_key: StageKey | null;
+  project_name: string | null;
+  assigned_user_id: string | null;
+  assignee_name: string | null;
+};
+
+export type TasksResponse = {
+  items: TaskRow[];
+  counts: { overdue: number; today: number; open: number; done: number };
+};
+
+/* ── Automations ──────────────────────────────────────────────────────── */
+
+export type AutomationRow = {
+  key: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  runs: { running: number; completed: number; cancelled: number; failed: number };
+  lastRunAt: string | null;
 };

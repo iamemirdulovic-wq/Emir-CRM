@@ -18,6 +18,8 @@ import { usersRouter } from './routes/users.js';
 import { projectsRouter } from './routes/projects.js';
 import { templatesRouter } from './routes/templates.js';
 import { reportsRouter } from './routes/reports.js';
+import { tasksRouter } from './routes/tasks.js';
+import { automationsRouter } from './routes/automations.js';
 import { brochureRouter } from './routes/brochure.js';
 import { startHeartbeat } from '../realtime/hub.js';
 
@@ -87,6 +89,8 @@ export function createApp(): Express {
   app.use('/api/projects', projectsRouter);
   app.use('/api/templates', templatesRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/tasks', tasksRouter);
+  app.use('/api/automations', automationsRouter);
   app.use('/webhooks', webhookRouter);
   // Public: leads open this straight from WhatsApp.
   app.use('/b', brochureRouter);

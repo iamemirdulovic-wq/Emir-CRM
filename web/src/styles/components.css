@@ -457,3 +457,32 @@ tbody tr:hover{background:var(--surface-2)}
  * here, so the shell is visible whenever it is rendered at all.
  */
 #app{display:block}
+
+/*
+ * ===== Fixes found by rendering the real screens =====
+ */
+
+/* Buttons and chips are sometimes links (Call, WhatsApp, All contacts), and an
+   anchor brings its own underline. */
+.btn,.chip,.rowbtn,.task,.thread{text-decoration:none}
+
+/* The 90px reserve at the foot of a view exists for the phone bar, which is
+   hidden above 760px. Keeping it on desktop pushed the full-height inbox below
+   the fold, so the page scrolled under the sticky top bar. */
+@media (min-width:761px){.view{padding-bottom:20px}}
+
+/* Grid and flex children default to min-height:auto, so a tall composer made
+   .convo refuse to shrink and the whole inbox overflowed instead of the
+   message list scrolling. */
+.inbox>*,.convo,.threads{min-height:0}
+
+/* .thread is a <button>, so its children are spans rather than divs; the
+   preview line needs a block box for its ellipsis to work. */
+.thread .meta,.thread .l2{display:block}
+
+/* At phone width the toolbar's right-hand controls get the full row rather
+   than being squeezed against the edge. */
+@media (max-width:760px){
+  .toolbar .right{margin-left:0;width:100%}
+  .toolbar .right select,.toolbar .right .input{width:100%}
+}
