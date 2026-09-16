@@ -12,3 +12,4 @@ coverage/
 web/dist/
 server/dist/
 *.tsbuildinfo
+dist-preview/

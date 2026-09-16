@@ -1,0 +1,523 @@
+import {
+  LEADS,
+  LOST_REASONS,
+  PROJECTS,
+  STAGES,
+  TEMPLATES,
+  THREADS,
+  UNMAPPED_QUESTIONS,
+  USERS,
+  ago,
+  fallbackThread,
+} from './data.js';
+
+/**
+ * Serves the CRM's API from memory so the UI can be demonstrated without a
+ * backend.
+ *
+ * It is a demo surface, not a second implementation: it returns the same shapes
+ * the real endpoints return, and mutations change the in-memory data so moving
+ * a card or sending a message behaves the way it does in the real app. It is
+ * loaded only when VITE_PREVIEW=1, and a production build drops it entirely.
+ */
+
+type Handler = (ctx: { params: string[]; body: Record<string, unknown>; query: URLSearchParams }) => unknown;
+type Route = { method: string; pattern: RegExp; handler: Handler };
+
+const OWNER = USERS[0]!;
+const PERMISSIONS = [
+  'contacts:read:own', 'contacts:read:team', 'contacts:read:all', 'contacts:write', 'contacts:merge',
+  'contacts:delete', 'opportunities:move:own', 'opportunities:move:any', 'opportunities:reassign',
+  'messages:send', 'messages:read:all', 'templates:manage', 'projects:manage', 'workflows:manage',
+  'integrations:manage', 'users:manage', 'reports:team', 'reports:all', 'export', 'bulk:delete', 'audit:read',
+];
+
+/** The preview always starts signed in — an empty login screen demonstrates nothing. */
+const session = { signedIn: true, locale: 'en' };
+
+const currentUser = () => ({
+  id: OWNER.id,
+  name: OWNER.name,
+  email: OWNER.email,
+  role: OWNER.role,
+  locale: session.locale,
+  mustChangePassword: false,
+  permissions: PERMISSIONS,
+});
+
+const userName = (id: string | null) => USERS.find((u) => u.id === id)?.name ?? null;
+
+function card(lead: (typeof LEADS)[number]) {
+  return {
+    id: lead.id,
+    title: `${lead.name}${lead.project ? ` — ${lead.project}` : ''}`,
+    stage_key: lead.stage,
+    sub_status: lead.subStatus,
+    status: lead.status,
+    owner_user_id: lead.owner,
+    owner_name: userName(lead.owner),
+    project_name: lead.project,
+    budget_min_aed: lead.budgetMin,
+    budget_max_aed: lead.budgetMax,
+    budget_band: null,
+    unit_type: lead.unitType,
+    emirate: null,
+    timeline: lead.timeline,
+    lead_score: lead.score,
+    source: lead.source,
+    campaign_name: lead.campaign,
+    created_at: ago(lead.createdMinutesAgo),
+    stage_changed_at: ago(Math.max(1, lead.createdMinutesAgo - 5)),
+    sla_breached: lead.slaBreached,
+    contact_id: lead.contactId,
+    full_name: lead.name,
+    phone_e164: lead.phone,
+    wa_id: lead.phone.replace('+', ''),
+    email: lead.email,
+    language: lead.language,
+    last_inbound_at: lead.unread > 0 ? ago(5) : null,
+    dnc: lead.dnc,
+  };
+}
+
+function threadFor(conversationId: string) {
+  const lead = LEADS.find((l) => l.conversationId === conversationId);
+  if (!lead) return null;
+  if (!THREADS[conversationId]) THREADS[conversationId] = fallbackThread(lead);
+  return { lead, thread: THREADS[conversationId]! };
+}
+
+const ROUTES: Route[] = [
+  // --- auth ---------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
+    if (!session.signedIn) throw { status: 401, code: 'unauthorized', message: 'Authentication required' };
+    return { user: currentUser() };
+  } },
+  { method: 'POST', pattern: /^\/api\/auth\/login$/, handler: ({ body }) => {
+    // Any password is accepted in the preview; a wrong one still demonstrates
+    // the error path when the field is left empty.
+    if (!body.email || !body.password) throw { status: 401, code: 'unauthorized', message: 'Invalid email or password' };
+    session.signedIn = true;
+    return { user: currentUser() };
+  } },
+  { method: 'POST', pattern: /^\/api\/auth\/logout$/, handler: () => { session.signedIn = false; return { ok: true }; } },
+  { method: 'POST', pattern: /^\/api\/auth\/change-password$/, handler: () => ({ ok: true }) },
+
+  // --- pipeline -----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/pipeline\/definition$/, handler: () => ({
+    pipelineKey: 'offplan_sales', stages: STAGES, lostReasons: LOST_REASONS,
+  }) },
+  { method: 'GET', pattern: /^\/api\/pipeline\/board$/, handler: ({ query }) => {
+    const search = (query.get('search') ?? '').toLowerCase();
+    const owner = query.get('ownerUserId') ?? '';
+    const visible = LEADS.filter((lead) => {
+      if (owner && lead.owner !== owner) return false;
+      if (!search) return true;
+      return [lead.name, lead.phone, lead.email, lead.project].some((v) => (v ?? '').toLowerCase().includes(search));
+    });
+    return {
+      pipelineKey: 'offplan_sales',
+      columns: STAGES.map((stage) => {
+        const cards = visible.filter((l) => l.stage === stage.key).map(card);
+        return { stageKey: stage.key, stageName: stage.name, position: stage.position, total: cards.length, cards };
+      }),
+      scope: null,
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/pipeline\/opportunities\/([^/]+)\/stage$/, handler: ({ params, body }) => {
+    const lead = LEADS.find((l) => l.id === params[0]);
+    if (!lead) throw { status: 404, code: 'not_found', message: 'Opportunity not found' };
+    const to = String(body.to);
+    if (to === 'lost' && !body.lostReason) {
+      throw { status: 400, code: 'bad_request', message: 'A lost reason is required: not_interested, budget_mismatch, bought_elsewhere, unresponsive or invalid' };
+    }
+    const from = lead.stage;
+    lead.stage = to;
+    lead.subStatus = (body.subStatus as string) ?? null;
+    lead.status = to === 'won' ? 'won' : to === 'lost' ? 'lost' : 'open';
+    if (to === 'lost') lead.lostReason = String(body.lostReason);
+    return { opportunityId: lead.id, from, to, subStatus: lead.subStatus, qualityEvent: null };
+  } },
+  { method: 'POST', pattern: /^\/api\/pipeline\/opportunities\/([^/]+)\/reassign$/, handler: ({ params, body }) => {
+    const lead = LEADS.find((l) => l.id === params[0]);
+    if (lead) lead.owner = String(body.toUserId);
+    return { ok: true };
+  } },
+  { method: 'GET', pattern: /^\/api\/pipeline\/unassigned$/, handler: () => ({
+    items: LEADS.filter((l) => !l.owner).map((l) => ({
+      id: `q-${l.id}`, opportunity_id: l.id, contact_id: l.contactId, reason: 'no_agent_available',
+      created_at: ago(l.createdMinutesAgo), title: l.name, project_name: l.project, source: l.source,
+      full_name: l.name, phone_e164: l.phone, language: l.language,
+    })),
+  }) },
+
+  // --- users --------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },
+  { method: 'PATCH', pattern: /^\/api\/users\/([^/]+)$/, handler: ({ params, body }) => {
+    const user = USERS.find((u) => u.id === params[0]);
+    if (user) {
+      if (body.availability) user.availability = String(body.availability);
+      if (body.isActive !== undefined) user.is_active = body.isActive ? 1 : 0;
+      if (body.locale) session.locale = String(body.locale);
+    }
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/users$/, handler: ({ body }) => {
+    const id = `u-${Math.random().toString(36).slice(2, 8)}`;
+    USERS.push({
+      id, name: String(body.name), email: String(body.email), role: String(body.role),
+      is_active: 1, availability: 'available', routing_weight: Number(body.routingWeight ?? 10),
+      languages: (body.languages as string[]) ?? [], projects_covered: (body.projectsCovered as string[]) ?? [],
+      manager_id: 'u-owner', last_login_at: null,
+    });
+    return { id, email: body.email, temporaryPassword: 'Tmp7xKqR2vLm!7' };
+  } },
+  { method: 'POST', pattern: /^\/api\/users\/([^/]+)\/reset-password$/, handler: () => ({ temporaryPassword: 'Tmp7xKqR2vLm!7' }) },
+  { method: 'POST', pattern: /^\/api\/users\/([^/]+)\/unlock$/, handler: () => ({ ok: true }) },
+  { method: 'POST', pattern: /^\/api\/users\/me\/push-tokens$/, handler: () => ({ ok: true }) },
+
+  // --- contacts -----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/contacts$/, handler: ({ query }) => {
+    const search = (query.get('search') ?? '').toLowerCase();
+    const items = LEADS.filter((l) =>
+      !search || [l.name, l.phone, l.email].some((v) => (v ?? '').toLowerCase().includes(search)),
+    ).map((l) => ({
+      id: l.contactId, full_name: l.name, phone_e164: l.phone, email: l.email, lead_score: l.score,
+      dnc: l.dnc, owner_name: userName(l.owner), first_source: l.source,
+      last_inbound_at: l.unread > 0 ? ago(5) : null, created_at: ago(l.createdMinutesAgo),
+    }));
+    return { items, page: 1, pageSize: 25, total: items.length };
+  } },
+  { method: 'GET', pattern: /^\/api\/contacts\/([^/]+)$/, handler: ({ params }) => {
+    const lead = LEADS.find((l) => l.contactId === params[0]);
+    if (!lead) throw { status: 404, code: 'not_found', message: 'Contact not found' };
+    const thread = THREADS[lead.conversationId] ?? fallbackThread(lead);
+
+    return {
+      contact: {
+        id: lead.contactId, full_name: lead.name, first_name: lead.name.split(' ')[0],
+        phone_e164: lead.phone, wa_id: lead.phone.replace('+', ''), email: lead.email,
+        language: lead.language, lead_score: lead.score, dnc: lead.dnc,
+        owner_name: userName(lead.owner), owner_email: USERS.find((u) => u.id === lead.owner)?.email ?? null,
+        first_source: lead.source, created_at: ago(lead.createdMinutesAgo), notes: null,
+        ai_summary: lead.score >= 70
+          ? `Ready buyer for ${lead.project ?? 'off-plan'} with a stated budget of ${lead.budgetMax ? `AED ${lead.budgetMax.toLocaleString()}` : 'unspecified'}.\nAsked about pricing and floor plans; replies within minutes on WhatsApp.\nNext step: confirm the viewing and send the payment plan.`
+          : null,
+      },
+      opportunities: [{
+        id: lead.id, title: lead.name, stage_key: lead.stage, sub_status: lead.subStatus, status: lead.status,
+        lost_reason: lead.lostReason ?? null, owner_user_id: lead.owner, project_name: lead.project,
+        developer: PROJECTS.find((p) => p.name === lead.project)?.developer ?? null,
+        emirate: PROJECTS.find((p) => p.name === lead.project)?.emirate ?? null,
+        unit_type: lead.unitType, budget_min_aed: lead.budgetMin, budget_max_aed: lead.budgetMax,
+        budget_band: null, purpose: lead.purpose, payment_method: 'payment_plan', timeline: lead.timeline,
+        golden_visa_interest: lead.score > 70 ? 1 : 0, deal_value_aed: null, expected_commission_aed: null,
+        lead_score: lead.score, source: lead.source, campaign_name: lead.campaign,
+        adset_name: lead.campaign ? 'AE-Investors-30-55' : null, ad_name: lead.campaign ? 'DXB-Beachfront-Video-01' : null,
+        created_at: ago(lead.createdMinutesAgo), stage_changed_at: ago(Math.max(1, lead.createdMinutesAgo - 5)),
+        closed_at: lead.status === 'open' ? null : ago(10), sla_breached: lead.slaBreached,
+      }],
+      activities: buildActivities(lead, thread),
+      tasks: lead.score >= 70
+        ? [{ id: `tk-${lead.id}`, type: 'call', title: 'Call back — the lead asked to be called', notes: null, priority: 'urgent', due_at: ago(-5), completed_at: null, assigned_user_id: lead.owner, assignee_name: userName(lead.owner) }]
+        : [],
+      tags: lead.tags,
+      tagDetails: lead.tags.map((t) => ({ namespace: t.split(':')[0], value: t.split(':')[1], label: null })),
+      consents: [
+        { channel: 'whatsapp', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emir Real Estate by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) },
+        ...(lead.email ? [{ channel: 'email', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emir Real Estate by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) }] : []),
+      ],
+      identities: [],
+      aiSuggestions: lead.unitType
+        ? [{ id: `ai-${lead.id}`, field: 'unit_type', value: lead.unitType, confidence: 0.86, status: 'applied', created_at: ago(20) }]
+        : [],
+      conversation: { id: lead.conversationId, assigned_user_id: lead.owner, last_message_at: ago(5), last_inbound_at: ago(5), wa_window_expires_at: lead.windowOpen ? ago(-1400) : ago(120), unread_count: lead.unread, status: 'open' },
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/contacts\/([^/]+)\/notes$/, handler: ({ params, body }) => {
+    const lead = LEADS.find((l) => l.contactId === params[0]);
+    if (lead) {
+      const thread = THREADS[lead.conversationId] ?? (THREADS[lead.conversationId] = fallbackThread(lead));
+      thread.events.unshift({ id: `n-${Date.now()}`, type: 'note', title: 'Note', body: String(body.body), created_at: new Date().toISOString() });
+    }
+    return { id: `n-${Date.now()}` };
+  } },
+  { method: 'POST', pattern: /^\/api\/contacts\/([^/]+)\/dnc$/, handler: ({ params }) => {
+    const lead = LEADS.find((l) => l.contactId === params[0]);
+    if (lead) lead.dnc = 1;
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/contacts\/tasks\/([^/]+)\/complete$/, handler: () => ({ ok: true }) },
+  { method: 'PATCH', pattern: /^\/api\/contacts\/([^/]+)$/, handler: ({ params }) => {
+    const lead = LEADS.find((l) => l.contactId === params[0]);
+    if (!lead) throw { status: 404, code: 'not_found', message: 'Contact not found' };
+    return { ok: true };
+  } },
+  { method: 'GET', pattern: /^\/api\/contacts\/duplicates\/pending$/, handler: () => ({ items: [] }) },
+
+  // --- inbox --------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/inbox\/conversations$/, handler: ({ query }) => {
+    const filter = query.get('filter') ?? 'all';
+    const unread = query.get('unread') === '1';
+    const search = (query.get('search') ?? '').toLowerCase();
+
+    const items = LEADS.filter((lead) => {
+      if (filter === 'unassigned' && lead.owner) return false;
+      if (unread && lead.unread === 0) return false;
+      if (search && ![lead.name, lead.phone, lead.email].some((v) => (v ?? '').toLowerCase().includes(search))) return false;
+      return true;
+    }).map((lead) => {
+      const thread = THREADS[lead.conversationId] ?? fallbackThread(lead);
+      const last = thread.messages[thread.messages.length - 1] as Record<string, unknown> | undefined;
+      return {
+        id: lead.conversationId, contact_id: lead.contactId, assigned_user_id: lead.owner,
+        assignee_name: userName(lead.owner), status: 'open', unread_count: lead.unread,
+        last_message_at: (last?.created_at as string) ?? ago(lead.createdMinutesAgo),
+        last_inbound_at: ago(5),
+        wa_window_expires_at: lead.windowOpen ? ago(-1400) : ago(120),
+        full_name: lead.name, phone_e164: lead.phone, email: lead.email, language: lead.language,
+        lead_score: lead.score, dnc: lead.dnc,
+        last_body: (last?.body as string) ?? null,
+        last_channel: (last?.channel as string) ?? 'whatsapp',
+        last_direction: (last?.direction as string) ?? 'outbound',
+        stage_key: lead.stage,
+      };
+    }).sort((a, b) => (b.last_message_at > a.last_message_at ? 1 : -1));
+
+    return { items, page: 1, pageSize: 25, total: items.length };
+  } },
+  { method: 'GET', pattern: /^\/api\/inbox\/conversations\/([^/]+)$/, handler: ({ params }) => {
+    const found = threadFor(params[0]!);
+    if (!found) throw { status: 404, code: 'not_found', message: 'Conversation not found' };
+    const { lead, thread } = found;
+    return {
+      conversation: {
+        id: lead.conversationId, contact_id: lead.contactId, assigned_user_id: lead.owner,
+        assignee_name: userName(lead.owner), status: 'open', unread_count: lead.unread,
+        last_message_at: ago(5), last_inbound_at: ago(5),
+        wa_window_expires_at: lead.windowOpen ? ago(-1400) : ago(120),
+        full_name: lead.name, phone_e164: lead.phone, email: lead.email, language: lead.language,
+        lead_score: lead.score, dnc: lead.dnc,
+        reply_lock_user_id: null, reply_lock_expires_at: null,
+        whatsappWindowOpen: lead.windowOpen,
+        whatsappWindowExpiresAt: lead.windowOpen ? ago(-1400) : ago(120),
+        composerMode: lead.windowOpen ? 'free_form' : 'template_only',
+        replyLock: lead.id === 'o-1' ? { userId: 'u-yousef', expiresAt: ago(-1) } : null,
+      },
+      messages: thread.messages,
+      events: thread.events,
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/inbox\/conversations\/([^/]+)\/read$/, handler: ({ params }) => {
+    const lead = LEADS.find((l) => l.conversationId === params[0]);
+    if (lead) lead.unread = 0;
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/inbox\/conversations\/([^/]+)\/typing$/, handler: () => ({ ok: true }) },
+  { method: 'POST', pattern: /^\/api\/inbox\/conversations\/([^/]+)\/send$/, handler: ({ params, body }) => {
+    const found = threadFor(params[0]!);
+    if (!found) throw { status: 404, code: 'not_found', message: 'Conversation not found' };
+    const { lead, thread } = found;
+
+    // The real API refuses free-form WhatsApp once the window has closed.
+    if (body.channel === 'whatsapp' && body.kind !== 'template' && !lead.windowOpen) {
+      throw { status: 409, code: 'conflict', message: 'The 24-hour WhatsApp window is closed; only an approved template can be sent' };
+    }
+    if (lead.dnc === 1) {
+      throw { status: 409, code: 'conflict', message: 'Contact is on the do-not-contact list' };
+    }
+
+    thread.messages.push({
+      id: `m-${Date.now()}`,
+      channel: body.channel === 'note' ? 'note' : body.channel === 'email' ? 'email' : 'whatsapp',
+      direction: 'outbound',
+      provider: body.channel === 'email' ? 'smtp' : 'whatsapp_cloud',
+      user_id: OWNER.id,
+      user_name: OWNER.name,
+      is_automated: 0,
+      template_name: body.kind === 'template' ? String(body.templateName) : null,
+      template_language: null,
+      subject: body.subject ? String(body.subject) : null,
+      body: body.kind === 'template' ? `[template ${String(body.templateName)}]` : String(body.text ?? ''),
+      media: null,
+      status: 'sent',
+      error_code: null,
+      error_message: null,
+      sent_at: new Date().toISOString(),
+      delivered_at: null,
+      read_at: null,
+      created_at: new Date().toISOString(),
+    });
+    return { sent: true, messageId: `m-${Date.now()}`, providerMessageId: 'preview' };
+  } },
+
+  // --- projects -----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/projects$/, handler: ({ query }) => ({
+    items: query.get('includeUnverified') === '1' ? PROJECTS : PROJECTS.filter((p) => p.verified_at),
+  }) },
+  { method: 'POST', pattern: /^\/api\/projects\/([^/]+)\/verify$/, handler: ({ params }) => {
+    const project = PROJECTS.find((p) => p.id === params[0]);
+    if (project) project.verified_at = new Date().toISOString();
+    return { ok: true, verified: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/projects\/([^/]+)\/unverify$/, handler: ({ params }) => {
+    const project = PROJECTS.find((p) => p.id === params[0]);
+    if (project) project.verified_at = null;
+    return { ok: true, verified: false };
+  } },
+  { method: 'POST', pattern: /^\/api\/projects$/, handler: ({ body }) => {
+    const id = `p-${Math.random().toString(36).slice(2, 8)}`;
+    PROJECTS.push({
+      id, slug: String(body.name).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: String(body.name), developer: String(body.developer), emirate: String(body.emirate),
+      area: (body.area as string) ?? null, starting_price_aed: (body.startingPriceAed as number) ?? null,
+      payment_plan: (body.paymentPlan as string) ?? null, handover_date: (body.handoverDate as string) ?? null,
+      golden_visa_eligible: body.goldenVisaEligible ? 1 : 0, brochure_url: (body.brochureUrl as string) ?? null,
+      location_lat: body.locationLat ? String(body.locationLat) : null,
+      location_lng: body.locationLng ? String(body.locationLng) : null,
+      is_active: 1, verified_at: null,
+    });
+    return { id, verified: false };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/projects\/([^/]+)$/, handler: () => ({ ok: true, requiresReverification: true }) },
+
+  // --- templates ----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/templates$/, handler: () => ({
+    items: TEMPLATES, blocked: TEMPLATES.filter((t) => t.status !== 'APPROVED').length,
+  }) },
+  { method: 'GET', pattern: /^\/api\/templates\/field-map\/unmapped$/, handler: () => ({ items: UNMAPPED_QUESTIONS }) },
+  { method: 'GET', pattern: /^\/api\/templates\/field-map\/all$/, handler: () => ({ items: [] }) },
+  { method: 'GET', pattern: /^\/api\/templates\/library$/, handler: () => ({ items: [] }) },
+  { method: 'POST', pattern: /^\/api\/templates\/sync$/, handler: () => ({ synced: TEMPLATES.length, newlyBroken: [], missingFromProvider: [] }) },
+  { method: 'POST', pattern: /^\/api\/templates\/seed-library$/, handler: () => ({ inserted: 16, invalid: [] }) },
+  { method: 'PATCH', pattern: /^\/api\/templates\/([^/]+)\/status$/, handler: ({ params, body }) => {
+    const template = TEMPLATES.find((t) => t.id === params[0]);
+    if (template) template.status = String(body.status);
+    return { ok: true };
+  } },
+
+  // --- reports ------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/reports\/source-quality$/, handler: () => ({
+    from: ago(43200), to: new Date().toISOString(),
+    note: 'CPL requires ad spend from Meta/Google Ads; join on campaign_id or ad_id.',
+    items: [
+      { source: 'meta_lead_ads', campaign_name: 'Q1-2026-Dubai-OffPlan-Leads', ad_name: 'DXB-Beachfront-Video-01', leads: 148, validPct: 91.2, contactedPct: 84.5, qualifiedPct: 38.5, appointmentPct: 16.9, showPct: 11.5, reservationPct: 4.1, deal_value_aed: 18500000, avg_score: 64, cplAed: null },
+      { source: 'meta_ctwa', campaign_name: 'CTWA-Lagoons-Arabic', ad_name: 'Lagoons-Carousel-AR', leads: 96, validPct: 96.9, contactedPct: 93.8, qualifiedPct: 45.8, appointmentPct: 22.9, showPct: 15.6, reservationPct: 6.3, deal_value_aed: 12400000, avg_score: 71, cplAed: null },
+      { source: 'google_ads', campaign_name: 'AUH-Reem-Search', ad_name: 'Responsive-Ad-2', leads: 54, validPct: 88.9, contactedPct: 79.6, qualifiedPct: 29.6, appointmentPct: 11.1, showPct: 7.4, reservationPct: 1.9, deal_value_aed: 3200000, avg_score: 51, cplAed: null },
+      { source: 'website', campaign_name: 'creek-harbour-2026', ad_name: null, leads: 37, validPct: 94.6, contactedPct: 86.5, qualifiedPct: 32.4, appointmentPct: 13.5, showPct: 10.8, reservationPct: 2.7, deal_value_aed: 2900000, avg_score: 58, cplAed: null },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/reports\/agents$/, handler: () => {
+    const items = [
+      { userId: 'u-layla', name: 'Layla Hassan', leads: 112, medianSpeedToLeadSeconds: 74, slaBreaches: 2, contactRatePct: 93.8, qualifiedRatePct: 44.6, appointments: 27, reservations: 6 },
+      { userId: 'u-omar', name: 'Omar Farouk', leads: 88, medianSpeedToLeadSeconds: 132, slaBreaches: 5, contactRatePct: 87.5, qualifiedRatePct: 38.6, appointments: 19, reservations: 4 },
+      { userId: 'u-priya', name: 'Priya Nair', leads: 76, medianSpeedToLeadSeconds: 251, slaBreaches: 9, contactRatePct: 78.9, qualifiedRatePct: 27.6, appointments: 11, reservations: 1 },
+    ];
+    return { from: ago(10080), to: new Date().toISOString(), items, leaderboard: items, kingOfEmir: items[0] };
+  } },
+  { method: 'GET', pattern: /^\/api\/reports\/funnel$/, handler: () => ({
+    from: ago(43200), to: new Date().toISOString(),
+    stages: STAGES.map((s) => ({ stage_key: s.key, n: LEADS.filter((l) => l.stage === s.key).length, open_n: LEADS.filter((l) => l.stage === s.key && l.status === 'open').length })),
+    lostReasons: [{ lost_reason: 'budget_mismatch', n: 1 }],
+    slaBreaches: 1,
+  }) },
+  { method: 'GET', pattern: /^\/api\/reports\/health$/, handler: () => ({
+    jobs: [{ status: 'done', n: 1284 }, { status: 'pending', n: 7 }, { status: 'failed', n: 0 }],
+    failingJobTypes: [],
+    inboundEvents24h: [
+      { source: 'meta_lead_ads', status: 'processed', n: 41 },
+      { source: 'whatsapp', status: 'processed', n: 158 },
+      { source: 'website', status: 'processed', n: 12 },
+    ],
+    templatesNotApproved: TEMPLATES.filter((t) => t.status !== 'APPROVED'),
+    unassignedLeads: LEADS.filter((l) => !l.owner).length,
+    unverifiedActiveProjects: PROJECTS.filter((p) => !p.verified_at).length,
+    crons: [
+      { name: 'meta_backfill', lastRunAt: ago(4), status: 'done' },
+      { name: 'imap_poll', lastRunAt: ago(1), status: 'done' },
+      { name: 'template_sync', lastRunAt: ago(55), status: 'done' },
+      { name: 'cleanup', lastRunAt: ago(55), status: 'done' },
+    ],
+    realtimeClients: 3,
+  }) },
+];
+
+function resolve(method: string, path: string): { route: Route; params: string[] } | null {
+  for (const route of ROUTES) {
+    if (route.method !== method) continue;
+    const match = route.pattern.exec(path);
+    if (match) return { route, params: match.slice(1) };
+  }
+  return null;
+}
+
+/** Replace window.fetch for /api/* only; everything else passes through. */
+export function installMockApi(): void {
+  const realFetch = window.fetch.bind(window);
+
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url = new URL(raw, window.location.origin);
+    if (!url.pathname.startsWith('/api/')) return realFetch(input as RequestInfo, init);
+
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const found = resolve(method, url.pathname);
+
+    // A touch of latency, so loading states are visible rather than skipped.
+    await new Promise((resolve) => setTimeout(resolve, 90));
+
+    if (!found) {
+      return json(404, { error: { code: 'not_found', message: `No route for ${method} ${url.pathname}` } });
+    }
+
+    let body: Record<string, unknown> = {};
+    if (typeof init?.body === 'string') {
+      try {
+        body = JSON.parse(init.body) as Record<string, unknown>;
+      } catch {
+        body = {};
+      }
+    }
+
+    try {
+      return json(200, found.route.handler({ params: found.params, body, query: url.searchParams }));
+    } catch (err) {
+      const e = err as { status?: number; code?: string; message?: string };
+      return json(e.status ?? 500, { error: { code: e.code ?? 'server_error', message: e.message ?? 'Something went wrong' } });
+    }
+  };
+
+  // The realtime stream has no server here; the app falls back to polling.
+  Object.defineProperty(window, 'EventSource', { value: undefined, writable: true, configurable: true });
+}
+
+function json(status: number, payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function buildActivities(lead: (typeof LEADS)[number], thread: { messages: Array<Record<string, unknown>>; events: Array<Record<string, unknown>> }) {
+  const activities: Array<Record<string, unknown>> = [
+    ...thread.events.map((e) => ({ ...e, user_name: null })),
+    ...thread.messages.slice().reverse().map((m) => ({
+      id: `a-${m.id}`,
+      type: m.direction === 'inbound' ? 'message.inbound' : m.is_automated ? 'message.automated' : 'message.outbound',
+      title: m.template_name
+        ? `Sent template ${String(m.template_name)}`
+        : m.direction === 'inbound'
+          ? `Inbound ${String(m.channel)} message`
+          : `Sent ${String(m.channel)} message`,
+      body: m.body,
+      created_at: m.created_at,
+      user_name: m.user_name,
+    })),
+    { id: `a-assign-${lead.id}`, type: 'lead.assigned', title: `Assigned by ${lead.project ? 'language and project' : 'round robin'}`, body: null, created_at: ago(lead.createdMinutesAgo), user_name: null },
+    { id: `a-new-${lead.id}`, type: 'lead.created', title: `New lead from ${lead.source}`, body: [lead.project ? `Project: ${lead.project}` : null, lead.budgetMax ? `Budget: AED ${lead.budgetMax.toLocaleString()}` : null, `Timeline: ${lead.timeline}`].filter(Boolean).join('\n'), created_at: ago(lead.createdMinutesAgo), user_name: null },
+  ];
+  if (lead.slaBreached) {
+    activities.unshift({ id: `a-sla-${lead.id}`, type: 'sla.breached', title: 'Speed-to-lead SLA breached after 5 minutes', body: 'Reassigned to another available agent.', created_at: ago(lead.createdMinutesAgo - 5), user_name: null });
+  }
+  return activities;
+}
