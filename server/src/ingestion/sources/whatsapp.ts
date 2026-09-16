@@ -131,9 +131,20 @@ export type ParsedWebhook = {
   phoneNumberId: string | null;
 };
 
-const toDate = (timestamp: string): Date => {
+/**
+ * Message timestamps come from the provider, and the 24-hour customer service
+ * window is measured from them.
+ *
+ * A timestamp in the past is legitimate — a webhook can be delivered late, and
+ * the window really is shorter for it. A timestamp in the future is not: clock
+ * skew at the provider would push the window past Meta's real one and get our
+ * free-form replies rejected, so it is clamped to receipt time.
+ */
+const toDate = (timestamp: string, receivedAt: Date = new Date()): Date => {
   const seconds = Number(timestamp);
-  return Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000) : new Date();
+  if (!Number.isFinite(seconds) || seconds <= 0) return receivedAt;
+  const parsed = new Date(seconds * 1000);
+  return parsed.getTime() > receivedAt.getTime() ? receivedAt : parsed;
 };
 
 /** Parse a whole webhook envelope into messages and delivery statuses. */

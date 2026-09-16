@@ -7,6 +7,15 @@ import { logger } from '../lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { authRouter } from './routes/auth.js';
 import { webhookRouter } from './routes/webhooks.js';
+import { contactsRouter } from './routes/contacts.js';
+import { pipelineRouter } from './routes/pipeline.js';
+import { inboxRouter } from './routes/inbox.js';
+import { usersRouter } from './routes/users.js';
+import { projectsRouter } from './routes/projects.js';
+import { templatesRouter } from './routes/templates.js';
+import { reportsRouter } from './routes/reports.js';
+import { brochureRouter } from './routes/brochure.js';
+import { startHeartbeat } from '../realtime/hub.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -57,7 +66,19 @@ export function createApp(): Express {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/contacts', contactsRouter);
+  app.use('/api/pipeline', pipelineRouter);
+  app.use('/api/inbox', inboxRouter);
+  app.use('/api/users', usersRouter);
+  app.use('/api/projects', projectsRouter);
+  app.use('/api/templates', templatesRouter);
+  app.use('/api/reports', reportsRouter);
   app.use('/webhooks', webhookRouter);
+  // Public: leads open this straight from WhatsApp.
+  app.use('/b', brochureRouter);
+
+  // Keeps SSE connections alive through proxies that time out idle streams.
+  startHeartbeat();
 
   app.use(notFoundHandler);
   app.use(errorHandler);

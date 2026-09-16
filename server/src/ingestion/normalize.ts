@@ -39,7 +39,15 @@ export type NormalizeInput = {
  */
 export function normalizeLead(input: NormalizeInput): LeadDTO {
   const lead = emptyLead(input.source, input.externalId);
-  lead.receivedAt = input.receivedAt ?? new Date();
+  /*
+   * `receivedAt` drives the opportunity's created_at, the 30-day re-inquiry
+   * window and the speed-to-lead metric, so it must never be in the future.
+   * A source clock that runs fast would otherwise make every later inquiry look
+   * like a re-inquiry and distort every report built on it.
+   */
+  const now = new Date();
+  const claimed = input.receivedAt ?? now;
+  lead.receivedAt = claimed.getTime() > now.getTime() ? now : claimed;
   lead.unmapped = input.unmapped ?? {};
 
   const f = input.mapped;

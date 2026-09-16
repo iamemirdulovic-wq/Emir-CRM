@@ -111,9 +111,17 @@ export async function normalizeWebsiteLead(payload: WebsiteFormPayload, clientIp
   return normalizeLead({
     source: 'website',
     externalId: websiteExternalId(payload),
-    receivedAt: payload.submitted_at ? new Date(payload.submitted_at) : new Date(),
+    /*
+     * Deliberately NOT payload.submitted_at. That value comes from the site,
+     * which we do not control: a wrong timezone or a stale cached page would
+     * backdate the lead, and a backdated lead skews the re-inquiry window and
+     * the speed-to-lead report. The claimed time is kept below as data.
+     */
     mapped: merged,
-    unmapped,
+    unmapped: {
+      ...unmapped,
+      ...(payload.submitted_at ? { claimed_submitted_at: String(payload.submitted_at) } : {}),
+    },
     attribution: {
       utmSource: cleanText(payload.utm_source, 160),
       utmMedium: cleanText(payload.utm_medium, 160),
