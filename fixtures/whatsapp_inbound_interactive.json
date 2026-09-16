@@ -1,0 +1,30 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "contacts": [{ "profile": { "name": "Omar Haddad" }, "wa_id": "971559876543" }],
+            "messages": [
+              {
+                "from": "971559876543",
+                "id": "wamid.HBgMOTcxNTU5ODc2NTQzFQIAEhgUNkQ1RTZGN0E4QjlDMEQxRTJGMwA",
+                "timestamp": "1774002500",
+                "type": "interactive",
+                "interactive": {
+                  "type": "button_reply",
+                  "button_reply": { "id": "CALL_ME", "title": "Call me" }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

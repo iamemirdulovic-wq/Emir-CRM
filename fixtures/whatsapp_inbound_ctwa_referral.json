@@ -1,0 +1,36 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "contacts": [{ "profile": { "name": "Omar Haddad" }, "wa_id": "971559876543" }],
+            "messages": [
+              {
+                "from": "971559876543",
+                "id": "wamid.HBgMOTcxNTU5ODc2NTQzFQIAEhgUNEIzQzRENUU2RjdBOEI5QzBEMQA",
+                "timestamp": "1774001500",
+                "type": "text",
+                "text": { "body": "مرحبا، أريد معلومات عن المشروع" },
+                "referral": {
+                  "source_url": "https://fb.me/2abcDEF",
+                  "source_id": "23851234567890123",
+                  "source_type": "ad",
+                  "headline": "Own in Dubai from AED 1M",
+                  "body": "Off-plan units with a 5-year payment plan",
+                  "media_type": "video",
+                  "ctwa_clid": "ARAaZmFrZV9jdHdhX2NsaWNrX2lkXzEyMzQ1"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

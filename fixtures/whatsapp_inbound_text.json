@@ -1,0 +1,27 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "contacts": [{ "profile": { "name": "Sara Al Mansoori" }, "wa_id": "971501234567" }],
+            "messages": [
+              {
+                "from": "971501234567",
+                "id": "wamid.HBgMOTcxNTAxMjM0NTY3FQIAEhgUM0EyM0I0QzVENkU3RjhBOUIwQzEA",
+                "timestamp": "1774001000",
+                "type": "text",
+                "text": { "body": "Hi, what is the price for a 2 bedroom?" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -31,6 +31,7 @@ function poolConfig(): mysql.PoolOptions {
 export function getPool(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool(poolConfig());
+
     logger.info('mysql pool created', { database: env().DB_NAME, poolSize: env().DB_POOL_SIZE });
   }
   return pool;
@@ -81,6 +82,22 @@ export async function execute(
 export async function withTransaction<T>(fn: (tx: mysql.PoolConnection) => Promise<T>): Promise<T> {
   const conn = await getPool().getConnection();
   try {
+    /*
+     * READ COMMITTED for the transaction we are about to start, rather than
+     * MySQL's default REPEATABLE READ. Two reasons, both load-bearing for lead
+     * ingestion:
+     *
+     *  1. Current reads. Under REPEATABLE READ a transaction keeps the snapshot
+     *     taken at its first read, so a webhook that lost the race to create a
+     *     contact would still not see the winner's opportunity and would open a
+     *     second one for the same inquiry.
+     *  2. No gap locks. Twenty copies of one lead inserting against the same
+     *     unique key deadlock readily under REPEATABLE READ's gap locking.
+     *
+     * Nothing here depends on repeating a read within a transaction;
+     * correctness comes from unique keys and `SELECT … FOR UPDATE`.
+     */
+    await conn.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
     await conn.beginTransaction();
     const result = await fn(conn);
     await conn.commit();
@@ -111,7 +128,7 @@ export function isRetryableLockError(err: unknown): boolean {
 /** Retry a transaction body on deadlock, with a short backoff. */
 export async function withRetryingTransaction<T>(
   fn: (tx: mysql.PoolConnection) => Promise<T>,
-  attempts = 3,
+  attempts = 5,
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {

@@ -1,0 +1,32 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "statuses": [
+              {
+                "id": "wamid.HBgLOTcxNDEyMzQ1NjcVAgARGBJBMEIxQzJEM0U0RjVBNkI3QzgA",
+                "status": "failed",
+                "timestamp": "1774002200",
+                "recipient_id": "971501234567",
+                "errors": [
+                  {
+                    "code": 131049,
+                    "title": "Message not sent due to marketing limits",
+                    "message": "This message was not delivered to maintain a healthy ecosystem engagement."
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

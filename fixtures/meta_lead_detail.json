@@ -1,0 +1,28 @@
+{
+  "id": "987654321098765",
+  "created_time": "2026-03-17T09:12:44+0000",
+  "ad_id": "23851234567890123",
+  "ad_name": "DXB-OffPlan-Beachfront-Video-01",
+  "adset_id": "23851234567890124",
+  "adset_name": "AE-Investors-30-55-Arabic",
+  "campaign_id": "23851234567890122",
+  "campaign_name": "Q1-2026-Dubai-OffPlan-Leads",
+  "form_id": "1234567890123456",
+  "form_name": "Dubai Off-Plan Investor Enquiry (AR)",
+  "platform": "fb",
+  "is_organic": false,
+  "field_data": [
+    { "name": "full_name", "values": ["Sara Al Mansoori"] },
+    { "name": "phone_number", "values": ["+971 50 123 4567"] },
+    { "name": "email", "values": ["Sara.AlMansoori@Example.COM"] },
+    { "name": "city", "values": ["Dubai"] },
+    { "name": "what_is_your_budget?", "values": ["AED 1M - 2M"] },
+    { "name": "are_you_buying_to_invest_or_to_live_in?", "values": ["Investment"] },
+    { "name": "when_are_you_looking_to_buy?", "values": ["1-3 months"] },
+    { "name": "how_will_you_pay?", "values": ["Developer payment plan"] },
+    { "name": "which_project_are_you_interested_in?", "values": ["Emaar Beachfront"] },
+    { "name": "are_you_interested_in_the_golden_visa?", "values": ["Yes"] },
+    { "name": "preferred_unit_type", "values": ["2 Bedroom"] },
+    { "name": "do_you_own_property_in_the_uae?", "values": ["No"] }
+  ]
+}

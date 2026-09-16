@@ -1,0 +1,28 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "contacts": [{ "profile": { "name": "Sara Al Mansoori" }, "wa_id": "971501234567" }],
+            "messages": [
+              {
+                "from": "971501234567",
+                "id": "wamid.HBgMOTcxNTAxMjM0NTY3FQIAEhgUNUM0RDVFNkY3QThCOUMwRDFFMgA",
+                "timestamp": "1774002000",
+                "type": "button",
+                "button": { "payload": "PRICING", "text": "Pricing" },
+                "context": { "from": "97141234567", "id": "wamid.HBgLOTcxNDEyMzQ1NjcVAgAR" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

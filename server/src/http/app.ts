@@ -6,6 +6,7 @@ import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { authRouter } from './routes/auth.js';
+import { webhookRouter } from './routes/webhooks.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -56,6 +57,7 @@ export function createApp(): Express {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/webhooks', webhookRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

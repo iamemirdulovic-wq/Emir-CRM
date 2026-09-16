@@ -1,0 +1,32 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "778899001122334",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "97141234567", "phone_number_id": "556677889900112" },
+            "contacts": [{ "profile": { "name": "Sara Al Mansoori" }, "wa_id": "971501234567" }],
+            "messages": [
+              {
+                "from": "971501234567",
+                "id": "wamid.HBgMOTcxNTAxMjM0NTY3FQIAEhgUN0U2RjdBOEI5QzBEMUUyRjNBNAA",
+                "timestamp": "1774003000",
+                "type": "image",
+                "image": {
+                  "caption": "Is this the tower you mentioned?",
+                  "mime_type": "image/jpeg",
+                  "sha256": "9f2a1c4e8b7d6a5f3e2c1b0a9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c",
+                  "id": "media-id-1122334455"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
