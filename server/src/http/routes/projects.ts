@@ -5,6 +5,7 @@ import { actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, require
 import { execute, query, queryOne } from '../../db/client.js';
 import { notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
+import { assignmentList } from '../../lib/sql.js';
 import { slugify } from '../../services/projects.js';
 import { writeAudit, diffFields } from '../../audit/audit.js';
 
@@ -144,7 +145,7 @@ projectsRouter.patch(
     if (Object.keys(patch).length > 0) {
       const entries = Object.entries(patch);
       await execute(
-        `UPDATE projects SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+        `UPDATE projects SET ${assignmentList(entries.map(([k]) => k))} WHERE id = ?`,
         [...entries.map(([, v]) => v as never), id],
       );
     }

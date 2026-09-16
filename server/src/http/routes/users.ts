@@ -6,6 +6,7 @@ import { execute, query, queryOne } from '../../db/client.js';
 import { badRequest, conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import { normalizeEmail } from '../../lib/email.js';
+import { assignmentList } from '../../lib/sql.js';
 import { ROLES } from '../../auth/rbac.js';
 import { generateTemporaryPassword, hashPassword } from '../../auth/password.js';
 import { destroyAllSessionsForUser } from '../../auth/sessions.js';
@@ -144,7 +145,7 @@ usersRouter.patch(
 
     const entries = Object.entries(patch);
     await execute(
-      `UPDATE users SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      `UPDATE users SET ${assignmentList(entries.map(([k]) => k))} WHERE id = ?`,
       [...entries.map(([, v]) => v as never), targetId],
     );
 

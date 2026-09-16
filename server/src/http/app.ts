@@ -8,6 +8,7 @@ import { env } from '../config/env.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+import { rateLimit } from './middleware/rate-limit.js';
 import { authRouter } from './routes/auth.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
@@ -67,6 +68,16 @@ export function createApp(): Express {
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'emir-crm', time: new Date().toISOString() });
   });
+
+  /*
+   * Rate limits on the unauthenticated surface. Login also has a per-account
+   * lockout and a per-IP failure budget in the database; this is the cheap
+   * outer layer that sheds a flood before it reaches MySQL.
+   */
+  app.use('/api/auth/login', rateLimit({ max: 20, windowMs: 5 * 60 * 1000, message: 'Too many sign-in attempts. Please wait a few minutes.' }));
+  // Meta bursts hard on retry; generous, but bounded.
+  app.use('/webhooks', rateLimit({ max: 600, windowMs: 60 * 1000 }));
+  app.use('/b', rateLimit({ max: 120, windowMs: 60 * 1000 }));
 
   app.use('/api/auth', authRouter);
   app.use('/api/contacts', contactsRouter);

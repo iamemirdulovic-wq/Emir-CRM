@@ -93,7 +93,7 @@ async function ensureAgents(): Promise<void> {
       [newId(), agent.name, agent.email, hash, algo, JSON.stringify(agent.languages), JSON.stringify(agent.projects), agent.weight],
     );
   }
-  logger.info('demo agents ready', { count: AGENTS.length, password: 'DemoAgent2026!' });
+  logger.info('demo agents ready', { count: AGENTS.length });
 }
 
 async function ensureProjects(): Promise<void> {

@@ -2,6 +2,7 @@ import type { PoolConnection } from 'mysql2/promise';
 import { execute, isDuplicateKeyError, queryOne, query } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
+import { assignmentList } from '../lib/sql.js';
 import type { LeadDTO } from './dto.js';
 import {
   isPossibleDuplicate,
@@ -244,7 +245,7 @@ async function applyPatch(tx: PoolConnection, contactId: string, patch: ContactP
 
   try {
     await execute(
-      `UPDATE contacts SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      `UPDATE contacts SET ${assignmentList(entries.map(([k]) => k))} WHERE id = ?`,
       [...entries.map(([, v]) => v as never), contactId],
       tx,
     );
@@ -255,7 +256,7 @@ async function applyPatch(tx: PoolConnection, contactId: string, patch: ContactP
     logger.warn('contact patch collided on a unique identifier; applying the rest', { contactId });
     if (safe.length === 0) return {};
     await execute(
-      `UPDATE contacts SET ${safe.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      `UPDATE contacts SET ${assignmentList(safe.map(([k]) => k))} WHERE id = ?`,
       [...safe.map(([, v]) => v as never), contactId],
       tx,
     );

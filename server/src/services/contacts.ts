@@ -6,6 +6,7 @@ import { addActivity, tagContact } from '../ingestion/ingest.js';
 import { canActOnOwner } from '../auth/scope.js';
 import { normalizeEmail } from '../lib/email.js';
 import { parsePhone } from '../lib/phone.js';
+import { assignmentList } from '../lib/sql.js';
 
 /** Columns an agent may edit by hand. Editing one locks it against automation. */
 export const EDITABLE_CONTACT_FIELDS = [
@@ -139,7 +140,7 @@ export async function updateContact(input: UpdateContactInput): Promise<void> {
 
     const entries = Object.entries(patch);
     await execute(
-      `UPDATE contacts SET ${entries.map(([k]) => `${k} = ?`).join(', ')}, locked_fields = ? WHERE id = ?`,
+      `UPDATE contacts SET ${assignmentList(entries.map(([k]) => k))}, locked_fields = ? WHERE id = ?`,
       [...entries.map(([, v]) => v), JSON.stringify([...locked]), input.contactId],
       tx,
     );
