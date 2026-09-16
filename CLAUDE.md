@@ -202,6 +202,67 @@ Fallback:
   - new_launch_alert (Marketing)
 
 
+## BULK IMPORT, LISTS & TEAM ASSIGNMENT (part of the CRM launch)
+
+**Bulk import (large files, 100,000+ rows):**
+- **File types:** CSV and Excel (.xlsx), uploaded with drag and drop. Also paste-from-sheet.
+- **Background processing:** process the file as a background job in chunks (e.g. 1,000 rows at a time) with a live progress bar. The user can leave the page while it runs. Never import in one request.
+- **Step 1 · Upload:** show a preview of the first 20 rows.
+- **Step 2 · Map columns:**
+  - AI auto-suggests the mapping (e.g. "Mobile No." → phone, "Budget AED" → budget)
+  - mappings can be saved as templates for the next import
+- **Step 3 · Clean and check:**
+  - phones normalised to E.164 (default UAE), emails lowercased, spaces and duplicates inside the file removed
+  - invalid rows shown with the reason
+- **Step 4 · Duplicates against the CRM**, using the same identity rules as ingestion:
+  - choose "skip", "update empty fields only" or "create anyway (flag)"
+  - never overwrite an agent's work
+- **Step 5 · Settings:**
+  - source (e.g. "Import – Expo 2026", "Old database", "Referral list"), tags, project interest, pipeline and starting stage
+  - consent status: opted-in / unknown / no consent
+- **Step 6 · Assign the imported leads** (see Team assignment below).
+- **Step 7 · Import report:** created, updated, skipped and failed counts, with the failed rows downloadable as CSV to fix and re-upload.
+- **Undo:** an import can be undone within 24 hours, which deletes only the contacts it created and only if nobody has worked on them.
+- **Imported contacts:**
+  - do NOT trigger Workflow A (no instant WhatsApp)
+  - get their own optional "imported list" workflow instead
+
+**Contact lists and campaigns (working the leads):**
+- **Lists:** saved lists and smart lists (filters such as source, tag, project, budget, stage, last contacted, owner, language).
+- **Call campaign / power dialler view:**
+  - one lead at a time, with name, history, project and budget
+  - buttons: Call, WhatsApp, Log outcome (answered, no answer, busy, wrong number, not interested, interested)
+  - next lead appears automatically; progress shown as "36 of 250 done"
+  - an "Interested" outcome moves the lead into the main pipeline
+- **Bulk actions on any selection:** assign/reassign, add or remove tag, change stage, add to list, enroll in workflow, export (owner/admin only), delete (owner only, audited).
+- **Bulk WhatsApp** only to contacts with WhatsApp consent, only with approved templates:
+  - send in throttled batches that respect Meta's messaging limits and the quality rating
+  - show a warning with the count of contacts that will be skipped for missing consent
+  - automatically pause the campaign if the quality rating drops or the block/report rate rises
+  - never send cold bulk WhatsApp to contacts without consent, because this can get the number banned
+- **Campaign dashboard:** contacted %, reached %, interested, appointments, per agent.
+
+**Team assignment (who works on which leads):**
+- **Teams:** e.g. "Arabic desk", "Russian desk", "Abu Dhabi team", "Dubai team". Each team has a manager and members.
+- **Assignment methods (for imports, lists or any selection):**
+  - one agent
+  - one team, round-robin inside it
+  - split evenly across chosen agents
+  - split by percentage (e.g. Sara 40%, Omar 30%, Lina 30%)
+  - by rule (language, project, emirate, budget band)
+  - **shared pool:** leads stay unassigned and agents press "Claim next lead"
+    - claims are limited per agent (e.g. max 50 open claimed leads)
+    - claimed leads return to the pool if untouched for X days
+- **Workload balance:** show each agent's open-lead count before assigning, and warn if someone is overloaded.
+- **Automatic recycling:** leads with no activity for N days are reassigned or returned to the pool. The rule is configurable per list.
+- **Visibility:**
+  - agents see only their own and pool leads
+  - managers see their team
+  - owner/admin see everything
+- **Audit:** every assignment and reassignment is logged.
+
+**Tables:** `imports`, `import_rows` (status + error), `import_mappings`, `lists`, `list_members`, `campaigns`, `campaign_members` (outcome, attempts), `teams`, `team_members`, `assignment_rules`, `lead_pool_claims`.
+
 ## EMIR BOOKS — SEPARATE ACCOUNTING APP
 A complete accounting system for the brokerage. It is a **separate app** from the CRM, with its own navigation, colour (cool indigo instead of teal) and permissions. It shares the same login, database, design system and codebase.
 
