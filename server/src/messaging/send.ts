@@ -14,9 +14,12 @@ import { ensureConversation, addActivity } from '../ingestion/ingest.js';
  * codebase calls a provider directly, so the guards cannot be bypassed.
  */
 
+/** A guard that blocked a send — the `allowed: false` half of GuardDecision. */
+export type BlockedDecision = Extract<GuardDecision, { allowed: false }>;
+
 export type SendOutcome =
   | { sent: true; messageId: string; providerMessageId: string | null }
-  | { sent: false; blocked: GuardDecision; retryable: boolean }
+  | { sent: false; blocked: BlockedDecision; retryable: boolean }
   | { sent: false; failed: true; errorCode: string | null; errorMessage: string | null; messageId: string };
 
 type ContactRow = {

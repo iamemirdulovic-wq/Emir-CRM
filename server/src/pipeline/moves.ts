@@ -1,5 +1,5 @@
 import { badRequest, forbidden } from '../lib/errors.js';
-import { isManagerOrAbove, type Role } from '../auth/rbac.js';
+import { can, type Role } from '../auth/rbac.js';
 import {
   isLostReason,
   isValidSubStatus,
@@ -40,16 +40,21 @@ export type ValidatedMove = {
  * Validate a stage move. Throws an AppError the HTTP layer can return directly.
  */
 export function validateMove(request: MoveRequest, mover: Mover): ValidatedMove {
-  const manager = isManagerOrAbove(mover.role);
+  /*
+   * Read the authority from the permission matrix rather than the role name:
+   * the `automation` service account also moves cards (Workflow B closes an
+   * unresponsive lead, Workflow C advances one to Engaged) and owns nothing.
+   */
+  const canMoveAny = can(mover.role, 'opportunities:move:any');
 
-  if (!manager && !mover.ownsCard) {
+  if (!canMoveAny && !mover.ownsCard) {
     throw forbidden('Agents can only move their own leads');
   }
 
   const isBackwards = stagePosition(request.to) < stagePosition(request.from);
   // Agents move their cards forward. Pulling a card back through the pipeline
   // rewrites history and skews the funnel report, so it needs a manager.
-  if (isBackwards && !manager) {
+  if (isBackwards && !canMoveAny) {
     throw forbidden('Moving a lead back to an earlier stage requires a manager');
   }
 
