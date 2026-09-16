@@ -1,10 +1,15 @@
 import {
   AUTOMATIONS,
+  CAMPAIGNS,
+  DIALLER_QUEUE,
+  IMPORTS,
   LEADS,
+  LISTS,
   LOST_REASONS,
   PROJECTS,
   STAGES,
   TASKS,
+  TEAMS,
   TEMPLATES,
   THREADS,
   UNMAPPED_QUESTIONS,
@@ -461,6 +466,176 @@ const ROUTES: Route[] = [
     return { ok: true };
   } },
 
+  // --- lists --------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/lists$/, handler: () => ({
+    items: LISTS.map((list) => ({
+      ...list,
+      created_at: ago(2880),
+      member_count: list.kind === 'smart' ? listContacts(list.id).length : list.member_count,
+      summary: list.kind === 'smart' ? list.summary : `${listContacts(list.id).length} contacts`,
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/lists$/, handler: ({ body }) => {
+    const id = `ls-${LISTS.length + 1}`;
+    LISTS.push({
+      id,
+      name: String(body.name ?? 'New list'),
+      description: (body.description as string) ?? null,
+      kind: (body.kind as 'smart' | 'static') ?? 'smart',
+      filters: (body.filters as Record<string, unknown>) ?? null,
+      recycle_after_days: (body.recycleAfterDays as number) ?? null,
+      recycle_action: (body.recycleAction as 'pool' | 'reassign') ?? null,
+      owner_name: null,
+      member_count: 0,
+      summary: 'stage new lead, excluding do-not-contact',
+    });
+    return { id };
+  } },
+  { method: 'GET', pattern: /^\/api\/lists\/([^/]+)\/members$/, handler: ({ params }) => {
+    const items = listContacts(params[0] ?? '');
+    return { items, total: items.length };
+  } },
+  { method: 'POST', pattern: /^\/api\/lists\/bulk$/, handler: ({ body }) => ({
+    affected: (body.contactIds as string[] | undefined)?.length ?? 0,
+  }) },
+
+  // --- campaigns ----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/campaigns$/, handler: () => ({
+    items: CAMPAIGNS.map((campaign) => ({
+      ...campaign,
+      started_at: ago(campaign.startedMinutesAgo),
+      finished_at: null,
+      created_at: ago(campaign.startedMinutesAgo + 30),
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/campaigns$/, handler: ({ body }) => {
+    const kind = (body.kind as 'call' | 'whatsapp') ?? 'call';
+    const id = `cp-${CAMPAIGNS.length + 1}`;
+    const eligible = kind === 'whatsapp' ? 128 : 6;
+    const skipped = kind === 'whatsapp' ? 412 : 0;
+    CAMPAIGNS.push({
+      id,
+      name: String(body.name ?? 'New campaign'),
+      kind,
+      status: 'draft',
+      total_members: eligible,
+      skipped_no_consent: skipped,
+      template_name: (body.templateName as string) ?? null,
+      paused_reason: null,
+      list_name: LISTS.find((l) => l.id === body.listId)?.name ?? null,
+      done_count: 0,
+      startedMinutesAgo: 0,
+    });
+    return {
+      id,
+      total: eligible + skipped,
+      eligible,
+      skipped,
+      warning: skipped
+        ? `${eligible} will be messaged. ${skipped} will be skipped: ${skipped} no recorded whatsapp consent.`
+        : `All ${eligible} contacts will be messaged.`,
+    };
+  } },
+  { method: 'GET', pattern: /^\/api\/campaigns\/([^/]+)$/, handler: ({ params }) => {
+    const campaign = CAMPAIGNS.find((c) => c.id === params[0]) ?? CAMPAIGNS[0]!;
+    const done = DIALLER_QUEUE.filter((m) => m.done).length;
+    return {
+      campaign: { ...campaign, started_at: ago(campaign.startedMinutesAgo), finished_at: null, created_at: ago(9000) },
+      stats: {
+        total: DIALLER_QUEUE.length,
+        done,
+        pending: DIALLER_QUEUE.length - done,
+        skipped: campaign.skipped_no_consent,
+        contactedPct: Math.round((done / DIALLER_QUEUE.length) * 100),
+        reachedPct: done > 0 ? 50 : 0,
+        interested: DIALLER_QUEUE.filter((m) => m.outcome === 'interested').length,
+        appointments: 1,
+        byAgent: [
+          { userId: 'u-layla', name: 'Layla Hassan', done, reached: 1, interested: 1 },
+        ],
+        outcomes: DIALLER_QUEUE.filter((m) => m.outcome).map((m) => ({ outcome: m.outcome as string, n: 1 })),
+      },
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/campaigns\/([^/]+)\/(start|pause|build)$/, handler: ({ params }) => {
+    const campaign = CAMPAIGNS.find((c) => c.id === params[0]);
+    if (campaign && params[1] === 'start') { campaign.status = 'running'; campaign.paused_reason = null; }
+    if (campaign && params[1] === 'pause') { campaign.status = 'paused'; campaign.paused_reason = 'Paused by a manager'; }
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/campaigns\/([^/]+)\/next$/, handler: () => ({ card: diallerCard() }) },
+  { method: 'POST', pattern: /^\/api\/campaigns\/([^/]+)\/outcome$/, handler: ({ body }) => {
+    const member = DIALLER_QUEUE.find((m) => m.memberId === body.memberId);
+    if (member) { member.done = true; member.outcome = body.outcome as never; }
+    return { ok: true, card: diallerCard() };
+  } },
+  { method: 'POST', pattern: /^\/api\/campaigns\/([^/]+)\/release$/, handler: () => ({ ok: true }) },
+
+  // --- imports ------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/imports$/, handler: () => ({
+    items: IMPORTS.map((row) => ({
+      ...row,
+      undo_deadline_at: ago(-600),
+      undone_at: null,
+      created_at: ago(row.createdMinutesAgo),
+    })),
+  }) },
+  { method: 'GET', pattern: /^\/api\/imports\/mappings\/all$/, handler: () => ({ items: [] }) },
+  { method: 'GET', pattern: /^\/api\/imports\/([^/]+)\/undo$/, handler: () => ({
+    deletable: 248, keptBecauseWorkedOn: 2, expired: false,
+  }) },
+  { method: 'GET', pattern: /^\/api\/imports\/([^/]+)$/, handler: ({ params }) => {
+    const record = IMPORTS.find((row) => row.id === params[0]) ?? IMPORTS[0]!;
+    return {
+      import: {
+        ...record,
+        headers: ['Full Name', 'Mobile No.', 'Email Address', 'Interested Project', 'Budget AED'],
+        mapping: null, settings: null, assignment: null, error_message: null,
+        started_at: ago(record.createdMinutesAgo), finished_at: ago(record.createdMinutesAgo - 3),
+        undo_deadline_at: ago(-600), undone_at: null, created_at: ago(record.createdMinutesAgo),
+      },
+      problems: [
+        { line_number: 251, status: 'invalid', reason: 'No phone number and no email address' },
+        { line_number: 252, status: 'invalid', reason: '"call the office" is not a valid phone number' },
+      ],
+      undoWindowHours: 24,
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/assignment-preview$/, handler: ({ body }) => {
+    const method = String(body.method ?? 'pool');
+    if (method === 'pool') return { leads: 250, plan: { method, counts: [] }, pooled: 250, unmatched: 0, warnings: [] };
+    const agents = USERS.filter((u) => u.role === 'agent');
+    const each = Math.floor(250 / agents.length);
+    return {
+      leads: 250,
+      plan: {
+        method,
+        counts: agents.map((agent, i) => ({
+          userId: agent.id, name: agent.name,
+          before: 20 + i * 8, after: 20 + i * 8 + each + (i === 0 ? 250 % agents.length : 0),
+        })),
+      },
+      pooled: 0, unmatched: 0, warnings: [],
+    };
+  } },
+
+  // --- teams and the pool -------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/teams$/, handler: () => ({ items: TEAMS }) },
+  { method: 'GET', pattern: /^\/api\/teams\/pool$/, handler: () => ({
+    available: 12,
+    claimedByYou: 2,
+    maxOpenClaims: 50,
+    claimed: LEADS.slice(0, 2).map((lead) => ({
+      opportunity_id: lead.id, contact_id: lead.contactId, claimed_at: ago(180),
+      full_name: lead.name, phone_e164: lead.phone, lead_score: lead.score,
+      stage_key: lead.stage, project_name: lead.project,
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/teams\/pool\/claim$/, handler: () => ({
+    opportunityId: 'o-new', contactId: 'c-new', fullName: 'Hassan Al Marri',
+  }) },
+  { method: 'POST', pattern: /^\/api\/teams\/pool\/release$/, handler: () => ({ ok: true }) },
+
   // --- reports ------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/reports\/dashboard$/, handler: ({ query }) => {
     const days = Number(query.get('days') ?? 30);
@@ -596,6 +771,48 @@ export function installMockApi(): void {
 
   // The realtime stream has no server here; the app falls back to polling.
   Object.defineProperty(window, 'EventSource', { value: undefined, writable: true, configurable: true });
+}
+
+/** A smart list is a filter, so its members are computed rather than stored. */
+function listContacts(listId: string) {
+  const list = LISTS.find((row) => row.id === listId);
+  const filters = (list?.filters ?? {}) as { minScore?: number; stages?: string[] };
+  return LEADS.filter((lead) => {
+    if (filters.minScore !== undefined && lead.score < filters.minScore) return false;
+    if (filters.stages && !filters.stages.includes(lead.stage)) return false;
+    return lead.dnc === 0;
+  }).map((lead) => ({
+    contact_id: lead.contactId, opportunity_id: lead.id, full_name: lead.name,
+    phone_e164: lead.phone, email: lead.email, language: lead.language,
+    lead_score: lead.score, dnc: lead.dnc, owner_user_id: lead.owner,
+    owner_name: userName(lead.owner), stage_key: lead.stage,
+    project_name: lead.project, budget_band: null, last_inbound_at: null,
+  }));
+}
+
+/** The next lead the dialler hands out, with the queue's progress. */
+function diallerCard() {
+  const next = DIALLER_QUEUE.find((member) => !member.done);
+  if (!next) return null;
+  const lead = LEADS.find((row) => row.id === next.leadId);
+  if (!lead) return null;
+  return {
+    memberId: next.memberId,
+    contactId: lead.contactId,
+    opportunityId: lead.id,
+    fullName: lead.name,
+    phone: lead.phone,
+    language: lead.language,
+    leadScore: lead.score,
+    projectName: lead.project,
+    budgetBand: null,
+    budgetMinAed: lead.budgetMin,
+    budgetMaxAed: lead.budgetMax,
+    stageKey: lead.stage,
+    lastContactedAt: null,
+    attempts: 1,
+    progress: { done: DIALLER_QUEUE.filter((m) => m.done).length, total: DIALLER_QUEUE.length },
+  };
 }
 
 function json(status: number, payload: unknown): Response {

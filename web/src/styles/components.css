@@ -465,6 +465,10 @@ tbody tr:hover{background:var(--surface-2)}
 /* Buttons and chips are sometimes links (Call, WhatsApp, All contacts), and an
    anchor brings its own underline. */
 .btn,.chip,.rowbtn,.task,.thread{text-decoration:none}
+/* Names in a table are links to the record; the underline turns a tidy list
+   into a wall of blue rules. */
+td a,.bank a,.kv a{text-decoration:none}
+td a:hover,.bank a:hover{text-decoration:underline}
 
 /* The 90px reserve at the foot of a view exists for the phone bar, which is
    hidden above 760px. Keeping it on desktop pushed the full-height inbox below

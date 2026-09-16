@@ -27,6 +27,13 @@ const envSchema = z.object({
   /** 32-byte key, hex or base64, used for AES-256-GCM encryption of tokens at rest. */
   ENCRYPTION_KEY: z.string().optional(),
   SESSION_COOKIE_NAME: z.string().default('emir_sid'),
+
+  // Uploaded import files. Local disk, as the owner chose: Hostinger gives us
+  // a persistent filesystem and an object store would be a second dependency
+  // for files we delete within days.
+  UPLOAD_DIR: z.string().default('./var/uploads'),
+  /** Largest import file accepted, in megabytes. 100k rows is roughly 12 MB. */
+  MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(512).default(64),
   COOKIE_SECURE: boolish.default(false),
   TRUST_PROXY: boolish.default(true),
 

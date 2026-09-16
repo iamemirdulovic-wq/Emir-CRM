@@ -113,7 +113,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-374 tests. The ones worth knowing about:
+510 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -123,10 +123,16 @@ database layer around them is thin on purpose.
 - **Workflow idempotency.** Ten concurrent retries of Workflow A send one
   welcome; five retries of one inbound message produce one reply and one task.
 - **Guards.** Every rule, its precedence, and both deliberate exceptions.
+- **Bulk import.** 2,500 rows across three chunks with the counts adding up
+  exactly; imported leads never trigger Workflow A, and normal leads still do;
+  every branch of the duplicate and consent rules.
+- **Contention.** Five agents claiming from the shared pool at once get five
+  different leads; six agents on one lead get exactly one claim; four agents on
+  one campaign get four different people.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
-- **Browser.** Sixteen steps through real Chromium at desktop and phone
+- **Browser.** Eighteen steps through real Chromium at desktop and phone
   viewports, covering every screen, the 24-hour window indicator, the dark
   theme and the Arabic RTL switch (`npm run e2e`). This is the only
   suite that catches bugs which appear solely once a browser renders the page —

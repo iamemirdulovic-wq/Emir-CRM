@@ -19,6 +19,9 @@ const STRINGS = {
     templates: 'Templates',
     reports: 'Reports',
     team: 'Team',
+    lists: 'Lists',
+    campaigns: 'Campaigns',
+    pool: 'Lead pool',
     search: 'Search',
     mine: 'Mine',
     unassigned: 'Unassigned',
@@ -118,6 +121,9 @@ const STRINGS = {
     overdue: 'متأخرة',
     today: 'اليوم',
     done: 'مكتملة',
+    lists: 'القوائم',
+    campaigns: 'الحملات',
+    pool: 'مجموعة العملاء',
   },
 } as const;
 

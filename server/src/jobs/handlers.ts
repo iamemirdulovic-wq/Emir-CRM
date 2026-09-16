@@ -19,7 +19,11 @@ import { sendCapiEvent } from '../attribution/meta-capi.js';
 import { uploadConversion } from '../attribution/google-ads.js';
 import { purgeExpiredSessions } from '../auth/sessions.js';
 import { purgeOldLoginAttempts } from '../auth/lockout.js';
-import { reclaimStaleJobs } from './queue.js';
+import { reclaimStaleJobs, enqueue } from './queue.js';
+import { runChunk } from '../imports/run.js';
+import { sendBatch } from '../campaigns/run.js';
+import { recycleList } from '../lists/store.js';
+import { recycleStaleClaims } from '../assignment/apply.js';
 import type { JobType } from './types.js';
 
 export type JobHandler = (payload: Record<string, unknown>) => Promise<unknown>;
@@ -284,6 +288,48 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   // --- maintenance ----------------------------------------------------------
   'templates.sync': async () => syncTemplates(),
   'email.imap_poll': async () => pollInbox(),
+
+  // --- bulk import, campaigns and lists -------------------------------------
+
+  /**
+   * One chunk of a bulk import, then it re-enqueues itself.
+   *
+   * Self-rescheduling rather than one long job: a worker restart costs a
+   * thousand rows, not a hundred thousand, and the progress bar keeps moving
+   * because each chunk commits its own counts.
+   */
+  'import.run_chunk': async (payload) => {
+    const importId = str(payload, 'importId');
+    const result = await runChunk(importId);
+    if (!result.done) {
+      await enqueue(
+        'import.run_chunk',
+        { importId },
+        { priority: 5, dedupeKey: `import-chunk:${importId}:${Date.now()}` },
+      );
+    }
+    return result;
+  },
+
+  /** One throttled batch of a WhatsApp campaign. Schedules the next itself. */
+  'campaign.send_batch': async (payload) => {
+    const campaignId = str(payload, 'campaignId');
+    return sendBatch(campaignId);
+  },
+
+  /** Returns untouched leads to the pool, per each list's own setting. */
+  'list.recycle': async (payload) => {
+    const listId = optionalStr(payload, 'listId');
+    if (listId) return { listId, recycled: await recycleList(listId) };
+
+    const lists = await query<{ id: string }>(
+      'SELECT id FROM lists WHERE recycle_after_days IS NOT NULL AND recycle_action IS NOT NULL',
+    );
+    let recycled = 0;
+    for (const list of lists) recycled += await recycleList(list.id);
+    const claims = await recycleStaleClaims();
+    return { lists: lists.length, recycled, poolClaimsReleased: claims };
+  },
 
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();

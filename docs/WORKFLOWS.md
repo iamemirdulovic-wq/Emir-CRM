@@ -196,3 +196,70 @@ up to `max_attempts`, then park as `failed` and appear in the health report.
 
 Schedules are claimed through the same unique dedupe key, so several workers
 produce one run per window rather than one each.
+
+## Bulk import, lists and campaigns
+
+### Imported leads do not start Workflow A
+
+`ingestLead` takes an `importId`. When it is set, the opportunity records which
+import it came from and the instant-capture job is not enqueued.
+
+This is not an optimisation. A brokerage's old database is routinely tens of
+thousands of rows; starting Workflow A for each would send that many WhatsApp
+welcome templates to people who never opted in, blow through Meta's messaging
+limits, and very probably get the business number banned. Imported leads are
+worked through a list or a campaign instead, both of which are consent-checked
+and throttled.
+
+There are two tests: one that an import enqueues no workflow jobs, and one that a
+lead arriving from the website still enqueues exactly one.
+
+### The bulk WhatsApp guard
+
+Lives in `server/src/campaigns/guard.ts`, on the server, so no UI change or API
+client can route around it.
+
+| Rule | Where |
+|---|---|
+| Consent recorded for WhatsApp, and not on the DNC list | `splitByEligibility`, at build time |
+| Approved template only | refused when the campaign is created, and re-checked each batch |
+| Throttled to N per minute | `batchSize`, one batch a minute via a self-scheduling job |
+| The skipped count shown before sending | `describeSkipped`, stored on the campaign |
+| Automatic pause on a quality drop or a failure spike | `shouldPause`, re-evaluated before every batch |
+
+Every message still goes through `sendWhatsApp`, so quiet hours, the
+three-automated-messages-a-day cap, the bot pause after a human reply and the
+per-contact consent check all apply on top. The bulk guard is an extra gate, not
+a replacement for the existing ones.
+
+A per-contact guard refusing a message is recorded as *skipped*, not *failed*:
+nothing went wrong with the number, so it must not count towards the failure
+rate that pauses the campaign.
+
+### Assignment
+
+Six methods, all pure functions in `server/src/assignment/distribute.ts`:
+
+| Method | Behaviour |
+|---|---|
+| `agent` | Everything to one person. No agent named → the pool, never nowhere. |
+| `team_round_robin` | Round the team, starting with whoever carries least. |
+| `split_even` | The same, across everyone available. |
+| `split_percent` | Largest-remainder apportionment, so 10 leads at 40/30/30 are 4/3/3 and none is lost to rounding. |
+| `by_rule` | First matching clause wins. A lead no clause matches is left for a person. |
+| `pool` | Nobody owns them; agents claim from the shared queue. |
+
+Workload is shown before the assignment runs and warns when someone would be
+left more than 1.5× the team average. Every assignment writes an audit entry.
+
+### Undo, and what "worked on" means
+
+An import can be taken back within 24 hours. It removes only contacts that
+import **created** — never one it merely updated, which existed beforehand and
+would take an agent's history with it — and only those nobody has worked.
+
+The bar for "worked on" is deliberately low, because deleting a lead an agent has
+already called is far worse than leaving a few rows behind. Any of these protects
+a record: a message in either direction, an activity beyond the two the import
+writes itself, a task, a campaign attempt or outcome, a place on any list, a
+reply from the contact, or the opportunity having moved off its starting stage.

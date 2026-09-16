@@ -142,3 +142,21 @@ history if it ever comes to that.
 ```bash
 mysqldump --single-transaction --routines emir_crm | gzip > emir-$(date +%F).sql.gz
 ```
+
+## Bulk import file storage
+
+Import files are written to `UPLOAD_DIR` (default `./var/uploads`) and read back
+by the chunked import job, so the directory must be on persistent disk that the
+web process and the worker both see — on Hostinger that is the same filesystem,
+which is why local disk was chosen over an object store for files we delete
+within days.
+
+- `UPLOAD_DIR` — create it and make it writable by the app user. Exclude it from
+  backups if you like; the rows are already in MySQL by the time an import
+  finishes.
+- `MAX_UPLOAD_MB` — default 64, which is roughly half a million rows of CSV.
+  Raise it only with the reverse proxy's own body limit raised to match, or the
+  upload is cut off before the app ever sees it.
+
+The upload endpoint streams the request body straight to disk, so it needs no
+temporary space beyond the file itself and holds nothing in memory.

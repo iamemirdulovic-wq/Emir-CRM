@@ -17,6 +17,9 @@ export const JOB_TYPES = [
   'google.upload_conversion',
   'templates.sync',
   'email.imap_poll',
+  'import.run_chunk',
+  'campaign.send_batch',
+  'list.recycle',
   'maintenance.cleanup',
 ] as const;
 

@@ -13,3 +13,7 @@ web/dist/
 server/dist/
 *.tsbuildinfo
 dist-preview/
+
+# Uploaded import files. They are read back by the import job and deleted with
+# the import; nothing here belongs in version control.
+var/

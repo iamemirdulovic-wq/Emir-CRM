@@ -418,3 +418,160 @@ export function previewArrivals(): {
     busiest: 'Busiest: Sun, 6–8 PM',
   };
 }
+
+/* ── Lists, campaigns, imports and teams ──────────────────────────────── */
+
+export type PreviewList = {
+  id: string;
+  name: string;
+  description: string | null;
+  kind: 'static' | 'smart';
+  filters: Record<string, unknown> | null;
+  recycle_after_days: number | null;
+  recycle_action: 'reassign' | 'pool' | null;
+  owner_name: string | null;
+  member_count: number;
+  summary: string;
+};
+
+export const LISTS: PreviewList[] = [
+  {
+    id: 'ls-1',
+    name: 'Imported — never called',
+    description: 'Everything from the Expo 2026 list that nobody has phoned yet.',
+    kind: 'smart',
+    filters: { stages: ['new_lead'], excludeDnc: true },
+    recycle_after_days: 3,
+    recycle_action: 'pool',
+    owner_name: null,
+    member_count: 0,
+    summary: 'stage new lead, excluding do-not-contact',
+  },
+  {
+    id: 'ls-2',
+    name: 'Hot — Abu Dhabi',
+    description: 'Scoring 70 or more, Saadiyat and Yas.',
+    kind: 'smart',
+    filters: { minScore: 70, emirates: ['abu_dhabi'] },
+    recycle_after_days: null,
+    recycle_action: null,
+    owner_name: 'Layla Hassan',
+    member_count: 0,
+    summary: 'scoring 70+, excluding do-not-contact',
+  },
+  {
+    id: 'ls-3',
+    name: 'Golden Visa shortlist',
+    description: 'Hand-picked for the AED 2M+ campaign.',
+    kind: 'static',
+    filters: null,
+    recycle_after_days: null,
+    recycle_action: null,
+    owner_name: 'Emir Dulovic',
+    member_count: 4,
+    summary: '4 contacts',
+  },
+];
+
+export type PreviewCampaign = {
+  id: string;
+  name: string;
+  kind: 'call' | 'whatsapp';
+  status: 'draft' | 'running' | 'paused' | 'completed' | 'cancelled';
+  total_members: number;
+  skipped_no_consent: number;
+  template_name: string | null;
+  paused_reason: string | null;
+  list_name: string | null;
+  done_count: number;
+  startedMinutesAgo: number;
+};
+
+export const CAMPAIGNS: PreviewCampaign[] = [
+  {
+    id: 'cp-1',
+    name: 'Reactivation calls',
+    kind: 'call',
+    status: 'running',
+    total_members: 6,
+    skipped_no_consent: 0,
+    template_name: null,
+    paused_reason: null,
+    list_name: 'Imported — never called',
+    done_count: 2,
+    startedMinutesAgo: 95,
+  },
+  {
+    id: 'cp-2',
+    name: 'New launch — Saadiyat Grove',
+    kind: 'whatsapp',
+    status: 'paused',
+    total_members: 128,
+    skipped_no_consent: 412,
+    template_name: 'new_launch_alert',
+    paused_reason:
+      'WhatsApp quality rating is YELLOW. Sending stopped to protect the number.',
+    list_name: 'Hot — Abu Dhabi',
+    done_count: 44,
+    startedMinutesAgo: 320,
+  },
+];
+
+export const IMPORTS = [
+  {
+    id: 'im-1',
+    filename: 'expo-2026-leads.csv',
+    file_kind: 'csv',
+    status: 'completed' as const,
+    total_rows: 252,
+    processed_rows: 252,
+    created_count: 250,
+    updated_count: 0,
+    skipped_count: 2,
+    failed_count: 0,
+    created_by: 'Emir Dulovic',
+    createdMinutesAgo: 140,
+  },
+  {
+    id: 'im-2',
+    filename: 'portal-export.xlsx',
+    file_kind: 'xlsx',
+    status: 'completed' as const,
+    total_rows: 1840,
+    processed_rows: 1840,
+    created_count: 1502,
+    updated_count: 301,
+    skipped_count: 31,
+    failed_count: 6,
+    created_by: 'Emir Dulovic',
+    createdMinutesAgo: 2880,
+  },
+];
+
+export const TEAMS = [
+  {
+    id: 'tm-1',
+    name: 'Arabic desk',
+    description: 'Arabic-speaking buyers, all emirates.',
+    manager_name: 'Emir Dulovic',
+    members: [
+      { userId: 'u-omar', name: 'Omar Farouk', openLeads: 38 },
+      { userId: 'u-layla', name: 'Layla Hassan', openLeads: 41 },
+    ],
+  },
+  {
+    id: 'tm-2',
+    name: 'Abu Dhabi team',
+    description: 'Saadiyat, Yas and Al Reem.',
+    manager_name: 'Emir Dulovic',
+    members: [{ userId: 'u-priya', name: 'Priya Nair', openLeads: 26 }],
+  },
+];
+
+/** The lead the dialler is showing, and the queue behind it. */
+export const DIALLER_QUEUE = LEADS.slice(0, 6).map((lead, index) => ({
+  memberId: `cm-${index + 1}`,
+  leadId: lead.id,
+  done: index < 2,
+  outcome: index === 0 ? ('interested' as const) : index === 1 ? ('no_answer' as const) : null,
+}));

@@ -270,3 +270,239 @@ export type AutomationRow = {
   runs: { running: number; completed: number; cancelled: number; failed: number };
   lastRunAt: string | null;
 };
+
+/* ── Bulk import ──────────────────────────────────────────────────────── */
+
+export type ImportField =
+  | 'fullName' | 'firstName' | 'lastName' | 'phone' | 'altPhone' | 'email' | 'language'
+  | 'projectName' | 'developer' | 'emirate' | 'preferredLocation' | 'unitType'
+  | 'budgetMinAed' | 'budgetMaxAed' | 'budgetBand' | 'purpose' | 'paymentMethod' | 'timeline'
+  | 'goldenVisaInterest' | 'source' | 'campaignName' | 'notes' | 'tags' | 'ownerEmail' | 'createdAt';
+
+export type ColumnMapping = Record<string, ImportField | null>;
+
+export type ConsentStatus = 'opted_in' | 'unknown' | 'none';
+export type DuplicateStrategy = 'skip' | 'fill_empty' | 'create_anyway';
+
+export type ImportSettings = {
+  sourceLabel: string;
+  source: string;
+  tags: string[];
+  projectName: string | null;
+  pipelineKey: string;
+  stageKey: string;
+  consent: ConsentStatus;
+  duplicateStrategy: DuplicateStrategy;
+  phoneRegion: string;
+};
+
+export type UploadResponse = {
+  id: string;
+  filename: string;
+  kind: 'csv' | 'xlsx' | 'paste';
+  bytes?: number;
+  headers: string[];
+  preview: string[][];
+  suggestedMapping: ColumnMapping;
+  defaults: ImportSettings;
+};
+
+export type ImportStatus =
+  | 'uploaded' | 'mapping' | 'validating' | 'ready' | 'importing' | 'completed' | 'failed' | 'undone';
+
+export type ImportRecord = {
+  id: string;
+  filename: string;
+  file_kind: string;
+  status: ImportStatus;
+  total_rows: number;
+  processed_rows: number;
+  created_count: number;
+  updated_count: number;
+  skipped_count: number;
+  failed_count: number;
+  headers: unknown;
+  mapping: unknown;
+  settings: unknown;
+  assignment: unknown;
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  undo_deadline_at: string | null;
+  undone_at: string | null;
+  created_at: string;
+};
+
+export type ImportDetail = {
+  import: ImportRecord;
+  problems: { line_number: number; status: string; reason: string | null }[];
+  undoWindowHours: number;
+};
+
+/* ── Assignment ───────────────────────────────────────────────────────── */
+
+export type AssignmentMethod =
+  | 'agent' | 'team_round_robin' | 'split_even' | 'split_percent' | 'by_rule' | 'pool';
+
+export type AssignmentChoice = {
+  method: AssignmentMethod;
+  userId?: string | null;
+  teamId?: string | null;
+  shares?: { userId: string; percent: number }[];
+  clauses?: {
+    language?: string; project?: string; emirate?: string;
+    budgetMinAed?: number; budgetMaxAed?: number; userId: string;
+  }[];
+};
+
+export type AssignmentPreview = {
+  leads: number;
+  plan: { method: string; counts: { userId: string; name: string; before: number; after: number }[] };
+  pooled: number;
+  unmatched: number;
+  warnings: { userId: string; name: string; after: number; average: number }[];
+};
+
+export type AssignmentCandidate = {
+  userId: string;
+  name: string;
+  languages: string[];
+  projectsCovered: string[];
+  openLeads: number;
+  isEligible: boolean;
+};
+
+/* ── Teams and the pool ───────────────────────────────────────────────── */
+
+export type TeamRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  manager_name: string | null;
+  members: { userId: string; name: string; openLeads: number }[];
+};
+
+export type PoolStatus = {
+  available: number;
+  claimedByYou: number;
+  maxOpenClaims: number;
+  claimed: {
+    opportunity_id: string;
+    contact_id: string;
+    claimed_at: string;
+    full_name: string | null;
+    phone_e164: string | null;
+    lead_score: number;
+    stage_key: StageKey | null;
+    project_name: string | null;
+  }[];
+};
+
+/* ── Lists ────────────────────────────────────────────────────────────── */
+
+export type ListFilter = {
+  search?: string;
+  sources?: string[];
+  stages?: StageKey[];
+  tags?: string[];
+  projects?: string[];
+  languages?: string[];
+  emirates?: string[];
+  ownerUserIds?: string[];
+  unassignedOnly?: boolean;
+  budgetMinAed?: number;
+  budgetMaxAed?: number;
+  minScore?: number;
+  notContactedForDays?: number;
+  createdWithinDays?: number;
+  hasWhatsAppConsent?: boolean;
+  excludeDnc?: boolean;
+};
+
+export type ListRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  kind: 'static' | 'smart';
+  filters: unknown;
+  recycle_after_days: number | null;
+  recycle_action: 'reassign' | 'pool' | null;
+  created_at: string;
+  owner_name: string | null;
+  member_count: number;
+  summary: string;
+};
+
+export type ListMemberRow = {
+  contact_id: string;
+  opportunity_id: string | null;
+  full_name: string | null;
+  phone_e164: string | null;
+  email: string | null;
+  language: string | null;
+  lead_score: number;
+  dnc: number;
+  owner_user_id: string | null;
+  owner_name: string | null;
+  stage_key: StageKey | null;
+  project_name: string | null;
+  budget_band: string | null;
+  last_inbound_at: string | null;
+};
+
+/* ── Campaigns ────────────────────────────────────────────────────────── */
+
+export type CampaignOutcome =
+  | 'answered' | 'no_answer' | 'busy' | 'wrong_number' | 'not_interested' | 'interested';
+
+export type CampaignRow = {
+  id: string;
+  name: string;
+  kind: 'call' | 'whatsapp';
+  status: 'draft' | 'running' | 'paused' | 'completed' | 'cancelled';
+  total_members: number;
+  skipped_no_consent: number;
+  template_name: string | null;
+  paused_reason: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  list_name: string | null;
+  done_count: number;
+};
+
+export type DiallerCard = {
+  memberId: string;
+  contactId: string;
+  opportunityId: string | null;
+  fullName: string | null;
+  phone: string | null;
+  language: string | null;
+  leadScore: number;
+  projectName: string | null;
+  budgetBand: string | null;
+  budgetMinAed: number | null;
+  budgetMaxAed: number | null;
+  stageKey: StageKey | null;
+  lastContactedAt: string | null;
+  attempts: number;
+  progress: { done: number; total: number };
+};
+
+export type CampaignStats = {
+  total: number;
+  done: number;
+  pending: number;
+  skipped: number;
+  contactedPct: number;
+  reachedPct: number;
+  interested: number;
+  appointments: number;
+  byAgent: { userId: string | null; name: string | null; done: number; reached: number; interested: number }[];
+  outcomes: { outcome: string; n: number }[];
+};
+
+export type CampaignDetail = {
+  campaign: CampaignRow & Record<string, unknown>;
+  stats: CampaignStats;
+};

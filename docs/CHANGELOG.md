@@ -2,6 +2,73 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Phase 12 — Bulk import, lists, campaigns and team assignment
+
+**Added**
+- Migration `0005`: eleven tables — `imports`, `import_rows`, `import_mappings`, `lists`,
+  `list_members`, `campaigns`, `campaign_members`, `teams`, `team_members`,
+  `assignment_rules`, `lead_pool_claims` — plus `opportunities.import_id`.
+- **Bulk import** of CSV and Excel, built for 100,000+ rows. The file streams to disk
+  (no multipart buffering), is read by a hand-written streaming CSV parser or ExcelJS's
+  streaming reader, staged row by row, then imported in chunks of 1,000 by a job that
+  re-enqueues itself — so a worker restart costs one chunk, and the user can close the
+  page. A seven-step wizard covers upload, column mapping, cleaning, duplicates,
+  settings, assignment and the report; failed rows come back as a CSV with the reason.
+- **Column mapping** suggested by a deterministic matcher that places the headers real
+  agency exports use ("Mobile No.", "Budget AED", الاسم). Never maps two columns to one
+  field. An optional AI pass fills what is left, sees only the headers — never a row —
+  and is skipped entirely when AI is off.
+- **Imported leads never trigger Workflow A**, with a test, and a counter-test that a
+  normal lead still does. A file of forty thousand old leads must not send forty thousand
+  welcome messages.
+- **24-hour undo** that removes only contacts the import created, and only those nobody
+  has worked: any message, any task, any activity beyond the import's own, a stage move, a
+  reply, or a place on a list or campaign all protect the record.
+- **Lists**, saved and smart. A smart list stores a filter and is evaluated on read, so it
+  stays current on its own. Bulk assign, tag and untag on any selection; export and
+  bulk-delete kept on their own endpoints with their own permissions, as the specification
+  requires.
+- **Campaigns**: a power dialler that hands an agent one lead at a time with everything
+  needed to make the call, and a throttled WhatsApp send.
+- **The bulk WhatsApp guard**, server-side so no client can get around it: consent only,
+  never a DNC contact, approved templates only, throttled, the skipped-for-no-consent
+  count shown before sending, and an automatic pause if the template's quality rating
+  drops or too many sends fail. Quiet hours, the three-a-day cap and the bot pause still
+  apply on top, because every message still goes through `sendWhatsApp`.
+- **Assignment**: one agent, round-robin a team, split evenly, split by percentage (largest
+  remainder, so no lead is lost to rounding), by rule on language / project / emirate /
+  budget, or a shared pool. Workload is shown before assigning and warns when someone
+  would be left far above the team average. Every assignment is audited.
+- **The shared pool**: "Claim next lead", a per-agent claim limit, voluntary release, and
+  automatic recycling of claims nobody touches. Teams live under Settings → Desks.
+
+**Fixed, found by testing**
+- `SELECT … LIMIT n FOR UPDATE SKIP LOCKED` locks every row it returns, and an `ORDER BY`
+  on an expression forces a filesort that locks the whole matching set first. Either one
+  hands the first agent the entire queue and tells everyone else it is empty. Both hot
+  paths now order along an index with `LIMIT 1`; a new index on
+  `opportunities (owner_user_id, status, created_at)` removes the filesort from the pool
+  claim.
+- Campaigns built from a smart list found nobody, because the builder read `list_members`
+  and a smart list has none. Everything that acts on "the people on this list" now goes
+  through one resolver.
+- The dialler correctly refused to hand an owner someone else's leads, which also stalled
+  a campaign whose agent was away. Managers and above can now work any row; an agent still
+  never gets a colleague's lead.
+- `row_number` and `position` are reserved words once window functions exist; the columns
+  are `line_number` and `sort_order` so the migration applies on MySQL 8 and MariaDB alike.
+
+**Verified**
+- 510 tests green (486 server, 24 web), including: a 2,500-row import across three chunks
+  with the counts adding up exactly; five agents claiming from the pool at once getting
+  five different leads, and six agents on one lead getting exactly one claim; four agents
+  on one campaign getting four different people; and every branch of the consent rules.
+- Driven end to end in a browser against a real MariaDB: a 250-row file uploaded, mapped
+  automatically, checked, assigned and imported — 250 created, 2 rejected with useful
+  reasons — then a smart list built from it, a campaign created, a call logged as
+  Interested and the lead moved into the pipeline.
+- 18 browser smoke steps pass; no console errors, no unexpected 4xx.
+
 ## Phase 11 — The CRM screens on the new design
 
 **Added**

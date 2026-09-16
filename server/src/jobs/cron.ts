@@ -40,6 +40,9 @@ const SCHEDULES: Schedule[] = [
   },
   { name: 'template_sync', type: 'templates.sync', everyMinutes: 60 },
   { name: 'imap_poll', type: 'email.imap_poll', everyMinutes: 2 },
+  // Recycling untouched leads is a daily decision, not an hourly one: an agent
+  // who has not called a lead since this morning has not neglected them.
+  { name: 'list_recycle', type: 'list.recycle', everyMinutes: 60 * 6 },
   { name: 'cleanup', type: 'maintenance.cleanup', everyMinutes: 60 },
 ];
 

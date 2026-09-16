@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { api } from '../lib/api.js';
+import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { formatDateTime, humanize } from '../lib/format.js';
 import { locale, setLocale, t, type Locale } from '../lib/i18n.js';
-import type { Role, TemplateRow, UserRow } from '../lib/types.js';
+import type { Role, TeamRow, TemplateRow, UserRow } from '../lib/types.js';
 import { Icon, useAppearance, useGlassReduced, type Appearance } from '../design/index.js';
 import { Avatar } from '../design/ui.js';
 import {
   Chip, Empty, ErrorNote, Field, Note, Panel, Select, Spinner, Toolbar, useToast,
 } from '../design/ui.js';
 
-type Tab = 'profile' | 'team' | 'templates' | 'health';
+type Tab = 'profile' | 'team' | 'teams' | 'templates' | 'health';
 
 const ROLES: Role[] = ['owner', 'admin', 'manager', 'agent', 'automation'];
 
@@ -32,9 +32,14 @@ export function Settings() {
   const [tab, setTab] = useState<Tab>('profile');
 
   const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
-  const tabs: { value: Tab; label: string; icon: 'user' | 'users' | 'layout-template' | 'activity' }[] = [
+  const tabs: {
+    value: Tab;
+    label: string;
+    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity';
+  }[] = [
     { value: 'profile', label: 'You', icon: 'user' },
     ...(can('users:manage') ? ([{ value: 'team' as const, label: t('team'), icon: 'users' as const }]) : []),
+    ...(isManager ? ([{ value: 'teams' as const, label: 'Desks', icon: 'users-round' as const }]) : []),
     ...(isManager
       ? ([
           { value: 'templates' as const, label: t('templates'), icon: 'layout-template' as const },
@@ -55,6 +60,7 @@ export function Settings() {
 
       {tab === 'profile' && <ProfileTab />}
       {tab === 'team' && <TeamTab />}
+      {tab === 'teams' && <DesksTab />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'health' && <HealthTab />}
     </>
@@ -353,6 +359,129 @@ function NewUser({
           Create
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Desks (teams) ────────────────────────────────────────────────────── */
+
+/**
+ * Teams, which the specification calls desks in practice: "Arabic desk",
+ * "Abu Dhabi team". A team is who a round-robin assignment goes round.
+ */
+function DesksTab() {
+  const { user } = useAuth();
+  const toast = useToast();
+  const teams = useAsync<{ items: TeamRow[] }>(() => api.get('/api/teams'), []);
+  const people = useAsync<{ items: UserRow[] }>(() => api.get('/api/users'), []);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [members, setMembers] = useState<string[]>([]);
+
+  const canManage = user?.role === 'owner' || user?.role === 'admin';
+  const agents = (people.data?.items ?? []).filter((row) => row.role === 'agent' && row.is_active === 1);
+
+  async function create() {
+    try {
+      await api.post('/api/teams', { name, memberIds: members });
+      toast(`${name} created`);
+      setCreating(false);
+      setName('');
+      setMembers([]);
+      teams.reload();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not create the desk');
+    }
+  }
+
+  if (teams.error) return <ErrorNote>{teams.error}</ErrorNote>;
+  if (!teams.data) return <Spinner />;
+
+  return (
+    <div className="dash">
+      <Panel
+        span={12}
+        index={0}
+        icon="users-round"
+        title="Desks"
+        action={
+          canManage ? (
+            <button type="button" className="link" onClick={() => setCreating(true)}>
+              Add a desk
+            </button>
+          ) : undefined
+        }
+      >
+        {creating && (
+          <div className="inv-calc" style={{ marginBottom: 14 }}>
+            <Field label="Name" hint="e.g. Arabic desk, Abu Dhabi team">
+              <input className="input" value={name} onChange={(event) => setName(event.target.value)} />
+            </Field>
+            <div className="sec-t">Members</div>
+            <div className="tags">
+              {agents.map((agent) => (
+                <button
+                  key={agent.id}
+                  type="button"
+                  className={members.includes(agent.id) ? 'chip on' : 'chip'}
+                  onClick={() =>
+                    setMembers(
+                      members.includes(agent.id)
+                        ? members.filter((id) => id !== agent.id)
+                        : [...members, agent.id],
+                    )
+                  }
+                >
+                  {agent.name}
+                </button>
+              ))}
+            </div>
+            <div className="two" style={{ marginTop: 12 }}>
+              <button type="button" className="btn" onClick={() => setCreating(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" disabled={!name} onClick={() => void create()}>
+                Create
+              </button>
+            </div>
+          </div>
+        )}
+
+        {teams.data.items.length === 0 && !creating && (
+          <Empty
+            icon="users-round"
+            title="No desks yet"
+            hint="A desk groups agents so a batch of leads can go round one team rather than everyone."
+          />
+        )}
+
+        {teams.data.items.map((team) => (
+          <div className="bank" key={team.id} style={{ alignItems: 'flex-start' }}>
+            <span className="ic">
+              <Icon name="users-round" />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <b style={{ display: 'block' }}>{team.name}</b>
+              <small className="muted">
+                {team.manager_name ? `Managed by ${team.manager_name} · ` : ''}
+                {team.members.length} {team.members.length === 1 ? 'agent' : 'agents'}
+              </small>
+              <div className="tags" style={{ marginTop: 8 }}>
+                {team.members.map((member) => (
+                  <span className="tag" key={member.userId}>
+                    {member.name} · {member.openLeads} open
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <Note>
+          Open-lead counts are shown here and again before any assignment runs, so nobody is handed a
+          batch they cannot work.
+        </Note>
+      </Panel>
     </div>
   );
 }

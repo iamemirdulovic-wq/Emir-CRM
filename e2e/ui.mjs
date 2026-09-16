@@ -210,6 +210,39 @@ await step('mobile layout works', async () => {
   await mobile.close();
 });
 
+await step('the import wizard reads a file and maps its columns', async () => {
+  const { writeFileSync, mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+
+  const csv = ['Full Name,Mobile No.,Email Address,Interested Project,Budget AED'];
+  for (let i = 0; i < 40; i++) {
+    csv.push(`E2E Lead ${i},05${String(70000000 + i)},e2e${i}@example.com,Emaar Beachfront,AED 1M - 2M`);
+  }
+  const file = join(mkdtempSync(join(tmpdir(), 'emir-e2e-')), 'e2e-leads.csv');
+  writeFileSync(file, csv.join('\n'), 'utf8');
+
+  await page.goto(`${BASE}/imports/new`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', file);
+  await page.waitForSelector('text=Map the columns', { timeout: 30000 });
+
+  // The suggester must place the columns a real export actually uses.
+  const mapped = await page.locator('table select').evaluateAll((els) => els.map((e) => e.value).filter(Boolean));
+  if (!mapped.includes('phone')) throw new Error('the phone column was not detected');
+  if (!mapped.includes('budgetBand')) throw new Error('the budget column was not detected');
+  await shot(page, '17-import-mapping.png');
+});
+
+await step('lists and campaigns render', async () => {
+  await page.goto(`${BASE}/lists`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.toolbar', { timeout: 10000 });
+  await shot(page, '18-lists.png');
+
+  await page.goto(`${BASE}/campaigns`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.toolbar', { timeout: 10000 });
+  await shot(page, '19-campaigns.png');
+});
+
 await step('the dark theme applies without a reload', async () => {
   await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Dark' }).click();

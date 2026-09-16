@@ -95,6 +95,18 @@ it keeps the cascade — several blocks deliberately re-style earlier rules — 
 being lost in translation. `docs/DESIGN.md` lists the four places the port
 deliberately differs and why.
 
+### Locking reads take one row at a time
+
+`SELECT … FOR UPDATE SKIP LOCKED` skips rows another session holds, but it locks
+everything it *returns* — and an `ORDER BY` on an expression forces a filesort
+that reads and locks the whole matching set before it can sort. Either one gives
+the first caller the entire queue and tells everyone else there is nothing left.
+The two queues that agents compete over — the shared lead pool and the power
+dialler — therefore order along an index and take `LIMIT 1`, and preferences
+that would need an expression in the sort are separate queries instead. There is
+an index for each, and the integration tests assert that concurrent agents get
+different leads.
+
 ### Rules live in pure functions
 Identity merging, stage-move permissions, the automation guards, assignment,
 intent matching and scoring are all pure and unit-tested. The database-backed
@@ -111,6 +123,10 @@ server/src/
   db/            pool, migration runner, seed, demo data
   pipeline/      stage and sub-status definitions, move rules
   ingestion/     Lead DTO, parsers, field mapping, identity resolution, sources/
+  imports/       streaming CSV/xlsx readers, column mapping, the chunked import
+  assignment/    the six distribution methods, and the shared pool
+  lists/         smart-list filters, list membership, bulk actions
+  campaigns/     the power dialler, the throttled send, the bulk WhatsApp guard
   messaging/     send guard, WhatsApp adapters, email SMTP/IMAP, templates
   workflows/     guards, assignment, intent, workflows A/B/C, run tracking
   jobs/          queue, worker loop, cron, handlers
@@ -126,8 +142,9 @@ web/src/
   styles/        the design system's CSS, ported from the approved design
   design/        shell, icons, charts, theme, shared UI — see docs/DESIGN.md
   components/    the signed-in layout and the lead drawer
-  pages/         login, change password, dashboard, pipeline, inbox,
-                 contacts, contact 360, tasks, projects, automations, settings
+  pages/         login, change password, dashboard, pipeline, inbox, contacts,
+                 contact 360, tasks, projects, automations, settings,
+                 imports, lists, campaigns, the dialler, the lead pool
 ```
 
 ## Data model in one paragraph

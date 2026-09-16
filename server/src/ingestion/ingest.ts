@@ -1,5 +1,5 @@
 import type { PoolConnection } from 'mysql2/promise';
-import { execute, queryOne, withRetryingTransaction } from '../db/client.js';
+import { execute, queryOne, withRetryingTransaction, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { writeAudit, SYSTEM_ACTOR } from '../audit/audit.js';
@@ -29,7 +29,34 @@ export type IngestResult = {
  * commit together or not at all. That is what makes "never lose a lead" and
  * "never duplicate a lead" the same guarantee.
  */
-export async function ingestLead(lead: LeadDTO, opts: { inboundEventId?: string | null } = {}): Promise<IngestResult> {
+export type IngestOptions = {
+  inboundEventId?: string | null;
+  /**
+   * Set by a bulk import. Two things follow from it: the opportunity records
+   * which import it came from, and Workflow A does not run.
+   *
+   * A file of forty thousand old leads must not fire forty thousand welcome
+   * messages — it would breach the consent rules, exhaust Meta's messaging
+   * limits and very likely get the WhatsApp number banned. Imported leads are
+   * worked through a list or a campaign instead, which is consent-checked and
+   * throttled.
+   */
+  importId?: string | null;
+  /**
+   * Open a new inquiry even when the 30-day re-inquiry rule would have attached
+   * this to an existing card. Used by an import whose owner chose "create
+   * anyway": they are re-importing an old list and want each row logged as a
+   * fresh inquiry rather than folded into history.
+   *
+   * It cannot create a second *contact* for the same person — `phone_e164` and
+   * `wa_id` are unique, and "never duplicate a lead" is the guarantee the whole
+   * schema is built on. It creates a second opportunity against the one
+   * contact, which is what "create anyway" can honestly mean here.
+   */
+  forceNewOpportunity?: boolean;
+};
+
+export async function ingestLead(lead: LeadDTO, opts: IngestOptions = {}): Promise<IngestResult> {
   return withRetryingTransaction(async (tx) => {
     const resolved = await resolveContact(tx, lead);
 
@@ -49,7 +76,7 @@ export async function ingestLead(lead: LeadDTO, opts: { inboundEventId?: string 
     let opportunityId: string;
     let isNewOpportunity: boolean;
 
-    if (decision.action === 'attach') {
+    if (decision.action === 'attach' && !opts.forceNewOpportunity) {
       opportunityId = decision.opportunityId;
       isNewOpportunity = false;
       await enrichOpportunity(tx, opportunityId, lead);
@@ -62,7 +89,13 @@ export async function ingestLead(lead: LeadDTO, opts: { inboundEventId?: string 
         meta: { reason: decision.reason, source: lead.source, externalId: lead.externalId },
       });
     } else {
-      opportunityId = await createOpportunity(tx, resolved.contactId, resolved.ownerUserId, lead);
+      opportunityId = await createOpportunity(
+        tx,
+        resolved.contactId,
+        resolved.ownerUserId,
+        lead,
+        opts.importId ?? null,
+      );
       isNewOpportunity = true;
       await addActivity(tx, {
         contactId: resolved.contactId,
@@ -110,14 +143,17 @@ export async function ingestLead(lead: LeadDTO, opts: { inboundEventId?: string 
           contactId: resolved.contactId,
           isNewContact: resolved.isNew,
           matchedBy: resolved.matchedBy,
+          importId: opts.importId ?? null,
+          instantCaptureSuppressed: Boolean(opts.importId),
         },
       },
       tx,
     );
 
-    // Workflow A runs only for a genuinely new inquiry. A re-inquiry keeps its
-    // existing automation rather than restarting the welcome sequence.
-    if (isNewOpportunity) {
+    // Workflow A runs only for a genuinely new inquiry that arrived on its own.
+    // A re-inquiry keeps its existing automation rather than restarting the
+    // welcome sequence, and an imported lead never starts one at all.
+    if (isNewOpportunity && !opts.importId) {
       await enqueue(
         'workflow.a.instant_capture',
         { opportunityId, contactId: resolved.contactId, source: lead.source },
@@ -157,6 +193,7 @@ async function createOpportunity(
   contactId: string,
   ownerUserId: string | null,
   lead: LeadDTO,
+  importId: string | null,
 ): Promise<string> {
   const stage = await queryOne<{ id: string; pipeline_id: string }>(
     `SELECT s.id, s.pipeline_id
@@ -181,14 +218,14 @@ async function createOpportunity(
         source, campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, form_id, form_name,
         meta_lead_id, ctwa_clid, gclid, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
         landing_page, referrer, fbp, fbc, client_ip, client_user_agent,
-        assigned_at, created_at, stage_changed_at)
+        import_id, assigned_at, created_at, stage_changed_at)
      VALUES (?, ?, ?, ?, 'new_lead', ?, ?, ?, 'open',
              ?, ?, ?, ?, ?,
              ?, ?, ?, ?, ?, ?, ?,
              ?, ?, ?, ?, ?, ?, ?, ?, ?,
              ?, ?, ?, ?, ?, ?, ?, ?,
              ?, ?, ?, ?, ?, ?,
-             ?, ?, ?)`,
+             ?, ?, ?, ?)`,
     [
       id,
       contactId,
@@ -232,6 +269,7 @@ async function createOpportunity(
       lead.attribution.fbc,
       lead.attribution.clientIp,
       lead.attribution.clientUserAgent,
+      importId,
       ownerUserId ? lead.receivedAt : null,
       lead.receivedAt,
       lead.receivedAt,
@@ -321,7 +359,7 @@ async function applyTags(tx: PoolConnection, contactId: string, lead: LeadDTO): 
 
 /** Tags use the namespace:value format and are created on demand. */
 export async function tagContact(
-  tx: PoolConnection,
+  tx: Executor,
   contactId: string,
   namespace: string,
   value: string,

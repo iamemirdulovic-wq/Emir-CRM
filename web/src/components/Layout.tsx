@@ -42,6 +42,9 @@ const ENTRIES: Entry[] = [
   { to: '/inbox', label: t('inbox'), icon: 'message-circle', title: t('inbox'), phone: true },
   { to: '/contacts', label: t('contacts'), icon: 'users', title: t('contacts') },
   { to: '/tasks', label: t('tasks'), icon: 'check-square', title: t('tasks'), phone: true },
+  { to: '/lists', label: t('lists'), icon: 'list', title: t('lists') },
+  { to: '/campaigns', label: t('campaigns'), icon: 'megaphone', title: t('campaigns') },
+  { to: '/pool', label: t('pool'), icon: 'inbox', title: t('pool'), roles: ['agent'] },
   { to: '/projects', label: t('projects'), icon: 'building-2', title: t('projects') },
   {
     to: '/automations',
@@ -56,6 +59,8 @@ const ENTRIES: Entry[] = [
 /** The heading for a path, including the detail routes that are not in the nav. */
 function titleFor(pathname: string): string {
   if (pathname.startsWith('/contacts/')) return 'Contact';
+  if (pathname.startsWith('/imports')) return 'Import';
+  if (pathname.endsWith('/dial')) return 'Calling';
   const entry = ENTRIES.find((item) => pathname.startsWith(item.to));
   return entry?.title ?? 'Emir CRM';
 }
