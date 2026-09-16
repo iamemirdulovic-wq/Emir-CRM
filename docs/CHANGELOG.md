@@ -2,6 +2,44 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Phase 10 — Design system
+
+**Added**
+- The approved design at `design/emir-crm-design.html` ported into the app as four
+  stylesheets — `tokens.css`, `base.css`, `components.css`, `animations.css` — carrying
+  the CSS across verbatim, cascade order included, so the result matches the design
+  rather than resembling it. `docs/DESIGN.md` explains the layout and the four places
+  it deliberately differs.
+- Lucide icons bundled through npm instead of the design's CDN, keyed by the design's
+  own kebab-case names so porting a screen is a substitution. 109 icons, tree-shaken.
+  A blocked icon host has broken this app's icons once already.
+- `AppShell`: glass sidebar, sticky top bar, mobile bottom bar. Nav items are real
+  links, styled identically to the design's buttons.
+- Chart primitives ported from the design's own drawing code — `Spark`, `AreaChart`,
+  `Donut`, `Gauge`, `Funnel`, `Heat` and `CountUp` — taking real data where the design
+  generated demo series.
+- Theme system: light / dark / follow-the-system, plus the "Reduce glass effect"
+  setting the specification asks for. Both are applied before first paint by an inline
+  script, so a stored choice never flashes the default.
+- An RTL block that mirrors the fixed shell for Arabic; the design is LTR only.
+- A development-only design-system gallery at `/design-system.html`, excluded from the
+  production build, rendering the shell, every chart and every icon on one page.
+- Tests in the `web` workspace (vitest + jsdom), and `npm test` now runs both workspaces.
+
+**Not in this phase**
+- The CRM | Books switcher, at the owner's instruction. The sidebar reserves its
+  footprint; the design's switcher CSS and the whole Books stylesheet are parked in
+  `books.css`, imported by nothing.
+- The CRM screens themselves. They still render on the previous stylesheet until
+  Phase 11 moves them over; the two are not loaded at the same time.
+
+**Verified**
+- 352 tests green (328 server, 24 new in web); no TypeScript errors.
+- Rendered in Chromium at 1440px and 390px, in light, forced dark, system dark,
+  reduced glass and reduced motion, and in RTL: no console errors, no failed requests,
+  no horizontal scroll, and icons draw as glyphs rather than as text.
+- The production build is unchanged in size and does not contain the gallery.
+
 ## Phase 1 — Foundation (auth, roles, schema, audit)
 
 **Added**

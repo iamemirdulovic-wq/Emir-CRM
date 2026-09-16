@@ -1,0 +1,32 @@
+/*
+ * Animations.
+ *
+ * Ported verbatim from design/emir-crm-design.html. Import this last: the
+ * entrance rules below intentionally layer on top of the component rules.
+ * Every animation is switched off by the reduce-motion queries at the bottom,
+ * which is a requirement, not a nicety.
+ */
+
+body::before{animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-3%,2%,0) scale(1.06)}100%{transform:translate3d(2%,-2%,0) scale(1.02)}}
+
+/* motion: one orchestrated entrance per screen */
+.view.active .rise{animation:rise .6s var(--ease) both;animation-delay:calc(var(--i,0) * 70ms)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.card{animation:pop .45s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.bubble{animation:pop .35s var(--ease) both}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-3);margin-left:auto}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--s-won);position:relative}
+.live i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--s-won);animation:ping 1.8s var(--ease) infinite}
+@keyframes ping{from{transform:scale(1);opacity:.7}to{transform:scale(2.8);opacity:0}}
+.view{animation:none}
+
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade{to{opacity:1}}
+@keyframes heatin{to{opacity:var(--o)}}
+@keyframes flash{from{background:var(--primary-soft)}to{background:transparent}}
+
+/* Reduce motion: honoured everywhere, no exceptions. */
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important}}

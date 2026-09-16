@@ -53,9 +53,14 @@ terminals; Vite proxies the API so the session cookie still works.
 | `npm run migrate` | Apply pending migrations |
 | `npm run seed` | Seed reference data (idempotent) |
 | `npm run demo` | Load a realistic demo dataset (never in production) |
-| `npm test` | Unit and integration tests |
+| `npm test` | Unit and integration tests, both workspaces |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run e2e` | Browser smoke test (needs a running server and `npx playwright install chromium`) |
+
+The design system has a gallery page: run `npm run dev:web` and open
+`/design-system.html` to see the shell, every chart and every icon on one page,
+in either theme. It is served in development only and is not in the production
+build.
 
 The database-backed test suites skip themselves when no server is reachable, so
 `npm test` is green on a machine without MySQL. Point them at one with
@@ -69,6 +74,7 @@ The database-backed test suites skip themselves when no server is reachable, so
 | [`docs/WEBHOOKS.md`](docs/WEBHOOKS.md) | Every inbound endpoint with real sample payloads |
 | [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md) | The guards, workflows A/B/C, and ad-platform feedback |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosting requirements, integration setup, what needs owner action |
+| [`docs/DESIGN.md`](docs/DESIGN.md) | The design system: where it lives, how to port a screen, the theme |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | What shipped in each phase, and the bugs found along the way |
 | [`CLAUDE.md`](CLAUDE.md) | The product specification this is built against |
 
@@ -76,7 +82,8 @@ The database-backed test suites skip themselves when no server is reachable, so
 
 ```
 server/   Express + TypeScript API, background worker, MySQL migrations
-web/      React + Vite + Tailwind PWA, served from the same origin as the API
+web/      React + Vite PWA, served from the same origin as the API
+design/   The approved design file — the visual source of truth
 fixtures/ Real webhook payloads, replayed by the test suite
 docs/     Architecture, webhooks, workflows, deployment, changelog
 ```
@@ -106,7 +113,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-328 tests. The ones worth knowing about:
+352 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -116,6 +123,9 @@ database layer around them is thin on purpose.
 - **Workflow idempotency.** Ten concurrent retries of Workflow A send one
   welcome; five retries of one inbound message produce one reply and one task.
 - **Guards.** Every rule, its precedence, and both deliberate exceptions.
+- **Theme.** The appearance and reduce-glass settings survive a reload, a forced
+  light theme holds on a dark device, and the app still renders when
+  `localStorage` throws, which is what private-mode Safari does.
 - **Browser.** Thirteen steps through real Chromium at desktop and phone
   viewports, including the Arabic RTL switch (`npm run e2e`). This is the only
   suite that catches bugs which appear solely once a browser renders the page —

@@ -86,6 +86,15 @@ lead asks for a price and there is no verified row, the bot hands the
 conversation to a human rather than guessing — implemented in
 `workflows/workflow-c.ts` and enforced again in `services/projects.ts`.
 
+### The design is ported, not interpreted
+
+The approved design is a working HTML file, so its CSS is copied across
+character for character rather than reimplemented in a utility framework. That
+makes "does this match the design?" a question anyone can answer by diffing, and
+it keeps the cascade — several blocks deliberately re-style earlier rules — from
+being lost in translation. `docs/DESIGN.md` lists the four places the port
+deliberately differs and why.
+
 ### Rules live in pure functions
 Identity merging, stage-move permissions, the automation guards, assignment,
 intent matching and scoring are all pure and unit-tested. The database-backed
@@ -114,6 +123,8 @@ server/src/
 
 web/src/
   lib/           API client, auth context, realtime, i18n, formatting
+  styles/        the design system's CSS, ported from the approved design
+  design/        shell, icons, charts, theme — see docs/DESIGN.md
   components/    shell, inline SVG icons, shared UI
   pages/         login, board, inbox, contact 360, contacts, projects,
                  templates, reports, team

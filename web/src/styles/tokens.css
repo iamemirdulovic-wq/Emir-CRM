@@ -1,0 +1,84 @@
+/*
+ * Design tokens.
+ *
+ * Ported verbatim from the approved design at design/emir-crm-design.html.
+ * The v3 block below deliberately re-declares :root a second time — that is how
+ * the approved file cascades, and the later values are the ones that win.
+ * Keep the block order; do not fold them together.
+ */
+
+:root{
+  --bg:#EAF3F8;
+  --glass:rgba(255,255,255,.58); --glass-2:rgba(255,255,255,.42); --glass-strong:rgba(255,255,255,.82);
+  --glass-line:rgba(255,255,255,.75); --line:rgba(20,40,70,.10);
+  --surface:var(--glass-strong); --surface-2:rgba(255,255,255,.55);
+  --ink:#0E1B2C; --ink-2:#4A5B70; --ink-3:#7E8DA0;
+  --primary:#00AFC8; --primary-2:#3D7BFF; --primary-soft:rgba(0,175,200,.13); --primary-ink:#FFFFFF;
+  --grad:linear-gradient(135deg,#00C6D8 0%,#2F8CFF 100%);
+  --side-ink:#3E4F66;
+  --s-new:#2F8CFF; --s-att:#FF9F43; --s-eng:#00BFA6; --s-apt:#8B6CFF; --s-deal:#FF5FA2; --s-won:#22C55E; --s-lost:#FF5A5F;
+  --wa:#25C26A; --wa-soft:rgba(37,194,106,.14); --hot:#FF6A3D;
+  --blur:saturate(180%) blur(22px);
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 8px 30px rgba(15,50,90,.08);
+  --r-s:10px; --r-m:16px; --r-l:22px;
+  --blob1:#7FE3EE; --blob2:#9DB8FF; --blob3:#C7B6FF; --blob4:#B7F0DE;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Segoe UI","Noto Sans Arabic",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
+    --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
+    --surface-2:rgba(255,255,255,.06);
+    --ink:#EAF4FF; --ink-2:#A7B7CC; --ink-3:#71839A; --side-ink:#A7B7CC;
+    --primary-soft:rgba(0,198,216,.16); --wa-soft:rgba(37,194,106,.18);
+    --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
+    --blob1:#005C73; --blob2:#1B3A8C; --blob3:#3B2A7A; --blob4:#00584A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
+  --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
+  --surface-2:rgba(255,255,255,.06);
+  --ink:#EAF4FF; --ink-2:#A7B7CC; --ink-3:#71839A; --side-ink:#A7B7CC;
+  --primary-soft:rgba(0,198,216,.16); --wa-soft:rgba(37,194,106,.18);
+  --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
+  --blob1:#005C73; --blob2:#1B3A8C; --blob3:#3B2A7A; --blob4:#00584A;
+}
+
+/* ===== v3: calm palette ===== */
+:root{
+  --primary:#0AA3BA; --primary-soft:rgba(10,163,186,.12);
+  --grad:linear-gradient(180deg,#14B3C9,#0A98AF);
+  --s-new:#6FA8E8; --s-att:#C4A172; --s-eng:#4FBFC4; --s-apt:#9A93DB; --s-deal:#CF8FAE; --s-won:#5DBB8F; --s-lost:#D98A8A;
+  --wa:#34B36B; --hot:#E8794F;
+  --blob1:#BFE7EE; --blob2:#D6E0F2; --blob3:#E3E0F1; --blob4:#D9EEE8;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#0B3A47;--blob2:#15223F;--blob3:#1E1B38;--blob4:#0C2E2A;--primary:#22C3D6}}
+:root[data-theme="dark"]{--blob1:#0B3A47;--blob2:#15223F;--blob3:#1E1B38;--blob4:#0C2E2A;--primary:#22C3D6}
+
+/* Browsers without backdrop-filter get an opaque panel instead of a see-through one. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--glass:rgba(255,255,255,.92)}
+}
+
+/*
+ * "Reduce glass effect" (Settings). Older devices pay a real cost for a
+ * full-page backdrop-filter, so this drops the blur and makes the panels
+ * opaque while keeping every other token identical.
+ */
+:root[data-glass="off"]{
+  --blur:none;
+  --glass:rgba(255,255,255,.94); --glass-2:rgba(255,255,255,.90); --glass-strong:rgba(255,255,255,.98);
+  --surface-2:rgba(240,246,251,.98);
+}
+@media (prefers-color-scheme:dark){
+  :root[data-glass="off"]:not([data-theme="light"]){
+    --glass:rgba(17,26,44,.97); --glass-2:rgba(17,26,44,.94); --glass-strong:rgba(24,35,56,.99);
+    --surface-2:rgba(255,255,255,.07);
+  }
+}
+:root[data-theme="dark"][data-glass="off"]{
+  --glass:rgba(17,26,44,.97); --glass-2:rgba(17,26,44,.94); --glass-strong:rgba(24,35,56,.99);
+  --surface-2:rgba(255,255,255,.07);
+}

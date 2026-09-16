@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#EAF3F8" />
+    <!--
+      Design-system gallery. Dev-only: Vite serves every .html in the project
+      root during `npm run dev`, but only bundles the entries listed in the
+      build config, and this one is deliberately not listed. It never ships.
+    -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>Emir CRM — design system</title>
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('emir.theme');
+          if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+          if (localStorage.getItem('emir.glass') === 'off') root.setAttribute('data-glass', 'off');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/design/gallery.tsx"></script>
+  </body>
+</html>
