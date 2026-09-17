@@ -11,6 +11,7 @@ import { runWorkflowC } from '../workflows/workflow-c.js';
 import { moveStage } from '../services/opportunities.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
 import { seed } from './seed.js';
+import { isEntrypoint } from '../lib/entrypoint.js';
 
 /**
  * Demo data for a development or demonstration environment.
@@ -266,7 +267,7 @@ export async function loadDemoData(): Promise<void> {
   process.stdout.write('\n  Demo agents can sign in with the password: DemoAgent2026!\n\n');
 }
 
-const invokedDirectly = process.argv[1] && process.argv[1].endsWith('demo.ts');
+const invokedDirectly = isEntrypoint(import.meta.url);
 if (invokedDirectly) {
   loadDemoData()
     .then(async () => {

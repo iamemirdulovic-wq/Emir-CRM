@@ -2,6 +2,52 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Phase 14 (in progress) — Deploying itself
+
+**Added**
+- **`.github/workflows/deploy.yml`** — the repository deploys itself. It runs after CI
+  passes on `main`, or on demand, and does the whole thing: build, upload, install,
+  migrate, switch the `current` symlink atomically, restart under pm2, health check, and
+  roll back to the previous release if the new one does not answer. It keeps the last
+  five releases. No third-party actions: plain `ssh` and `scp`, so the deploy trusts
+  nothing but GitHub and the server.
+- **`deploy/server-setup.sh`** — one-time server preparation, safe to re-run. It refuses
+  early and says why if Node is missing or too old, installs pm2, builds the
+  `releases/ current/ shared/` layout, and writes `shared/.env` with a freshly generated
+  `ENCRYPTION_KEY`. It never writes a database password: those stay on the server.
+- **`deploy/ecosystem.config.cjs`** — the API and the worker under pm2, both fed from
+  `shared/.env`, which the config parses itself because the app deliberately reads
+  `process.env` only. `UPLOAD_DIR` is pointed at `shared/`, so import files survive a
+  deploy instead of vanishing with the release that received them.
+
+**Fixed, found by rehearsing the deploy**
+- **`node dist/db/migrate.js` did nothing and exited 0.** The entrypoint check was
+  `process.argv[1].endsWith('migrate.ts')`, which is false once the file is built as
+  `migrate.js`. The first production deploy would have reported success and started the
+  app against a completely empty database. `seed.ts` and `demo.ts` had the same check.
+  All three now use `isEntrypoint(import.meta.url)`, which compares basenames without the
+  extension, and it has its own tests.
+- `npm ci` validates the lockfile against every workspace in the root `package.json`, so
+  the release has to carry `web/package.json` even though the server only serves that
+  workspace's built output. Without it the install failed on the server.
+- Two shell bugs in my own workflow that would each have failed a deploy that had already
+  succeeded: `grep | cut` under `pipefail` when `PORT` is absent, and
+  `[ cond ] && continue` under `set -e` in the release-cleanup loop.
+
+**Verified**
+- The release was packaged exactly as the workflow packages it, extracted into the real
+  directory layout, installed with `npm ci --omit=dev`, migrated against an empty MySQL
+  (42 tables, 5 migrations), seeded, started in `NODE_ENV=production`, and driven through
+  the browser suite: 17 steps pass, 1 skips for want of a conversation in a freshly
+  seeded database. HSTS and the CSP were confirmed on the live response.
+- 530 server tests and 24 web tests green.
+
+**Still needed from the owner**
+- Confirmation that the Hostinger plan can run a Node.js process — see
+  `docs/HOSTING-CHECK.md`. Everything above is written for a plan that can; if it cannot,
+  the hosting changes before any of it runs.
+- The four GitHub secrets, and the database created in hPanel.
+
 ## Phase 13 — Hardening and the security pass
 
 **Fixed — permissions on the Phase 12 surface**

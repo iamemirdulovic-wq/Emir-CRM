@@ -6,6 +6,7 @@ import { hashPassword, generateTemporaryPassword } from '../auth/password.js';
 import { DEFAULT_PIPELINE_KEY, STAGE_DEFINITIONS } from '../pipeline/stages.js';
 import { TEMPLATE_LIBRARY } from '../messaging/templates/library.js';
 import { ensureDatabase, runMigrations } from './migrate.js';
+import { isEntrypoint } from '../lib/entrypoint.js';
 
 /** Idempotent seed: safe to re-run against an existing database. */
 
@@ -171,7 +172,7 @@ export async function seed(): Promise<void> {
   await seedOwner();
 }
 
-const invokedDirectly = process.argv[1] && process.argv[1].endsWith('seed.ts');
+const invokedDirectly = isEntrypoint(import.meta.url);
 if (invokedDirectly) {
   seed()
     .then(async () => {

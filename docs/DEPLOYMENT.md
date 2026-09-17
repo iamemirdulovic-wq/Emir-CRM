@@ -26,6 +26,76 @@ Two things worth confirming with Hostinger specifically:
   `X-Accel-Buffering: no`, which nginx respects. If the platform buffers anyway,
   realtime degrades to polling on its own — nothing to fix.
 
+## Automatic deploy from GitHub
+
+The repository deploys itself. `\.github/workflows/deploy.yml` runs after CI
+passes on `main`, or on demand from the Actions tab, and does the whole thing:
+build, upload, install, migrate, switch, restart, health check, and roll back if
+the new release does not answer.
+
+Nothing in the repository holds a credential. The four values GitHub needs live
+in **Settings → Secrets and variables → Actions**, and the database password
+never leaves the server at all.
+
+| Secret | What it is |
+|---|---|
+| `HOSTINGER_SSH_HOST` | the server address |
+| `HOSTINGER_SSH_USER` | the SSH username from hPanel |
+| `HOSTINGER_SSH_KEY` | a private key generated in hPanel — not a password |
+| `DEPLOY_PATH` | where the app lives, e.g. `/home/uXXXXXXXX/crm` |
+| `HOSTINGER_SSH_PORT` | optional; Hostinger often uses 65002 rather than 22 |
+| `APP_URL` | optional; set it and every deploy is verified from outside too |
+| `HOSTINGER_SSH_KNOWN_HOSTS` | optional; pins the host key instead of trusting it on first use |
+
+### The layout it builds on the server
+
+```
+$DEPLOY_PATH/
+  current -> releases/<commit sha>     the live release
+  releases/<sha>/                      the last five, for rollback
+  shared/
+    .env                               your configuration, never in git
+    var/uploads/                       import files, survive a deploy
+    logs/
+```
+
+`current` is a symlink, swapped with an atomic `mv`, so a request is either
+served by the old release or the new one and never by half of each.
+
+### Preparing the server, once
+
+```bash
+ssh -p <port> <user>@<host>
+bash deploy/server-setup.sh $HOME/crm
+```
+
+It checks Node is present and new enough, installs pm2, creates the layout, and
+writes `shared/.env` with a freshly generated `ENCRYPTION_KEY`. Fill in the
+database credentials and `APP_URL`, then create the first account:
+
+```bash
+cd $DEPLOY_PATH/current/server
+set -a; . $DEPLOY_PATH/shared/.env; set +a
+SEED_OWNER_EMAIL=you@yourdomain.ae SEED_OWNER_PASSWORD='a temporary one' node dist/db/seed.js
+```
+
+The password must be changed at first login.
+
+### Rolling back
+
+Every deploy keeps the previous five releases, and a failed health check rolls
+back on its own. To go back by hand:
+
+```bash
+ln -sfn $DEPLOY_PATH/releases/<older sha> $DEPLOY_PATH/current.new
+mv -Tf  $DEPLOY_PATH/current.new $DEPLOY_PATH/current
+cd $DEPLOY_PATH/current && pm2 delete emir-api emir-worker; pm2 start deploy/ecosystem.config.cjs
+```
+
+Note that migrations are forward-only: rolling back the code does not roll back
+the schema. That is deliberate — every migration so far only adds — but it means
+a release that changes a column is not safely reversible by symlink alone.
+
 ## First deploy
 
 ```bash

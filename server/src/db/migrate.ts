@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 import { env } from '../config/env.js';
 import { logger, errorContext } from '../lib/logger.js';
+import { isEntrypoint } from '../lib/entrypoint.js';
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'migrations');
 
@@ -88,7 +89,7 @@ export async function ensureDatabase(): Promise<void> {
   }
 }
 
-const invokedDirectly = process.argv[1] && process.argv[1].endsWith('migrate.ts');
+const invokedDirectly = isEntrypoint(import.meta.url);
 if (invokedDirectly) {
   ensureDatabase()
     .then(runMigrations)

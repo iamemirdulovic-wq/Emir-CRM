@@ -1,0 +1,231 @@
+name: Deploy
+
+# Runs after CI passes on the deploy branch, or on demand from the Actions tab.
+# Nothing here holds a credential: the four secrets live in GitHub's settings,
+# and the database password never leaves the server at all.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one halfway through — a cancelled
+# deploy can leave the symlink pointing at a release whose migrations only
+# half ran.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # A manual run is a deliberate act; an automatic one only follows green CI.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On a workflow_run the default ref is the default branch, which is
+          # usually right but not guaranteed to be the commit CI just passed.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Check the secrets are set before touching anything
+        env:
+          HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          PATH_ON_SERVER: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          missing=""
+          [ -n "$HOST" ] || missing="$missing HOSTINGER_SSH_HOST"
+          [ -n "$USER" ] || missing="$missing HOSTINGER_SSH_USER"
+          [ -n "$KEY" ] || missing="$missing HOSTINGER_SSH_KEY"
+          [ -n "$PATH_ON_SERVER" ] || missing="$missing DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "All four secrets are present."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the server and the web app
+        run: npm run build
+
+      - name: Package the release
+        # Only what the server needs to run: compiled JS, the migrations it
+        # applies, the built SPA it serves, and the manifests npm installs from.
+        run: |
+          mkdir -p release/server release/web
+          cp -r server/dist            release/server/dist
+          cp -r server/migrations      release/server/migrations
+          cp    server/package.json    release/server/package.json
+          cp -r web/dist               release/web/dist
+          # npm ci validates the lockfile against every workspace listed in the
+          # root package.json, so web/package.json has to ship even though the
+          # server only serves its built output.
+          cp    web/package.json       release/web/package.json
+          cp    package.json package-lock.json release/
+          cp -r deploy                 release/deploy
+          tar -czf release.tar.gz -C release .
+          echo "Release is $(du -h release.tar.gz | cut -f1)"
+
+      - name: Set up the SSH key
+        env:
+          KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          KNOWN_HOSTS: ${{ secrets.HOSTINGER_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
+          if [ -n "$KNOWN_HOSTS" ]; then
+            # Pinned by the owner: the strongest option, and what you should
+            # move to once you have seen the fingerprint once.
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Trust on first use. Fine for a host you control, but it does mean
+            # the first connection is unverified.
+            ssh-keyscan -p "${PORT:-22}" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+            echo "::warning::HOSTINGER_SSH_KNOWN_HOSTS is not set, so the host key was accepted unverified. Add it as a secret to pin it."
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload and release
+        env:
+          HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          SSH="ssh -i $HOME/.ssh/id_deploy -p $PORT -o BatchMode=yes"
+          TARGET="$USER@$HOST"
+          RELEASE="$DEPLOY_PATH/releases/$SHA"
+
+          echo "--- uploading release $SHA"
+          $SSH "$TARGET" "mkdir -p '$RELEASE'"
+          scp -i "$HOME/.ssh/id_deploy" -P "$PORT" -o BatchMode=yes \
+            release.tar.gz "$TARGET:$RELEASE/release.tar.gz"
+
+          echo "--- installing and switching over"
+          # The remote half runs as one script so a failure anywhere rolls the
+          # symlink back rather than leaving the site pointing at a broken
+          # release.
+          $SSH "$TARGET" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE='$RELEASE' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          # pm2 and node are often only on PATH for login shells.
+          export PATH="$HOME/.npm-global/bin:$(npm prefix -g 2>/dev/null)/bin:$PATH"
+
+          PREVIOUS=""
+          if [ -L "$DEPLOY_PATH/current" ]; then
+            PREVIOUS="$(readlink -f "$DEPLOY_PATH/current")"
+          fi
+
+          cd "$RELEASE"
+          tar -xzf release.tar.gz && rm release.tar.gz
+
+          echo "--- installing production dependencies"
+          # --omit=dev, because nothing here needs vitest or typescript. If the
+          # native argon2 build fails on this host the app falls back to bcrypt,
+          # which is why this is allowed to continue.
+          npm ci --omit=dev --no-audit --no-fund
+
+          echo "--- applying migrations"
+          # Forward-only and recorded in schema_migrations, so a re-run is a
+          # no-op. Runs before the switch: a new release must never serve
+          # against a schema it has not migrated.
+          ( set -a; . "$DEPLOY_PATH/shared/.env"; set +a
+            export UPLOAD_DIR="$DEPLOY_PATH/shared/var/uploads"
+            cd "$RELEASE/server" && node dist/db/migrate.js )
+
+          echo "--- switching current -> $RELEASE"
+          ln -sfn "$RELEASE" "$DEPLOY_PATH/current.new"
+          mv -Tf "$DEPLOY_PATH/current.new" "$DEPLOY_PATH/current"
+
+          echo "--- restarting"
+          cd "$DEPLOY_PATH/current"
+          # Delete and start rather than reload: pm2 caches the resolved cwd,
+          # so a reload can keep running the release we just replaced.
+          pm2 delete emir-api emir-worker > /dev/null 2>&1 || true
+          pm2 start deploy/ecosystem.config.cjs
+          pm2 save > /dev/null 2>&1 || true
+
+          echo "--- health check"
+          PORT_APP="$(grep -E '^PORT=' "$DEPLOY_PATH/shared/.env" | cut -d= -f2 | tr -d '[:space:]' || true)"
+          PORT_APP="${PORT_APP:-3000}"
+          healthy=0
+          for attempt in $(seq 1 20); do
+            if curl -fsS -m 3 "http://127.0.0.1:$PORT_APP/health" > /dev/null 2>&1; then
+              healthy=1; break
+            fi
+            sleep 2
+          done
+
+          if [ "$healthy" -ne 1 ]; then
+            echo "Health check failed after 40s."
+            pm2 logs emir-api --lines 40 --nostream || true
+            if [ -n "$PREVIOUS" ] && [ -d "$PREVIOUS" ]; then
+              echo "--- rolling back to $PREVIOUS"
+              ln -sfn "$PREVIOUS" "$DEPLOY_PATH/current.new"
+              mv -Tf "$DEPLOY_PATH/current.new" "$DEPLOY_PATH/current"
+              cd "$DEPLOY_PATH/current"
+              pm2 delete emir-api emir-worker > /dev/null 2>&1 || true
+              pm2 start deploy/ecosystem.config.cjs
+              echo "Rolled back. The site is on the previous release."
+            else
+              echo "No previous release to roll back to; this was the first deploy."
+            fi
+            exit 1
+          fi
+
+          echo "--- healthy"
+
+          # Keep the last five releases: enough to roll back through a bad run,
+          # not so many that the disk fills.
+          cd "$DEPLOY_PATH/releases"
+          CURRENT_REAL="$(readlink -f "$DEPLOY_PATH/current")"
+          ls -1t | tail -n +6 | while read -r old; do
+            if [ "$DEPLOY_PATH/releases/$old" != "$CURRENT_REAL" ]; then
+              rm -rf "${DEPLOY_PATH:?}/releases/$old"
+            fi
+          done
+          echo "--- done"
+          REMOTE
+
+      - name: Confirm the site answers from outside
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          if [ -z "${APP_URL:-}" ]; then
+            echo "APP_URL secret not set — skipping the external check."
+            echo "Add it (eg https://crm.yourdomain.ae) to have every deploy verified from outside."
+            exit 0
+          fi
+          # The health check above ran on the server itself; this proves the
+          # subdomain, the proxy and the certificate all work too.
+          for attempt in $(seq 1 10); do
+            if curl -fsS -m 10 "$APP_URL/health"; then
+              echo; echo "$APP_URL is live."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::$APP_URL did not answer. The app is running on the server, so this is DNS, the subdomain's proxy, or SSL."
+          exit 1
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
