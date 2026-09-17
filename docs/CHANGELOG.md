@@ -20,6 +20,14 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   role, active, availability — and their own row for the rest. Colleagues' email
   addresses are no longer part of the payload every screen loads.
 
+**Fixed — a manager could not see their own desk**
+- Visibility read `users.manager_id` only, while Phase 12's desks name their manager on
+  the team. A manager put in charge of the Arabic desk, but not set as each member's
+  manager, saw an empty board — and saw it silently, because every query simply returned
+  fewer rows. `visibleUserIds` is now the union of the reporting line and the desks the
+  viewer manages, taken once so no caller has to remember it. An inactive desk, and a
+  desk somebody else runs, still count for nothing.
+
 **Fixed — a production trap**
 - The `log` WhatsApp provider writes messages to the console and reports success. On a
   live server that is the worst possible failure: the inbox shows a welcome message, the
@@ -60,7 +68,7 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   depends on.
 
 **Verified**
-- 512 server tests and 24 web tests green; 18 browser steps pass with the CSP in place,
+- 519 server tests and 24 web tests green; 18 browser steps pass with the CSP in place,
   which is what proves the policy does not break the app.
 - Reviewed every route file for viewer scoping, and the dynamic SQL for injection: every
   interpolated identifier comes from a literal or `assertIdentifier`, and every value is

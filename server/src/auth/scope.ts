@@ -4,8 +4,17 @@ import { scopeFor, type Role } from './rbac.js';
 /**
  * The set of user ids a viewer is allowed to see records for.
  * - agent: themselves
- * - manager: themselves plus their direct reports
+ * - manager: themselves, their direct reports, and every member of a desk they
+ *   manage
  * - owner / admin / automation: unrestricted (null)
+ *
+ * "Their team" has two spellings in this system and both are legitimate:
+ * `users.manager_id` is the reporting line, and `teams` / `team_members` are the
+ * desks Phase 12 added ("Arabic desk", "Abu Dhabi team"). A manager put in
+ * charge of a desk but not named as each member's manager would otherwise see an
+ * empty board — and, worse, silently: every query would simply return fewer
+ * rows. The union is the reading that matches the specification, so it is taken
+ * here, once, rather than left for each caller to remember.
  *
  * Returning null means "no restriction"; every caller must handle it.
  */
@@ -17,8 +26,17 @@ export async function visibleUserIds(
   if (scope === 'all') return null;
   if (scope === 'own') return [viewer.id];
 
-  const reports = await query<{ id: string }>('SELECT id FROM users WHERE manager_id = ?', [viewer.id], exec);
-  return [viewer.id, ...reports.map((r) => r.id)];
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM users WHERE manager_id = ?
+      UNION
+     SELECT tm.user_id AS id
+       FROM team_members tm
+       JOIN teams t ON t.id = tm.team_id
+      WHERE t.manager_user_id = ? AND t.is_active = 1`,
+    [viewer.id, viewer.id],
+    exec,
+  );
+  return [...new Set([viewer.id, ...rows.map((r) => r.id)])];
 }
 
 /**
