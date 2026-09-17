@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false
+  },
+  "//": [
+    "The production build. Tests are excluded for two reasons, and the second",
+    "is the one that bites: they are dead weight in a release, and a test file",
+    "that does not compile would otherwise fail the deploy of code that is",
+    "perfectly fine. `npm run typecheck` still covers them — that is where a",
+    "broken test belongs, not in the path between a push and the live site.",
+    "The testing/ helpers go with them: nothing outside a test imports them."
+  ],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/testing/**"]
+}

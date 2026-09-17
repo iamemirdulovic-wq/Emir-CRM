@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.js';
-import { ApiError } from '../lib/api.js';
+import { api, ApiError } from '../lib/api.js';
 import { t } from '../lib/i18n.js';
 
 /**
@@ -21,6 +21,26 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /*
+   * A CRM that has just been deployed has no accounts, so every password here
+   * would fail with nothing to explain why. Ask once, and send the first person
+   * to the page that can help them.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .get<{ needed: boolean }>('/api/setup/status')
+      .then((status) => {
+        if (!cancelled && status.needed) navigate('/setup', { replace: true });
+      })
+      // An older server has no such endpoint, and a network blip is not this
+      // page's problem: either way, show the login.
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { rateLimit } from './middleware/rate-limit.js';
 import { cspForIndex } from './csp.js';
 import { authRouter } from './routes/auth.js';
+import { setupRouter } from './routes/setup.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
 import { pipelineRouter } from './routes/pipeline.js';
@@ -119,6 +120,8 @@ export function createApp(): Express {
   app.use('/webhooks', rateLimit({ max: 600, windowMs: 60 * 1000 }));
   app.use('/b', rateLimit({ max: 120, windowMs: 60 * 1000 }));
 
+  // Unauthenticated by necessity, and only while the users table is empty.
+  app.use('/api/setup', setupRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/contacts', contactsRouter);
   app.use('/api/pipeline', pipelineRouter);

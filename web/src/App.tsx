@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './lib/auth.js';
 import { Layout } from './components/Layout.js';
 import { Spinner } from './design/ui.js';
 import { Login } from './pages/Login.js';
+import { Setup } from './pages/Setup.js';
 import { ChangePassword } from './pages/ChangePassword.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Pipeline } from './pages/Pipeline.js';
@@ -47,6 +48,9 @@ export function App() {
             </PublicOnly>
           }
         />
+        {/* First run only. The server refuses once an account exists, and the
+            page sends you to /login when it sees that. */}
+        <Route path="/setup" element={<Setup />} />
         <Route path="/change-password" element={<ChangePassword />} />
 
         {/* One shell around every signed-in screen, as the design has it. */}

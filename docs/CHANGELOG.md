@@ -53,6 +53,25 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   to a serving site with 42 tables, in one command.
 - `docs/GO-LIVE.md`: six steps with every value already filled in.
 
+**Added, so there is no terminal in the deploy at all**
+- **First-run setup in the browser.** `npm run seed` needed a console, and managed
+  hosting may not have one. While the `users` table is empty the sign-in page hands you
+  a setup screen instead; you create the owner account and are signed straight in. The
+  server refuses the endpoint the moment any account exists, so the window is open only
+  while an attacker and the owner are in the same position: the CRM holds nothing yet.
+  Six simultaneous submissions produce exactly one owner — a named lock, because an empty
+  table has no row to lock.
+- The setup screen also generates an `ENCRYPTION_KEY` to copy into the hosting panel, per
+  request and never stored. That was the last thing that needed a command line.
+- Built on the login screen's own markup, so the first thing a new deployment shows looks
+  like the product rather than a wizard bolted to the side.
+
+**Fixed**
+- Test files were compiled into the production build, so a test that did not typecheck
+  would fail a deploy of code that was perfectly fine — and ship test helpers to the live
+  server. `tsconfig.build.json` excludes them; `npm run typecheck` still covers them,
+  which is where a broken test belongs.
+
 **Still needed from the owner**
 - Confirmation that the Hostinger plan can run a Node.js process — see
   `docs/HOSTING-CHECK.md`. Everything above is written for a plan that can; if it cannot,

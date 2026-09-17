@@ -1,6 +1,6 @@
 # Going live on Hostinger Cloud — the short version
 
-Six steps. Nothing to install, no terminal except one line to make a password.
+Four steps, all of them clicks. No terminal anywhere.
 
 Your details, already confirmed:
 
@@ -15,23 +15,7 @@ Your details, already confirmed:
 
 ---
 
-## Step 1 · Make your secret key
-
-This one line runs on **your own Mac**, not on any server. Open Terminal and paste:
-
-```
-openssl rand -hex 32
-```
-
-It prints a long line of letters and numbers. **Copy it and keep it somewhere safe.**
-You will paste it once in Step 3, as `ENCRYPTION_KEY`.
-
-Do not send it to anyone, including in a chat. If you ever lose it, a new one can
-be generated — saved integration tokens would need re-entering, nothing else.
-
----
-
-## Step 2 · Find the Node.js page and connect GitHub
+## Step 1 · Find the Node.js page and connect GitHub
 
 In hPanel, open the Node.js deployment page for `crm.emirdulovic.com`. If you
 cannot find it, click the **✈ Agent** button and ask:
@@ -59,10 +43,10 @@ when it needs to.
 
 ---
 
-## Step 3 · Environment variables
+## Step 2 · Environment variables
 
 Still on that page, find **Environment variables** and add these. Copy them
-exactly; the two marked **← you** are yours to fill in.
+exactly; the one marked **← you** is yours to fill in.
 
 ```
 NODE_ENV=production
@@ -76,14 +60,16 @@ DB_NAME=u942058886_emircrm
 DB_USER=u942058886_emircrm
 DB_PASSWORD=                    ← you (your database password)
 
-ENCRYPTION_KEY=                 ← you (the long line from Step 1)
-
 WORKER_ENABLED=true
 WORKER_IN_PROCESS=1
 
 WHATSAPP_PROVIDER=log
 ALLOW_FAKE_WHATSAPP=1
 ```
+
+`ENCRYPTION_KEY` is deliberately absent: the app generates one for you on the
+setup screen in Step 3, ready to copy and paste back here. Nothing needs it
+until you connect WhatsApp or Google.
 
 Two of these matter more than they look:
 
@@ -98,7 +84,7 @@ Do not set `PORT`. Hostinger provides it.
 
 ---
 
-## Step 4 · Deploy
+## Step 3 · Deploy
 
 Press **Deploy**.
 
@@ -116,12 +102,26 @@ You want to see:
 `"worker":"in-process"` is the line that matters. If it says anything else,
 `WORKER_IN_PROCESS` did not take.
 
+### Then make your account
+
+Open **https://crm.emirdulovic.com**. Because nobody has an account yet, it
+shows a setup screen rather than a login you could not pass. Fill in your name,
+email and a password, press the button, and you are inside.
+
+That screen also shows a generated `ENCRYPTION_KEY`. Copy it, paste it into the
+environment variables from Step 2, and restart the app when convenient — it
+protects saved WhatsApp and Google tokens, and nothing needs it before then.
+
+The setup screen works exactly once. The moment your account exists the server
+refuses it for good, so open the site soon after it deploys rather than leaving
+a fresh install sitting on a public address.
+
 If the page does not load, open the deployment log on that same panel page — it
 says what went wrong, and the messages are written to be read.
 
 ---
 
-## Step 5 · Keep it awake
+## Step 4 · Keep it awake
 
 Managed hosting suspends an application nobody is visiting. A suspended
 application sends no follow-ups, so this is part of the deployment, not an extra.
@@ -137,28 +137,9 @@ curl -fsS https://crm.emirdulovic.com/health > /dev/null
 
 ---
 
-## Step 6 · Your login
-
-The first account has to be created once. In the same Node.js panel, look for a
-**Run command** or **Console** option and run:
-
-```
-npm run seed --workspace=server
-```
-
-It prints the email and temporary password, and the password must be changed at
-first login.
-
-If there is no way to run a command there, tell me — the same thing can be done
-from a one-time page instead, and I will add it.
-
----
-
 ## Then you are live
 
-Open **https://crm.emirdulovic.com**, sign in, change the password.
-
-From then on: every push to the branch redeploys by itself.
+From then on, every push to the branch redeploys by itself.
 
 ### What still needs you, later
 
