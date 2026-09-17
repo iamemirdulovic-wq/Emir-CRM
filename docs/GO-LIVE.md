@@ -2,13 +2,17 @@
 
 Four steps, all of them clicks. No terminal anywhere.
 
+This is the record of a real deploy, not a plan: it was followed end to end on
+17 September 2026 and the CRM came up on the fourth attempt. What went wrong on
+the first three is written into the steps below, so it does not go wrong again.
+
 Your details, already confirmed:
 
 | | |
 |---|---|
-| Address | `crm.emirdulovic.com` |
-| Database name | `u942058886_emircrm` |
-| Database user | `u942058886_emircrm` |
+| Address | `mycrm.emirdulovic.com` |
+| Database name | `u942058886_emircrm2` |
+| Database user | `u942058886_emircrm2` |
 | Database host | `localhost` |
 | Repository | `iamemirdulovic-wq/Emir-CRM` |
 | Branch | `claude/new-session-krd7bx` |
@@ -21,7 +25,12 @@ Hostinger confirmed the path:
 
 **Websites → Add Website → Deploy Web App → Import Git Repository**
 
-Then choose `crm.emirdulovic.com` as the deployment domain.
+Then choose the subdomain as the deployment domain.
+
+**Give the CRM its own empty database.** Two applications must never share one —
+they overwrite each other's tables, and the CRM refuses to start rather than
+migrate over someone else's schema. Create a fresh one in
+**Databases → Management** before you begin.
 
 Connect GitHub and select:
 
@@ -34,7 +43,7 @@ On the **Review build settings** screen:
 |---|---|
 | Framework preset | Other / None — this is not a frontend framework |
 | Branch | `claude/new-session-krd7bx` |
-| Node version | **22.x** (18.x, 20.x, 22.x and 24.x are offered) |
+| Node version | 20.x or 22.x — both work |
 | Root directory | `/` — leave it |
 | Build command | `npm run build` |
 | Output directory | leave blank — the server serves its own files |
@@ -53,14 +62,14 @@ exactly; the one marked **← you** is yours to fill in.
 
 ```
 NODE_ENV=production
-APP_URL=https://crm.emirdulovic.com
+APP_URL=https://mycrm.emirdulovic.com
 COOKIE_SECURE=true
 TRUST_PROXY=true
 
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=u942058886_emircrm
-DB_USER=u942058886_emircrm
+DB_NAME=u942058886_emircrm2
+DB_USER=u942058886_emircrm2
 DB_PASSWORD=                    ← you (your database password)
 
 WORKER_ENABLED=true
@@ -95,7 +104,7 @@ Press **Deploy**.
 It takes a few minutes: it installs, builds, creates all 42 database tables, and
 starts. Then open:
 
-**https://crm.emirdulovic.com/health**
+**https://mycrm.emirdulovic.com/health**
 
 You want to see:
 
@@ -108,7 +117,7 @@ You want to see:
 
 ### Then make your account
 
-Open **https://crm.emirdulovic.com**. Because nobody has an account yet, it
+Open **https://mycrm.emirdulovic.com**. Because nobody has an account yet, it
 shows a setup screen rather than a login you could not pass. Fill in your name,
 email and a password, press the button, and you are inside.
 
@@ -137,7 +146,7 @@ application sends no follow-ups, so this is part of the deployment, not an extra
 - **Command:**
 
 ```
-curl -fsS https://crm.emirdulovic.com/health > /dev/null
+curl -fsS https://mycrm.emirdulovic.com/health > /dev/null
 ```
 
 ---
@@ -145,6 +154,17 @@ curl -fsS https://crm.emirdulovic.com/health > /dev/null
 ## Then you are live
 
 From then on, every push to the branch redeploys by itself.
+
+### The three that caught us out
+
+1. **`DB_NAME` is a database name, not a password.** Pasting the password there
+   gives `Access denied for user`, which reads like a password problem and is not.
+2. **A database with tables already in it stops the deploy dead**, with
+   `Table 'users' already exists`. That is the CRM refusing to migrate over
+   another application's data. Use an empty database.
+3. **`NODE_ENV=production` hides the build tools** — npm omits devDependencies,
+   and TypeScript and Vite are devDependencies. `npm run build` now installs them
+   when they are missing, so this one is already handled.
 
 ### What still needs you, later
 
