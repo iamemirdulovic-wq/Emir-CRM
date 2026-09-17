@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ApiError } from './api.js';
 
-/** Load data, with loading and error state and a manual reload. */
+/**
+ * Load data, with loading and error state and a manual reload.
+ *
+ * `setData` is the raw state setter, so a screen can apply a change optimistically
+ * — passing an updater rather than a value, which is what makes two edits in the
+ * same tick both survive instead of the second overwriting the first.
+ */
 export function useAsync<T>(loader: () => Promise<T>, deps: unknown[] = []): {
   data: T | null;
   error: string | null;
   loading: boolean;
   reload: () => void;
-  setData: (value: T) => void;
+  setData: Dispatch<SetStateAction<T | null>>;
 } {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);

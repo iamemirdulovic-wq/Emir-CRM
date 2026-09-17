@@ -70,3 +70,21 @@ export function days(n: number): number {
 export function toMysqlDateTime(date: Date): string {
   return date.toISOString().slice(0, 19).replace('T', ' ');
 }
+
+/**
+ * A date and time as a person in Dubai would read it: "Thu 18 Sep, 15:30".
+ *
+ * Every user of this CRM works in one timezone, so a reminder that said "13:30"
+ * because the server runs in UTC would be a reminder about the wrong time.
+ */
+export function formatInDubai(date: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIMEZONE,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}

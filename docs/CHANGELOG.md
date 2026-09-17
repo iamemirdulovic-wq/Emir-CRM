@@ -2,6 +2,94 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The task manager
+
+**Added — creating, editing and finishing work without a page reload**
+- An Add / Edit dialog with title, description, priority, type, due date and time, and —
+  for managers — who it is assigned to. One dialog for both, because the fields are
+  identical and two would drift apart.
+- Every change is applied to the screen before it is sent: adding, editing, ticking off,
+  reopening and deleting. A task appears in about a quarter of a second rather than
+  waiting on a round-trip. When a request fails the row goes back exactly as it was and
+  says why — the half of "optimistic" that is easy to skip and the only half that makes
+  it safe.
+- The filter chips move with the rows. One task can be counted twice, since an overdue
+  task is also open, so the arithmetic lives in one tested place; the delete and revert
+  paths use the same numbers negated, which is what stops "Overdue 3" appearing above a
+  list of four.
+- Agents may only make work for themselves. Managers may assign within their team. A
+  colleague's task reports "does not exist" rather than "forbidden", so the endpoint
+  cannot be used to find out who has what.
+
+**Added — files on a task card**
+- Drag and drop or pick photos and PDFs, with image thumbnails rendered on the card
+  itself. Images open inline, everything else downloads.
+- Allow-list, not block-list: JPEG, PNG, WebP, GIF and PDF. SVG is excluded although it
+  is an image, because an SVG is a document that can carry script and serving one from
+  the CRM's own origin would run that script with the session cookie in scope.
+- The file on disk is named after its row id, never after anything the uploader typed,
+  and every read or delete checks the resolved path is inside `UPLOAD_DIR` first.
+- Attachments are served through the task's own permission check, never statically: a
+  guessable URL would make every file in the CRM readable to anyone who found one link.
+- Deleting a task takes its files with it; the hourly maintenance job sweeps up any bytes
+  whose rows have gone.
+
+**Added — a calendar beside the list**
+- Month, week and day. Month is a real seven-column grid, always six weeks so the page
+  does not change height as you page through the year. Week and day are a row per day,
+  because a 60px column cannot show a task title.
+- Monday first: the UAE working week has run Monday to Friday since 2022, and a calendar
+  starting on Sunday puts the weekend in the middle.
+- The range asked for ends at midnight the day *after* the last one shown, so a task due
+  at 23:59 on the final day is inside it rather than invisible.
+
+**Added — deadline reminders by email**
+- A sweep every five minutes emails whoever owns a task shortly before it is due. Swept
+  rather than scheduled: a job queued at creation time would be wrong the moment somebody
+  moved the deadline, and could never catch up on a task whose moment passed while the
+  worker was down.
+- The row is claimed before the email is attempted, so a slow SMTP server cannot cause a
+  second sweep to send the same nudge again. Moving a deadline or reassigning the task
+  clears the claim, so the new owner and the new time still get their warning.
+- These are internal emails to staff, so they deliberately bypass the lead-messaging
+  guards: consent, DNC and quiet hours protect leads, not the people who work here.
+
+**Fixed — "today" meant today in UTC**
+- Timestamps are stored and read as UTC, so the Tasks screen asked `DATE(due_at) =
+  CURDATE()` and got a UTC answer. Between 20:00 UTC and midnight — the small hours of
+  the next morning in Dubai — that is a day behind: an agent opening the app at 1am was
+  shown yesterday afternoon's tasks and none of the day ahead.
+- Both sides of the comparison are now shifted into Dubai, matching how the dashboard
+  already buckets its daily counts. A test pins the boundary, and fails against the old
+  query.
+- The calendar grid buckets by the Dubai day for the same reason. Everything else in the
+  CRM renders Asia/Dubai, so a browser-local grid would have drawn a task on the 17th
+  while the row beneath it read "18 Sept" — one screen, two answers.
+
+**Fixed — a file with a non-English name could not be downloaded**
+- HTTP header values are Latin-1. An attachment named in Arabic, or with an em dash
+  pasted from a listing, produced a `Content-Disposition` Node refuses to send, and the
+  download returned a 500. In a Dubai brokerage that is not an edge case.
+- Now RFC 6266: an ASCII `filename` every client understands plus a UTF-8 `filename*`
+  that modern ones prefer, so the real name reaches the disk. Verified with an Arabic
+  filename end to end.
+
+**Fixed — layout**
+- The task row's controls dropped onto their own line at phone width instead of being
+  squeezed between the text, which had been wrapping titles two words to a line.
+- The toolbar wraps on a phone; "Add task" had been cut off the right edge.
+- A `pill due` badge was picking up `margin-left:auto` from an older `.task .due` rule
+  and drifting to the far edge of whichever row it landed in.
+- The attachment remove button is always visible on touch devices, which have no hover.
+
+**Verified** in a real browser: adding, ticking off, reopening, editing and deleting a
+task, with the filter counts checked after each step and against the server after a
+reload — zero page reloads throughout. 590 server tests (16 for the task manager, 8 for
+the header encoding), 86 web tests (32 for the calendar's date maths, 22 for status and
+counts), month/week/day and phone layouts screenshotted.
+
+**Needs the owner** — deadline emails only send once `SMTP_HOST` is configured.
+
 ## The move-stage menu, cut in half
 
 **Fixed**

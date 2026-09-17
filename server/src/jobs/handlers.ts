@@ -23,6 +23,8 @@ import { reclaimStaleJobs, enqueue } from './queue.js';
 import { pruneCronKeys } from './cron.js';
 import { runChunk } from '../imports/run.js';
 import { purgeExpiredUploads } from '../imports/retention.js';
+import { sweepTaskReminders } from '../tasks/reminders.js';
+import { purgeOrphanedAttachments } from '../tasks/attachments.js';
 import { sendBatch } from '../campaigns/run.js';
 import { recycleList } from '../lists/store.js';
 import { recycleStaleClaims } from '../assignment/apply.js';
@@ -333,6 +335,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     return { lists: lists.length, recycled, poolClaimsReleased: claims };
   },
 
+  'task.reminder_sweep': async () => sweepTaskReminders(),
+
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();
     const attempts = await purgeOldLoginAttempts();
@@ -342,6 +346,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     );
     const cronKeys = await pruneCronKeys();
     const uploads = await purgeExpiredUploads();
+    // A deleted task cascades its attachment rows away and leaves the bytes.
+    const orphans = await purgeOrphanedAttachments();
     return {
       expiredSessions: sessions,
       oldLoginAttempts: attempts,
@@ -349,6 +355,7 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       prunedInboundEvents: events.affectedRows,
       prunedCronKeys: cronKeys,
       deletedUploads: uploads,
+      orphanedAttachments: orphans,
     };
   },
 };

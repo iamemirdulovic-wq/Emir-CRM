@@ -7,6 +7,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon.js';
 import { avatarColour, initials, stageStyle } from './stages.js';
 import type { StageKey } from '../lib/types.js';
@@ -219,6 +220,99 @@ export function ToastHost({ children }: { children: ReactNode }) {
         )}
       </div>
     </ToastContext.Provider>
+  );
+}
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+
+/**
+ * A centred dialog, for the things a drawer is the wrong shape for — mainly
+ * the task form, which is a form and not a record.
+ *
+ * Portalled to `document.body` for the same reason the pipeline's stage menu
+ * is: every panel on this app scrolls or clips something, and a dialog rendered
+ * inside one inherits that clipping. Focus moves into the dialog on open and
+ * back to whatever opened it on close, so keyboard and screen-reader users are
+ * not left behind in the page underneath.
+ */
+export function Modal({
+  open, onClose, title, icon, footer, children, wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  icon?: IconName;
+  footer?: ReactNode;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const card = useRef<HTMLDivElement>(null);
+  const restoreTo = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    restoreTo.current = document.activeElement as HTMLElement | null;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !card.current) return;
+      // Keep Tab inside the dialog: without this it walks off into the page
+      // behind, which for a modal means tabbing into controls you cannot see.
+      const focusable = card.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0] as HTMLElement;
+      const last = focusable[focusable.length - 1] as HTMLElement;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKey);
+    // After paint, or the element is not in the document to focus yet.
+    const raf = requestAnimationFrame(() => {
+      card.current?.querySelector<HTMLElement>('input, textarea, select, button')?.focus();
+    });
+
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      cancelAnimationFrame(raf);
+      restoreTo.current?.focus?.();
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="modal-wrap" role="presentation">
+      <div className="scrim show" onClick={onClose} aria-hidden />
+      <div
+        className={wide ? 'modal wide' : 'modal'}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        ref={card}
+      >
+        <div className="drawer-head">
+          {icon && <Icon name={icon} style={{ color: 'var(--primary)' }} />}
+          <b style={{ flex: 1 }}>{title}</b>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+            <Icon name="x" />
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="drawer-foot">{footer}</div>}
+      </div>
+    </div>,
+    document.body,
   );
 }
 

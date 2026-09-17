@@ -43,6 +43,13 @@ const SCHEDULES: Schedule[] = [
   // Recycling untouched leads is a daily decision, not an hourly one: an agent
   // who has not called a lead since this morning has not neglected them.
   { name: 'list_recycle', type: 'list.recycle', everyMinutes: 60 * 6 },
+  /*
+   * Every five minutes. The reminder window is half an hour by default, so this
+   * is fine-grained enough that a nudge lands close to when it was meant to,
+   * and coarse enough that the sweep is almost always a single cheap query
+   * returning nothing.
+   */
+  { name: 'task_reminders', type: 'task.reminder_sweep', everyMinutes: 5 },
   { name: 'cleanup', type: 'maintenance.cleanup', everyMinutes: 60 },
 ];
 

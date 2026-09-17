@@ -201,7 +201,11 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .ai-chip{font-size:10px;font-weight:700;background:var(--primary-soft);color:var(--primary);padding:1px 6px;border-radius:5px;margin-left:4px}
 .sec-t{font-weight:700;font-size:13px;margin:16px 0 8px}
 .task{display:flex;gap:8px;align-items:center;padding:9px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--glass-line);font-size:13px;margin-bottom:6px;color:var(--ink)}
-.task .due{margin-left:auto;color:var(--hot);font-weight:700;font-size:12px}
+/* :not(.pill) — a `pill due` badge brings its own colour and sits in a laid-out
+   row; without this it also picked up margin-left:auto and drifted to the far
+   edge of whichever row it landed in. The bare `.due` label in the inbox and on
+   Contact 360 still wants the auto margin. */
+.task .due:not(.pill){margin-left:auto;color:var(--hot);font-weight:700;font-size:12px}
 .back-btn{display:none}
 
 /* DRAWER */
@@ -464,7 +468,7 @@ tbody tr:hover{background:var(--surface-2)}
 
 /* Buttons and chips are sometimes links (Call, WhatsApp, All contacts), and an
    anchor brings its own underline. */
-.btn,.chip,.rowbtn,.task,.thread{text-decoration:none}
+.btn,.chip,.rowbtn,.task,.thread,.thumb{text-decoration:none}
 /* Names in a table are links to the record; the underline turns a tidy list
    into a wall of blue rules. */
 td a,.bank a,.kv a{text-decoration:none}
@@ -487,6 +491,101 @@ td a:hover,.bank a:hover{text-decoration:underline}
 /* At phone width the toolbar's right-hand controls get the full row rather
    than being squeezed against the edge. */
 @media (max-width:760px){
-  .toolbar .right{margin-left:0;width:100%}
+  /* Wrapping, not just full width: the tasks toolbar carries scope chips, a
+     view switcher and a button, which together overflow a phone and pushed
+     "Add task" off the right edge. */
+  .toolbar .right{margin-left:0;width:100%;flex-wrap:wrap}
   .toolbar .right select,.toolbar .right .input{width:100%}
+  /* .seg is pushed right by margin-left:auto, which on a wrapped row leaves it
+     stranded on a line of its own. */
+  .toolbar .right .seg{margin-left:0}
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MODAL
+   The drawer's glass, centred instead of docked, for the task form. Shares
+   .drawer-head and .drawer-foot so a dialog and a record panel look alike.
+   ───────────────────────────────────────────────────────────────────────── */
+.modal-wrap{position:fixed;inset:0;z-index:56;display:grid;place-items:center;padding:16px;pointer-events:none}
+.modal-wrap>*{pointer-events:auto}
+.modal{position:relative;z-index:57;width:min(540px,100%);max-height:min(88vh,860px);display:flex;flex-direction:column;border-radius:26px;background:var(--glass-strong);border:1px solid var(--glass-line);box-shadow:0 24px 60px rgba(9,24,44,.22);animation:modal-in .24s cubic-bezier(.2,.8,.2,1)}
+.modal.wide{width:min(760px,100%)}
+.modal-body{padding:18px;overflow-y:auto;flex:1}
+@keyframes modal-in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+/* The animation is decoration; the dialog must still appear instantly for
+   anyone who has asked the system for less movement. */
+@media (prefers-reduced-motion:reduce){.modal{animation:none}}
+/* Two fields side by side — due date and time, type and priority. */
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.field-row{grid-template-columns:1fr}}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TASK ATTACHMENTS
+   ───────────────────────────────────────────────────────────────────────── */
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.thumb{position:relative;width:56px;height:56px;border-radius:10px;overflow:hidden;border:1px solid var(--glass-line);background:var(--surface-2);display:block;flex:none}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+/* A PDF has no picture to show, so it gets its name and an icon instead. */
+.thumb.file{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink-3);text-align:center;padding:4px}
+.thumb.file small{font-size:9px;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:0;background:rgba(9,24,44,.62);color:#fff;display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s}
+.thumb:hover .x,.thumb:focus-within .x{opacity:1}
+/* There is no hover on a phone, so the remove button would never appear. */
+@media (hover:none){.thumb .x{opacity:1}}
+.thumb .x svg{width:11px;height:11px}
+/* The drop target in the form. */
+.dropzone{border:1.5px dashed var(--glass-line);border-radius:14px;padding:14px;text-align:center;color:var(--ink-3);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone:hover,.dropzone.over{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+
+/* A task row: tick, content, then the controls. */
+.task-main{flex:1;min-width:0}
+.task-side{display:flex;align-items:center;gap:6px;margin-inline-start:auto;flex:none}
+@media (max-width:760px){
+  /* On a phone the controls will not fit beside the text without shredding it,
+     so they drop to their own row, indented to line up under the content. */
+  .task{flex-wrap:wrap}
+  .task-main{flex:1 1 0}
+  .task-side{flex:1 1 100%;margin-inline-start:0;padding-inline-start:38px;flex-wrap:wrap}
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   CALENDAR
+   ───────────────────────────────────────────────────────────────────────── */
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.cal-head span{font-size:11px;font-weight:700;color:var(--ink-3);text-align:center;text-transform:uppercase;letter-spacing:.04em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-day{min-height:96px;border-radius:12px;background:var(--surface-2);border:1px solid var(--glass-line);padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+/* Days from the neighbouring month stay visible but recede, so the month you
+   are actually looking at is the one that reads first. */
+.cal-day.dim{opacity:.45}
+.cal-day.today{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.cal-day>.d{font-size:11.5px;font-weight:700;color:var(--ink-3);text-align:right}
+.cal-day.today>.d{color:var(--primary)}
+.cal-ev{display:flex;gap:4px;align-items:center;width:100%;border:0;text-align:left;background:var(--glass-strong);border-radius:7px;padding:3px 5px;font-size:11px;font-weight:600;color:var(--ink);cursor:pointer;overflow:hidden}
+.cal-ev:hover{background:var(--primary-soft);color:var(--primary)}
+.cal-ev .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-ev time{color:var(--ink-3);font-size:10px;flex:none}
+.cal-ev:hover time{color:inherit}
+.cal-ev.done .t{text-decoration:line-through;opacity:.6}
+/* A coloured left edge carries priority without spending any width on it. */
+.cal-ev::before{content:"";width:3px;align-self:stretch;border-radius:2px;background:var(--c,var(--primary));flex:none}
+.cal-more{font-size:10.5px;font-weight:600;color:var(--ink-3);background:none;border:0;padding:1px 5px;text-align:left;cursor:pointer}
+.cal-more:hover{color:var(--primary)}
+/* Week and day views drop the 7-column grid: each day becomes a full row, so
+   a single task is readable rather than a 60px-wide sliver. */
+.cal-list .cal-day{min-height:0}
+.cal-list{display:grid;grid-template-columns:1fr;gap:6px}
+.cal-list .cal-day{flex-direction:row;align-items:flex-start;gap:10px;padding:10px 12px}
+.cal-list .cal-day>.d{width:64px;flex:none;text-align:left}
+.cal-list .cal-evs{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.cal-list .cal-ev{font-size:12.5px;padding:5px 7px}
+@media (max-width:760px){
+  .cal-day{min-height:62px;padding:4px}
+  .cal-day>.d{font-size:10.5px}
+  /* At phone width there is no room for a title inside a month cell, so the
+     grid becomes a density map and the tasks themselves are read from the
+     list view or by tapping a day. */
+  .cal-grid .cal-ev .t,.cal-grid .cal-ev time{display:none}
+  .cal-grid .cal-ev{padding:2px;height:5px;border-radius:3px}
+  .cal-grid .cal-ev::before{width:100%}
 }

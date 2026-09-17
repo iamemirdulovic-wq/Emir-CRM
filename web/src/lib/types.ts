@@ -255,9 +255,40 @@ export type TaskRow = {
   assignee_name: string | null;
 };
 
+/** A file on a task card: a floor plan, a portal screenshot, a photo of a cheque. */
+export type TaskAttachment = {
+  id: string;
+  task_id: string;
+  filename: string;
+  content_type: string;
+  byte_size: number;
+  created_at: string;
+};
+
+export type TaskCounts = { overdue: number; today: number; open: number; done: number };
+
 export type TasksResponse = {
   items: TaskRow[];
-  counts: { overdue: number; today: number; open: number; done: number };
+  counts: TaskCounts;
+  /** Flat, for every task in `items` — one query on the server, grouped here. */
+  attachments: TaskAttachment[];
+};
+
+export type TaskCalendarResponse = {
+  items: TaskRow[];
+  attachments: TaskAttachment[];
+};
+
+/** What the create/edit form sends. `dueAt` is an ISO instant, not a local string. */
+export type TaskDraft = {
+  title: string;
+  notes: string | null;
+  type: TaskRow['type'];
+  priority: TaskRow['priority'];
+  dueAt: string;
+  assignedUserId: string | null;
+  contactId?: string | null;
+  opportunityId?: string | null;
 };
 
 /* ── Automations ──────────────────────────────────────────────────────── */

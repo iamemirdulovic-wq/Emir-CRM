@@ -9,7 +9,7 @@ import { loadGuardContext, recordOutbound, type SendOutcome } from '../send.js';
 
 let transporter: Transporter | null = null;
 
-function mailer(): Transporter | null {
+export function mailer(): Transporter | null {
   const cfg = env();
   if (!cfg.SMTP_HOST) return null;
   if (!transporter) {

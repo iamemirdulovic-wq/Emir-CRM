@@ -20,6 +20,7 @@ export const JOB_TYPES = [
   'import.run_chunk',
   'campaign.send_batch',
   'list.recycle',
+  'task.reminder_sweep',
   'maintenance.cleanup',
 ] as const;
 

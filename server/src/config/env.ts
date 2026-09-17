@@ -41,6 +41,17 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().default('./var/uploads'),
   /** Largest import file accepted, in megabytes. 100k rows is roughly 12 MB. */
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(512).default(64),
+  /**
+   * Largest file attachable to a task. Ten megabytes is a generous phone photo
+   * and a long floor-plan PDF; much more and a team fills the disk with things
+   * nobody opens twice.
+   */
+  MAX_ATTACHMENT_MB: z.coerce.number().int().min(1).max(64).default(10),
+  /**
+   * How long before a task is due to email the person it belongs to. Half an
+   * hour is enough to act on and late enough to still be relevant.
+   */
+  TASK_REMINDER_MINUTES: z.coerce.number().int().min(1).max(10080).default(30),
   COOKIE_SECURE: boolish.default(false),
   TRUST_PROXY: boolish.default(true),
 
