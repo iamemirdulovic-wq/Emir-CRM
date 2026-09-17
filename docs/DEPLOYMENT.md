@@ -120,6 +120,16 @@ Create a Firebase project, enable Cloud Messaging, and set `FCM_PROJECT_ID`,
 - [ ] The owner's seeded password has been changed
 - [ ] `WEBSITE_FORM_HMAC_SECRET` or `RECAPTCHA_SECRET` is set — without one the
       website endpoint refuses submissions rather than accepting unverified ones
+- [ ] `WHATSAPP_PROVIDER` is a real provider, or `ALLOW_FAKE_WHATSAPP=1` is set
+      deliberately because WhatsApp is not connected yet. The server refuses to
+      start otherwise, on purpose: on `log` it would show agents messages that
+      were never sent.
+- [ ] `npm run build` has run, so `web/dist/index.html` exists — the
+      Content-Security-Policy hashes its inline script at boot, and a stale
+      build means a stale hash. Rebuild and restart together.
+- [ ] The worker is running. Uploaded import files, expired sessions and old
+      cron keys are cleaned up by its hourly maintenance job; without it
+      `UPLOAD_DIR` grows forever.
 
 ## Upgrades
 
@@ -157,6 +167,10 @@ within days.
 - `MAX_UPLOAD_MB` — default 64, which is roughly half a million rows of CSV.
   Raise it only with the reverse proxy's own body limit raised to match, or the
   upload is cut off before the app ever sees it.
+- Files are deleted by the worker's hourly maintenance job once an import's
+  24-hour undo window closes, and after a week for an upload nobody finished.
+  The sweep will not touch a path that does not resolve inside `UPLOAD_DIR`, so
+  point `UPLOAD_DIR` at a directory the app owns, not at a shared one.
 
 The upload endpoint streams the request body straight to disk, so it needs no
 temporary space beyond the file itself and holds nothing in memory.

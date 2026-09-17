@@ -2,6 +2,72 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Phase 13 — Hardening and the security pass
+
+**Fixed — permissions on the Phase 12 surface**
+- A power-dialler card can only be worked or handed back by the agent it belongs to.
+  `logOutcome` and `releaseMember` both take the caller's scope; previously an agent
+  could log an outcome on, or release, any card whose id they knew — including a
+  colleague's live call.
+- Campaign statistics are filtered for agents, who now see their own row rather than the
+  whole desk's numbers.
+- Adding and removing list members is manager-only, and the contact ids are narrowed to
+  what the caller may see before anything is written. The bulk endpoints report
+  `requested` and `applied` so the UI can say when a selection was trimmed.
+- Undoing an import needs `admin` plus the `bulk:delete` permission: it deletes contacts,
+  and the specification keeps bulk deletion with the owner and admin.
+- `GET /api/users` returns only what an agent needs to render an assignee — id, name,
+  role, active, availability — and their own row for the rest. Colleagues' email
+  addresses are no longer part of the payload every screen loads.
+
+**Fixed — a production trap**
+- The `log` WhatsApp provider writes messages to the console and reports success. On a
+  live server that is the worst possible failure: the inbox shows a welcome message, the
+  agent believes the lead has been contacted, and nothing was ever sent. The server now
+  refuses to boot in production on that provider unless `ALLOW_FAKE_WHATSAPP=1` says the
+  owner means it — and with the flag on, sends are recorded as failed with
+  "Not sent — WhatsApp is not connected yet. Call or email this lead instead."
+
+**Added**
+- **A real Content-Security-Policy.** Nothing sits in front of the app on Hostinger, so
+  it is set here: `script-src` is self plus the hash of the one inline script, which is
+  computed from the built `index.html` at boot so the policy follows the file instead of
+  drifting from it. `object-src 'none'`, `frame-ancestors 'none'`, `base-uri` and
+  `form-action` pinned to self. HSTS switches on with `COOKIE_SECURE`.
+- **Upload retention.** An import's file is deleted once its undo window closes, and an
+  abandoned upload after a week. The sweep refuses any path that does not resolve inside
+  `UPLOAD_DIR`, so a tampered row cannot turn it into an arbitrary delete. It runs inside
+  the hourly `maintenance.cleanup` job, which also now actually calls `pruneCronKeys` —
+  it was written in Phase 5 and never wired up.
+- **Per-user upload rate limiting.** A whole office shares one IP, so the upload budget
+  is keyed by user rather than address.
+
+**Fixed — log redaction**
+- `redact` masked phones and emails under a key it recognised, but let them through
+  inside free text. The commonest leak is MySQL's own duplicate-key error, which quotes
+  the offending value: `Duplicate entry '+9715…' for key 'uq_contact_phone'`. Every
+  string in a log context is now scrubbed.
+
+**Dependencies**
+- `drizzle-orm` and `drizzle-kit` removed. Nothing imported them — the migrations are
+  hand-written SQL — and the package carried a SQL-injection advisory.
+- `nodemailer` to 10.x (SMTP command injection, mail to an unintended domain) and
+  `react-router-dom` to 7.x (open redirect). Every router API the app uses is unchanged
+  in 7.
+- Two moderate advisories remain, both `exceljs`'s transitive `uuid`: the flaw needs a
+  caller-supplied buffer, and exceljs calls `uuidv4()` with no arguments. npm's "fix"
+  downgrades exceljs to 3.x, which would cost the streaming reader the 100k-row import
+  depends on.
+
+**Verified**
+- 512 server tests and 24 web tests green; 18 browser steps pass with the CSP in place,
+  which is what proves the policy does not break the app.
+- Reviewed every route file for viewer scoping, and the dynamic SQL for injection: every
+  interpolated identifier comes from a literal or `assertIdentifier`, and every value is
+  a placeholder.
+- No secrets in tracked files; `.env.example` and `server/.env.test` carry placeholders
+  only.
+
 ## Phase 12 — Bulk import, lists, campaigns and team assignment
 
 **Added**

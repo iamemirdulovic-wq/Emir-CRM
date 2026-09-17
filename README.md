@@ -152,3 +152,13 @@ database layer around them is thin on purpose.
 - Every user-supplied value reaches SQL through a placeholder; the few dynamic
   column lists are validated against an identifier pattern at runtime.
 - Only an owner or admin can export or bulk-delete, and both are audited.
+- Scoping is applied in SQL, not only in a guard: an agent's every list, count,
+  dashboard and export is narrowed to their own leads by the same predicate, and
+  endpoints that take a set of ids narrow those ids before writing.
+- A Content-Security-Policy is set by the server, because nothing sits in front
+  of it: `script-src` is self plus the hash of the shell's one inline script,
+  with `object-src` and `frame-ancestors` at `'none'`. HSTS follows
+  `COOKIE_SECURE`.
+- In production the server refuses to start on the `log` WhatsApp provider
+  unless `ALLOW_FAKE_WHATSAPP=1`, so a live CRM cannot quietly swallow every
+  message while showing agents that it sent them.

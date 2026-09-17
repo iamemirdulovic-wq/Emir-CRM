@@ -112,6 +112,32 @@ Identity merging, stage-move permissions, the automation guards, assignment,
 intent matching and scoring are all pure and unit-tested. The database-backed
 layer around them is thin. This is why the rules can be reasoned about at all.
 
+### Permission checks belong in SQL, not in a guard
+Every list, count and export is built from `visibleUserIds(user)` and
+`ownerPredicate(column, ids)`, which return `null` for a role that may see
+everything and an `IN (…)` clause otherwise. The scope goes into the query, so
+an endpoint cannot be given the right guard and the wrong result set. Endpoints
+that act on a caller-supplied set of ids — bulk list membership, the dialler's
+outcome and release — narrow the ids through the same predicate before writing
+rather than trusting the id as proof of access.
+
+### The security headers come from this process
+There is no CDN or reverse proxy in front of the app on Hostinger; it serves its
+own app shell from the same origin as the API, which is what lets the session
+cookie stay `httpOnly` and `SameSite=Lax` with no CORS surface at all. So helmet
+and the Content-Security-Policy are set here. `script-src` is `'self'` plus the
+SHA-256 of the one inline script in `index.html` — the theme bootstrap that runs
+before first paint — hashed from the built file at boot, so the policy tracks the
+file instead of being a constant someone forgets. `style-src` keeps
+`'unsafe-inline'`: the design animates through inline `style` attributes that
+React sets from JavaScript, where a nonce cannot reach.
+
+### Uploaded files are working copies, not records
+An import's file is read once into `import_rows` and never again — the
+failed-rows CSV is rebuilt from the database. The file is kept only until the
+import's undo window closes, then deleted by the hourly maintenance job, which
+refuses any path that does not resolve inside `UPLOAD_DIR`.
+
 ## Directory map
 
 ```
