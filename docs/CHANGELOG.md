@@ -2,6 +2,25 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The move-stage menu, cut in half
+
+**Fixed**
+- The menu for moving a card to another stage was positioned inside the card. The card
+  sits in `.col-body`, which scrolls vertically, inside `.board`, which scrolls
+  horizontally — so the menu was clipped by both, and on a card in the first column it
+  also ran off the side of the screen. Half the stages were unreachable.
+- It renders into `document.body` now, fixed-positioned from the button's own rectangle,
+  which puts it outside every scroll container. `placeMenu` keeps it on screen: pulled
+  back from either edge, opened upwards when there is no room below, never taller than
+  the space there is, and aligned to the mirrored edge in Arabic.
+- Closed on scroll and resize, because a fixed menu does not travel with the column it
+  was opened from and would otherwise hang in mid-air.
+
+**Verified** in a real browser at 1280×800 and at phone size: the menu is fully on screen
+for a card in the first column, a card further along, and on mobile. Eight placement
+tests cover the cases that are awkward to reach by hand — both screen edges, no room
+below, and a right-to-left layout. 574 server tests, 32 web tests, 18 browser steps.
+
 ## The first real import, in full
 
 **Fixed — a fresh install had no pipeline, so every import failed**

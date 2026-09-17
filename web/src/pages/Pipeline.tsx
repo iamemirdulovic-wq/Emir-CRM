@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { api, qs } from '../lib/api.js';
 import { useAsync, useDebounced } from '../lib/hooks.js';
@@ -303,52 +304,131 @@ function BoardCard({
 function MoveMenu({
   card, stages, onMove,
 }: { card: Card; stages: PipelineDefinition['stages']; onMove: (to: StageKey) => void }) {
-  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [at, setAt] = useState<Placement | null>(null);
+  const open = at !== null;
+
+  /*
+   * Rendered into document.body rather than beside the button.
+   *
+   * The card sits inside `.col-body`, which scrolls vertically, inside
+   * `.board`, which scrolls horizontally. An absolutely positioned menu is
+   * therefore clipped by both — it appeared cut off at the edge of the column
+   * and ran off the side of the screen. A fixed-position portal is outside
+   * every scroll container, so nothing can trim it.
+   */
+  const place = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setAt(placeMenu(rect, MENU_WIDTH, document.documentElement.dir === 'rtl'));
+  }, []);
+
+  /*
+   * A fixed menu does not travel with the column it was opened from, so it
+   * would hang in mid-air the moment anything scrolled. Closing is both
+   * simpler and less surprising than chasing the button.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setAt(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
   return (
-    <span style={{ position: 'relative', display: 'inline-flex' }}>
+    <span style={{ display: 'inline-flex' }}>
       <button
+        ref={buttonRef}
         type="button"
         className="rowbtn"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => (open ? setAt(null) : place())}
         aria-label={`Move ${card.full_name ?? 'this lead'} to another stage`}
         aria-expanded={open}
       >
         <Icon name="git-compare" size={15} />
       </button>
-      {open && (
-        <>
-          <span style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} aria-hidden />
-          <ul
-            style={{
-              position: 'absolute', insetInlineEnd: 0, top: 22, zIndex: 41, listStyle: 'none',
-              margin: 0, padding: 6, minWidth: 190, borderRadius: 14,
-              background: 'var(--glass-strong)', border: '1px solid var(--glass-line)',
-              boxShadow: 'var(--shadow)',
-            }}
-          >
-            {stages
-              .filter((stage) => stage.key !== card.stage_key)
-              .map((stage) => (
-                <li key={stage.key}>
-                  <button
-                    type="button"
-                    className="task"
-                    style={{ width: '100%', background: 'none', border: 0, marginBottom: 2 }}
-                    onClick={() => {
-                      setOpen(false);
-                      onMove(stage.key);
-                    }}
-                  >
-                    <Icon name={stageStyle(stage.key).icon} size={15} />
-                    {stage.name}
-                  </button>
-                </li>
-              ))}
-          </ul>
-        </>
-      )}
+      {at
+        && createPortal(
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+              onClick={() => setAt(null)}
+              aria-hidden
+            />
+            <ul
+              style={{
+                position: 'fixed', left: at.left, zIndex: 61, listStyle: 'none',
+                ...(at.top !== undefined ? { top: at.top } : { bottom: at.bottom }),
+                margin: 0, padding: 6, width: MENU_WIDTH, borderRadius: 14,
+                maxHeight: at.maxHeight, overflowY: 'auto',
+                background: 'var(--glass-strong)', border: '1px solid var(--glass-line)',
+                boxShadow: 'var(--shadow)',
+              }}
+            >
+              {stages
+                .filter((stage) => stage.key !== card.stage_key)
+                .map((stage) => (
+                  <li key={stage.key}>
+                    <button
+                      type="button"
+                      className="task"
+                      style={{ width: '100%', background: 'none', border: 0, marginBottom: 2 }}
+                      onClick={() => {
+                        setAt(null);
+                        onMove(stage.key);
+                      }}
+                    >
+                      <Icon name={stageStyle(stage.key).icon} size={15} />
+                      {stage.name}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </>,
+          document.body,
+        )}
     </span>
   );
+}
+
+const MENU_WIDTH = 200;
+/** Breathing room from the edge of the screen, and the space a menu needs to be worth opening downwards. */
+const EDGE = 8;
+const MIN_ROOM = 160;
+
+type Placement = { left: number; top?: number; bottom?: number; maxHeight: number };
+
+/**
+ * Where to put the menu, given where the button is.
+ *
+ * Exported for its tests: the cases that matter are a button near the right
+ * edge, near the bottom, and in a right-to-left layout, and all three are
+ * awkward to reproduce in a browser.
+ */
+export function placeMenu(
+  rect: { top: number; bottom: number; left: number; right: number },
+  width: number,
+  rtl: boolean,
+  viewport: { width: number; height: number } = { width: window.innerWidth, height: window.innerHeight },
+): Placement {
+  // Aligned to the button's near edge, then pulled back on screen if that put
+  // it outside — which is what happened to a card in the first column.
+  const preferred = rtl ? rect.left : rect.right - width;
+  const left = Math.max(EDGE, Math.min(preferred, viewport.width - width - EDGE));
+
+  const below = viewport.height - rect.bottom - EDGE - 6;
+  if (below >= MIN_ROOM) {
+    return { left, top: rect.bottom + 6, maxHeight: below };
+  }
+
+  // Not enough room underneath: open upwards instead, and never taller than
+  // the space there actually is.
+  const above = rect.top - EDGE - 6;
+  return { left, bottom: viewport.height - rect.top + 6, maxHeight: Math.max(MIN_ROOM, above) };
 }
 
 /** Marking a lead Lost requires a reason, so the UI insists on one. */
