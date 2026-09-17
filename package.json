@@ -14,13 +14,14 @@
     "dev": "npm run dev --workspace=server",
     "dev:web": "npm run dev --workspace=web",
     "build": "npm run build --workspace=server && npm run build --workspace=web",
-    "start": "npm run start --workspace=server",
+    "start": "node scripts/start.mjs",
     "test": "npm run test --workspace=server && npm run test --workspace=web",
     "typecheck": "npm run typecheck --workspace=server && npm run typecheck --workspace=web",
     "migrate": "npm run migrate --workspace=server",
     "seed": "npm run seed --workspace=server",
     "worker": "npm run worker --workspace=server",
     "demo": "npm run demo --workspace=server",
-    "e2e": "node e2e/ui.mjs"
+    "e2e": "node e2e/ui.mjs",
+    "start:server-only": "npm run start --workspace=server"
   }
 }

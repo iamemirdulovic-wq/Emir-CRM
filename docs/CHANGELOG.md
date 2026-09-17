@@ -42,6 +42,17 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   seeded database. HSTS and the CSP were confirmed on the live response.
 - 530 server tests and 24 web tests green.
 
+**Added, after the hosting answer came back**
+- Hostinger Cloud runs Node, but one process per application: no PM2, no second
+  process, no background workers. `WORKER_IN_PROCESS=1` puts the worker inside the API
+  so the follow-ups still run. `/health` reports where it is, so the keep-alive ping
+  doubles as the check that it is there at all.
+- `npm start` is now `scripts/start.mjs`: it builds if there is no build, migrates, then
+  starts. Managed platforms differ in whether they run a build step, and this stops that
+  difference from mattering. Proven from a clean checkout — no `dist`, empty database —
+  to a serving site with 42 tables, in one command.
+- `docs/GO-LIVE.md`: six steps with every value already filled in.
+
 **Still needed from the owner**
 - Confirmation that the Hostinger plan can run a Node.js process — see
   `docs/HOSTING-CHECK.md`. Everything above is written for a plan that can; if it cannot,

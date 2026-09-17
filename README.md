@@ -74,6 +74,7 @@ The database-backed test suites skip themselves when no server is reachable, so
 | [`docs/WEBHOOKS.md`](docs/WEBHOOKS.md) | Every inbound endpoint with real sample payloads |
 | [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md) | The guards, workflows A/B/C, and ad-platform feedback |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosting requirements, integration setup, what needs owner action |
+| [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | Six steps to put the CRM live on Hostinger Cloud, with every value filled in |
 | [`docs/HOSTING-CHECK.md`](docs/HOSTING-CHECK.md) | What to confirm about the hosting plan before deploying, and what each answer changes |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | The design system: where it lives, how to port a screen, the theme |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | What shipped in each phase, and the bugs found along the way |
