@@ -6,7 +6,7 @@ import {
   requirePermission,
 } from '../middleware/auth.js';
 import { execute, query, queryOne } from '../../db/client.js';
-import { visibleUserIds } from '../../auth/scope.js';
+import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest, forbidden } from '../../lib/errors.js';
 import { writeAudit } from '../../audit/audit.js';
@@ -132,19 +132,41 @@ listsRouter.get(
 
 const membersSchema = z.object({ contactIds: z.array(z.string().max(36)).min(1).max(5000) });
 
+/**
+ * Changing who is on a shared list is a manager's decision, and the contacts
+ * have to be ones the caller can actually see — otherwise an agent could add
+ * records outside their scope and learn they exist from the count.
+ */
+async function withinScope(req: Request, contactIds: string[]): Promise<string[]> {
+  const visible = await visibleUserIds(currentUser(req));
+  if (visible === null) return contactIds;
+  const scope = ownerPredicate('c.owner_user_id', visible);
+  const rows = await query<{ id: string }>(
+    `SELECT c.id FROM contacts c
+      WHERE c.id IN (${contactIds.map(() => '?').join(',')})
+        AND (${scope.sql} OR c.owner_user_id IS NULL)`,
+    [...contactIds, ...scope.params],
+  );
+  return rows.map((row) => row.id);
+}
+
 listsRouter.post(
   '/:id/members',
+  requireManager,
   asyncHandler(async (req: Request, res: Response) => {
     const body = membersSchema.parse(req.body);
-    res.json({ added: await addToList(actorFrom(req), String(req.params.id), body.contactIds) });
+    const allowed = await withinScope(req, body.contactIds);
+    res.json({ added: await addToList(actorFrom(req), String(req.params.id), allowed) });
   }),
 );
 
 listsRouter.delete(
   '/:id/members',
+  requireManager,
   asyncHandler(async (req: Request, res: Response) => {
     const body = membersSchema.parse(req.body);
-    res.json({ removed: await removeFromList(actorFrom(req), String(req.params.id), body.contactIds) });
+    const allowed = await withinScope(req, body.contactIds);
+    res.json({ removed: await removeFromList(actorFrom(req), String(req.params.id), allowed) });
   }),
 );
 
@@ -173,8 +195,10 @@ listsRouter.post(
   requireManager,
   asyncHandler(async (req: Request, res: Response) => {
     const body = bulkSchema.parse(req.body);
-    const result = await runBulkAction(actorFrom(req), body.contactIds, body.action as never);
-    res.json(result);
+    // A bulk action only ever touches contacts the caller can see.
+    const allowed = await withinScope(req, body.contactIds);
+    const result = await runBulkAction(actorFrom(req), allowed, body.action as never);
+    res.json({ ...result, requested: body.contactIds.length, applied: allowed.length });
   }),
 );
 

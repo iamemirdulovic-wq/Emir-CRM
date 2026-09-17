@@ -49,6 +49,16 @@ const envSchema = z.object({
 
   // --- WhatsApp -----------------------------------------------------------
   WHATSAPP_PROVIDER: z.enum(['cloud', 'wati', 'twilio', 'log']).default('log'),
+  /**
+   * Lets production run with the `log` WhatsApp provider, which never reaches
+   * the network. Off by default and refused unless set, because the failure it
+   * prevents is silent and expensive: an agent seeing a welcome message in the
+   * inbox and not calling a lead who was never actually contacted.
+   *
+   * With it on, those messages are recorded as not sent and say so, so the
+   * CRM can be used for calls and imports before WhatsApp is connected.
+   */
+  ALLOW_FAKE_WHATSAPP: boolish.default(false),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
@@ -101,7 +111,21 @@ const envSchema = z.object({
   WORKER_POLL_MS: z.coerce.number().int().positive().default(2000),
   WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(10),
   WORKER_ID: z.string().optional(),
-});
+})
+  .superRefine((value, ctx) => {
+    // A production server that silently swallows every WhatsApp message is the
+    // worst of both worlds: it looks like it is working. Refuse to start.
+    if (value.NODE_ENV === 'production' && value.WHATSAPP_PROVIDER === 'log' && !value.ALLOW_FAKE_WHATSAPP) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['WHATSAPP_PROVIDER'],
+        message:
+          'is "log", which never sends anything. Set a real provider (cloud, wati, twilio), ' +
+          'or set ALLOW_FAKE_WHATSAPP=1 to run without WhatsApp — messages will then be ' +
+          'recorded as not sent, and the inbox will say so.',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

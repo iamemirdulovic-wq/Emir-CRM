@@ -17,6 +17,11 @@ import { DEFAULT_BULK_POLICY } from '../../campaigns/guard.js';
 export const campaignsRouter = Router();
 campaignsRouter.use(requireAuth, blockUntilPasswordChanged);
 
+/** Managers and owners run the campaign, so they may work any row on it. */
+function canWorkOthers(role: string): boolean {
+  return role === 'manager' || role === 'admin' || role === 'owner';
+}
+
 const createSchema = z.object({
   name: z.string().min(1).max(160),
   kind: z.enum(['call', 'whatsapp']),
@@ -88,13 +93,22 @@ campaignsRouter.post(
 campaignsRouter.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
     const id = String(req.params.id);
     const campaign = await queryOne<Record<string, unknown>>(
       `SELECT c.*, l.name AS list_name FROM campaigns c LEFT JOIN lists l ON l.id = c.list_id WHERE c.id = ?`,
       [id],
     );
     if (!campaign) throw badRequest('That campaign does not exist');
-    res.json({ campaign, stats: await campaignStats(id) });
+
+    const stats = await campaignStats(id);
+    // An agent sees the campaign's totals and their own row. Comparing
+    // colleagues is a manager's view, not everyone's.
+    const scoped = canWorkOthers(user.role)
+      ? stats
+      : { ...stats, byAgent: stats.byAgent.filter((row) => row.userId === user.id) };
+
+    res.json({ campaign, stats: scoped });
   }),
 );
 
@@ -145,11 +159,6 @@ campaignsRouter.post(
 
 /* ── The power dialler ────────────────────────────────────────────────── */
 
-/** Managers and owners run the campaign, so they may work any row on it. */
-function canWorkOthers(role: string): boolean {
-  return role === 'manager' || role === 'admin' || role === 'owner';
-}
-
 campaignsRouter.post(
   '/:id/next',
   asyncHandler(async (req: Request, res: Response) => {
@@ -172,7 +181,10 @@ campaignsRouter.post(
   asyncHandler(async (req: Request, res: Response) => {
     const body = outcomeSchema.parse(req.body);
     const user = currentUser(req);
-    await logOutcome(actorFrom(req), body.memberId, body.outcome, body.notes ?? null);
+    await logOutcome(actorFrom(req), body.memberId, body.outcome, body.notes ?? null, {
+      userId: user.id,
+      canWorkOthers: canWorkOthers(user.role),
+    });
     // Hand the agent the next one straight away; that is what makes it a dialler.
     const card = await nextForAgent(String(req.params.id), user.id, {
       includeOthers: canWorkOthers(user.role),
@@ -185,7 +197,12 @@ campaignsRouter.post(
   '/:id/release',
   asyncHandler(async (req: Request, res: Response) => {
     const body = z.object({ memberId: z.string().max(36) }).parse(req.body);
-    await releaseMember(body.memberId);
+    const user = currentUser(req);
+    await releaseMember(body.memberId, {
+      campaignId: String(req.params.id),
+      userId: user.id,
+      canWorkOthers: canWorkOthers(user.role),
+    });
     res.json({ ok: true });
   }),
 );

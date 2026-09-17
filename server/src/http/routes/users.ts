@@ -7,7 +7,7 @@ import { badRequest, conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import { normalizeEmail } from '../../lib/email.js';
 import { assignmentList } from '../../lib/sql.js';
-import { ROLES } from '../../auth/rbac.js';
+import { isManagerOrAbove, ROLES } from '../../auth/rbac.js';
 import { generateTemporaryPassword, hashPassword } from '../../auth/password.js';
 import { destroyAllSessionsForUser } from '../../auth/sessions.js';
 import { writeAudit, diffFields } from '../../audit/audit.js';
@@ -16,15 +16,40 @@ export const usersRouter = Router();
 usersRouter.use(requireAuth, blockUntilPasswordChanged);
 
 /** Everyone can see the roster — assignment and @mentions need it. */
+/**
+ * The team.
+ *
+ * Agents need colleagues' names — to read "assigned to Layla" on a card — but
+ * not their email addresses, shifts, routing weights or last sign-in. Those are
+ * administrative details, so the row is trimmed for anyone below manager rather
+ * than the endpoint being refused, which would break the screens that only want
+ * a name.
+ */
 usersRouter.get(
   '/',
-  asyncHandler(async (_req: Request, res: Response) => {
-    const items = await query(
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const full = isManagerOrAbove(user.role);
+
+    const items = await query<Record<string, unknown>>(
       `SELECT id, name, email, role, is_active, availability, routing_weight, shift_start, shift_end,
               languages, projects_covered, manager_id, locale, last_login_at, created_at
          FROM users ORDER BY is_active DESC, name`,
     );
-    res.json({ items });
+
+    res.json({
+      items: full
+        ? items
+        : items.map((row) => ({
+            id: row.id,
+            name: row.name,
+            role: row.role,
+            is_active: row.is_active,
+            availability: row.availability,
+            // Their own row keeps its detail; everyone else's is just a name.
+            ...(row.id === user.id ? { email: row.email, locale: row.locale } : {}),
+          })),
+    });
   }),
 );
 

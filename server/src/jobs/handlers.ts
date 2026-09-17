@@ -20,7 +20,9 @@ import { uploadConversion } from '../attribution/google-ads.js';
 import { purgeExpiredSessions } from '../auth/sessions.js';
 import { purgeOldLoginAttempts } from '../auth/lockout.js';
 import { reclaimStaleJobs, enqueue } from './queue.js';
+import { pruneCronKeys } from './cron.js';
 import { runChunk } from '../imports/run.js';
+import { purgeExpiredUploads } from '../imports/retention.js';
 import { sendBatch } from '../campaigns/run.js';
 import { recycleList } from '../lists/store.js';
 import { recycleStaleClaims } from '../assignment/apply.js';
@@ -338,11 +340,15 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     const events = await execute(
       `DELETE FROM inbound_events WHERE status = 'processed' AND received_at < DATE_SUB(NOW(3), INTERVAL 90 DAY)`,
     );
+    const cronKeys = await pruneCronKeys();
+    const uploads = await purgeExpiredUploads();
     return {
       expiredSessions: sessions,
       oldLoginAttempts: attempts,
       reclaimedJobs: reclaimed,
       prunedInboundEvents: events.affectedRows,
+      prunedCronKeys: cronKeys,
+      deletedUploads: uploads,
     };
   },
 };

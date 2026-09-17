@@ -4,7 +4,7 @@ import {
 } from '../testing/db.js';
 import { newId } from '../lib/ids.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
-import { buildMembers, campaignStats, logOutcome, nextForAgent } from './run.js';
+import { buildMembers, campaignStats, logOutcome, nextForAgent, releaseMember } from './run.js';
 
 const actor = (userId: string) => ({ ...SYSTEM_ACTOR, userId, role: 'agent' as const });
 
@@ -350,5 +350,50 @@ describeWithDb('the power dialler', () => {
     expect(stats.interested).toBe(1);
     expect(stats.reachedPct).toBe(100);
     expect(stats.byAgent[0]?.done).toBe(2);
+  });
+  it('will not let an agent log an outcome on a colleague\u2019s card', async () => {
+    const mine = await createTestUser({ role: 'agent', name: 'Mine' });
+    const theirs = await createTestUser({ role: 'agent', name: 'Theirs' });
+    const lead = await createContact('Belongs To Someone Else');
+    await execute('UPDATE contacts SET owner_user_id = ? WHERE id = ?', [theirs.id, lead.contactId]);
+
+    const listId = await createListWith([lead.contactId]);
+    const campaignId = await createCampaign(listId, 'call');
+    await buildMembers(SYSTEM_ACTOR, campaignId);
+    const card = await nextForAgent(campaignId, theirs.id);
+
+    await expect(
+      logOutcome(actor(mine.id), card!.memberId, 'not_interested', null, {
+        userId: mine.id,
+        canWorkOthers: false,
+      }),
+    ).rejects.toThrow(/not yours/i);
+  });
+
+  it('will not let an agent release a colleague\u2019s open card', async () => {
+    // Releasing puts the card back in the queue, so one agent could otherwise
+    // pull a live call out from under another.
+    const mine = await createTestUser({ role: 'agent', name: 'Mine' });
+    const theirs = await createTestUser({ role: 'agent', name: 'Theirs' });
+    const lead = await createContact('Belongs To Someone Else');
+    await execute('UPDATE contacts SET owner_user_id = ? WHERE id = ?', [theirs.id, lead.contactId]);
+
+    const listId = await createListWith([lead.contactId]);
+    const campaignId = await createCampaign(listId, 'call');
+    await buildMembers(SYSTEM_ACTOR, campaignId);
+    const card = await nextForAgent(campaignId, theirs.id);
+
+    await releaseMember(card!.memberId, { campaignId, userId: mine.id, canWorkOthers: false });
+    const held = await query<{ status: string }>('SELECT status FROM campaign_members WHERE id = ?', [
+      card!.memberId,
+    ]);
+    expect(held[0]?.status).toBe('in_progress');
+
+    // The agent whose card it is can hand it back.
+    await releaseMember(card!.memberId, { campaignId, userId: theirs.id, canWorkOthers: false });
+    const released = await query<{ status: string }>('SELECT status FROM campaign_members WHERE id = ?', [
+      card!.memberId,
+    ]);
+    expect(released[0]?.status).toBe('pending');
   });
 });

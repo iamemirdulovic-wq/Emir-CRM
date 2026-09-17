@@ -20,11 +20,25 @@ export function maskEmail(value: string): string {
   return `${head}***@${domain}`;
 }
 
+/**
+ * Contact details also arrive inside free text — most often a MySQL duplicate-key
+ * error, whose message quotes the offending value ("Duplicate entry
+ * '+971501234567' for key 'uq_contact_phone'"). Those strings reach the log
+ * through `errorContext`, so they are masked wherever they appear, not only when
+ * they sit under a key we recognise.
+ */
+const PHONE_IN_TEXT = /\+\d{8,15}\b/g;
+const EMAIL_IN_TEXT = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+
+export function scrubText(value: string): string {
+  return value.replace(EMAIL_IN_TEXT, maskEmail).replace(PHONE_IN_TEXT, maskPhone);
+}
+
 /** Deep-clone `value` with secrets removed and contact details masked. */
 export function redact(value: unknown, depth = 0): unknown {
   if (depth > 6) return '[deep]';
   if (value === null || value === undefined) return value;
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') return scrubText(value);
   if (typeof value !== 'object') return value;
   if (Array.isArray(value)) {
     const head = value.slice(0, 20).map((v) => redact(v, depth + 1));

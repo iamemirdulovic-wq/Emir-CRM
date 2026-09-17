@@ -9,6 +9,7 @@ import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { cspForIndex } from './csp.js';
 import { authRouter } from './routes/auth.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
@@ -42,12 +43,27 @@ export function createApp(): Express {
   if (cfg.TRUST_PROXY) app.set('trust proxy', true);
   app.disable('x-powered-by');
 
+  /*
+   * The app shell is served from this process, so the security headers have to
+   * come from here too — there is no CDN or edge in front of it on Hostinger.
+   */
+  const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'web', 'dist');
+  const indexPath = join(webDist, 'index.html');
+  const csp = cspForIndex(existsSync(indexPath) ? indexPath : null);
+
   app.use(
     helmet({
-      contentSecurityPolicy: false, // the SPA sets its own policy at the edge
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
+      // Behind Hostinger's TLS. Six months, so a stray plain-http link cannot
+      // downgrade a session cookie.
+      hsts: cfg.COOKIE_SECURE ? { maxAge: 15552000, includeSubDomains: true } : false,
     }),
   );
+  app.use((_req, res, next) => {
+    res.setHeader('Content-Security-Policy', csp);
+    next();
+  });
 
   app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
   app.use(express.urlencoded({ extended: true, limit: '1mb', verify: rawBodySaver }));
@@ -111,7 +127,6 @@ export function createApp(): Express {
    * session cookie be httpOnly and SameSite=Lax without any CORS surface.
    * In development Vite proxies to this server instead.
    */
-  const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'web', 'dist');
   if (existsSync(webDist)) {
     app.use(
       express.static(webDist, {
@@ -126,7 +141,6 @@ export function createApp(): Express {
     // Client-side routing: anything that is not an API or webhook path renders
     // the app shell.
     app.get(/^(?!\/(api|webhooks|b|health)\b).*/, (_req, res, next) => {
-      const indexPath = join(webDist, 'index.html');
       if (!existsSync(indexPath)) return next();
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(indexPath);

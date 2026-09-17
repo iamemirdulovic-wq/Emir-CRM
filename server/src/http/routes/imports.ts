@@ -5,7 +5,11 @@ import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
-import { actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireManager } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rate-limit.js';
+import {
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth, requireManager,
+  requirePermission,
+} from '../middleware/auth.js';
 import { execute, query, queryOne } from '../../db/client.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
@@ -23,6 +27,19 @@ export const importsRouter = Router();
 // A bulk import creates leads for a whole team, so it is a manager's action.
 importsRouter.use(requireAuth, blockUntilPasswordChanged, requireManager);
 
+/**
+ * Uploads are the one authenticated endpoint that writes megabytes to disk per
+ * request, so they get their own budget — per user rather than per IP, because
+ * a whole office shares one address. Twelve files in ten minutes is far more
+ * than anyone imports by hand and far less than a stuck retry loop.
+ */
+const uploadLimit = rateLimit({
+  max: 12,
+  windowMs: 10 * 60 * 1000,
+  keyFor: (req) => `import-upload:${currentUser(req).id}`,
+  message: 'Too many uploads in a short time. Please wait a few minutes and try again.',
+});
+
 /** Where an import's file lives on disk. */
 function uploadPath(importId: string, kind: FileKind): string {
   return path.join(path.resolve(env().UPLOAD_DIR), `${importId}.${kind === 'xlsx' ? 'xlsx' : 'csv'}`);
@@ -38,6 +55,7 @@ function uploadPath(importId: string, kind: FileKind): string {
  */
 importsRouter.post(
   '/',
+  uploadLimit,
   asyncHandler(async (req: Request, res: Response) => {
     const filename = String(req.get('x-filename') ?? 'import.csv').slice(0, 200);
     const kind = kindFromFilename(filename);
@@ -113,6 +131,7 @@ const pasteSchema = z.object({
 
 importsRouter.post(
   '/paste',
+  uploadLimit,
   asyncHandler(async (req: Request, res: Response) => {
     const body = pasteSchema.parse(req.body);
     const id = newId();
@@ -333,8 +352,15 @@ importsRouter.get(
   }),
 );
 
+/**
+ * Undo deletes contacts in bulk, so it takes the same permission as any other
+ * bulk delete: owner or admin, and audited. A manager can run an import and
+ * see what an undo would remove, but not perform it.
+ */
 importsRouter.post(
   '/:id/undo',
+  requireAdmin,
+  requirePermission('bulk:delete'),
   asyncHandler(async (req: Request, res: Response) => {
     const result = await undoImport(actorFrom(req), String(req.params.id));
     res.json(result);

@@ -5,7 +5,7 @@
  * is the part that talks to the database and to Meta.
  */
 import type { PoolConnection } from 'mysql2/promise';
-import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor } from '../db/client.js';
+import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor, type SqlParam } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { badRequest } from '../lib/errors.js';
@@ -272,16 +272,28 @@ export async function logOutcome(
   memberId: string,
   outcome: CampaignOutcome,
   notes: string | null,
+  /**
+   * Who may log this. An agent may only close a row the dialler handed them;
+   * a manager may close any row on the campaign they run. Without this an
+   * agent could POST any member id and mark a colleague's lead "interested",
+   * which moves its stage and writes to that lead's history.
+   */
+  permitted: { userId: string | null; canWorkOthers: boolean } = { userId: null, canWorkOthers: true },
   exec: Executor = getPool(),
 ): Promise<void> {
   const member = await queryOne<{
     id: string; campaign_id: string; contact_id: string; opportunity_id: string | null;
+    assigned_user_id: string | null;
   }>(
-    'SELECT id, campaign_id, contact_id, opportunity_id FROM campaign_members WHERE id = ?',
+    'SELECT id, campaign_id, contact_id, opportunity_id, assigned_user_id FROM campaign_members WHERE id = ?',
     [memberId],
     exec,
   );
   if (!member) throw badRequest('That campaign row does not exist');
+
+  if (!permitted.canWorkOthers && member.assigned_user_id !== permitted.userId) {
+    throw badRequest('That lead is not yours to log');
+  }
 
   await execute(
     "UPDATE campaign_members SET status = 'done', outcome = ?, notes = ?, completed_at = NOW(3) WHERE id = ?",
@@ -344,12 +356,28 @@ export async function logOutcome(
 }
 
 /** Puts a lead back in the queue, e.g. the agent had to stop mid-call. */
-export async function releaseMember(memberId: string, exec: Executor = getPool()): Promise<void> {
-  await execute(
-    "UPDATE campaign_members SET status = 'pending' WHERE id = ? AND status = 'in_progress'",
-    [memberId],
-    exec,
-  );
+/**
+ * Put a dialler card back in the queue — the agent opened it and moved on.
+ *
+ * Scoped the same way as `logOutcome`: an agent can only release a card that is
+ * theirs, so one agent cannot yank a colleague's open call out from under them.
+ */
+export async function releaseMember(
+  memberId: string,
+  scope: { campaignId?: string; userId?: string | null; canWorkOthers?: boolean } = {},
+  exec: Executor = getPool(),
+): Promise<void> {
+  const where: string[] = ["id = ?", "status = 'in_progress'"];
+  const params: SqlParam[] = [memberId];
+  if (scope.campaignId) {
+    where.push('campaign_id = ?');
+    params.push(scope.campaignId);
+  }
+  if (scope.canWorkOthers === false) {
+    where.push('assigned_user_id <=> ?');
+    params.push(scope.userId ?? null);
+  }
+  await execute(`UPDATE campaign_members SET status = 'pending' WHERE ${where.join(' AND ')}`, params, exec);
 }
 
 /* ── The WhatsApp send ────────────────────────────────────────────────── */
