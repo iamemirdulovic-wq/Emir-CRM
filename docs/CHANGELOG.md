@@ -2,6 +2,39 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The first real import, in full
+
+**Fixed — a fresh install had no pipeline, so every import failed**
+- The browser setup screen created the owner's account and nothing else. The pipeline,
+  its stages, the workflow definitions, the tag namespaces, the Meta field map and the
+  round-robin cursor were only ever created by `npm run seed` — a command the whole
+  no-terminal deploy exists to avoid. So the first import into a live CRM failed all 535
+  rows with `Default pipeline "offplan_sales" is not seeded`, which is true and useless.
+- That data is not the owner's; it is what the product is made of. `seedReferenceData`
+  now runs on every start, before the server listens. Every step was already idempotent,
+  which is what makes that safe.
+
+**Fixed — a ragged file lost a quarter of its leads**
+- The export turned out to be several Meta forms stacked together, each asking different
+  questions, so the column holding a phone number in one block held a name in the next.
+  152 reachable people were rejected with `"Angie Sandridge" is not a valid phone number`.
+- When the mapped column yields nothing usable, the importer now looks through the columns
+  nobody mapped for a value libphonenumber accepts as a real number for the chosen region —
+  and likewise for an email address. Strict on purpose: a budget, a row id or a year must
+  never become a number an agent rings.
+
+**Fixed, caught by its own test**
+- The fallback found the number and then threw it away: the raw value was still what got
+  passed on, so those rows would have been created with no phone at all — reachable in
+  principle, unreachable in fact, and silent about it.
+
+**Verified against the owner's own 535-row file**
+- Before: 370 created, 165 rejected. After: **502 created, 32 skipped, 1 failed.**
+- What is still rejected should be: 19 duplicates within the file, 6 rows with neither a
+  phone nor an email, and the half-dozen embedded header rows the concatenation left
+  behind — `whatsapp_number`, `full name`, `please_share_your_valid_whatsapp_number…`.
+- 574 server tests and 24 web tests green. The uploaded file was deleted afterwards.
+
 ## Live, and the first real file
 
 **Fixed — a real Meta export could not be imported at all**

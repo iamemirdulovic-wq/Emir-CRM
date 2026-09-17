@@ -160,15 +160,32 @@ async function seedAssignmentState(): Promise<void> {
   );
 }
 
-export async function seed(): Promise<void> {
-  await ensureDatabase();
-  await runMigrations();
+/**
+ * The CRM's own configuration: the pipeline and its stages, the template
+ * library, the workflow definitions, the tag namespaces, the Meta field map and
+ * the round-robin cursor.
+ *
+ * None of it is the owner's data — it is what the product is made of, and
+ * nothing works without it. An opportunity cannot be created without a pipeline
+ * to put it in, so an import into an unseeded database fails every row with
+ * "Default pipeline is not seeded", which is true and unhelpful.
+ *
+ * So it runs on every start, not from a command someone has to remember. Every
+ * step is idempotent, which is what makes that safe.
+ */
+export async function seedReferenceData(): Promise<void> {
   await seedPipeline();
   await seedTemplates();
   await seedWorkflows();
   await seedTags();
   await seedFormFieldMap();
   await seedAssignmentState();
+}
+
+export async function seed(): Promise<void> {
+  await ensureDatabase();
+  await runMigrations();
+  await seedReferenceData();
   await seedOwner();
 }
 

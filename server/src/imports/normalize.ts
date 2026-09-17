@@ -89,6 +89,33 @@ const PLACEHOLDER_NAMES = new Set(['name', 'full name', 'fullname', 'n/a', 'na',
  * rejected with a reason rather than imported as an unreachable record — the
  * user gets it back in the failed-rows CSV to fix and re-upload.
  */
+/**
+ * The first value in the unmapped columns that is a real phone number.
+ *
+ * Deliberately strict: `parsePhone` has to accept it for the import's region,
+ * so a budget, a row id or a year cannot be mistaken for a number to call.
+ */
+function findPhone(unmapped: Record<string, string>, region: string): string | null {
+  for (const value of Object.values(unmapped)) {
+    const trimmed = value?.trim();
+    if (!trimmed) continue;
+    // Meta writes the same number again prefixed; the prefix is not part of it.
+    const candidate = trimmed.replace(/^p:/i, '').trim();
+    const parsed = parsePhone(candidate, region);
+    if (parsed.e164) return parsed.e164;
+  }
+  return null;
+}
+
+/** The first value in the unmapped columns that is a real email address. */
+function findEmail(unmapped: Record<string, string>): string | null {
+  for (const value of Object.values(unmapped)) {
+    const normalized = normalizeEmail(value ?? null);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 export function rowToLead(
   mapped: Partial<Record<ImportField, string>>,
   unmapped: Record<string, string>,
@@ -97,17 +124,34 @@ export function rowToLead(
   now: Date = new Date(),
 ): RowOutcome {
   const phoneRaw = mapped.phone ?? mapped.altPhone ?? null;
-  const email = normalizeEmail(mapped.email ?? null);
+  const email = normalizeEmail(mapped.email ?? null) ?? findEmail(unmapped);
 
   let phoneE164: string | null = null;
   if (phoneRaw) {
     const parsed = parsePhone(phoneRaw, settings.phoneRegion);
-    if (!parsed.e164) {
-      // Be explicit about which value failed: "not a valid phone number" with
-      // no number in it is useless when you are fixing four hundred rows.
-      return { ok: false, reason: `"${phoneRaw}" is not a valid phone number` };
-    }
     phoneE164 = parsed.e164;
+  }
+
+  /*
+   * Real exports are ragged. A file is often several Meta forms stacked
+   * together, each asking different questions, so the column holding a phone in
+   * one block holds a name in the next — and a row whose phone column says
+   * "Angie Sandridge" is a lead we can still reach, if the number is sitting one
+   * column over.
+   *
+   * So when the mapped column yields nothing usable, look through the columns
+   * nobody mapped. Only a value libphonenumber accepts as a real number for the
+   * chosen region is taken, which is what keeps this from inventing numbers out
+   * of ids and budgets.
+   */
+  if (!phoneE164) {
+    phoneE164 = findPhone(unmapped, settings.phoneRegion);
+  }
+
+  if (!phoneE164 && phoneRaw && !email) {
+    // Be explicit about which value failed: "not a valid phone number" with
+    // no number in it is useless when you are fixing four hundred rows.
+    return { ok: false, reason: `"${phoneRaw}" is not a valid phone number` };
   }
 
   if (!phoneE164 && !email) {
@@ -135,8 +179,14 @@ export function rowToLead(
       ...(mapped.fullName ? { full_name: mapped.fullName } : {}),
       ...(mapped.firstName ? { first_name: mapped.firstName } : {}),
       ...(mapped.lastName ? { last_name: mapped.lastName } : {}),
-      ...(phoneRaw ? { phone: phoneRaw } : {}),
-      ...(mapped.email ? { email: mapped.email } : {}),
+      /*
+       * The resolved values, not the raw ones. When the mapped column held a
+       * name and the number was found one column over, passing `phoneRaw` here
+       * would create the contact with no phone at all — reachable in principle,
+       * unreachable in fact, and silent about it.
+       */
+      ...(phoneE164 ?? phoneRaw ? { phone: (phoneE164 ?? phoneRaw) as string } : {}),
+      ...(email ? { email } : {}),
       ...(mapped.language ? { language: mapped.language } : {}),
       ...(mapped.projectName ?? settings.projectName
         ? { project: mapped.projectName ?? (settings.projectName as string) }

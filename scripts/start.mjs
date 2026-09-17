@@ -48,6 +48,20 @@ if (migrated !== 0) {
   process.exit(migrated);
 }
 
+/*
+ * The pipeline, stages, workflows and tags are what the product is made of, not
+ * the owner's data, and nothing works without them: an import into a database
+ * that has no pipeline fails every single row. Seeded on every start rather
+ * than from a command someone has to remember, which is safe because each step
+ * is idempotent.
+ */
+console.log('[start] checking the reference data');
+const seeded = run(process.execPath, [join('dist', 'db', 'reference.js')], { cwd: join(root, 'server') });
+if (seeded !== 0) {
+  console.error('[start] could not seed the reference data — refusing to start without a pipeline.');
+  process.exit(seeded);
+}
+
 console.log('[start] starting the server');
 /*
  * Imported rather than spawned, so the server IS this process.

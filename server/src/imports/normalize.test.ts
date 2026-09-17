@@ -173,3 +173,70 @@ describe('parseDate', () => {
     expect(parseDate('45/03/2026')).toBeNull();
   });
 });
+
+describe('ragged files, where the columns shift partway through', () => {
+  const settings = { ...defaultSettings(), phoneRegion: 'PT' };
+
+  /*
+   * A real 535-lead export turned out to be several Meta forms stacked
+   * together, each asking different questions. The column holding a phone in
+   * one block held a name in the next, so 152 reachable leads were rejected
+   * with `"Angie Sandridge" is not a valid phone number`.
+   */
+  it('finds the number one column over when the mapped column holds a name', () => {
+    const outcome = rowToLead(
+      { phone: 'Angie Sandridge', fullName: 'Angie Sandridge' },
+      { 'Column 8': 'p:+351939768966', 'Column 9': '939 768 966' },
+      settings,
+      42,
+    );
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.lead.person.phoneE164).toBe('+351939768966');
+  });
+
+  it('finds an email that was never mapped', () => {
+    const outcome = rowToLead(
+      { fullName: 'Sara Ahmed' },
+      { 'Column 4': 'sara@example.ae' },
+      settings,
+      1,
+    );
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.lead.person.email).toBe('sara@example.ae');
+  });
+
+  it('will not mistake a budget for a number to call', () => {
+    // The whole risk of looking in other columns: inventing a phone number out
+    // of an id, a year or a price. libphonenumber has to accept it as real.
+    const outcome = rowToLead(
+      { phone: 'not a number' },
+      { 'Column 3': '2500000', 'Column 4': '2026', 'Column 5': '12' },
+      settings,
+      7,
+    );
+    expect(outcome.ok).toBe(false);
+  });
+
+  it('still says which value failed when nothing can be found', () => {
+    const outcome = rowToLead({ phone: 'Wayne' }, { 'Column 3': 'ig' }, settings, 9);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.reason).toContain('"Wayne"');
+  });
+
+  it('prefers the mapped column when it is perfectly good', () => {
+    const outcome = rowToLead(
+      { phone: '934 741 207' },
+      { 'Column 9': '+351999999999' },
+      settings,
+      2,
+    );
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.lead.person.phoneE164).toBe('+351934741207');
+  });
+
+  it('rejects a row with nothing to reach anyone by', () => {
+    const outcome = rowToLead({ fullName: 'Someone' }, { 'Column 3': 'ig' }, settings, 3);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.reason).toMatch(/No phone number and no email/);
+  });
+});
