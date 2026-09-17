@@ -26,6 +26,18 @@ Two things worth confirming with Hostinger specifically:
   `X-Accel-Buffering: no`, which nginx respects. If the platform buffers anyway,
   realtime degrades to polling on its own — nothing to fix.
 
+## NODE_ENV=production and the build
+
+Worth knowing before it costs an hour: `NODE_ENV=production` makes npm omit
+devDependencies, and TypeScript and Vite are devDependencies — correctly, since
+they build the app and are not needed to run it. A platform that sets NODE_ENV
+for the build phase as well as the runtime will therefore install, then fail the
+build on `tsc: command not found`, with everything configured exactly right.
+
+`npm run build` runs `scripts/build.mjs`, which fetches the build tools when they
+are missing and does nothing when they are not. No build command in any panel
+needs to know about this.
+
 ## Which shape of hosting this needs
 
 The CRM is two processes: the API, and a worker that drains the `jobs` table.

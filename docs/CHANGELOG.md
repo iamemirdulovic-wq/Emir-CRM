@@ -72,6 +72,15 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   server. `tsconfig.build.json` excludes them; `npm run typecheck` still covers them,
   which is where a broken test belongs.
 
+**Fixed, found on the first real deploy**
+- `npm run build` died on `tsc: command not found` the moment the environment variables
+  were added. `NODE_ENV=production` makes npm omit devDependencies — which is where
+  TypeScript and Vite live, correctly, since they build the app and are not needed to run
+  it. So the platform installed, set NODE_ENV for the build too, and the build failed with
+  everything configured exactly right. `scripts/build.mjs` now fetches the build tools
+  when they are missing and is a no-op when they are not. Reproduced by installing with
+  `NODE_ENV=production` — 252 packages, no `tsc` — and then fixed against that same tree.
+
 **Still needed from the owner**
 - Confirmation that the Hostinger plan can run a Node.js process — see
   `docs/HOSTING-CHECK.md`. Everything above is written for a plan that can; if it cannot,
