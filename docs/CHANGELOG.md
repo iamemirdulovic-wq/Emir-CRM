@@ -41,7 +41,11 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   it is set here: `script-src` is self plus the hash of the one inline script, which is
   computed from the built `index.html` at boot so the policy follows the file instead of
   drifting from it. `object-src 'none'`, `frame-ancestors 'none'`, `base-uri` and
-  `form-action` pinned to self. HSTS switches on with `COOKIE_SECURE`.
+  `form-action` pinned to self. HSTS is sent in production and omitted in
+  development, where a pin on localhost outlives the reason for it.
+- **The server refuses to start in production without `COOKIE_SECURE`.** Without it
+  the session cookie rides plain http, and one café network is all it takes. It was on
+  the deploy checklist; a checklist is not a control.
 - **Upload retention.** An import's file is deleted once its undo window closes, and an
   abandoned upload after a week. The sweep refuses any path that does not resolve inside
   `UPLOAD_DIR`, so a tampered row cannot turn it into an arbitrary delete. It runs inside
@@ -54,7 +58,18 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
 - `redact` masked phones and emails under a key it recognised, but let them through
   inside free text. The commonest leak is MySQL's own duplicate-key error, which quotes
   the offending value: `Duplicate entry '+9715…' for key 'uq_contact_phone'`. Every
-  string in a log context is now scrubbed.
+  string in a log context is now scrubbed, including a bare digit run inside quotes —
+  a `wa_id` is stored without the leading `+`, so the same error naming
+  `uq_contacts_wa_id` would otherwise have printed the number in full. Unquoted long
+  numbers are left alone so timestamps and row counts stay readable.
+
+**Reviewed**
+- An independent security pass over this work found one regression, now fixed and
+  recorded above: helmet sends HSTS by default, so gating it on `COOKIE_SECURE` —
+  which is off by default — *removed* the header from precisely the deployment that
+  needs it most, an HTTPS site whose cookie is not marked Secure. Both halves of that
+  hole are now closed. The pass confirmed the upload containment check, the dialler
+  scoping, the bulk-endpoint narrowing, the trimmed user directory and the CSP.
 
 **Dependencies**
 - `drizzle-orm` and `drizzle-kit` removed. Nothing imported them — the migrations are
@@ -68,7 +83,7 @@ All notable changes to the Emir CRM, newest first. One entry per build phase.
   depends on.
 
 **Verified**
-- 519 server tests and 24 web tests green; 18 browser steps pass with the CSP in place,
+- 524 server tests and 24 web tests green; 18 browser steps pass with the CSP in place,
   which is what proves the policy does not break the app.
 - Reviewed every route file for viewer scoping, and the dynamic SQL for injection: every
   interpolated identifier comes from a literal or `assertIdentifier`, and every value is

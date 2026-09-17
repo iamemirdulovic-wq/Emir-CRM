@@ -112,7 +112,8 @@ Create a Firebase project, enable Cloud Messaging, and set `FCM_PROJECT_ID`,
 
 ## Security checklist before going live
 
-- [ ] `COOKIE_SECURE=true` and the site is HTTPS-only
+- [ ] `COOKIE_SECURE=true` and the site is HTTPS-only — the server refuses to
+      start in production without it, and HSTS is sent only in production
 - [ ] `ENCRYPTION_KEY` is 32 random bytes and is **not** the example value
 - [ ] `NODE_ENV=production`
 - [ ] The database user has no privileges beyond the CRM schema

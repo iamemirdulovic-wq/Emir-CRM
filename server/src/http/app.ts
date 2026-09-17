@@ -55,9 +55,16 @@ export function createApp(): Express {
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
-      // Behind Hostinger's TLS. Six months, so a stray plain-http link cannot
-      // downgrade a session cookie.
-      hsts: cfg.COOKIE_SECURE ? { maxAge: 15552000, includeSubDomains: true } : false,
+      /*
+       * Six months, so a stray plain-http link cannot downgrade a session.
+       *
+       * Gated on the environment, never on COOKIE_SECURE: helmet sends HSTS by
+       * default, so keying it to a flag that is off by default would *remove*
+       * the header from exactly the deployment that needs it most — an HTTPS
+       * site whose session cookie is not marked Secure. Off in development,
+       * where a pin on localhost outlives the reason for it.
+       */
+      hsts: cfg.NODE_ENV === 'production' ? { maxAge: 15552000, includeSubDomains: true } : false,
     }),
   );
   app.use((_req, res, next) => {

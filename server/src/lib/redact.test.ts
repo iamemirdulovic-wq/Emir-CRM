@@ -36,6 +36,19 @@ describe('redact', () => {
     expect(out.error).not.toContain('501234567');
   });
 
+  it('masks a wa_id, which is stored without a leading plus', () => {
+    const message = "Duplicate entry '971501234567' for key 'contacts.uq_contacts_wa_id'";
+    expect(redact({ error: message })).toEqual({
+      error: "Duplicate entry '971***67' for key 'contacts.uq_contacts_wa_id'",
+    });
+  });
+
+  it('leaves an unquoted long number alone, so timestamps stay readable', () => {
+    expect(scrubText('finished at 1758098765432 after 12345678 rows')).toBe(
+      'finished at 1758098765432 after 12345678 rows',
+    );
+  });
+
   it('masks an address quoted inside free text', () => {
     expect(scrubText('bounced for buyer.one@example.ae')).toBe('bounced for b***@example.ae');
   });

@@ -115,6 +115,20 @@ const envSchema = z.object({
   .superRefine((value, ctx) => {
     // A production server that silently swallows every WhatsApp message is the
     // worst of both worlds: it looks like it is working. Refuse to start.
+    // A session cookie without Secure is sent over plain http. On a live CRM
+    // that is one café network away from someone else's leads and WhatsApp
+    // threads, so it is a refusal rather than a warning.
+    if (value.NODE_ENV === 'production' && !value.COOKIE_SECURE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['COOKIE_SECURE'],
+        message:
+          'must be true in production: without it the session cookie is sent over plain http, ' +
+          'and anyone on the same network can read it. Serve the CRM over HTTPS and set ' +
+          'COOKIE_SECURE=true.',
+      });
+    }
+
     if (value.NODE_ENV === 'production' && value.WHATSAPP_PROVIDER === 'log' && !value.ALLOW_FAKE_WHATSAPP) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

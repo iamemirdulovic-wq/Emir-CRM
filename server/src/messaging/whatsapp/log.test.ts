@@ -10,7 +10,8 @@ function asEnv(nodeEnv: 'development' | 'production') {
       ...base,
       NODE_ENV: nodeEnv,
       WHATSAPP_PROVIDER: 'log',
-      ...(nodeEnv === 'production' ? { ALLOW_FAKE_WHATSAPP: '1' } : {}),
+      // Both are what a production server running without WhatsApp must set.
+      ...(nodeEnv === 'production' ? { ALLOW_FAKE_WHATSAPP: '1', COOKIE_SECURE: 'true' } : {}),
     } as never),
   );
 }
