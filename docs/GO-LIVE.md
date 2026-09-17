@@ -15,31 +15,34 @@ Your details, already confirmed:
 
 ---
 
-## Step 1 · Find the Node.js page and connect GitHub
+## Step 1 · Create the app and connect GitHub
 
-In hPanel, open the Node.js deployment page for `crm.emirdulovic.com`. If you
-cannot find it, click the **✈ Agent** button and ask:
+Hostinger confirmed the path:
 
-> Where do I set up the Node.js deployment for crm.emirdulovic.com?
+**Websites → Add Website → Deploy Web App → Import Git Repository**
 
-Connect it to GitHub and choose:
+Then choose `crm.emirdulovic.com` as the deployment domain.
+
+Connect GitHub and select:
 
 - **Repository:** `iamemirdulovic-wq/Emir-CRM`
 - **Branch:** `claude/new-session-krd7bx`
 
-If it asks for these, use exactly:
+On the **Review build settings** screen:
 
-| Setting | Value |
+| Field | Value |
 |---|---|
-| Node version | 22, or 20 if 22 is not offered |
-| Install command | `npm ci` |
+| Framework preset | Other / None — this is not a frontend framework |
+| Branch | `claude/new-session-krd7bx` |
+| Node version | **22.x** (18.x, 20.x, 22.x and 24.x are offered) |
+| Root directory | `/` — leave it |
 | Build command | `npm run build` |
-| Start command | `npm start` |
-| Entry / startup file | `scripts/start.mjs` |
-| Application root | leave blank (the repository root) |
+| Output directory | leave blank — the server serves its own files |
+| Entry file | `scripts/start.mjs` |
 
-If there is no build command box, that is fine — `npm start` builds by itself
-when it needs to.
+`scripts/start.mjs` is the one thing to get right. It builds if the platform
+has not, applies migrations, and starts the server — so whatever the panel does
+or skips, the app comes up correctly.
 
 ---
 
@@ -80,7 +83,8 @@ Two of these matter more than they look:
   *"Not sent — WhatsApp is not connected yet. Call or email this lead instead."*
   Agents see the truth rather than a message that never went.
 
-Do not set `PORT`. Hostinger provides it.
+Do not set `PORT`. Hostinger provides it, and the app reads it — it also binds
+`0.0.0.0` so the platform's proxy can reach it.
 
 ---
 
@@ -116,8 +120,9 @@ The setup screen works exactly once. The moment your account exists the server
 refuses it for good, so open the site soon after it deploys rather than leaving
 a fresh install sitting on a public address.
 
-If the page does not load, open the deployment log on that same panel page — it
-says what went wrong, and the messages are written to be read.
+If the page does not load, open the **deployment logs** on the application
+dashboard — Hostinger provides them alongside a **Restart** control. The
+messages there are written to be read: a failed build says exactly why.
 
 ---
 

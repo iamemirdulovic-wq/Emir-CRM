@@ -7,8 +7,8 @@ import { startWorker, type WorkerHandle } from './jobs/worker.js';
 async function main(): Promise<void> {
   const cfg = env();
   const app = createApp();
-  const server = app.listen(cfg.PORT, () => {
-    logger.info('emir-crm api listening', { port: cfg.PORT, env: cfg.NODE_ENV });
+  const server = app.listen(cfg.PORT, cfg.HOST, () => {
+    logger.info('emir-crm api listening', { host: cfg.HOST, port: cfg.PORT, env: cfg.NODE_ENV });
   });
 
   /*

@@ -12,7 +12,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const serverEntry = join(root, 'server', 'dist', 'index.js');
@@ -49,7 +49,13 @@ if (migrated !== 0) {
 }
 
 console.log('[start] starting the server');
-// Replace this process rather than nest one, so the platform's signals and
-// restarts reach the server directly.
-const status = run(process.execPath, [serverEntry], { cwd: join(root, 'server') });
-process.exit(status);
+/*
+ * Imported rather than spawned, so the server IS this process.
+ *
+ * A spawned child would leave a wrapper in front of it, and a platform that
+ * sends SIGTERM to the process it started would stop the wrapper while the
+ * server kept running — which on managed hosting means a restart that never
+ * restarts. The server resolves its own paths from `import.meta.url`, so it
+ * does not care that the working directory is the repository root.
+ */
+await import(pathToFileURL(serverEntry).href);

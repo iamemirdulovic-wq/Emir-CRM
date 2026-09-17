@@ -11,6 +11,13 @@ const boolish = z
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
+  /**
+   * Bind address. Defaults to every interface, which is what managed hosting
+   * requires: the platform reaches the app from its own proxy, not over
+   * loopback, so a server listening only on 127.0.0.1 is one the platform
+   * reports as down. Set to 127.0.0.1 behind a reverse proxy on the same box.
+   */
+  HOST: z.string().default('0.0.0.0'),
   APP_URL: z.string().url().default('http://localhost:3000'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
