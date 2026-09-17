@@ -26,6 +26,45 @@ Two things worth confirming with Hostinger specifically:
   `X-Accel-Buffering: no`, which nginx respects. If the platform buffers anyway,
   realtime degrades to polling on its own — nothing to fix.
 
+## Which shape of hosting this needs
+
+The CRM is two processes: the API, and a worker that drains the `jobs` table.
+The worker is not optional — it is what assigns a lead and sends the welcome
+message inside thirty seconds, runs the +2h / +24h / +72h follow-ups, checks the
+five-minute SLA, and processes imports in chunks.
+
+Hosting comes in two shapes, and both are supported:
+
+| | Two processes | One process |
+|---|---|---|
+| Examples | VPS, a machine you control | Hostinger Cloud, most managed Node hosting |
+| API | `npm start` | `npm start` |
+| Worker | `npm run worker`, its own process | inside the API: `WORKER_IN_PROCESS=1` |
+| Deploy | `.github/workflows/deploy.yml`, over SSH | the host's own GitHub integration |
+| Keeping it awake | pm2 | a scheduled ping to `/health` |
+
+`WORKER_IN_PROCESS=1` is what makes the single-process shape work. Both may run
+at once without fighting: `claimJobs` takes its rows `FOR UPDATE SKIP LOCKED`,
+so two workers never get the same job.
+
+Two processes is the better shape where you can have it — a slow job cannot
+stall a webhook, and either half restarts alone. One process is not a
+compromise on correctness, only on isolation.
+
+### Managed hosting also idles
+
+A managed application that sees no traffic is suspended, and a suspended
+application is one whose follow-ups never fire. `/health` reports where the
+worker is running (`in-process`, `separate` or `off`) precisely so a scheduled
+ping can both keep the app awake and confirm the worker is there:
+
+```
+*/5 * * * * curl -fsS https://crm.example.ae/health > /dev/null
+```
+
+On Hostinger that goes in **hPanel → Advanced → Cron Jobs**. It is part of the
+deployment, not a nicety.
+
 ## Automatic deploy from GitHub
 
 The repository deploys itself. `\.github/workflows/deploy.yml` runs after CI

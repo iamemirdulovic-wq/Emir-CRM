@@ -94,8 +94,19 @@ export function createApp(): Express {
     next();
   });
 
+  /*
+   * Also the keep-alive target. Managed hosting idles an application that sees
+   * no traffic, and an idled application is one whose follow-ups never fire, so
+   * a scheduled ping here is part of the deployment rather than a nicety. It
+   * reports where the worker is running so that ping can tell.
+   */
   app.get('/health', (_req, res) => {
-    res.json({ ok: true, service: 'emir-crm', time: new Date().toISOString() });
+    res.json({
+      ok: true,
+      service: 'emir-crm',
+      time: new Date().toISOString(),
+      worker: cfg.WORKER_ENABLED ? (cfg.WORKER_IN_PROCESS ? 'in-process' : 'separate') : 'off',
+    });
   });
 
   /*

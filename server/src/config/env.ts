@@ -108,6 +108,20 @@ const envSchema = z.object({
 
   // --- Workers ------------------------------------------------------------
   WORKER_ENABLED: boolish.default(true),
+  /**
+   * Run the background worker inside the API process instead of beside it.
+   *
+   * Two processes is the better shape — a slow job cannot then stall a webhook,
+   * and either can be restarted alone. But managed Node hosting (Hostinger
+   * Cloud among others) runs exactly one process per application and offers no
+   * way to start a second. Without this the worker would simply never run,
+   * and the worker is what sends the welcome message inside thirty seconds,
+   * fires the follow-ups, checks the SLA and processes imports.
+   *
+   * Turning it on costs event-loop time shared with request handling, which at
+   * a brokerage's volume is not a real cost.
+   */
+  WORKER_IN_PROCESS: boolish.default(false),
   WORKER_POLL_MS: z.coerce.number().int().positive().default(2000),
   WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(10),
   WORKER_ID: z.string().optional(),
