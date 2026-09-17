@@ -304,6 +304,12 @@ export type UploadResponse = {
   headers: string[];
   preview: string[][];
   suggestedMapping: ColumnMapping;
+  /**
+   * True when the file had no header row and the columns were named by
+   * position. The wizard says so, because "Column 7" only means anything
+   * beside the values under it.
+   */
+  generatedHeaders?: boolean;
   defaults: ImportSettings;
 };
 

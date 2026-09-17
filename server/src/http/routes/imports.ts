@@ -18,6 +18,7 @@ import { writeAudit } from '../../audit/audit.js';
 import { toCsvRow } from '../../imports/csv.js';
 import { kindFromFilename, previewRows, type FileKind } from '../../imports/rows.js';
 import { suggestMappingWithAi } from '../../imports/mapping.js';
+import { columnsFromRows, inferMappingFromValues, preferNamed } from '../../imports/infer.js';
 import { defaultSettings } from '../../imports/normalize.js';
 import { previewUndo, stageRows, startImport, undoImport, UNDO_WINDOW_HOURS } from '../../imports/run.js';
 import { loadCandidates, loadAssignable, previewPlan } from '../../assignment/apply.js';
@@ -93,7 +94,20 @@ importsRouter.post(
     );
 
     const preview = await previewRows(target, kind, 20);
-    const mapping = await suggestMappingWithAi(preview.headers);
+    /*
+     * A file with no header row has columns called "Column 1"…"Column N", which
+     * no header matcher can do anything with. The values can: a column of email
+     * addresses is an email column whatever it is named. Names still win where
+     * they exist, because an agency's own "Mobile No." is better evidence than
+     * a sample of twenty rows.
+     */
+    const named = await suggestMappingWithAi(preview.headers);
+    const mapping = preview.generatedHeaders
+      ? preferNamed(
+          inferMappingFromValues(preview.headers, columnsFromRows(preview.rows, preview.headers.length)),
+          named,
+        )
+      : named;
 
     await execute('UPDATE imports SET headers = ?, mapping = ? WHERE id = ?', [
       JSON.stringify(preview.headers),
@@ -116,6 +130,7 @@ importsRouter.post(
       headers: preview.headers,
       preview: preview.rows,
       suggestedMapping: mapping,
+      generatedHeaders: preview.generatedHeaders,
       defaults: defaultSettings(),
     });
   }),

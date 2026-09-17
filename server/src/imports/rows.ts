@@ -8,6 +8,8 @@
 import { createReadStream } from 'node:fs';
 import ExcelJS from 'exceljs';
 import { parseCsvFile, parseCsvStream } from './csv.js';
+import { chooseHeader } from './header.js';
+import { logger } from '../lib/logger.js';
 
 export type FileKind = 'csv' | 'xlsx' | 'paste';
 
@@ -15,6 +17,12 @@ export type FileKind = 'csv' | 'xlsx' | 'paste';
 export interface RowSource {
   headers: string[];
   rows: AsyncGenerator<string[]>;
+  /**
+   * True when the file had no header row and the columns were named by
+   * position. The wizard says so, because "Column 7" is only meaningful next to
+   * the values underneath it.
+   */
+  generatedHeaders?: boolean;
 }
 
 /** Excel gives back dates, numbers, formulas and rich text; the CRM wants text. */
@@ -57,11 +65,46 @@ async function* xlsxRows(path: string): AsyncGenerator<string[]> {
   }
 }
 
-/** Pulls the header row off the front of a generator. */
+/**
+ * How many rows to look at before deciding where the header is. Ten is far more
+ * than any title block, and small enough to buffer for a file of any size.
+ */
+const HEADER_SAMPLE = 10;
+
+/**
+ * Work out the headers, then yield the data.
+ *
+ * Buffered rather than read one row at a time, because "is this a header?"
+ * cannot be answered from that row alone — a title is only a title because the
+ * rows beneath it are wider, and a headerless file is only recognisable by its
+ * first row already carrying an email or a phone number.
+ */
 async function withHeaders(rows: AsyncGenerator<string[]>): Promise<RowSource> {
-  const first = await rows.next();
-  if (first.done) return { headers: [], rows: emptyRows() };
-  return { headers: first.value.map((header) => header.trim()), rows };
+  const sample: string[][] = [];
+  for (let i = 0; i < HEADER_SAMPLE; i++) {
+    const next = await rows.next();
+    if (next.done) break;
+    sample.push(next.value);
+  }
+  if (sample.length === 0) return { headers: [], rows: emptyRows() };
+
+  const choice = chooseHeader(sample);
+  if (choice.generated) {
+    logger.info('the file has no header row; naming the columns by position', {
+      columns: choice.headers.length,
+      skippedTitleRows: choice.skip,
+    });
+  }
+
+  // The sample rows we did not consume as a header are data, and have to be
+  // handed back before the rest of the file.
+  const remaining = sample.slice(choice.skip);
+  async function* all(): AsyncGenerator<string[]> {
+    for (const row of remaining) yield row;
+    yield* rows;
+  }
+
+  return { headers: choice.headers, rows: all(), generatedHeaders: choice.generated };
 }
 
 async function* emptyRows(): AsyncGenerator<string[]> {
@@ -85,7 +128,7 @@ export async function previewRows(
   path: string,
   kind: FileKind,
   limit = 20,
-): Promise<{ headers: string[]; rows: string[][] }> {
+): Promise<{ headers: string[]; rows: string[][]; generatedHeaders: boolean }> {
   const source = await readRows(path, kind);
   const rows: string[][] = [];
   for await (const row of source.rows) {
@@ -93,7 +136,7 @@ export async function previewRows(
     if (rows.length >= limit) break;
   }
   await source.rows.return?.(undefined as never);
-  return { headers: source.headers, rows };
+  return { headers: source.headers, rows, generatedHeaders: source.generatedHeaders ?? false };
 }
 
 /** Counts data rows without keeping any. Used to size the progress bar. */

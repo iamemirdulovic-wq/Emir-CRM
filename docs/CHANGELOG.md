@@ -2,6 +2,54 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Live, and the first real file
+
+**Fixed — a real Meta export could not be imported at all**
+- The reader took row 1 as the header, always. A 535-lead export arrived with the campaign
+  name alone in A1 and **no header row underneath it** — so the wizard showed one column
+  called "SKY Flame - Portuguese", refused the import for want of a phone or email, and
+  would have eaten the first lead as a header had it got that far.
+- `chooseHeader` now reads the first ten rows before deciding: it skips title and blank
+  lines, which are recognisable because the rows beneath them are wider, and detects that
+  a file has no headers at all when its first row already carries an email address, a
+  phone number, or mostly digits. The rules only call a row "data" on evidence a label
+  would never carry, because the errors are not symmetric — mistaking a header for data
+  costs one junk row an agent can delete, while mistaking data for a header swallows a
+  lead and misnames every column after them.
+
+**Added — mapping by values, for files whose names cannot help**
+- Columns named "Column 1"…"Column 9" are honest and useless, so `inferMappingFromValues`
+  reads the values instead: a column of email addresses is an email column whatever it is
+  called. Only email, phone and full name are inferred, because those three decide whether
+  an import is possible at all; a wrong guess elsewhere would be quietly wrong.
+- It claims each field once. The export carried the same phone three times — raw,
+  `p:`-prefixed and formatted — and mapping all three would have had the last silently
+  overwrite the first.
+- A real column name still wins over a guess: an agency's own "Mobile No." is better
+  evidence than a sample of twenty rows.
+- The wizard now says when a file had no header row, so numbered columns read as an
+  explanation rather than a fault.
+
+**Fixed**
+- `\W` is ASCII-only even under the unicode flag, so the first name test rejected every
+  Arabic, Cyrillic and Chinese name. A CRM selling Dubai and Abu Dhabi off-plan cannot
+  have a name test that only passes Latin script. It uses `\p{L}` now, with a test.
+- Merging the value-inferred mapping with the name-matched one erased it: a header matcher
+  returns an entry for every column, `null` where it recognised nothing, and spreading
+  that over the inference wiped every guess. Found by running the owner's own file through
+  and seeing every column come back unmapped.
+
+**Verified**
+- Against the real 535-lead file: title row skipped, nine columns named by position, the
+  first lead kept, and name, email and phone mapped automatically with the duplicate phone
+  columns left alone.
+- 568 server tests and 24 web tests green.
+
+**Worth knowing**
+- That file's numbers are Portuguese (+351), and some rows omit the country code. The
+  import's phone region defaults to AE, so it must be set to PT on the Settings step or
+  those numbers become UAE ones.
+
 ## Phase 14 (in progress) — Deploying itself
 
 **Added**

@@ -248,6 +248,19 @@ export function ImportWizard() {
               on the lead as a note rather than thrown away.
             </p>
 
+            {upload.generatedHeaders && (
+              /*
+               * Raw ad exports often have no header row. Saying so turns a
+               * confusing screen into an obvious one: the columns are numbered
+               * because the file never named them, and the values beside each
+               * are what to map by.
+               */
+              <p className="sub" style={{ marginTop: -10 }}>
+                This file has no column names, so the columns are numbered. Match them using the
+                values shown beside each one — name, email and phone have been matched already.
+              </p>
+            )}
+
             <div className="table-wrap">
               <table>
                 <thead>
