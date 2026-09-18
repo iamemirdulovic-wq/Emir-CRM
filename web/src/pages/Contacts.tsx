@@ -9,7 +9,7 @@ import type { Card, StageKey } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { sourceStyle, stageStyle } from '../design/stages.js';
 import {
-  Avatar, Chip, Empty, ErrorNote, Modal, Panel, Score, Spinner, Toolbar, useToast,
+  Avatar, Chip, Empty, ErrorNote, Modal, Note, Panel, Score, Spinner, Toolbar, useToast,
 } from '../design/ui.js';
 
 /** A contact whose name came out of the wrong lead-form answer. */
@@ -49,6 +49,9 @@ export function Contacts() {
   const [dncOnly, setDncOnly] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [fixing, setFixing] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const list = useAsync<{ items: ContactRow[] }>(
     () => api.get(`/api/contacts${qs({ search, pageSize: 100 })}`),
@@ -105,6 +108,46 @@ export function Contacts() {
     }
   }
 
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allShownSelected = items.length > 0 && items.every((row) => selected.has(row.id));
+
+  function toggleAll() {
+    setSelected(allShownSelected ? new Set() : new Set(items.map((row) => row.id)));
+  }
+
+  /**
+   * Delete the selected contacts.
+   *
+   * Owner only, and the server checks that too — the button is hidden for
+   * everyone else, but a hidden button is not a permission.
+   */
+  async function deleteSelected() {
+    setDeleting(true);
+    try {
+      const result = await api.post<{ deleted: number }>('/api/lists/bulk-delete', {
+        contactIds: [...selected],
+        confirm: true,
+      });
+      toast(`${result.deleted} contact${result.deleted === 1 ? '' : 's'} deleted`);
+      setSelected(new Set());
+      setConfirmDelete(false);
+      list.reload();
+      suspects.reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not delete those contacts');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function exportCsv() {
     try {
       // The server logs every export; this only follows the link.
@@ -149,6 +192,28 @@ export function Contacts() {
         )}
       </Toolbar>
 
+      {selected.size > 0 && (
+        <div className="bulkbar rise">
+          <b>
+            {selected.size} selected
+          </b>
+          <button type="button" className="btn" onClick={() => setSelected(new Set())}>
+            Clear
+          </button>
+          {/* Owner only, matching the server. Everyone else simply does not see it. */}
+          {user?.role === 'owner' && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Icon name="trash-2" size={15} />
+              <span>Delete</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <Panel index={1} icon="users" title={`${items.length} contact${items.length === 1 ? '' : 's'}`}>
         {list.loading && items.length === 0 && <Spinner />}
         {!list.loading && items.length === 0 && (
@@ -160,13 +225,21 @@ export function Contacts() {
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 34 }}>
+                    <input
+                      type="checkbox"
+                      checked={allShownSelected}
+                      onChange={toggleAll}
+                      aria-label={allShownSelected ? 'Clear the selection' : 'Select every contact shown'}
+                    />
+                  </th>
                   <th>Name</th>
                   <th>Stage</th>
-                  <th>Project</th>
-                  <th>Source</th>
+                  <th className="col-wide">Project</th>
+                  <th className="col-wider">Source</th>
                   <th>Owner</th>
                   <th>Score</th>
-                  <th>Added</th>
+                  <th className="col-wide">Added</th>
                   <th />
                 </tr>
               </thead>
@@ -174,7 +247,15 @@ export function Contacts() {
                 {items.map((row) => {
                   const source = sourceStyle(row.first_source);
                   return (
-                    <tr key={row.id}>
+                    <tr key={row.id} className={selected.has(row.id) ? 'picked' : undefined}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(row.id)}
+                          onChange={() => toggle(row.id)}
+                          aria-label={`Select ${row.full_name ?? row.phone_e164 ?? 'this contact'}`}
+                        />
+                      </td>
                       <td>
                         <div className="rank">
                           <Avatar name={row.full_name} size={26} />
@@ -201,8 +282,8 @@ export function Contacts() {
                           <span className="muted">—</span>
                         )}
                       </td>
-                      <td>{row.project_name ?? <span className="muted">—</span>}</td>
-                      <td>
+                      <td className="col-wide">{row.project_name ?? <span className="muted">—</span>}</td>
+                      <td className="col-wider">
                         <span className="src">
                           <span className="ch" style={{ background: source.colour }}>
                             <Icon name={source.icon} />
@@ -214,7 +295,7 @@ export function Contacts() {
                       <td>
                         <Score value={row.lead_score} />
                       </td>
-                      <td className="muted">{formatDateTime(row.created_at)}</td>
+                      <td className="muted col-wide">{formatDateTime(row.created_at)}</td>
                       <td>
                         <Link className="rowbtn" to={`/inbox?contact=${row.id}`}>
                           Open thread
@@ -228,6 +309,36 @@ export function Contacts() {
           </div>
         )}
       </Panel>
+
+      <Modal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={`Delete ${selected.size} contact${selected.size === 1 ? '' : 's'}?`}
+        icon="alert-triangle"
+        footer={
+          <>
+            <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
+              Keep them
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => void deleteSelected()}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : `Yes, delete ${selected.size}`}
+            </button>
+          </>
+        }
+      >
+        <p style={{ marginTop: 0 }}>
+          This cannot be undone. Their conversations, tasks, notes and pipeline history go with
+          them.
+        </p>
+        <Note>
+          The deletion is recorded in the audit log against your name. Only the owner can do this.
+        </Note>
+      </Modal>
 
       <Modal
         open={reviewOpen}

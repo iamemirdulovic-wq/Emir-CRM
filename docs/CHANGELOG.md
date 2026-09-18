@@ -2,6 +2,61 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The delete button, the columns you could not see, and the rest of the names
+
+The owner opened the CRM and could not work with it: names still wrong, no way to delete
+anything, and most of the contacts table missing. All three were real.
+
+**Fixed — the name test only caught half of them**
+- Yesterday's fix checked the whole value against a list of form answers. It never looked at the
+  individual words, so every *combination* got through: "Yes Afternoon", "Tomorrow morning",
+  "Next wrrk Week after", "Noon". Six of the ten names on the owner's screen were caught; four
+  were not.
+- There is now a vocabulary of *when* — today, noon, weekend, next, after, şimdi, amanhã — and a
+  value is rejected when most of its words come from it. Proportional rather than absolute,
+  because "Next wrrk Week after" has a typo in it and an all-words rule would miss it.
+- A single coincidence is not enough, which is what protects the real names: "Dawn Morning",
+  "Sunday Adelaja", "Sabah Al-Ahmad" and "Noon Alhaddad" are all people, and all still are.
+  Ten out of ten of the owner's bad names now flagged, and every real name kept.
+
+**Added — a delete button, which did not exist**
+- `POST /api/lists/bulk-delete` had been written, permissioned and audited, and nothing in the
+  interface ever called it. There was no checkbox anywhere on Contacts and no way to remove a
+  contact through the UI at all.
+- Contacts now has a checkbox on every row, a select-all in the header, and a bar showing what
+  is selected with Clear and Delete. Delete asks for confirmation, states plainly that the
+  conversations, tasks and history go too, and is owner-only — as it is on the server, which is
+  where it counts.
+
+**Fixed — the table was hiding five of its eight columns**
+- At a 1000px window the contacts table needed 873px inside a 686px panel: Source, Owner, Score,
+  Added and the link into the thread were simply off the right edge, with nothing on screen to
+  suggest scrolling. "I cannot see anything" was an accurate description.
+- Tables now carry a CSS-only scroll shadow that appears on whichever side has more to show —
+  four gradients, two painted in the content's own coordinate space so they scroll away at the
+  end of the travel, no JavaScript and no scroll listener.
+- And the columns that earn their place on a wide screen give it up on a narrow one. Project,
+  Source and Added drop away below 1280px and 1080px, leaving the name, the stage, the owner and
+  the way in. Measured at 1000, 1180 and 1400px: nothing hidden at any of them.
+
+**Fixed — a stale process nearly sent me the wrong way**
+- Half an hour was spent believing the new name test had failed, because an older server was
+  still holding port 4311 and serving the previous build. The test harness reported exactly the
+  old code's score, which is the most convincing kind of wrong answer. Worth recording: check
+  what is actually listening before believing a result.
+
+**Worth knowing about the imports screen** (no change made)
+- The same file appears six times because it was uploaded six times. The first run created 503
+  contacts; every run after that found them already there and counted them as updates. That is
+  also why Undo offers nothing — it only removes contacts an import *created*, and by the sixth
+  run there were none.
+- The 32 skipped rows are the header lines each stacked form brought with it: "full name",
+  "whatsapp_number", "numero_whatsapp". Correctly rejected, and the reason names the value.
+
+**Verified** in a browser against the real contacts from the live CRM: 10 of 10 bad names
+flagged with a reason each, 5 real names untouched, two contacts selected and deleted (15 → 13),
+select-all reaching 13, and the table measured at three widths. 675 server tests, 86 web tests.
+
 ## Names that were not names
 
 **Fixed — the importer took form answers as customers' names**

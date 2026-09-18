@@ -38,6 +38,7 @@ const FORM_ANSWERS = new Set([
   // English
   'yes', 'no', 'ok', 'okay', 'sure', 'maybe', 'any', 'anytime', 'all', 'both',
   'now', 'done', 'asap', 'today', 'tomorrow', 'morning', 'afternoon', 'evening',
+  'noon', 'midday', 'midnight', 'weekend', 'weekday', 'week', 'month', 'anyday',
   'night', 'cash', 'mortgage', 'call', 'call me', 'whatsapp', 'email', 'info',
   'information', 'price', 'pricing', 'brochure', 'catalog', 'catalogue',
   'details', 'interested', 'not interested', 'investment', 'buy', 'rent', 'hi',
@@ -61,6 +62,48 @@ const FORM_ANSWERS = new Set([
   'sí', 'ahora', 'mañana', 'manana', 'cualquier', 'efectivo', 'llamar',
   'catálogo', 'precio', 'interesado', 'hola', 'urgente',
 ]);
+
+/**
+ * The vocabulary of *when*.
+ *
+ * Most answers that land in a name column are scheduling: "Tomorrow morning",
+ * "Yes Afternoon", "Next week after". Individually several of these could be a
+ * surname — Monday and Summer are real ones — so no single word here decides
+ * anything. They only count towards the "made of answer words" test below.
+ */
+const TIME_WORDS = new Set([
+  'now', 'today', 'tomorrow', 'yesterday', 'tonight', 'morning', 'noon',
+  'midday', 'afternoon', 'evening', 'night', 'midnight', 'week', 'weekend',
+  'weekday', 'month', 'year', 'day', 'days', 'weeks', 'months', 'hour', 'hours',
+  'next', 'last', 'after', 'before', 'later', 'soon', 'early', 'late', 'any',
+  'anytime', 'asap', 'urgent', 'immediately', 'monday', 'tuesday', 'wednesday',
+  'thursday', 'friday', 'saturday', 'sunday', 'am', 'pm', 'time', 'oclock',
+  // The same idea in the other campaign languages.
+  'agora', 'hoje', 'amanha', 'amanhã', 'manha', 'manhã', 'tarde', 'noite',
+  'semana', 'mes', 'mês', 'proxima', 'próxima', 'depois', 'qualquer', 'horas',
+  'simdi', 'şimdi', 'bugun', 'bugün', 'yarin', 'yarın', 'sabah', 'aksam',
+  'akşam', 'hafta', 'sonra', 'herhangi', 'saat',
+  'ahora', 'hoy', 'manana', 'mañana', 'semana', 'despues', 'después',
+  'сейчас', 'сегодня', 'завтра', 'утро', 'вечер', 'неделя', 'потом',
+]);
+
+/**
+ * True when the value is built out of answer words rather than names.
+ *
+ * Proportional rather than absolute: "Tomorrow morning" is two answer words out
+ * of two, "Next wrrk Week after" is three out of four — that last one has a typo
+ * in it, which is exactly why an all-words rule is too brittle. A single
+ * coincidence is not enough ("Dawn Morning" is one of two, and stays a name), so
+ * this needs at least two matches and most of the words.
+ */
+function madeOfAnswerWords(value: string): boolean {
+  const words = value.toLowerCase().split(/\s+/).map((word) => word.replace(/[.,]/g, '')).filter(Boolean);
+  if (words.length < 2) return false;
+  const matches = words.filter(
+    (word) => FORM_ANSWERS.has(word) || TIME_WORDS.has(word) || SENTENCE_WORDS.has(word),
+  ).length;
+  return matches >= 2 && matches / words.length >= 0.6;
+}
 
 /**
  * Characters that appear in answers and questions but not in names.
@@ -161,6 +204,7 @@ export function notAName(value: string | null | undefined): false | string {
   if (isKeyboardMash(trimmed)) return 'looks like keyboard mashing';
 
   if (isSentence(trimmed)) return 'a sentence, not a name';
+  if (madeOfAnswerWords(trimmed)) return 'made of form answers, not a name';
   /*
    * A backstop for a sentence in a language whose function words are not
    * listed. Set high on purpose: a formal Arabic name carrying a patronymic and

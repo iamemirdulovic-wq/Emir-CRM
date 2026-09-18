@@ -149,3 +149,56 @@ describe('the keyboard-mash test does not eat real names', () => {
     expect(looksLikeName('Didi')).toBe(true);
   });
 });
+
+/*
+ * The second round of real values from the live CRM. Every one of these got
+ * through the first version of this module, and they are all the same shape:
+ * a *combination* of answer words, where only the whole string was being
+ * checked against the list.
+ */
+describe('answers made of several answer words', () => {
+  const rejected = [
+    'Yes Afternoon',
+    'Tomorrow morning',
+    'Next wrrk Week after',
+    'Noon',
+    'whatsup send please offer',
+    'Please WhatsApp message only thanks',
+    '8:00pm ksa time',
+    'Please WhatsApp me +918142498713',
+    'Next week',
+    'any time today',
+    'amanhã de manhã',
+    'yarın sabah',
+  ];
+  for (const value of rejected) {
+    it(`rejects ${JSON.stringify(value)}`, () => {
+      expect(notAName(value)).not.toBe(false);
+    });
+  }
+});
+
+/*
+ * And the other half of that trade. A name that happens to contain one word
+ * from the scheduling vocabulary is still a name — these are all real
+ * surnames and given names, and the proportional rule is what protects them.
+ */
+describe('names that brush against the answer vocabulary', () => {
+  const accepted = [
+    'Dawn Morning',      // Morning is a real surname
+    'Summer Day',        // so is Day
+    'April Monday',      //  and Monday
+    'Sunday Adelaja',    // a well-known Nigerian name
+    'Noon Alhaddad',     // Noon alone is an answer; with a surname it is a person
+    'Eve Knight',
+    'Aurora Estrada',
+    'Ayaan Late',
+    'Sabah Al-Ahmad',    // Sabah is "morning" in Arabic and a common given name
+    'Mañana Rodríguez',
+  ];
+  for (const value of accepted) {
+    it(`keeps ${JSON.stringify(value)}`, () => {
+      expect(notAName(value)).toBe(false);
+    });
+  }
+});

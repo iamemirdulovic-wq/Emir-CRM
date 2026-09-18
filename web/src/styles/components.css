@@ -91,7 +91,36 @@
 .funnel-bar{height:24px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--glass-line)}
 .funnel-bar i{display:block;height:100%;border-radius:99px;opacity:.9}
 .funnel-row b{text-align:right}
-.table-wrap{overflow-x:auto}
+/*
+ * A table wider than its panel used to scroll with nothing to say so: at 1000px
+ * the contacts table hid 187px — Source, Owner, Score and Added — off the right
+ * edge, and the screen simply looked as though those columns did not exist.
+ *
+ * These four gradients are the CSS-only scroll shadow. The two `local` layers
+ * are painted in the content's own coordinate space, so they scroll away and
+ * cover the shadow when you reach that end; the two `scroll` layers stay put.
+ * The result is a soft edge that appears only on the side where there is more
+ * to see, with no JavaScript and no scroll listener.
+ */
+.table-wrap{
+  overflow-x:auto;
+  background:
+    linear-gradient(to right, var(--surface-2) 30%, rgba(255,255,255,0)) left center,
+    linear-gradient(to left, var(--surface-2) 30%, rgba(255,255,255,0)) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(12,38,64,.14), rgba(12,38,64,0)) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(12,38,64,.14), rgba(12,38,64,0)) right center;
+  background-repeat:no-repeat;
+  background-size:36px 100%,36px 100%,12px 100%,12px 100%;
+  background-attachment:local,local,scroll,scroll;
+}
+
+/*
+ * Columns that earn their place on a wide screen and not on a narrow one.
+ * Dropping them is better than a scrollbar nobody finds: the name, the stage
+ * and the way in are what the screen is for.
+ */
+@media (max-width:1280px){ th.col-wide,td.col-wide{display:none} }
+@media (max-width:1080px){ th.col-wider,td.col-wider{display:none} }
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;color:var(--ink-3);font-weight:600;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -514,6 +543,19 @@ td a:hover,.bank a:hover{text-decoration:underline}
 /* A table cell holding user-supplied text: clipped to its column rather than
    allowed to stretch the table and overlap its neighbour. */
 td.clip{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   BULK SELECTION
+   ───────────────────────────────────────────────────────────────────────── */
+.bulkbar{display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;border-radius:16px;background:var(--primary-soft);border:1px solid rgba(0,175,200,.28)}
+.bulkbar b{color:var(--primary);font-size:13.5px;margin-inline-end:auto}
+.bulkbar .btn{padding:7px 13px;font-size:13px}
+/* Destructive, so it reads as destructive rather than as another grey button. */
+.btn-danger{background:var(--hot);color:#fff;border-color:transparent}
+.btn-danger:hover{filter:brightness(.94)}
+tr.picked{background:var(--primary-soft)}
+/* The checkbox column: tight, and not a click target for the row link. */
+table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;margin:0}
 @keyframes modal-in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 /* The animation is decoration; the dialog must still appear instantly for
    anyone who has asked the system for less movement. */
