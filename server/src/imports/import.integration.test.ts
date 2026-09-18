@@ -90,6 +90,101 @@ describeWithDb('bulk import (integration)', () => {
     expect(contacts.map((c) => c.phone_e164)).toEqual(['+971559876543', '+971501234567']);
   });
 
+  /*
+   * The file the first real import came from: several Meta forms concatenated,
+   * so the column holding a name in one block holds an answer to a question in
+   * the next. The importer picks the column once, from the top of the file, and
+   * used to trust every value in it — which is how contacts called "2pm / 6pm"
+   * and "I am on holiday till 25.05" ended up in the live CRM.
+   */
+  it('does not take a form answer as somebody\'s name', async () => {
+    const { importId } = await createImport(
+      [
+        'Full Name,Mobile No.,Email,When can we call?',
+        // First block: the column holds real names.
+        'Matio Caetano,0501234567,matio@example.com,Morning',
+        'Paulo de A. L. Neto,0559876543,paulo@example.com,Afternoon',
+        // Second block: the same column now holds the answer, and the name has
+        // moved one column over.
+        '2pm / 6pm,0521112233,carlos@example.com,Carlos Veiga',
+        'I am on holiday till 25.05 and have time. From 9 am to 8 pm ( Cyprus time),0524445566,lilian@example.com,Nothing useful here',
+        'Katalog,0527778899,edson@example.com,Şimdi',
+      ].join('\n'),
+    );
+
+    await runToCompletion(importId);
+
+    const record = await query<{ created_count: number; failed_count: number }>(
+      'SELECT created_count, failed_count FROM imports WHERE id = ?', [importId],
+    );
+    // Every row is a reachable person: a bad name never costs us the lead.
+    expect(Number(record[0]?.created_count)).toBe(5);
+    expect(Number(record[0]?.failed_count)).toBe(0);
+
+    const contacts = await query<{ id: string; phone_e164: string; full_name: string | null }>(
+      'SELECT id, phone_e164, full_name FROM contacts ORDER BY phone_e164',
+    );
+    const byPhone = new Map(contacts.map((c) => [c.phone_e164, c]));
+
+    // The real names are kept, including the one with initials.
+    expect(byPhone.get('+971501234567')?.full_name).toBe('Matio Caetano');
+    expect(byPhone.get('+971559876543')?.full_name).toBe('Paulo de A. L. Neto');
+
+    // "Carlos Veiga" was in the answer column; it is found and used.
+    expect(byPhone.get('+971521112233')?.full_name).toBe('Carlos Veiga');
+
+    // Nothing name-shaped anywhere, so the name stays empty rather than a lie.
+    // The inbox shows the phone number for these.
+    expect(byPhone.get('+971524445566')?.full_name).toBeNull();
+    expect(byPhone.get('+971527778899')?.full_name).toBeNull();
+
+    /*
+     * And the answer is not thrown away. It lands on the contact's timeline,
+     * where the rest of the lead's detail goes — for the holiday row it is the
+     * most useful line in the file for whoever has to ring this person.
+     */
+    const timeline = async (phone: string) => {
+      const rows = await query<{ body: string }>(
+        'SELECT body FROM activities WHERE contact_id = ?',
+        [byPhone.get(phone)?.id ?? ''],
+      );
+      return rows.map((row) => row.body).join('\n');
+    };
+    expect(await timeline('+971524445566')).toMatch(/was in the name column/);
+    expect(await timeline('+971524445566')).toMatch(/holiday till 25\.05/);
+    expect(await timeline('+971527778899')).toMatch(/Katalog/);
+    // A row whose name was fine gains no such note.
+    expect(await timeline('+971501234567')).not.toMatch(/was in the name column/);
+  });
+
+  /*
+   * A stacked export often carries each file's header row with it. The row is
+   * rejected on the phone column before the name is even looked at, and the
+   * reason names the value that failed — which is what you need when you are
+   * fixing four hundred rows, and better than "is this a second header row?".
+   */
+  it('still rejects a header row repeated in the middle of a file', async () => {
+    const { importId } = await createImport(
+      [
+        'Full Name,Mobile No.',
+        'Sara Ahmed,0501234567',
+        'Full Name,Mobile No.',
+      ].join('\n'),
+    );
+    await runToCompletion(importId);
+
+    const rows = await query<{ status: string; reason: string | null }>(
+      'SELECT status, reason FROM import_rows WHERE import_id = ? ORDER BY line_number', [importId],
+    );
+    expect(rows[0]?.status).toBe('created');
+    expect(rows[1]?.status).toBe('invalid');
+    expect(rows[1]?.reason).toMatch(/Mobile No\./);
+
+    // And no contact was created from it.
+    const contacts = await query<{ n: number }>('SELECT COUNT(*) AS n FROM contacts');
+    expect(Number(contacts[0]?.n)).toBe(1);
+  });
+
   /**
    * The rule the owner signed off on. A file of forty thousand old leads must
    * not fire forty thousand welcome messages: it would breach the consent

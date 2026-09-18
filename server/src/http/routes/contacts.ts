@@ -23,6 +23,7 @@ import {
   updateContact,
 } from '../../services/contacts.js';
 import { writeAudit } from '../../audit/audit.js';
+import { findSuspectNames, repairNames } from '../../services/name-review.js';
 import { completeTask } from '../../services/tasks.js';
 
 export const contactsRouter = Router();
@@ -89,6 +90,46 @@ contactsRouter.get(
     );
 
     res.json({ items, page: params.page, pageSize: params.pageSize, total: Number(total?.n ?? 0) });
+  }),
+);
+
+/*
+ * Declared above `GET /:id`. Express matches in definition order, so with these
+ * further down the file the router answered /api/contacts/name-review by
+ * looking for a contact whose id is the string "name-review".
+ */
+/* ── Repairing names that are not names ─────────────────────────────────── */
+
+/**
+ * Contacts whose name came out of the wrong lead-form answer.
+ *
+ * Manager and up: it reads across a team, and the fix rewrites a field an agent
+ * may have corrected by hand.
+ */
+contactsRouter.get(
+  '/name-review',
+  requireManager,
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const items = await findSuspectNames(await visibleUserIds(user));
+    res.json({ items });
+  }),
+);
+
+const repairSchema = z.object({
+  // The ids the screen just showed, so nobody is fixing a list they did not read.
+  ids: z.array(z.string().max(36)).min(1).max(500),
+});
+
+contactsRouter.post(
+  '/name-review/apply',
+  requireManager,
+  requirePermission('contacts:write'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const { ids } = repairSchema.parse(req.body);
+    const result = await repairNames(actorFrom(req), ids, await visibleUserIds(user));
+    res.json(result);
   }),
 );
 

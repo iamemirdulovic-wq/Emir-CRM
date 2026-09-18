@@ -11,6 +11,7 @@
  */
 import { normalizeEmail } from '../lib/email.js';
 import { parsePhone } from '../lib/phone.js';
+import { findName, notAName } from './names.js';
 import { normalizeLead } from '../ingestion/normalize.js';
 import type { LeadDTO, LeadSource } from '../ingestion/dto.js';
 import type { ColumnMapping, ImportField } from './mapping.js';
@@ -80,7 +81,12 @@ export type RowOutcome =
   | { ok: false; reason: string };
 
 /** Anything that is obviously not a real name, so a header row pasted twice is caught. */
-const PLACEHOLDER_NAMES = new Set(['name', 'full name', 'fullname', 'n/a', 'na', '-', 'unknown', 'test']);
+/*
+ * Superseded by `notAName`, which knows about form answers in six languages,
+ * digits, sentences and keyboard mashing. Kept only as the one case that means
+ * the *file* is wrong rather than the row: a literal header repeated mid-file.
+ */
+const SECOND_HEADER_ROW = new Set(['name', 'full name', 'fullname', 'first name', 'last name']);
 
 /**
  * Validates and normalizes one row.
@@ -114,6 +120,13 @@ function findEmail(unmapped: Record<string, string>): string | null {
     if (normalized) return normalized;
   }
   return null;
+}
+
+/** Keep a row's own notes and anything rescued from the name column. */
+function joinNotes(notes: string | null, salvaged: string | null): string | null {
+  if (!salvaged) return notes;
+  const rescued = `Form answer (was in the name column): ${salvaged}`;
+  return notes ? `${notes}\n${rescued}` : rescued;
 }
 
 export function rowToLead(
@@ -158,10 +171,26 @@ export function rowToLead(
     return { ok: false, reason: 'No phone number and no email address' };
   }
 
-  const name = (mapped.fullName ?? '').trim();
-  if (name && PLACEHOLDER_NAMES.has(name.toLowerCase())) {
-    return { ok: false, reason: `"${name}" is not a name — is this a second header row?` };
+  /*
+   * The name column, checked value by value rather than trusted because the
+   * column was chosen once.
+   *
+   * A Meta export stacked out of several forms holds a name in this column for
+   * one block of rows and an answer to a question in the next — "2pm / 6pm",
+   * "24 horas", "I am on holiday till 25.05". The row is still a reachable
+   * person, so it is never rejected over this; the name is simply not used, the
+   * answer is kept in the notes where it belongs, and the inbox falls back to
+   * showing the phone number, which is what the agent needs to call them.
+   */
+  const rawName = (mapped.fullName ?? '').trim();
+  if (rawName && SECOND_HEADER_ROW.has(rawName.toLowerCase())) {
+    return { ok: false, reason: `"${rawName}" is not a name — is this a second header row?` };
   }
+
+  const nameProblem = rawName ? notAName(rawName) : 'empty';
+  // Only look sideways when the mapped column let us down.
+  const name = nameProblem === false ? rawName : findName(unmapped);
+  const salvagedAnswer = nameProblem === false || !rawName ? null : rawName;
 
   const createdAt = parseDate(mapped.createdAt);
 
@@ -176,7 +205,7 @@ export function rowToLead(
     phoneRegion: settings.phoneRegion,
     // The keys are the ones normalizeLead reads; see ingestion/normalize.ts.
     mapped: {
-      ...(mapped.fullName ? { full_name: mapped.fullName } : {}),
+      ...(name ? { full_name: name } : {}),
       ...(mapped.firstName ? { first_name: mapped.firstName } : {}),
       ...(mapped.lastName ? { last_name: mapped.lastName } : {}),
       /*
@@ -206,7 +235,12 @@ export function rowToLead(
     unmapped,
     ...(mapped.campaignName ? { attribution: { campaignName: mapped.campaignName } } : {}),
     consent: consentFor(settings, now),
-    notes: mapped.notes ?? null,
+    /*
+     * The discarded value is appended rather than dropped. "I am on holiday
+     * till 25.05, 9am to 8pm Cyprus time" is not a name, but it is the single
+     * most useful thing in the row for whoever has to ring this person.
+     */
+    notes: joinNotes(mapped.notes ?? null, salvagedAnswer),
   });
 
   return {

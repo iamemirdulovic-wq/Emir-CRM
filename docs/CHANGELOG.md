@@ -2,6 +2,71 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Names that were not names
+
+**Fixed — the importer took form answers as customers' names**
+- The first live import produced contacts called "2pm / 6pm", "Katalog", "0.75", "Şimdi" and
+  "I am on holiday till 25.05 and have time. From 9 am to 8 pm ( Cyprus time)". The export was
+  several Meta forms concatenated, so the column holding a name for the first few hundred rows
+  held the answer to a question for the rest. The importer chose the column once, from the top
+  of the file, and then trusted every value in it.
+- This is the same raggedness that ate the phone numbers a fortnight ago. That fix looked at
+  the phone column only; the name column had nothing but an eight-word list of placeholders
+  guarding it.
+- Each value is now checked on its own. When the mapped column holds an answer, the neighbouring
+  columns are searched for a real name — which recovers the rows where the name simply moved one
+  column over — and if there is nothing name-shaped anywhere the name is left empty. The inbox
+  already falls back to the phone number, which is what an agent needs in order to ring someone.
+- The row is never rejected over a bad name. Every one of those contacts is a reachable person.
+
+**Fixed — and the answer is kept, because it is worth more than the name was**
+- "I am on holiday till 25.05, 9am to 8pm Cyprus time" is not a name, but it is the single most
+  useful line in that lead's record. The discarded value goes onto the contact's timeline rather
+  than into the bin.
+
+**Added — a screen for the contacts already in the database**
+- The importer no longer creates these, but 500-odd leads were imported before the fix. A
+  "13 names to fix" chip on Contacts opens a list of every suspect name with the reason it was
+  flagged, and one button clears them all.
+- Deliberately not a migration that runs on start. Rewriting a column across every contact in a
+  live CRM, silently, at deploy time, is the kind of thing that is only noticed when it was wrong.
+  A manager reads the list and presses the button; every change is audited.
+- Re-checked at the moment it is applied, not trusted from the request: between the list being
+  read and the button being pressed, an agent may have typed the customer's real name in. That
+  guard is what stops the feature destroying the thing it exists to produce.
+
+**How the test decides**
+- Built as a rejecter of things that are definitely not names, not a validator of things that
+  are, because the two mistakes are not equal. A bad name goes out in the WhatsApp template as
+  `{{1}}` — "Hello Katalog, thank you for your interest" — while a rejected good name costs
+  nothing permanent.
+- Catches digits, punctuation that names do not carry, keyboard mashing, sentences, and form
+  answers in English, Portuguese, Turkish, Arabic, Russian and Spanish.
+- Every real name from the import survives: "Paulo de A. L. Neto", "Brother Calvin-Cía",
+  "أحمد الهاشمي", single-word names like "Ahmed", and a seven-word formal Arabic name. Two of
+  those were false positives in the first draft, caught by the tests: "Didi" was read as
+  keyboard mashing, and a word-count rule rejected a long Arabic name. The word count is gone,
+  replaced by a check for pronouns and verbs — which never appear in a name, where the particles
+  that make names long (de, van, bin, al) always might.
+- Guessing from an unmapped column is held to a tighter standard than the mapped one: a wrong
+  guess invents a customer out of an answer, and nobody ever notices. "Nothing useful here" and
+  "Not interested" both got through the first version.
+- One limit worth stating: a single made-up word cannot be told from a name. "Hwmen" is kept.
+
+**Fixed — a route that could never have been reached**
+- `GET /api/contacts/name-review` was declared after `GET /api/contacts/:id`. Express matches in
+  definition order, so the router answered it by looking for a contact whose id is the string
+  "name-review".
+
+**Fixed — layout**
+- A long value in the review table stretched its cell and overlapped the column beside it.
+
+**Verified** in a browser against the real names from the live CRM: 13 flagged with the correct
+reason for each, 10 real names left alone, the list empty afterwards and the contacts showing
+their phone numbers. Arabic was checked end to end after mojibake appeared in a test — the
+corruption was the `mysql` CLI connecting as latin1, not the CRM, which round-trips
+"أحمد الهاشمي" correctly on both read and write. 653 server tests, 86 web tests.
+
 ## The task manager
 
 **Added — creating, editing and finishing work without a page reload**

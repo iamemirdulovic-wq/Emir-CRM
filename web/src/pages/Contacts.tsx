@@ -8,7 +8,19 @@ import { useShellSearch } from '../components/Layout.js';
 import type { Card, StageKey } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { sourceStyle, stageStyle } from '../design/stages.js';
-import { Avatar, Chip, Empty, ErrorNote, Panel, Score, Spinner, Toolbar, useToast } from '../design/ui.js';
+import {
+  Avatar, Chip, Empty, ErrorNote, Modal, Panel, Score, Spinner, Toolbar, useToast,
+} from '../design/ui.js';
+
+/** A contact whose name came out of the wrong lead-form answer. */
+type SuspectName = {
+  id: string;
+  full_name: string;
+  phone_e164: string | null;
+  email: string | null;
+  owner_name: string | null;
+  reason: string;
+};
 
 type ContactRow = {
   id: string;
@@ -35,6 +47,8 @@ export function Contacts() {
   const shellSearch = useShellSearch();
   const search = useDebounced(shellSearch.value);
   const [dncOnly, setDncOnly] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [fixing, setFixing] = useState(false);
 
   const list = useAsync<{ items: ContactRow[] }>(
     () => api.get(`/api/contacts${qs({ search, pageSize: 100 })}`),
@@ -50,8 +64,46 @@ export function Contacts() {
     [],
   );
 
+  /*
+   * Contacts imported before the name fix, whose name field holds an answer to
+   * a form question. Manager and up, so a 403 for an agent is expected and must
+   * not turn the page into an error.
+   */
+  const suspects = useAsync<{ items: SuspectName[] }>(
+    () =>
+      api
+        .get<{ items: SuspectName[] }>('/api/contacts/name-review')
+        .catch(() => ({ items: [] as SuspectName[] })),
+    [],
+  );
+
   const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
   const items = (list.data?.items ?? []).filter((row) => !dncOnly || row.dnc === 1);
+
+  async function fixNames() {
+    const ids = (suspects.data?.items ?? []).map((row) => row.id);
+    if (ids.length === 0) return;
+    setFixing(true);
+    try {
+      // The ids that were on screen, so nothing is changed that was not read.
+      const result = await api.post<{ repaired: number; skipped: number }>(
+        '/api/contacts/name-review/apply',
+        { ids },
+      );
+      toast(
+        result.skipped > 0
+          ? `${result.repaired} fixed · ${result.skipped} left alone (already corrected)`
+          : `${result.repaired} name${result.repaired === 1 ? '' : 's'} cleared`,
+      );
+      setReviewOpen(false);
+      suspects.reload();
+      list.reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not fix the names');
+    } finally {
+      setFixing(false);
+    }
+  }
 
   async function exportCsv() {
     try {
@@ -83,6 +135,12 @@ export function Contacts() {
         <Chip on={dncOnly} onClick={() => setDncOnly(true)} icon="ban">
           Do not contact
         </Chip>
+        {isManager && (suspects.data?.items.length ?? 0) > 0 && (
+          <Chip on={false} icon="alert-triangle" onClick={() => setReviewOpen(true)}>
+            {suspects.data?.items.length} name
+            {suspects.data?.items.length === 1 ? '' : 's'} to fix
+          </Chip>
+        )}
         {isManager && (duplicates.data?.items.length ?? 0) > 0 && (
           <span className="pill wait">
             {duplicates.data?.items.length} possible duplicate
@@ -170,6 +228,74 @@ export function Contacts() {
           </div>
         )}
       </Panel>
+
+      <Modal
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        title="Names that are not names"
+        icon="alert-triangle"
+        wide
+        footer={
+          <>
+            <button type="button" className="btn" onClick={() => setReviewOpen(false)}>
+              Leave them
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void fixNames()}
+              disabled={fixing || (suspects.data?.items.length ?? 0) === 0}
+            >
+              {fixing ? 'Fixing…' : `Fix all ${suspects.data?.items.length ?? 0}`}
+            </button>
+          </>
+        }
+      >
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+          These came from an import where the file stacked several Meta forms together, so the name
+          column held an answer to a question instead of a name. Fixing them clears the name — the
+          inbox then shows the phone number — and keeps the text on each contact&rsquo;s timeline,
+          because for some of them it is the most useful line in the record.
+        </p>
+
+        {suspects.loading && <Spinner />}
+
+        {!suspects.loading && (suspects.data?.items.length ?? 0) === 0 && (
+          <Empty icon="check-circle-2" title="Nothing to fix" hint="Every name looks like a name." />
+        )}
+
+        {(suspects.data?.items.length ?? 0) > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Stored as a name</th>
+                  <th>Why it is wrong</th>
+                  <th>Reachable on</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(suspects.data?.items ?? []).map((row) => (
+                  <tr key={row.id}>
+                    {/* Clipped in CSS as well as in JS: a 300-character answer
+                        with no spaces would otherwise stretch the cell and push
+                        the reason out of its own column. */}
+                    <td className="clip" title={row.full_name}>
+                      <Link to={`/inbox?contact=${row.id}`} className="rowbtn">
+                        {row.full_name.length > 44 ? `${row.full_name.slice(0, 44)}…` : row.full_name}
+                      </Link>
+                    </td>
+                    <td className="muted">{row.reason}</td>
+                    <td className="muted">{row.phone_e164 ?? row.email ?? '—'}</td>
+                    <td className="muted">{row.owner_name ?? 'Unassigned'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
