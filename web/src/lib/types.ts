@@ -543,3 +543,109 @@ export type CampaignDetail = {
   campaign: CampaignRow & Record<string, unknown>;
   stats: CampaignStats;
 };
+
+/* ── Project library ──────────────────────────────────────────────────── */
+
+export type SaleStatus = 'selling_now' | 'coming_soon' | 'sold_out';
+export type UnitStatus = 'available' | 'on_hold' | 'reserved' | 'sold';
+export type Visibility = 'private' | 'team' | 'public';
+
+export type LibraryCard = {
+  id: string;
+  slug: string;
+  name: string;
+  developer: string;
+  developer_id: string | null;
+  emirate: string;
+  community: string | null;
+  property_type: string | null;
+  sale_status: SaleStatus;
+  starting_price_aed: number | null;
+  handover_date: string | null;
+  payment_plan: string | null;
+  image_url: string | null;
+  visibility: Visibility;
+  starred: number;
+  verified_at: string | null;
+  archived_at: string | null;
+  units_available: number;
+  units_total: number;
+};
+
+export type LibraryStats = {
+  mostLeads: { project_name: string; leads: number } | null;
+  trending: { project_name: string; rise_pct: number } | null;
+  bestConverting: { project_name: string; rate_pct: number; deals: number } | null;
+  inventory: { available: number; value_aed: number; top: { name: string; available: number }[] };
+};
+
+export type UnitRow = {
+  id: string;
+  project_id: string;
+  unit_no: string;
+  unit_type: string | null;
+  bedrooms: number | null;
+  floor: string | null;
+  internal_area_sqft: string | null;
+  balcony_sqft: string | null;
+  view_text: string | null;
+  parking: number | null;
+  price_aed: number | null;
+  price_per_sqft_aed: number | null;
+  status: UnitStatus;
+};
+
+export type PlanRow = { id: string; seq: number; milestone: string; percent: string; due_note: string | null };
+export type PaymentPlan = { id: string; project_id: string; name: string; is_default: number; note: string | null; rows: PlanRow[] };
+
+export type DeveloperRow = {
+  id: string;
+  slug: string;
+  legal_name: string;
+  short_name: string;
+  orn: string | null;
+  trn: string | null;
+  head_office: string | null;
+  escrow_bank: string | null;
+  website: string | null;
+  /** Absent for agents — the server strips it. */
+  commission_pct?: string | null;
+  payment_terms?: string | null;
+  project_count: number;
+  contact_count: number;
+};
+
+export type DeveloperContactRow = {
+  id: string;
+  developer_id: string;
+  name: string;
+  role: string | null;
+  phone_e164: string | null;
+  whatsapp_e164: string | null;
+  email: string | null;
+  is_primary: number;
+};
+
+/** What the Add/Edit project form sends. */
+export type ProjectDraft = {
+  name: string;
+  developerId: string | null;
+  developer: string | null;
+  emirate: string;
+  community: string | null;
+  propertyType: string | null;
+  saleStatus: SaleStatus;
+  startingPriceAed: number | null;
+  handoverDate: string | null;
+  paymentPlan: string | null;
+  reraNo: string | null;
+  ownership: string | null;
+  serviceChargeSqft: number | null;
+  goldenVisaThresholdAed: number | null;
+  constructionPct: number | null;
+  description: string | null;
+  brochureUrl: string | null;
+  imageUrl: string | null;
+  visibility: Visibility;
+  goldenVisaEligible: boolean;
+};

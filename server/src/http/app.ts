@@ -18,6 +18,7 @@ import { pipelineRouter } from './routes/pipeline.js';
 import { inboxRouter } from './routes/inbox.js';
 import { usersRouter } from './routes/users.js';
 import { projectsRouter } from './routes/projects.js';
+import { libraryRouter } from './routes/library.js';
 import { templatesRouter } from './routes/templates.js';
 import { reportsRouter } from './routes/reports.js';
 import { tasksRouter } from './routes/tasks.js';
@@ -128,6 +129,12 @@ export function createApp(): Express {
   app.use('/api/inbox', inboxRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/projects', projectsRouter);
+  /*
+   * The library sits on its own path rather than under /api/projects: that
+   * router is what the live WhatsApp replies read, and keeping the editing
+   * surface separate means a change here cannot take the auto-replies down.
+   */
+  app.use('/api/library', libraryRouter);
   app.use('/api/templates', templatesRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/tasks', tasksRouter);

@@ -12,7 +12,7 @@ import { Inbox } from './pages/Inbox.js';
 import { Contacts } from './pages/Contacts.js';
 import { ContactDetail } from './pages/ContactDetail.js';
 import { Tasks } from './pages/Tasks.js';
-import { Projects } from './pages/Projects.js';
+import { Library } from './pages/Library.js';
 import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
@@ -67,7 +67,7 @@ export function App() {
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects" element={<Library />} />
           <Route path="/lists" element={<Lists />} />
           <Route path="/lists/:id" element={<ListDetail />} />
           <Route path="/campaigns" element={<Campaigns />} />

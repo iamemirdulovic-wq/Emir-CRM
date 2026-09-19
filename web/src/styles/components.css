@@ -87,6 +87,10 @@
 .panel h3{margin:0 0 14px;font-size:15px;display:flex;align-items:center;gap:8px;letter-spacing:-.01em}
 .panel h3 svg{color:var(--primary)}
 .panel h3 .link{margin-left:auto;font-size:12.5px;color:var(--primary);background:none;border:0;font-weight:600}
+/* A panel action that is a real button, not a text link, still belongs at the
+   far end of the header rather than pressed against the title. */
+.panel h3 .btn{margin-left:auto}
+[dir="rtl"] .panel h3 .btn,[dir="rtl"] .panel h3 .link{margin-left:0;margin-right:auto}
 .funnel-row{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px;margin-bottom:10px;font-size:13px}
 .funnel-bar{height:24px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--glass-line)}
 .funnel-bar i{display:block;height:100%;border-radius:99px;opacity:.9}
@@ -634,3 +638,43 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
   .cal-grid .cal-ev{padding:2px;height:5px;border-radius:3px}
   .cal-grid .cal-ev::before{width:100%}
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PROJECT LIBRARY
+   ───────────────────────────────────────────────────────────────────────── */
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.proj-card{border-radius:18px;overflow:hidden;background:var(--surface-2);border:1px solid var(--glass-line);display:flex;flex-direction:column}
+/* The cover carries the badges and the title, so it needs a floor of height
+   even when a project has no photo yet — which is most of them on day one. */
+.proj-cover{position:relative;height:132px;background-size:cover;background-position:center;
+  background-color:#0e2a3a;background-image:linear-gradient(140deg,#0c3c4a,#123a52)}
+.proj-cover::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(6,20,32,.78),rgba(6,20,32,.1) 55%)}
+.proj-badges{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap;z-index:1}
+.proj-badges .pill{background:rgba(255,255,255,.92);border-color:transparent;font-size:10.5px}
+.proj-star{position:absolute;top:8px;right:8px;z-index:1;width:28px;height:28px;border-radius:50%;border:0;
+  background:rgba(255,255,255,.9);color:var(--ink-3);display:grid;place-items:center;cursor:pointer}
+.proj-star[aria-pressed="true"]{color:#C4A172}
+.proj-title{position:absolute;left:12px;right:12px;bottom:10px;z-index:1;color:#fff}
+.proj-title b{display:block;font-size:15px;line-height:1.25}
+.proj-title small{opacity:.85;font-size:12px}
+.proj-body{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.proj-price b{font-size:16px}
+.proj-facts{font-size:12.5px}
+.proj-foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:8px;font-size:12.5px}
+.proj-foot .btn{margin-inline-start:auto;padding:6px 14px;font-size:13px}
+.proj-actions{display:flex;gap:10px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px}
+.rowbtn.danger{color:var(--hot)}
+
+/* The overview stat strip. */
+.stat-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{background:var(--surface-2);border:1px solid var(--glass-line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:11.5px}
+.stat b{font-size:14.5px}
+
+/* KPI cards on the library. `warm` is the Trending card, which the design
+   singles out so it reads differently from the other three. */
+.kpi .k-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.kpi .k-value{display:block;font-size:19px;margin-top:6px;line-height:1.2}
+.kpi .k-sub{display:block;font-size:12.5px;margin-top:2px}
+.kpi.warm{border-color:rgba(232,121,79,.4);background:linear-gradient(180deg,rgba(232,121,79,.07),transparent)}

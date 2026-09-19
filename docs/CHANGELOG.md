@@ -2,6 +2,81 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The project library
+
+The first of the three sections the new spec added. Emir Books stays out until the owner asks
+for it.
+
+**Added — projects can finally be added at all**
+- There was no form. The Projects screen could list and verify, and nothing in the CRM could
+  create a project, which is why the library read "0 projects" and why the WhatsApp auto-replies
+  escalated every PRICING, LOCATION and BROCHURE question to a human instead of answering it.
+- Add and edit a project: name, developer, emirate, community, type, status, price from,
+  handover, headline payment plan, DLD number, ownership, service charge, Golden Visa threshold,
+  construction percentage, description, cover and brochure, and who can see it.
+- A duplicate check that warns rather than blocks, because "Phase 2" legitimately sits beside
+  "Phase 1".
+
+**Added — units and prices, which is the part the CRM quotes from**
+- A full inventory table per project: unit number, type, floor, internal area, balcony, view,
+  price, price per sq ft and status.
+- Units arrive by **pasting the developer's spreadsheet** rather than through a form with twelve
+  boxes per row. A price list is ninety rows; retyping it is how a library stays empty.
+- Every import is a **price version**, so an offer can record which figures it quoted, and a
+  re-import updates unit 1204 rather than creating a second one.
+- The table is the only price source. A field the paste did not carry stays blank — nothing is
+  derived, rounded or inferred.
+
+**Added — payment plans, developers, commission**
+- Named plans with milestones, percentages and due notes, one marked default. Percentages are not
+  forced to total 100: developers publish plans that do not, because a DLD fee or a
+  service-charge year sits outside the schedule, and refusing to save one would just mean the real
+  plan lives on paper.
+- Developers as records, with ORN, TRN, escrow bank, and **their own sales contacts** — the direct
+  mobiles an agent rings to book a unit.
+- Our commission per project and per developer, visible to owner, admin and managers only, and
+  stripped from the response before an agent's browser ever sees it.
+
+**Added — the four KPI cards**
+- Most leads this month, trending now, best converting, available inventory. Every number is a
+  real query over `opportunities` and `units`; a card with nothing behind it says so rather than
+  showing a zero that reads like a fact.
+
+**Added — archive, and a delete that has to be meant**
+- Archiving takes a project out of the library and leaves every lead, offer and Won deal that
+  points at it untouched. It is what the delete dialog recommends.
+- Deleting states plainly what goes (the project, its units, prices, plans, media, documents) and
+  what stays (the leads, which keep the project name as text, and anything already sent to a
+  client), and needs the project's name typed back. Owner and admin only — checked on the server
+  as well, because a dialog can be bypassed and an endpoint cannot.
+
+**Fixed — the KPI endpoint returned a 500 on the live database**
+- Four of the queries referenced an aggregate by its alias in HAVING and ORDER BY. MySQL allows
+  that; MariaDB — which is what runs in production — rejects it with "reference to group
+  function". Found by driving the screen in a browser rather than by a test, so the SQL moved out
+  of the route into the service where it could be tested, and now is.
+
+**Fixed — a pasted price of "AED 2,250,000" was read as 2**
+- The parser split on tab, comma *or* runs of spaces all at once, so a comma inside a formatted
+  price cut the cell into three. The delimiter is now chosen per line: tab if there is one, then
+  runs of spaces, and only then comma.
+
+**Schema** — 13 new tables (`units`, `unit_price_versions`, `payment_plans`, `payment_plan_rows`,
+`project_media`, `project_floorplans`, `project_amenities`, `project_documents`,
+`project_locations`, `project_commissions`, `project_imports`, `developers`,
+`developer_contacts`), and 19 new columns on `projects`. The existing columns are untouched: they
+are what the live WhatsApp replies read, and a project created here stays unverified — and so
+unquotable — until a person checks the figures and presses Verify.
+
+**Still to come in this section:** photos, floor plans, amenities, documents and location need
+file upload; the Add-project wizard that reads a developer PDF needs the AI layer; the Developers
+screen is served by the API but has no page yet.
+
+**Verified** in a browser end to end: added a project, pasted a three-row price list and got three
+units with the right prices, saved a payment plan, verified the project, and came back to a
+library showing real inventory — with no console errors and no failed requests. 695 server tests
+(20 for the library), 97 web tests (12 for the price-list parser).
+
 ## The delete button, the columns you could not see, and the rest of the names
 
 The owner opened the CRM and could not work with it: names still wrong, no way to delete

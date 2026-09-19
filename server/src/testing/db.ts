@@ -114,6 +114,20 @@ export async function seedFieldMappings(): Promise<void> {
  * so no test can depend on a previous one's leftovers.
  */
 const TRUNCATE_ORDER = [
+  // Project library — children first, though FOREIGN_KEY_CHECKS is off anyway.
+  'payment_plan_rows',
+  'payment_plans',
+  'units',
+  'unit_price_versions',
+  'project_media',
+  'project_floorplans',
+  'project_amenities',
+  'project_documents',
+  'project_locations',
+  'project_commissions',
+  'project_imports',
+  'developer_contacts',
+  'developers',
   'campaign_members',
   'campaigns',
   'list_members',
