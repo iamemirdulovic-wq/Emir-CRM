@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { callGemini, candidateNames } from './call-gemini.js';
 import { clearModelCache, type GeminiModel } from './models.js';
 
+vi.mock('./models.js', async () => {
+  const actual = await vi.importActual<typeof import('./models.js')>('./models.js');
+  // Real waits would add seconds to every run for no extra confidence.
+  return { ...actual, BUSY_BACKOFF_MS: [5, 10] };
+});
+
 vi.mock('./usage.js', async () => {
   const actual = await vi.importActual<typeof import('./usage.js')>('./usage.js');
   return { ...actual, recordUsage: vi.fn(async () => undefined) };
@@ -138,5 +144,70 @@ describe('the order models are tried in', () => {
   it('uses the ranking as it stands when nothing is chosen', () => {
     const ranked = [model('gemini-2.5-flash-lite'), model('gemini-2.5-flash')];
     expect(candidateNames(ranked, null)).toEqual(['gemini-2.5-flash-lite', 'gemini-2.5-flash']);
+  });
+});
+
+/**
+ * "This model is currently experiencing high demand. Spikes in demand are
+ * usually temporary. Please try again later."
+ *
+ * That is Google saying *this model, right now* — not "your request is wrong".
+ * The CRM should try a different model, and if they are all busy, wait a
+ * moment and ask again, rather than handing the owner an error they can only
+ * answer by pressing the button again themselves.
+ */
+describe('when the model is simply busy', () => {
+  const busy = () => refuse(503, 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.');
+
+  it('tries a different model straight away', async () => {
+    fetchMock
+      .mockImplementationOnce(async () => busy())
+      .mockImplementationOnce(async () => answer('{"ok":true}'));
+
+    const result = await call(['gemini-3.1-flash', 'gemini-2.5-flash']);
+
+    expect(result.model).toBe('gemini-2.5-flash');
+    expect(result.text).toBe('{"ok":true}');
+  });
+
+  it('waits and asks again when every model is busy at once', async () => {
+    let calls = 0;
+    fetchMock.mockImplementation(async () => {
+      calls += 1;
+      // Both models busy on the first pass, the first one free on the second.
+      return calls <= 2 ? busy() : answer('recovered');
+    });
+
+    const result = await call(['gemini-3.1-flash', 'gemini-2.5-flash']);
+
+    expect(result.text).toBe('recovered');
+    expect(calls).toBe(3);
+  }, 20_000);
+
+  it("gives up eventually, with Google own words", async () => {
+    fetchMock.mockImplementation(async () => busy());
+
+    await expect(call(['a', 'b'])).rejects.toThrow(/high demand/);
+  }, 20_000);
+
+  /* A busy model never ran, so it is never billed. */
+  it('bills nothing for a busy model', async () => {
+    fetchMock
+      .mockImplementationOnce(async () => busy())
+      .mockImplementationOnce(async () => answer('ok'));
+
+    await call(['gemini-3.1-flash', 'gemini-2.5-flash']);
+
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(recordUsage).mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-2.5-flash' });
+  });
+
+  /* A quota 429 is about the key, not the moment. Waiting will not clear it,
+     so it must not be mistaken for a busy model. */
+  it('does not retry a quota error as though it were a spike', async () => {
+    fetchMock.mockImplementationOnce(async () => refuse(429, 'Quota exceeded for quota metric requests per day'));
+
+    await expect(call(['gemini-2.5-flash', 'gemini-3.1-flash'])).rejects.toThrow(/rate-limiting/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

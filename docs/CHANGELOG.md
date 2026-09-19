@@ -2,6 +2,36 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## A busy model is not a broken one
+
+Next message from Google:
+
+> *This model is currently experiencing high demand. Spikes in demand are usually temporary.
+> Please try again later.*
+
+Nothing was wrong with the key, the file or the request — Google's servers were oversubscribed
+that minute. But the CRM treated every 5xx as "Google had a problem, try again later" and handed
+the owner an error whose only answer was to press the button again themselves.
+
+**Now the CRM does that itself.** A busy model is about *that model at that moment*, so:
+1. it tries the next model straight away — a different one is usually free;
+2. if they are all busy, it waits 1.5 seconds and asks again, then 4 seconds;
+3. only then does it report, and it says it already tried: *"Google's models are busy right now.
+   Emir AI tried the others and waited, and they were all busy. Give it a minute and press it
+   again."*
+
+A busy model never ran, so it is never billed, and the waiting happens behind the reading panel
+that is already on screen.
+
+**Told apart carefully.** A quota 429 is about the key and will not clear in a second, so it is
+not mistaken for a spike and is reported at once. A malformed request, a bad key and a genuine
+500 all still stop immediately rather than spending round trips to hear the same thing three
+times.
+
+**Verified** with 15 tests over the caller — one model busy, every model busy then recovering,
+every model busy throughout, and a quota error that must not be retried — plus the wording. 819
+server tests, 102 web tests.
+
 ## Google's catalogue is an offer, not a guarantee
 
 The error carried Google's own words this time, and they were decisive:

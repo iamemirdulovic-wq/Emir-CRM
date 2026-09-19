@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isModelUnavailable,
+  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isModelBusy, isModelUnavailable,
   isTextModel, parseModelName, pickDefault, rankModels, readGeminiError, resolveModel,
   stepUpForFiles, type GeminiModel,
 } from './models.js';
@@ -97,8 +97,10 @@ describe('saying what went wrong', () => {
     expect(explainGeminiError(429, 'any')).toContain('rate-limiting');
   });
 
+  /* 503 is no longer this case — that is a busy model, which has its own
+     message and its own handling. A bare 500 is a genuine fault. */
   it('blames Google on a 500', () => {
-    expect(explainGeminiError(503, 'any')).toContain('their side');
+    expect(explainGeminiError(500, 'any')).toContain('their side');
   });
 
   it('still says something useful for a status it has never seen', () => {
@@ -347,5 +349,35 @@ describe('telling "not that model" from "not that request"', () => {
   it('trusts a bare 404 with no message', () => {
     expect(isModelUnavailable(404, null)).toBe(true);
     expect(isModelUnavailable(400, null)).toBe(false);
+  });
+});
+
+describe('what a busy model is called', () => {
+  const highDemand = 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.';
+
+  it('recognises Google saying the model is oversubscribed', () => {
+    expect(isModelBusy(503, highDemand)).toBe(true);
+    expect(isModelBusy(503, null)).toBe(true);
+    expect(isModelBusy(429, 'The model is overloaded. Please try again later.')).toBe(true);
+  });
+
+  /* A quota 429 is about the key and will not clear in a second, so it must
+     not be mistaken for a spike. */
+  it('does not call a quota error a spike', () => {
+    expect(isModelBusy(429, 'Quota exceeded for quota metric requests per day')).toBe(false);
+    expect(isModelBusy(400, 'Invalid argument')).toBe(false);
+    expect(isModelBusy(404, 'not found')).toBe(false);
+  });
+
+  /*
+   * The owner sees this only after the CRM has tried every other model and
+   * waited, so it must not sound like something they have to fix.
+   */
+  it('says the CRM already tried the rest', () => {
+    const message = explainGeminiError(503, 'gemini-3.1-flash', highDemand);
+    expect(message).toContain('busy right now');
+    expect(message).toContain('tried the others');
+    expect(message).toContain('high demand');
+    expect(message).not.toContain('problem on their side');
   });
 });

@@ -15,8 +15,8 @@ import { logger } from '../lib/logger.js';
 import { badRequest } from '../lib/errors.js';
 import { estimateTokens, recordUsage } from './usage.js';
 import {
-  explainGeminiError, GEMINI_BASE, isModelUnavailable, MAX_MODEL_ATTEMPTS, readGeminiError,
-  type GeminiModel,
+  BUSY_BACKOFF_MS, explainGeminiError, GEMINI_BASE, isModelBusy, isModelUnavailable,
+  MAX_MODEL_ATTEMPTS, readGeminiError, type GeminiModel,
 } from './models.js';
 
 export type GeminiCall = {
@@ -32,11 +32,9 @@ export type GeminiCall = {
 export type GeminiResult = { text: string | null; model: string };
 
 export async function callGemini(call: GeminiCall): Promise<GeminiResult> {
-  const tried = call.candidates.slice(0, MAX_MODEL_ATTEMPTS);
-  if (tried.length === 0) throw badRequest('No usable Gemini model is configured.');
+  const candidates = call.candidates.slice(0, MAX_MODEL_ATTEMPTS);
+  if (candidates.length === 0) throw badRequest('No usable Gemini model is configured.');
 
-  let lastStatus = 0;
-  let lastModel = tried[0] as string;
   /*
    * The most recent refusal that came with a reason, kept together with the
    * model it was about. A body that cannot be parsed must not throw away a
@@ -45,79 +43,133 @@ export async function callGemini(call: GeminiCall): Promise<GeminiResult> {
    * with nothing actionable in it.
    */
   let explained: { status: number; detail: string; model: string } | null = null;
+  let lastStatus = 0;
+  let lastModel = candidates[0] as string;
 
-  for (const model of tried) {
-    lastModel = model;
-    let text: string | null = null;
-    let usage = { input: 0, output: 0 };
-    let ran = false;
+  // Models that answered "busy", worth asking again after a pause.
+  let queue = candidates;
 
-    try {
-      const response = await fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': call.apiKey },
-        body: JSON.stringify(call.body),
+  for (let pass = 0; pass <= BUSY_BACKOFF_MS.length; pass++) {
+    if (pass > 0) {
+      /*
+       * Every model was busy at once, which a spike in demand does. Waiting a
+       * moment and asking again is what the owner would otherwise have to do
+       * by hand, and someone is watching the reading panel while it happens.
+       */
+      logger.warn('every gemini model was busy; waiting before another pass', {
+        pass, waitMs: BUSY_BACKOFF_MS[pass - 1], models: queue.length,
       });
-
-      if (!response.ok) {
-        /*
-         * Google's `error.message` says precisely what it objected to. It does
-         * not echo the request, so reading it cannot leak the document.
-         */
-        lastStatus = response.status;
-        const detail = await readGeminiError(response);
-        if (detail) explained = { status: response.status, detail, model };
-
-        if (isModelUnavailable(response.status, detail)) {
-          logger.warn('gemini refused the model; trying the next one', {
-            model, status: response.status, detail,
-          });
-          continue;   // nothing ran, so nothing to record
-        }
-
-        logger.warn('gemini call failed', { model, status: response.status, detail });
-        throw badRequest(explainGeminiError(response.status, model, detail));
-      }
-
-      const json = (await response.json()) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
-        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-      };
-      // Parts can be split, and a thinking model puts its answer in the last one.
-      text = (json.candidates?.[0]?.content?.parts ?? [])
-        .map((part) => part.text ?? '')
-        .join('')
-        .trim() || null;
-      ran = true;
-      usage = {
-        input: json.usageMetadata?.promptTokenCount ?? estimateTokens(JSON.stringify(call.body)),
-        output: json.usageMetadata?.candidatesTokenCount ?? estimateTokens(text ?? ''),
-      };
-    } finally {
-      // Only a call that actually reached the model costs anything.
-      if (ran) {
-        await recordUsage({
-          userId: call.userId,
-          feature: call.feature,
-          model,
-          inputTokens: usage.input,
-          outputTokens: usage.output,
-          ok: Boolean(text),
-        });
-      }
+      await sleep(BUSY_BACKOFF_MS[pass - 1] as number);
     }
 
-    return { text, model };
+    const busy: string[] = [];
+
+    for (const model of queue) {
+      lastModel = model;
+      const outcome = await attempt(call, model);
+
+      if (outcome.kind === 'answered') return { text: outcome.text, model };
+
+      lastStatus = outcome.status;
+      if (outcome.detail) explained = { status: outcome.status, detail: outcome.detail, model };
+
+      // Busy is about this model at this moment, so it is worth asking again.
+      if (outcome.kind === 'busy') busy.push(model);
+      // Unavailable is about the model for good; drop it and move on.
+    }
+
+    if (busy.length === 0) break;   // nothing left that a pause would help
+    queue = busy;
   }
 
   /*
-   * Every candidate was refused. Report the last refusal, which carries
-   * Google's own sentence — including, usually, the name of the model it wants
-   * us to use instead.
+   * Everything was refused. Report the last refusal that came with a reason,
+   * which carries Google's own sentence — including, usually, the name of the
+   * model it wants us to use instead.
    */
   if (explained) throw badRequest(explainGeminiError(explained.status, explained.model, explained.detail));
   throw badRequest(explainGeminiError(lastStatus || 404, lastModel, null));
 }
+
+type Attempt =
+  | { kind: 'answered'; text: string | null }
+  | { kind: 'busy'; status: number; detail: string | null }
+  | { kind: 'unavailable'; status: number; detail: string | null };
+
+/**
+ * One call to one model.
+ *
+ * Throws for a failure that is about the request rather than the model — a
+ * malformed body, a bad key, a quota — because retrying those on another model
+ * spends round trips to be told the same thing again.
+ */
+async function attempt(call: GeminiCall, model: string): Promise<Attempt> {
+  let text: string | null = null;
+  let usage = { input: 0, output: 0 };
+  let ran = false;
+
+  try {
+    const response = await fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': call.apiKey },
+      body: JSON.stringify(call.body),
+    });
+
+    if (!response.ok) {
+      /*
+       * Google's `error.message` says precisely what it objected to. It does
+       * not echo the request, so reading it cannot leak the document.
+       */
+      const detail = await readGeminiError(response);
+
+      if (isModelBusy(response.status, detail)) {
+        logger.warn('gemini model is busy', { model, status: response.status, detail });
+        return { kind: 'busy', status: response.status, detail };
+      }
+
+      if (isModelUnavailable(response.status, detail)) {
+        logger.warn('gemini refused the model; trying the next one', {
+          model, status: response.status, detail,
+        });
+        return { kind: 'unavailable', status: response.status, detail };
+      }
+
+      logger.warn('gemini call failed', { model, status: response.status, detail });
+      throw badRequest(explainGeminiError(response.status, model, detail));
+    }
+
+    const json = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    // Parts can be split, and a thinking model puts its answer in the last one.
+    text = (json.candidates?.[0]?.content?.parts ?? [])
+      .map((part) => part.text ?? '')
+      .join('')
+      .trim() || null;
+    ran = true;
+    usage = {
+      input: json.usageMetadata?.promptTokenCount ?? estimateTokens(JSON.stringify(call.body)),
+      output: json.usageMetadata?.candidatesTokenCount ?? estimateTokens(text ?? ''),
+    };
+  } finally {
+    // Only a call that actually reached the model costs anything.
+    if (ran) {
+      await recordUsage({
+        userId: call.userId,
+        feature: call.feature,
+        model,
+        inputTokens: usage.input,
+        outputTokens: usage.output,
+        ok: Boolean(text),
+      });
+    }
+  }
+
+  return { kind: 'answered', text };
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The names to try, best first, from whatever the key reports. */
 export function candidateNames(ranked: GeminiModel[], configured: string | null): string[] {

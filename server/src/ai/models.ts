@@ -114,8 +114,48 @@ export function isModelUnavailable(status: number, detail: string | null): boole
   ].some((phrase) => text.includes(phrase));
 }
 
+/**
+ * Whether a failure means "not right now" rather than "not ever".
+ *
+ * Google answers 503 with "This model is currently experiencing high demand"
+ * when a particular model is oversubscribed. That is about *that model at this
+ * moment*, so the right response is to try a different one — and, if they are
+ * all busy, to wait a second and ask again, which is usually all it takes.
+ *
+ * The previous code lumped every 5xx into "Google had a problem, try later",
+ * which left the owner to retry by hand something the CRM could do itself.
+ */
+export function isModelBusy(status: number, detail: string | null): boolean {
+  const text = (detail ?? '').toLowerCase();
+  const phrases = [
+    'high demand',
+    'overloaded',
+    'currently unavailable',
+    'try again later',
+    'please retry',
+    'resource has been exhausted',
+    'capacity',
+  ];
+
+  if (status === 503) return true;
+  if (status === 500 && phrases.some((phrase) => text.includes(phrase))) return true;
+  // A quota 429 is not this: that one is about the key, and waiting one second
+  // will not clear it. Only a "the model is busy" 429 counts.
+  if (status === 429) return phrases.some((phrase) => text.includes(phrase)) && !text.includes('quota');
+  return false;
+}
+
 /** How many models to try before giving up and reporting the last failure. */
 export const MAX_MODEL_ATTEMPTS = 3;
+
+/**
+ * How long to wait between passes when every model came back busy.
+ *
+ * Short and few: someone is watching the "Emir AI is reading…" panel, so a
+ * handful of seconds is worth spending to avoid an error they would only have
+ * to answer by pressing the button again. Past that it is better to say so.
+ */
+export const BUSY_BACKOFF_MS = [1_500, 4_000] as const;
 
 /**
  * Used only when the model list cannot be fetched. Deliberately a current
@@ -314,6 +354,15 @@ export function explainGeminiError(status: number, model: string, detail?: strin
   }
   if (status === 429) {
     return `Google is rate-limiting the key right now. Wait a minute and try again.${because}`;
+  }
+  /*
+   * Said after the caller has already tried the other models and waited, so
+   * it should not imply the owner has something to fix — only that Google is
+   * oversubscribed this minute.
+   */
+  if (isModelBusy(status, detail ?? null)) {
+    return 'Google\u2019s models are busy right now. Emir AI tried the others and waited, and they '
+      + `were all busy. Give it a minute and press it again.${because}`;
   }
   if (status >= 500) {
     return `Google had a problem on their side. Try again in a moment.${because}`;
