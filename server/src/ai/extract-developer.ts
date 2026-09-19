@@ -13,11 +13,11 @@
  */
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
-import { estimateTokens, recordUsage, withinCap } from './usage.js';
+import { withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
-import { explainGeminiError, GEMINI_BASE, readGeminiError, resolveModel } from './models.js';
-import { availableModels } from './extract-project.js';
+import { cachedModels, rankModels, resolveModel } from './models.js';
+import { callGemini, candidateNames } from './call-gemini.js';
 
 /** Trimmed to the lengths POST /api/library/developers already accepts. */
 const capped = (max: number) => z.string().transform((value) => value.trim().slice(0, max));
@@ -82,60 +82,31 @@ export async function extractDeveloper(
     throw badRequest("This month's AI budget is used up. Raise it in Settings → Emir AI.");
   }
 
-  const model = resolveModel((await setting('AI_MODEL')) ?? null, await availableModels(apiKey));
+  const available = await cachedModels(apiKey);
+  const candidates = candidateNames(
+    rankModels(available),
+    resolveModel((await setting('AI_MODEL')) ?? null, available),
+  );
 
-  const body = {
-    systemInstruction: { parts: [{ text: INSTRUCTION }] },
-    contents: [{
-      role: 'user',
-      parts: [{
-        text:
-          `The developer is: ${query}\n\n`
-          + 'Return what you know about this UAE property developer as JSON. '
-          + 'If you do not recognise them, return nulls rather than guessing from the name.',
+  const { text: raw, model } = await callGemini({
+    apiKey,
+    candidates,
+    feature: 'extract_developer',
+    userId,
+    body: {
+      systemInstruction: { parts: [{ text: INSTRUCTION }] },
+      contents: [{
+        role: 'user',
+        parts: [{
+          text:
+            `The developer is: ${query}\n\n`
+            + 'Return what you know about this UAE property developer as JSON. '
+            + 'If you do not recognise them, return nulls rather than guessing from the name.',
+        }],
       }],
-    }],
-    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 2048 },
-  };
-
-  let raw: string | null = null;
-  let usage = { input: 0, output: 0 };
-
-  try {
-    const response = await fetch(
-      `${GEMINI_BASE}/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(body),
-      },
-    );
-
-    if (!response.ok) {
-      const detail = await readGeminiError(response);
-      logger.warn('developer lookup failed', { status: response.status, model, detail });
-      throw badRequest(explainGeminiError(response.status, model, detail));
-    }
-
-    const json = (await response.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-    };
-    raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    usage = {
-      input: json.usageMetadata?.promptTokenCount ?? estimateTokens(JSON.stringify(body)),
-      output: json.usageMetadata?.candidatesTokenCount ?? estimateTokens(raw ?? ''),
-    };
-  } finally {
-    await recordUsage({
-      userId,
-      feature: 'extract_developer',
-      model,
-      inputTokens: usage.input,
-      outputTokens: usage.output,
-      ok: Boolean(raw),
-    });
-  }
+      generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 2048 },
+    },
+  });
 
   if (!raw) throw badRequest('Emir AI returned nothing. Try again, or type the details in.');
 

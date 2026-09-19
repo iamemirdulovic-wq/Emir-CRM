@@ -2,6 +2,49 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Google's catalogue is an offer, not a guarantee
+
+The error carried Google's own words this time, and they were decisive:
+
+> *This model models/gemini-2.5-pro is no longer available to new users. Please update your code to
+> use models/gemini-3.1-pro-preview.*
+
+So **asking Google for the model list is not enough**. The key was *offered* `gemini-2.5-pro` by
+the catalogue and then refused it on use. A catalogue entry is an offer; the only way to know a
+model works is to call it.
+
+**The CRM now falls through.** `call-gemini.ts` tries the ranked models in order and moves to the
+next one whenever Google's refusal is about the *model* rather than the request — "no longer
+available", "not found for API version", "does not have access". A refused call costs no tokens,
+so the retries are free, and only a call that actually ran is billed. A genuine bad request
+(a malformed body, a bad key, a rate limit) stops at the first model and reports the reason,
+rather than spending three round trips to be told the same thing three times.
+
+**And the preference list has stopped being a list.** It knew about 2.0 and 2.5 while Google had
+already moved to 3.x, so the search fell through to "whatever came first" — which was the Pro
+model the key could not call. The tier and the generation are now read out of the name, so
+`gemini-9.9-flash-lite` sorts correctly without this file having heard of it. Cheapest tier
+first, newest generation within it, a stable release ahead of a preview.
+
+**Two spend bugs found while in there**, both of which mattered given the owner asked for the
+cost to stay small:
+- **The monthly cap was only counting one feature in six.** Lead scoring, field extraction,
+  contact summaries, import mapping and the connection test all called the AI without recording
+  anything, so the "$5 a month" limit never saw most of the spend. Every completion now names
+  itself, and usage is recorded in one place — inside the provider — instead of at one call site
+  out of six.
+- **The cap was not being *enforced* outside the extractors either.** It is now checked inside
+  both providers, so a feature over budget degrades quietly, which is what every caller of that
+  interface already expects.
+
+The catalogue is cached for ten minutes per key, so a completion costs one round trip rather
+than two.
+
+**Verified**: 10 new tests drive `callGemini` against a stubbed Google, including the owner's
+exact refusal text and the cases that must *not* retry; 41 over ranking, name parsing and
+refusal classification. Smoke-tested on a running server — clean boot, `/api/ai/models` answers,
+the file route still guards. 811 server tests, 102 web tests.
+
 ## The 400 — an image generator was being asked to read a brochure
 
 The 404 was gone, and a 400 took its place: *"Google rejected the request as malformed. If this

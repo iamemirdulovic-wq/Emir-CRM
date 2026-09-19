@@ -15,7 +15,7 @@ import {
 import {
   SECTIONS, buildKnowledge, completeness, loadKnowledge, restoreVersion, saveSection, sectionHistory,
 } from '../../ai/knowledge.js';
-import { estimateTokens, monthSpend, recordUsage, usd, withinCap } from '../../ai/usage.js';
+import { monthSpend, usd, withinCap } from '../../ai/usage.js';
 import { aiProvider } from '../../ai/index.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
@@ -187,23 +187,12 @@ aiRouter.post(
     ].join('\n\n');
 
     const answer = await provider.complete({
+      feature: 'try',
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: body.question },
       ],
       temperature: 0.4,
-    });
-
-    // What the call actually used, not what is configured — they differ when
-    // nothing is chosen and the provider falls back.
-    const model = provider.model;
-    await recordUsage({
-      userId: user.id,
-      feature: 'try',
-      model,
-      inputTokens: estimateTokens(system + body.question),
-      outputTokens: estimateTokens(answer ?? ''),
-      ok: Boolean(answer),
     });
 
     res.json({
@@ -262,7 +251,7 @@ aiRouter.put(
     const provider = await aiProvider();
     let works: boolean | null = null;
     if (provider.enabled) {
-      works = Boolean(await provider.complete({ messages: [{ role: 'user', content: 'Reply with the single word: ready' }], maxOutputTokens: 8 }));
+      works = Boolean(await provider.complete({ feature: 'connection_test', messages: [{ role: 'user', content: 'Reply with the single word: ready' }], maxOutputTokens: 8 }));
     }
 
     res.json({ ok: true, ready: provider.enabled, works });

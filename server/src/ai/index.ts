@@ -66,6 +66,7 @@ export async function classifyIntent(text: string): Promise<IntentResult | null>
   if (!model.enabled) return null;
 
   const reply = await model.complete({
+    feature: 'classify_intent',
     json: true,
     maxOutputTokens: 100,
     messages: [
@@ -125,6 +126,7 @@ export async function extractFields(contactId: string, opportunityId: string | n
     .slice(0, 6000);
 
   const reply = await model.complete({
+    feature: 'extract_fields',
     json: true,
     maxOutputTokens: 400,
     messages: [
@@ -262,6 +264,7 @@ export async function summarizeContact(contactId: string): Promise<{ summary: st
     .join('\n');
 
   const reply = await model.complete({
+    feature: 'summarize_contact',
     json: true,
     maxOutputTokens: 600,
     messages: [

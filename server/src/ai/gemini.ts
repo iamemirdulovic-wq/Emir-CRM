@@ -1,6 +1,8 @@
 import { logger } from '../lib/logger.js';
 import type { AiCompletionRequest, AiProvider } from './provider.js';
-import { FALLBACK_MODEL, GEMINI_BASE } from './models.js';
+import { cachedModels, FALLBACK_MODEL, rankModels, resolveModel } from './models.js';
+import { callGemini, candidateNames } from './call-gemini.js';
+import { withinCap } from './usage.js';
 
 /**
  * Gemini, given its key and model at construction.
@@ -8,6 +10,11 @@ import { FALLBACK_MODEL, GEMINI_BASE } from './models.js';
  * Both are resolved before the provider is built — the environment first, then
  * what the owner saved in Settings — because reading them is a database call
  * and `enabled` has to be able to answer synchronously.
+ *
+ * The call itself goes through `callGemini`, which tries the next model when
+ * Google refuses the one asked for. Google's catalogue is an offer rather than
+ * a guarantee: this key was listed `gemini-2.5-pro` and then told, on using
+ * it, that the model "is no longer available to new users".
  */
 export class GeminiProvider implements AiProvider {
   readonly name = 'gemini';
@@ -25,38 +32,55 @@ export class GeminiProvider implements AiProvider {
 
   async complete(request: AiCompletionRequest): Promise<string | null> {
     if (!this.apiKey) return null;
-    const model = this.model;
+
+    /*
+     * The cap is enforced here rather than at each caller, because it was not
+     * enforced at most of them: lead scoring, field extraction and import
+     * mapping all spent money the owner's limit never counted. A feature over
+     * budget degrades quietly, which is the contract every caller already
+     * expects of this interface.
+     */
+    if (!(await withinCap())) {
+      logger.warn('ai call skipped: monthly budget reached', { feature: request.feature });
+      return null;
+    }
 
     const system = request.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
     const user = request.messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n');
 
+    const available = await cachedModels(this.apiKey);
+    const candidates = candidateNames(
+      rankModels(available),
+      resolveModel(this.model, available),
+    );
+
     try {
-      const response = await fetch(
-        `${GEMINI_BASE}/models/${model}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
-          body: JSON.stringify({
-            ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-            contents: [{ role: 'user', parts: [{ text: user }] }],
-            generationConfig: {
-              temperature: request.temperature ?? 0.2,
-              maxOutputTokens: request.maxOutputTokens ?? 512,
-              ...(request.json ? { responseMimeType: 'application/json' } : {}),
-            },
-          }),
+      const { text } = await callGemini({
+        apiKey: this.apiKey,
+        candidates,
+        feature: request.feature,
+        userId: null,
+        body: {
+          ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+          generationConfig: {
+            temperature: request.temperature ?? 0.2,
+            maxOutputTokens: request.maxOutputTokens ?? 512,
+            ...(request.json ? { responseMimeType: 'application/json' } : {}),
+          },
         },
-      );
-      if (!response.ok) {
-        logger.warn('gemini request failed', { status: response.status });
-        return null;
-      }
-      const json = (await response.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
-      return json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? null;
+      });
+      return text;
     } catch (err) {
-      logger.warn('gemini request threw', { error: err instanceof Error ? err.message : String(err) });
+      /*
+       * Null rather than a throw: every caller of this interface is written to
+       * carry on without AI, and a failed summary must not take a contact page
+       * down with it. The reason is logged, not swallowed.
+       */
+      logger.warn('gemini request failed', {
+        feature: request.feature,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return null;
     }
   }

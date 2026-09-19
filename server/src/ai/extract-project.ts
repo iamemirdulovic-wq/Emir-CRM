@@ -19,12 +19,10 @@
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
 import { buildKnowledge } from './knowledge.js';
-import { estimateTokens, recordUsage, withinCap } from './usage.js';
+import { withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
-import {
-  explainGeminiError, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, listModels, readGeminiError,
-  resolveModel, stepUpForFiles,
-} from './models.js';
+import { cachedModels, GEMINI_INLINE_LIMIT_BYTES, rankModels, resolveModel } from './models.js';
+import { callGemini, candidateNames } from './call-gemini.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -120,20 +118,6 @@ The rules, in order of importance:
 8. confidence: a number from 0 to 1 for each field you filled, where 1 means it was printed
    plainly and 0.5 means you inferred it from context. Do not include fields you left null.`;
 
-/**
- * The models this key can use, or an empty list if Google cannot be asked.
- *
- * A failure here must not stop the extraction: an empty list simply means the
- * caller falls back to the configured name and finds out from the real call.
- */
-export async function availableModels(apiKey: string): Promise<Awaited<ReturnType<typeof listModels>>> {
-  try {
-    return await listModels(apiKey);
-  } catch {
-    return [];
-  }
-}
-
 export type ExtractInput =
   | { kind: 'file'; data: Buffer; mimeType: string; filename: string }
   | { kind: 'link'; url: string };
@@ -156,6 +140,20 @@ export async function extractProject(
   input: ExtractInput,
   userId: string | null,
 ): Promise<ExtractResult> {
+  /*
+   * Size first, before a key lookup or a round trip to Google. The limit that
+   * matters is Google's and it is about the *encoded* request, so it is
+   * checked here as well as at the route — and checking it first turns a 400
+   * from Google into a sentence the owner can act on.
+   */
+  if (input.kind === 'file' && input.data.length > GEMINI_INLINE_LIMIT_BYTES) {
+    throw badRequest(
+      `That file is ${Math.round(input.data.length / (1024 * 1024))} MB. Google will not accept more `
+      + `than about ${Math.round(GEMINI_INLINE_LIMIT_BYTES / (1024 * 1024))} MB in one go — send the `
+      + 'price list or the offer rather than the full brochure.',
+    );
+  }
+
   const apiKey = await secret('GEMINI_API_KEY');
   if (!apiKey) throw badRequest('Emir AI is not connected yet. Add the key in Settings → Emir AI.');
   if (!(await withinCap())) {
@@ -163,32 +161,26 @@ export async function extractProject(
   }
 
   /*
-   * Flash-Lite cannot read a PDF, so reading a document steps up to the full
-   * model — but only to one the key actually has. Both the default and the
-   * step-up are checked against Google's own list rather than a name written
-   * into this file, because a stale name is a 404 the owner cannot fix.
+   * Models to try, best first. Google's catalogue is an offer rather than a
+   * guarantee — a key can be listed a model and then refused it on use — so
+   * the caller falls through to the next one when that happens.
    */
-  const available = await availableModels(apiKey);
+  const available = await cachedModels(apiKey);
+  const forFile = input.kind === 'file';
   const configured = resolveModel((await setting('AI_MODEL')) ?? null, available);
-  const model = input.kind === 'file' ? stepUpForFiles(configured, available) : configured;
+  const ranked = rankModels(available, { forFile });
+  const candidates = candidateNames(
+    ranked,
+    // Flash-Lite cannot read a document, so a file skips whatever is saved if
+    // that is what it is.
+    forFile && !ranked.some((row) => row.name === configured) ? null : configured,
+  );
 
   // The owner's own knowledge, so a description sounds like their brokerage.
   const knowledge = await buildKnowledge('draft');
 
   const parts: Record<string, unknown>[] = [];
   if (input.kind === 'file') {
-    /*
-     * Checked here rather than only at the route, because the limit that
-     * matters is Google's and it is about the encoded request. Refusing it
-     * now gives the owner a sentence they can act on instead of a 400.
-     */
-    if (input.data.length > GEMINI_INLINE_LIMIT_BYTES) {
-      throw badRequest(
-        `That file is ${Math.round(input.data.length / (1024 * 1024))} MB. Google will not accept more `
-        + `than about ${Math.round(GEMINI_INLINE_LIMIT_BYTES / (1024 * 1024))} MB in one go — send the `
-        + 'price list or the offer rather than the full brochure.',
-      );
-    }
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {
@@ -199,59 +191,21 @@ export async function extractProject(
     });
   }
 
-  const body = {
-    systemInstruction: { parts: [{ text: `${INSTRUCTION}\n\n${knowledge}` }] },
-    contents: [{ role: 'user', parts }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      maxOutputTokens: 8192,
-    },
-  };
-
-  let raw: string | null = null;
-  let usage = { input: 0, output: 0 };
-
-  try {
-    const response = await fetch(
-      `${GEMINI_BASE}/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(body),
+  const { text: raw, model } = await callGemini({
+    apiKey,
+    candidates,
+    feature: 'extract_project',
+    userId,
+    body: {
+      systemInstruction: { parts: [{ text: `${INSTRUCTION}\n\n${knowledge}` }] },
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+        maxOutputTokens: 8192,
       },
-    );
-
-    if (!response.ok) {
-      /*
-       * Google's `error.message` says precisely what it objected to. It does
-       * not echo the request, so taking it cannot leak the document — and
-       * without it the owner sees only "rejected", which helps nobody.
-       */
-      const detail = await readGeminiError(response);
-      logger.warn('project extraction failed', { status: response.status, model, detail });
-      throw badRequest(explainGeminiError(response.status, model, detail));
-    }
-
-    const json = (await response.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-    };
-    raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    usage = {
-      input: json.usageMetadata?.promptTokenCount ?? estimateTokens(JSON.stringify(body)),
-      output: json.usageMetadata?.candidatesTokenCount ?? estimateTokens(raw ?? ''),
-    };
-  } finally {
-    await recordUsage({
-      userId,
-      feature: 'extract_project',
-      model,
-      inputTokens: usage.input,
-      outputTokens: usage.output,
-      ok: Boolean(raw),
-    });
-  }
+    },
+  });
 
   if (!raw) throw badRequest('Emir AI read the document but returned nothing. Try again.');
 

@@ -7,6 +7,14 @@ export type AiMessage = { role: 'system' | 'user'; content: string };
 
 export type AiCompletionRequest = {
   messages: AiMessage[];
+  /**
+   * What this call is for, recorded against the monthly budget.
+   *
+   * Required in practice: until it existed only the Try box counted towards
+   * the cap, so lead scoring, field extraction and import mapping all spent
+   * money the owner's limit never saw.
+   */
+  feature: string;
   /** Ask the provider for strict JSON. */
   json?: boolean;
   maxOutputTokens?: number;

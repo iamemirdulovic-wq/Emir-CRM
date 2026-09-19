@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isTextModel,
-  pickDefault, readGeminiError, resolveModel, stepUpForFiles, type GeminiModel,
+  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isModelUnavailable,
+  isTextModel, parseModelName, pickDefault, rankModels, readGeminiError, resolveModel,
+  stepUpForFiles, type GeminiModel,
 } from './models.js';
 
 const model = (name: string): GeminiModel =>
@@ -255,5 +256,96 @@ describe('reading what Google actually said', () => {
     expect(await readGeminiError(new Response('<html>502 Bad Gateway</html>', { status: 502 }))).toBeNull();
     expect(await readGeminiError(new Response('{}', { status: 400 }))).toBeNull();
     expect(await readGeminiError(new Response('', { status: 400 }))).toBeNull();
+  });
+});
+
+/**
+ * A list of literal model names was the second thing here to age badly: it
+ * knew 2.0 and 2.5, and Google had already moved to 3.x. Reading the tier and
+ * the generation out of the name means a generation nobody here has heard of
+ * still sorts into the right place.
+ */
+describe('reading a model name', () => {
+  it('finds the tier and the generation', () => {
+    expect(parseModelName('gemini-3.1-pro-preview')).toMatchObject({ tier: 'pro', generation: 3.1, preview: true });
+    expect(parseModelName('gemini-2.5-flash-lite')).toMatchObject({ tier: 'flash-lite', generation: 2.5, preview: false });
+    expect(parseModelName('gemini-2.0-flash')).toMatchObject({ tier: 'flash', generation: 2, preview: false });
+  });
+
+  it('copes with an unversioned name', () => {
+    expect(parseModelName('gemini-flash-latest')).toMatchObject({ tier: 'flash', generation: 0 });
+  });
+});
+
+describe('ranking what the key has', () => {
+  const catalogue = [
+    model('gemini-3.1-pro-preview'),
+    model('gemini-2.5-pro'),
+    model('gemini-2.5-flash'),
+    model('gemini-3.1-flash'),
+    model('gemini-2.5-flash-lite'),
+    model('gemini-3.1-flash-lite'),
+    model('gemini-2.5-flash-image'),
+  ];
+
+  /* Cheapest tier first, because the owner asked for the spend to stay small
+     and Flash-Lite answers everything this CRM does. */
+  it('puts the cheapest tier first and the newest of it at the top', () => {
+    expect(rankModels(catalogue).map((row) => row.name)).toEqual([
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash-lite',
+      'gemini-3.1-flash',
+      'gemini-2.5-flash',
+      'gemini-3.1-pro-preview',
+      'gemini-2.5-pro',
+    ]);
+  });
+
+  it('drops the lite tier when a document has to be read', () => {
+    const forFile = rankModels(catalogue, { forFile: true }).map((row) => row.name);
+    expect(forFile[0]).toBe('gemini-3.1-flash');
+    expect(forFile.some((name) => name.includes('lite'))).toBe(false);
+  });
+
+  it('never ranks an image model at all', () => {
+    expect(rankModels(catalogue).some((row) => row.name.includes('image'))).toBe(false);
+  });
+
+  /* A generation this file has never heard of must still sort sensibly. */
+  it('prefers a generation nobody here has heard of', () => {
+    const chosen = pickDefault([model('gemini-2.5-flash-lite'), model('gemini-9.9-flash-lite')]);
+    expect(chosen).toBe('gemini-9.9-flash-lite');
+  });
+
+  it('prefers a stable release over a preview of the same generation', () => {
+    const chosen = pickDefault([model('gemini-3.1-flash-lite-preview'), model('gemini-3.1-flash-lite')]);
+    expect(chosen).toBe('gemini-3.1-flash-lite');
+  });
+});
+
+/**
+ * The owner's key was offered gemini-2.5-pro by the catalogue and then told,
+ * on using it, that the model "is no longer available to new users". A
+ * catalogue entry is an offer, not a guarantee.
+ */
+describe('telling "not that model" from "not that request"', () => {
+  it('recognises the refusals that mean try another model', () => {
+    expect(isModelUnavailable(404, 'models/x is not found for API version v1beta')).toBe(true);
+    expect(isModelUnavailable(400, 'This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview.')).toBe(true);
+    expect(isModelUnavailable(403, 'Your project does not have access to this model')).toBe(true);
+  });
+
+  it('does not treat a bad request as a bad model', () => {
+    expect(isModelUnavailable(400, 'Invalid value at generation_config.response_mime_type')).toBe(false);
+    expect(isModelUnavailable(400, 'Request payload size exceeds the limit')).toBe(false);
+    expect(isModelUnavailable(403, 'API key not valid. Please pass a valid API key.')).toBe(false);
+    expect(isModelUnavailable(429, 'Resource has been exhausted')).toBe(false);
+    expect(isModelUnavailable(500, 'Internal error')).toBe(false);
+  });
+
+  /* A 404 is about the model whether or not Google explained itself. */
+  it('trusts a bare 404 with no message', () => {
+    expect(isModelUnavailable(404, null)).toBe(true);
+    expect(isModelUnavailable(400, null)).toBe(false);
   });
 });

@@ -31,21 +31,91 @@ export const GEMINI_BASE = `https://generativelanguage.googleapis.com/${GEMINI_A
 export const GEMINI_INLINE_LIMIT_BYTES = 14 * 1024 * 1024;
 
 /**
- * What to reach for, cheapest first.
+ * Which tier a model belongs to, and how new it is.
  *
- * Matched as prefixes against whatever Google reports, so a dated release
- * (`gemini-2.5-flash-lite-preview-09-2025`) is picked up by the family name
- * without this list needing to know about it.
+ * A list of literal names was the second thing to age badly here: it knew
+ * about 2.0 and 2.5 and nothing about the 3.x generation Google had already
+ * moved on to, so the search fell through to "whatever came first", which was
+ * a Pro model that the key was not allowed to call.
+ *
+ * Reading the tier and the generation out of the name instead means a
+ * generation nobody here has heard of still sorts into the right place.
  */
-export const PREFERRED_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.0-flash-lite',
-  'gemini-flash-lite-latest',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-flash-latest',
-  'gemini-1.5-flash',
-] as const;
+export type ModelTier = 'flash-lite' | 'flash' | 'pro' | 'other';
+
+const TIER_ORDER: Record<ModelTier, number> = {
+  'flash-lite': 0,     // cheapest, and enough for almost everything
+  flash: 1,
+  pro: 2,              // capable and dear; a last resort, not a default
+  other: 3,
+};
+
+export function parseModelName(name: string): { tier: ModelTier; generation: number; preview: boolean } {
+  const lower = name.toLowerCase();
+
+  const tier: ModelTier = lower.includes('flash-lite') ? 'flash-lite'
+    : lower.includes('flash') ? 'flash'
+      : lower.includes('pro') ? 'pro'
+        : 'other';
+
+  // `gemini-3.1-pro-preview` -> 3.1, `gemini-flash-latest` -> 0 (unversioned).
+  const version = /gemini-(\d+(?:\.\d+)?)/.exec(lower);
+  return {
+    tier,
+    generation: version?.[1] ? Number(version[1]) : 0,
+    preview: lower.includes('preview') || lower.includes('-exp'),
+  };
+}
+
+/**
+ * Every usable model, best first.
+ *
+ * Cheapest tier first, because the owner asked for the spend to stay small and
+ * Flash-Lite answers everything this CRM does. Within a tier, the newest
+ * generation first, and a stable release ahead of a preview.
+ */
+export function rankModels(available: GeminiModel[], options: { forFile?: boolean } = {}): GeminiModel[] {
+  return available
+    .filter((row) => isTextModel(row.name))
+    // A document needs more than the lite tier can do.
+    .filter((row) => !(options.forFile && parseModelName(row.name).tier === 'flash-lite'))
+    .map((row) => ({ row, meta: parseModelName(row.name) }))
+    .sort((a, b) =>
+      TIER_ORDER[a.meta.tier] - TIER_ORDER[b.meta.tier]
+      || b.meta.generation - a.meta.generation
+      || Number(a.meta.preview) - Number(b.meta.preview)
+      || a.row.name.localeCompare(b.row.name))
+    .map(({ row }) => row);
+}
+
+/**
+ * Whether a failure means "not that model" rather than "not that request".
+ *
+ * Google's catalogue lists models a given key may not call — the owner's key
+ * was offered `gemini-2.5-pro` and then told, on using it, that it "is no
+ * longer available to new users". A catalogue entry is therefore an offer, not
+ * a guarantee, and the only way to know is to try the next one.
+ */
+export function isModelUnavailable(status: number, detail: string | null): boolean {
+  if (status === 404) return true;
+  if (status !== 400 && status !== 403) return false;
+
+  const text = (detail ?? '').toLowerCase();
+  return [
+    'no longer available',
+    'not available',
+    'is not found',
+    'not found for api version',
+    'does not have access',
+    'not supported for',
+    'is not supported',
+    'deprecated',
+    'update your code to use',
+  ].some((phrase) => text.includes(phrase));
+}
+
+/** How many models to try before giving up and reporting the last failure. */
+export const MAX_MODEL_ATTEMPTS = 3;
 
 /**
  * Used only when the model list cannot be fetched. Deliberately a current
@@ -123,6 +193,34 @@ export async function listModels(apiKey: string): Promise<GeminiModel[]> {
     .filter((row) => isTextModel(row.name));
 }
 
+/*
+ * The catalogue changes about as often as Google ships a model, so it is held
+ * for a few minutes rather than fetched before every call. Keyed by the API
+ * key so switching keys cannot serve the previous one's list.
+ */
+const CATALOGUE_TTL_MS = 10 * 60 * 1000;
+const catalogue = new Map<string, { at: number; models: GeminiModel[] }>();
+
+/** The models this key can use, cached, or an empty list if Google cannot be asked. */
+export async function cachedModels(apiKey: string): Promise<GeminiModel[]> {
+  const hit = catalogue.get(apiKey);
+  if (hit && Date.now() - hit.at < CATALOGUE_TTL_MS) return hit.models;
+
+  try {
+    const models = await listModels(apiKey);
+    catalogue.set(apiKey, { at: Date.now(), models });
+    return models;
+  } catch {
+    // An empty list means "could not ask", and every caller treats it that way.
+    return hit?.models ?? [];
+  }
+}
+
+/** Test helper, and used when a key changes. */
+export function clearModelCache(): void {
+  catalogue.clear();
+}
+
 /**
  * The model a call should actually use.
  *
@@ -153,12 +251,7 @@ export function resolveModel(configured: string | null, available: GeminiModel[]
  * in this file is not.
  */
 export function pickDefault(available: GeminiModel[]): string {
-  const text = available.filter((row) => isTextModel(row.name));
-  for (const preferred of PREFERRED_MODELS) {
-    const hit = text.find((row) => row.name.startsWith(preferred));
-    if (hit) return hit.name;
-  }
-  return text[0]?.name ?? FALLBACK_MODEL;
+  return rankModels(available)[0]?.name ?? FALLBACK_MODEL;
 }
 
 /**
@@ -167,31 +260,12 @@ export function pickDefault(available: GeminiModel[]): string {
  * not there would turn a working call into the 404 this file exists to fix.
  */
 export function stepUpForFiles(model: string, available: GeminiModel[]): string {
-  if (!model.includes('lite')) return model;
+  if (parseModelName(model).tier !== 'flash-lite') return model;
 
-  const full = model.replace(/-lite(-|$)/, '$1');
-  if (available.some((row) => row.name === full)) return full;
-  if (available.length === 0) return full;   // no list to check against; try anyway
+  // No list means Google could not be asked, not that the key has nothing.
+  if (available.length === 0) return model.replace(/-lite(-|$)/, '$1');
 
-  /*
-   * Only the non-lite models are candidates, and they are filtered before the
-   * prefix search rather than inside it: 'gemini-2.5-flash-lite' starts with
-   * 'gemini-2.5-flash', so searching the whole list finds the very model we
-   * are trying to step up from.
-   */
-  const fullModels = available.filter((row) => !row.name.includes('lite') && isTextModel(row.name));
-
-  for (const preferred of PREFERRED_MODELS.filter((name) => !name.includes('lite'))) {
-    const hit = fullModels.find((row) => row.name.startsWith(preferred));
-    if (hit) return hit.name;
-  }
-
-  /*
-   * Nothing from the preferred list, so take any non-lite model the key has —
-   * Pro included. It costs more than Flash, but a document the CRM cannot read
-   * is worth nothing at all, and the monthly cap is what bounds the spend.
-   */
-  return fullModels[0]?.name ?? model;
+  return rankModels(available, { forFile: true })[0]?.name ?? model;
 }
 
 /**

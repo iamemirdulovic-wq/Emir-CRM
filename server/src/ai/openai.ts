@@ -1,5 +1,6 @@
 import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
+import { estimateTokens, recordUsage, withinCap } from './usage.js';
 import type { AiCompletionRequest, AiProvider } from './provider.js';
 
 export class OpenAiProvider implements AiProvider {
@@ -20,6 +21,11 @@ export class OpenAiProvider implements AiProvider {
 
   async complete(request: AiCompletionRequest): Promise<string | null> {
     if (!this.apiKey) return null;
+    // Same budget as Gemini: a provider swap must not quietly lift the cap.
+    if (!(await withinCap())) {
+      logger.warn('ai call skipped: monthly budget reached', { feature: request.feature });
+      return null;
+    }
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -37,8 +43,24 @@ export class OpenAiProvider implements AiProvider {
         logger.warn('openai request failed', { status: response.status });
         return null;
       }
-      const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      return json.choices?.[0]?.message?.content ?? null;
+      const json = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      const text = json.choices?.[0]?.message?.content ?? null;
+
+      // Recorded here, as Gemini's is, so the owner's cap sees every call.
+      await recordUsage({
+        userId: null,
+        feature: request.feature,
+        model: this.model,
+        inputTokens: json.usage?.prompt_tokens
+          ?? estimateTokens(request.messages.map((m) => m.content).join('\n')),
+        outputTokens: json.usage?.completion_tokens ?? estimateTokens(text ?? ''),
+        ok: Boolean(text),
+      });
+
+      return text;
     } catch (err) {
       logger.warn('openai request threw', { error: err instanceof Error ? err.message : String(err) });
       return null;

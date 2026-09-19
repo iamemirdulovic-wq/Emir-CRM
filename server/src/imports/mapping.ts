@@ -159,6 +159,7 @@ export async function suggestMappingWithAi(headers: string[]): Promise<ColumnMap
 
   try {
     const reply = await provider.complete({
+      feature: 'import_mapping',
       json: true,
       maxOutputTokens: 400,
       temperature: 0,
