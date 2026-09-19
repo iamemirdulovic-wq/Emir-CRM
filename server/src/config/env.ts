@@ -123,6 +123,13 @@ const envSchema = z.object({
   AI_MODEL: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  /**
+   * What the AI may cost in a calendar month, in US dollars. 0 means no cap.
+   *
+   * Low by default and enforced before each request rather than after, because
+   * a limit that is checked afterwards has already spent the money.
+   */
+  AI_MONTHLY_CAP_USD: z.coerce.number().min(0).max(10000).default(5),
 
   // --- Workers ------------------------------------------------------------
   WORKER_ENABLED: boolish.default(true),

@@ -10,8 +10,9 @@ import { Avatar } from '../design/ui.js';
 import {
   Chip, Empty, ErrorNote, Field, Note, Panel, Select, Spinner, Toolbar, useToast,
 } from '../design/ui.js';
+import { AiKnowledgeTab } from '../components/AiKnowledge.js';
 
-type Tab = 'profile' | 'team' | 'teams' | 'templates' | 'health';
+type Tab = 'profile' | 'team' | 'teams' | 'templates' | 'ai' | 'health';
 
 const ROLES: Role[] = ['owner', 'admin', 'manager', 'agent', 'automation'];
 
@@ -35,7 +36,7 @@ export function Settings() {
   const tabs: {
     value: Tab;
     label: string;
-    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity';
+    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity' | 'sparkles';
   }[] = [
     { value: 'profile', label: 'You', icon: 'user' },
     ...(can('users:manage') ? ([{ value: 'team' as const, label: t('team'), icon: 'users' as const }]) : []),
@@ -43,6 +44,7 @@ export function Settings() {
     ...(isManager
       ? ([
           { value: 'templates' as const, label: t('templates'), icon: 'layout-template' as const },
+          { value: 'ai' as const, label: 'Emir AI', icon: 'sparkles' as const },
           { value: 'health' as const, label: 'Health', icon: 'activity' as const },
         ])
       : []),
@@ -62,6 +64,7 @@ export function Settings() {
       {tab === 'team' && <TeamTab />}
       {tab === 'teams' && <DesksTab />}
       {tab === 'templates' && <TemplatesTab />}
+      {tab === 'ai' && <AiKnowledgeTab />}
       {tab === 'health' && <HealthTab />}
     </>
   );

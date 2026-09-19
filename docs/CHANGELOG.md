@@ -2,6 +2,65 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Teaching Emir AI about the brokerage
+
+The owner asked for a place to train the AI, and for it to cost very little. Both are here, and
+the second one shaped the first.
+
+**A correction worth recording:** what was asked for as "training" is not what was built, because
+training — fine-tuning — is the wrong tool for this. It costs money every time, takes hours, and
+has to be redone whenever a fact changes. What is built instead is *grounding*: text the owner
+writes once, put in front of the model on every request. Same result, no training cost, and an
+edit at 09:00 is in the 09:01 reply.
+
+**Added — Settings › Emir AI**
+- Six sections, in plain language rather than developer language: About us · What we sell · How we
+  talk to clients · Things we never say · Questions clients always ask · How we work.
+- Arabic versions for the two where the wording itself matters — tone and the FAQ. The rest are
+  facts, the same in both languages, so they are written once.
+- Every save keeps the previous text. A bad edit is one click to put back, which is the entire
+  safety net for a screen that changes what every agent's AI says.
+- A "Try it" box: ask what a client might ask and read the answer before a client does.
+- Owner, admin and managers can edit. The owner's decision, and the right one — this is not
+  something an agent should be able to change for everybody.
+
+**Added — rules the owner cannot edit**
+- Never state a price, size, handover date or payment plan that was not supplied in the request.
+  Never promise a return or a yield. Never invent a fact. Say so when unsure.
+- Appended last, after everything the owner wrote, so they are the final word — a section that
+  said "ignore all previous rules" would still be followed by them.
+
+**Added — a spending cap that actually stops**
+- `AI_MONTHLY_CAP_USD`, defaulting to $5. Every call is priced and recorded; the next one is
+  refused once the month's budget is gone.
+- Checked *before* the request goes out, not after. A limit that is checked afterwards has
+  already spent the money.
+- Costs are estimated with prices set deliberately a little high, and an unknown model is assumed
+  expensive rather than cheap. A cap that stops slightly early costs nothing; one that stops late
+  has already failed.
+- Money is stored as integers in micro-dollars. Floats drift, and a total that drifts is the one
+  thing a spending cap must not do.
+
+**The design decision that keeps it cheap**
+- Everything written here is an input token on every call, so sending all six sections to every
+  feature is exactly how a cheap model produces an expensive bill. Each section declares which
+  features read it: a lead verdict gets "what we sell" and "how we work" and not the FAQ; a
+  drafted message gets the tone and the FAQ and not the pipeline process.
+- A hard cap on what is sent regardless of how much is written, so one runaway paste cannot
+  multiply the cost of every call for the rest of the month.
+- The screen shows a live character count that turns amber, and the month's spend against the cap,
+  so the trade-off is visible while it is being typed rather than at the end of the month.
+
+**Also** — the front-end API helper had no `put`, which the library's own routes already needed.
+
+**Verified** in a browser: saved a section, watched the counter move, edited it twice and put an
+earlier version back, and switched to the Arabic view, with no console errors. 719 server tests
+(24 for the knowledge base and the cap), 97 web tests.
+
+**Needs the owner** — a Gemini API key with billing enabled, `AI_PROVIDER=gemini` and
+`AI_MODEL=gemini-2.0-flash-lite` in Hostinger. Everything on this screen can be filled in first;
+it starts working the moment the key is there.
+
 ## The project library
 
 The first of the three sections the new spec added. Emir Books stays out until the owner asks

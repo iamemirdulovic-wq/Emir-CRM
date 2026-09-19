@@ -19,6 +19,7 @@ import { inboxRouter } from './routes/inbox.js';
 import { usersRouter } from './routes/users.js';
 import { projectsRouter } from './routes/projects.js';
 import { libraryRouter } from './routes/library.js';
+import { aiRouter } from './routes/ai.js';
 import { templatesRouter } from './routes/templates.js';
 import { reportsRouter } from './routes/reports.js';
 import { tasksRouter } from './routes/tasks.js';
@@ -135,6 +136,7 @@ export function createApp(): Express {
    * surface separate means a change here cannot take the auto-replies down.
    */
   app.use('/api/library', libraryRouter);
+  app.use('/api/ai', aiRouter);
   app.use('/api/templates', templatesRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/tasks', tasksRouter);
