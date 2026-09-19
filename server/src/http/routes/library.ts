@@ -32,6 +32,7 @@ import { writeAudit } from '../../audit/audit.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
 import { extractProject } from '../../ai/extract-project.js';
+import { GEMINI_INLINE_LIMIT_BYTES } from '../../ai/models.js';
 import { extractDeveloper } from '../../ai/extract-developer.js';
 
 export const libraryRouter = Router();
@@ -251,13 +252,19 @@ libraryRouter.post(
       throw badRequest(`${contentType || 'That file'} cannot be read. PDF or an image of the page.`);
     }
 
-    // 20 MB: a brochure with photographs, and no more.
-    const limit = 20 * 1024 * 1024;
+    // Google's ceiling, not one of ours: the request is base64 and it is the
+    // encoded size that has to fit under 20 MB. See GEMINI_INLINE_LIMIT_BYTES.
+    const limit = GEMINI_INLINE_LIMIT_BYTES;
     const chunks: Buffer[] = [];
     let size = 0;
     for await (const chunk of req) {
       size += (chunk as Buffer).length;
-      if (size > limit) throw badRequest('That file is larger than 20 MB. Send the price list or the offer rather than the full brochure.');
+      if (size > limit) {
+        throw badRequest(
+          `That file is larger than ${Math.round(limit / (1024 * 1024))} MB, which is as much as `
+          + 'Google will read in one go. Send the price list or the offer rather than the full brochure.',
+        );
+      }
       chunks.push(chunk as Buffer);
     }
     if (size === 0) throw badRequest('That file is empty');

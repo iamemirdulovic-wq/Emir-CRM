@@ -2,6 +2,47 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The 400 — an image generator was being asked to read a brochure
+
+The 404 was gone, and a 400 took its place: *"Google rejected the request as malformed. If this
+keeps happening, tell me what you were doing."* That message was me guessing again, and it told
+the owner nothing.
+
+**The cause, and it was mine.** Google's catalogue lists image-generation, speech and live-audio
+models beside the ordinary ones, and every one of them reports `generateContent`, so my filter let
+them through. Worse, the names overlap: **`gemini-2.5-flash-image` starts with
+`gemini-2.5-flash`**, so the prefix search that steps up from Flash-Lite to read a PDF could
+settle on an image generator. Asking an image generator for JSON is a 400.
+
+**Fixed**
+- Models that cannot answer with text — `-image`, `-tts`, `-audio`, `-live`, `embedding`,
+  `imagen`, `veo` — are filtered out of the catalogue, out of the default, out of the step-up and
+  out of the Settings dropdown. Excluded by suffix rather than by an allow-list, so a new text
+  model appears on its own.
+- A saved model that turns out to be one of them is replaced, the same way a stale name is.
+
+**And the CRM now repeats Google's own sentence.** A Gemini error body is
+`{"error":{"message":…}}` — it does not echo the request, so reading it cannot leak the document.
+Only the message is taken, capped at 400 characters, and appended to the explanation. Two rounds
+of me guessing at a cause is two too many: whatever Google objects to next, the screen will say
+so in Google's words.
+
+**A second bug, found while in there.** Google's inline limit is 20 MB for the **encoded**
+request, and base64 inflates a file by a third — so the CRM's 20 MB cap let through a brochure
+that arrived at Google as 27 MB and came back 400 with nothing useful said. The cap is now
+14 MB of file, which encodes to a little under 19 MB, and both the route and the extractor read
+it from one constant.
+
+**Verified**: 31 tests over model choice, the non-text exclusion, the size arithmetic and the
+message reader — including the exact path that produced this 400 (stepping up from Flash-Lite
+with an image model first in the catalogue). End to end against the running server, a 15 MB file
+now returns a sentence the owner can act on instead of a round trip to Google.
+791 server tests, 102 web tests.
+
+**Still not verified against Google itself** — this sandbox's proxy blocks
+`generativelanguage.googleapis.com`. If a third error appears, it will now carry Google's own
+words; send me those and I will know exactly what it is.
+
 ## The 404 — Emir AI now asks Google which models it has
 
 The owner dropped a developer file and got *"Emir AI could not read that (404). Check the key has

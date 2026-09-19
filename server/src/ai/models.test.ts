@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, pickDefault, resolveModel, stepUpForFiles,
-  type GeminiModel,
+  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isTextModel,
+  pickDefault, readGeminiError, resolveModel, stepUpForFiles, type GeminiModel,
 } from './models.js';
 
 const model = (name: string): GeminiModel =>
@@ -146,5 +146,114 @@ describe('a saved model the key does not have', () => {
 
   it('falls back to the hard-coded name only when there is nothing at all', () => {
     expect(resolveModel(null, [])).toBe(FALLBACK_MODEL);
+  });
+});
+
+/**
+ * The second failure the owner hit: a 400, "rejected as malformed".
+ *
+ * Google's catalogue lists image, speech and live-audio models next to the
+ * ordinary ones, and every one of them reports `generateContent`. Their names
+ * overlap too — `gemini-2.5-flash-image` starts with `gemini-2.5-flash` — so a
+ * prefix search for the flash family could settle on an image generator, and
+ * asking an image generator for JSON is a 400.
+ */
+describe('keeping non-text models out of the choice', () => {
+  it('recognises the ones that cannot answer with text', () => {
+    for (const name of [
+      'gemini-2.5-flash-image',
+      'gemini-2.5-flash-preview-tts',
+      'gemini-2.5-flash-native-audio-preview',
+      'gemini-live-2.5-flash-preview',
+      'gemini-embedding-001',
+      'imagen-4.0-generate-001',
+      'veo-3.0-generate-preview',
+    ]) {
+      expect(isTextModel(name), name).toBe(false);
+    }
+  });
+
+  it('leaves the ordinary ones alone', () => {
+    for (const name of [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-flash-lite-preview-09-2025',
+      'gemini-2.0-flash',
+    ]) {
+      expect(isTextModel(name), name).toBe(true);
+    }
+  });
+
+  it('never defaults to an image model, however the list is ordered', () => {
+    const chosen = pickDefault([
+      model('gemini-2.5-flash-image'),
+      model('gemini-2.5-flash-preview-tts'),
+      model('gemini-2.5-flash-lite'),
+    ]);
+    expect(chosen).toBe('gemini-2.5-flash-lite');
+  });
+
+  /* The precise path that produced the 400: stepping up from lite for a PDF,
+     with an image model sitting first in the catalogue. */
+  it('never steps up to an image model to read a document', () => {
+    const available = [
+      model('gemini-2.5-flash-image'),
+      model('gemini-2.5-flash-lite'),
+      model('gemini-2.5-pro'),
+    ];
+    expect(stepUpForFiles('gemini-2.5-flash-lite', available)).toBe('gemini-2.5-pro');
+  });
+
+  it('replaces a saved model that turns out to be an image generator', () => {
+    const available = [model('gemini-2.5-flash-image'), model('gemini-2.5-flash-lite')];
+    expect(resolveModel('gemini-2.5-flash-image', available)).toBe('gemini-2.5-flash-lite');
+  });
+});
+
+describe('what Google will accept in one request', () => {
+  /*
+   * Google's ceiling is 20 MB for the *encoded* request. Base64 inflates by a
+   * third, so the raw file has to be well under that — the first cap was set
+   * against the raw size and let through files Google then refused.
+   */
+  it('leaves room for base64 to inflate the file', () => {
+    const encoded = GEMINI_INLINE_LIMIT_BYTES * 4 / 3;
+    expect(encoded).toBeLessThan(20 * 1024 * 1024);
+  });
+});
+
+describe('carrying Google\'s own words through', () => {
+  it('appends what Google said to a 400', () => {
+    const message = explainGeminiError(400, 'gemini-2.5-flash', 'Invalid value at generation_config.response_mime_type');
+    expect(message).toContain('Google said');
+    expect(message).toContain('response_mime_type');
+  });
+
+  it('still reads properly when Google said nothing', () => {
+    expect(explainGeminiError(400, 'gemini-2.5-flash')).not.toContain('Google said');
+    expect(explainGeminiError(400, 'gemini-2.5-flash')).toContain('would not accept');
+  });
+});
+
+describe('reading what Google actually said', () => {
+  const errorBody = (message: string) =>
+    new Response(JSON.stringify({ error: { code: 400, message, status: 'INVALID_ARGUMENT' } }), { status: 400 });
+
+  it('pulls the message out of a Gemini error', async () => {
+    const detail = await readGeminiError(errorBody('Invalid value at generation_config.response_mime_type'));
+    expect(detail).toBe('Invalid value at generation_config.response_mime_type');
+  });
+
+  it('caps a very long message rather than pasting an essay into the screen', async () => {
+    const detail = await readGeminiError(errorBody('x'.repeat(2000)));
+    expect(detail).toHaveLength(401);        // 400 characters plus the ellipsis
+    expect(detail?.endsWith('…')).toBe(true);
+  });
+
+  it('returns nothing when the body is not the shape we expect', async () => {
+    expect(await readGeminiError(new Response('<html>502 Bad Gateway</html>', { status: 502 }))).toBeNull();
+    expect(await readGeminiError(new Response('{}', { status: 400 }))).toBeNull();
+    expect(await readGeminiError(new Response('', { status: 400 }))).toBeNull();
   });
 });

@@ -16,7 +16,7 @@ import { logger } from '../lib/logger.js';
 import { estimateTokens, recordUsage, withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
-import { explainGeminiError, GEMINI_BASE, resolveModel } from './models.js';
+import { explainGeminiError, GEMINI_BASE, readGeminiError, resolveModel } from './models.js';
 import { availableModels } from './extract-project.js';
 
 /** Trimmed to the lengths POST /api/library/developers already accepts. */
@@ -112,8 +112,9 @@ export async function extractDeveloper(
     );
 
     if (!response.ok) {
-      logger.warn('developer lookup failed', { status: response.status, model });
-      throw badRequest(explainGeminiError(response.status, model));
+      const detail = await readGeminiError(response);
+      logger.warn('developer lookup failed', { status: response.status, model, detail });
+      throw badRequest(explainGeminiError(response.status, model, detail));
     }
 
     const json = (await response.json()) as {

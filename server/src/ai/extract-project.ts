@@ -22,7 +22,8 @@ import { buildKnowledge } from './knowledge.js';
 import { estimateTokens, recordUsage, withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
 import {
-  explainGeminiError, GEMINI_BASE, listModels, resolveModel, stepUpForFiles,
+  explainGeminiError, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, listModels, readGeminiError,
+  resolveModel, stepUpForFiles,
 } from './models.js';
 import { badRequest } from '../lib/errors.js';
 
@@ -176,6 +177,18 @@ export async function extractProject(
 
   const parts: Record<string, unknown>[] = [];
   if (input.kind === 'file') {
+    /*
+     * Checked here rather than only at the route, because the limit that
+     * matters is Google's and it is about the encoded request. Refusing it
+     * now gives the owner a sentence they can act on instead of a 400.
+     */
+    if (input.data.length > GEMINI_INLINE_LIMIT_BYTES) {
+      throw badRequest(
+        `That file is ${Math.round(input.data.length / (1024 * 1024))} MB. Google will not accept more `
+        + `than about ${Math.round(GEMINI_INLINE_LIMIT_BYTES / (1024 * 1024))} MB in one go — send the `
+        + 'price list or the offer rather than the full brochure.',
+      );
+    }
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {
@@ -210,9 +223,14 @@ export async function extractProject(
     );
 
     if (!response.ok) {
-      // Never log the body: it echoes the request, which holds the document.
-      logger.warn('project extraction failed', { status: response.status, model });
-      throw badRequest(explainGeminiError(response.status, model));
+      /*
+       * Google's `error.message` says precisely what it objected to. It does
+       * not echo the request, so taking it cannot leak the document — and
+       * without it the owner sees only "rejected", which helps nobody.
+       */
+      const detail = await readGeminiError(response);
+      logger.warn('project extraction failed', { status: response.status, model, detail });
+      throw badRequest(explainGeminiError(response.status, model, detail));
     }
 
     const json = (await response.json()) as {
