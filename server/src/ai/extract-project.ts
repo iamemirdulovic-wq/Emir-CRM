@@ -21,6 +21,9 @@ import { logger } from '../lib/logger.js';
 import { buildKnowledge } from './knowledge.js';
 import { estimateTokens, recordUsage, withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
+import {
+  explainGeminiError, GEMINI_BASE, listModels, resolveModel, stepUpForFiles,
+} from './models.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -116,6 +119,20 @@ The rules, in order of importance:
 8. confidence: a number from 0 to 1 for each field you filled, where 1 means it was printed
    plainly and 0.5 means you inferred it from context. Do not include fields you left null.`;
 
+/**
+ * The models this key can use, or an empty list if Google cannot be asked.
+ *
+ * A failure here must not stop the extraction: an empty list simply means the
+ * caller falls back to the configured name and finds out from the real call.
+ */
+export async function availableModels(apiKey: string): Promise<Awaited<ReturnType<typeof listModels>>> {
+  try {
+    return await listModels(apiKey);
+  } catch {
+    return [];
+  }
+}
+
 export type ExtractInput =
   | { kind: 'file'; data: Buffer; mimeType: string; filename: string }
   | { kind: 'link'; url: string };
@@ -145,12 +162,14 @@ export async function extractProject(
   }
 
   /*
-   * Flash-Lite cannot read a PDF. Reading a document is the one place the
-   * cheapest model is not enough, so this call — and only this call — steps up
-   * to Flash, which is still a fraction of a cent for a brochure.
+   * Flash-Lite cannot read a PDF, so reading a document steps up to the full
+   * model — but only to one the key actually has. Both the default and the
+   * step-up are checked against Google's own list rather than a name written
+   * into this file, because a stale name is a 404 the owner cannot fix.
    */
-  const configured = (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite';
-  const model = input.kind === 'file' && configured.includes('lite') ? 'gemini-2.0-flash' : configured;
+  const available = await availableModels(apiKey);
+  const configured = resolveModel((await setting('AI_MODEL')) ?? null, available);
+  const model = input.kind === 'file' ? stepUpForFiles(configured, available) : configured;
 
   // The owner's own knowledge, so a description sounds like their brokerage.
   const knowledge = await buildKnowledge('draft');
@@ -182,7 +201,7 @@ export async function extractProject(
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      `${GEMINI_BASE}/models/${model}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -193,11 +212,7 @@ export async function extractProject(
     if (!response.ok) {
       // Never log the body: it echoes the request, which holds the document.
       logger.warn('project extraction failed', { status: response.status, model });
-      throw badRequest(
-        response.status === 429
-          ? 'Google is rate-limiting the key right now. Wait a minute and try again.'
-          : `Emir AI could not read that (${response.status}). Check the key has billing enabled.`,
-      );
+      throw badRequest(explainGeminiError(response.status, model));
     }
 
     const json = (await response.json()) as {

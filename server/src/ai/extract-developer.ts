@@ -16,6 +16,8 @@ import { logger } from '../lib/logger.js';
 import { estimateTokens, recordUsage, withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
+import { explainGeminiError, GEMINI_BASE, resolveModel } from './models.js';
+import { availableModels } from './extract-project.js';
 
 /** Trimmed to the lengths POST /api/library/developers already accepts. */
 const capped = (max: number) => z.string().transform((value) => value.trim().slice(0, max));
@@ -80,7 +82,7 @@ export async function extractDeveloper(
     throw badRequest("This month's AI budget is used up. Raise it in Settings → Emir AI.");
   }
 
-  const model = (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite';
+  const model = resolveModel((await setting('AI_MODEL')) ?? null, await availableModels(apiKey));
 
   const body = {
     systemInstruction: { parts: [{ text: INSTRUCTION }] },
@@ -101,7 +103,7 @@ export async function extractDeveloper(
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      `${GEMINI_BASE}/models/${model}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -111,11 +113,7 @@ export async function extractDeveloper(
 
     if (!response.ok) {
       logger.warn('developer lookup failed', { status: response.status, model });
-      throw badRequest(
-        response.status === 429
-          ? 'Google is rate-limiting the key right now. Wait a minute and try again.'
-          : `Emir AI could not look that up (${response.status}). Check the key has billing enabled.`,
-      );
+      throw badRequest(explainGeminiError(response.status, model));
     }
 
     const json = (await response.json()) as {

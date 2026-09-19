@@ -1,5 +1,6 @@
 import { logger } from '../lib/logger.js';
 import type { AiCompletionRequest, AiProvider } from './provider.js';
+import { FALLBACK_MODEL, GEMINI_BASE } from './models.js';
 
 /**
  * Gemini, given its key and model at construction.
@@ -15,7 +16,7 @@ export class GeminiProvider implements AiProvider {
 
   constructor(apiKey: string | null, model?: string | null) {
     this.apiKey = apiKey;
-    this.model = model || 'gemini-2.0-flash-lite';
+    this.model = model || FALLBACK_MODEL;
   }
 
   get enabled(): boolean {
@@ -31,7 +32,7 @@ export class GeminiProvider implements AiProvider {
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        `${GEMINI_BASE}/models/${model}:generateContent`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },

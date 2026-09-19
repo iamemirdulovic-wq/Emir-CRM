@@ -20,7 +20,8 @@ import { aiProvider } from '../../ai/index.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
-import { clearSecret, saveSecret, saveSetting, secretHint, secretSource, setting } from '../../config/secrets.js';
+import { clearSecret, saveSecret, saveSetting, secret, secretHint, secretSource, setting } from '../../config/secrets.js';
+import { listModels, pickDefault } from '../../ai/models.js';
 
 export const aiRouter = Router();
 aiRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -49,7 +50,9 @@ aiRouter.get(
       provider: {
         name: (await setting('AI_PROVIDER')) ?? 'none',
         ready: (await aiProvider()).enabled,
-        model: (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite',
+        // Empty means "not chosen yet": the screen then offers the list from
+        // Google rather than a name this codebase guessed.
+        model: (await setting('AI_MODEL')) ?? '',
         // Where the key came from, so the screen can be honest about it rather
         // than implying the owner can change one that is set in the host.
         keySource: await secretSource('GEMINI_API_KEY'),
@@ -57,6 +60,54 @@ aiRouter.get(
         capUsd: (await setting('AI_MONTHLY_CAP_USD')) ?? '5',
       },
     });
+  }),
+);
+
+/**
+ * Which models this key can actually use.
+ *
+ * Exists because the CRM shipped with two model names written into it and the
+ * owner's key answered 404 for both. Google renames and retires models on its
+ * own schedule, so the only reliable list is the one Google gives back.
+ *
+ * Rate-limited because it costs a round trip to Google, though not tokens.
+ */
+aiRouter.get(
+  '/models',
+  rateLimit({
+    max: 20,
+    windowMs: 5 * 60 * 1000,
+    keyFor: (req) => `ai-models:${currentUser(req).id}`,
+    message: 'Checked too many times in a row. Wait a minute.',
+  }),
+  requireManager,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const apiKey = await secret('GEMINI_API_KEY');
+    if (!apiKey) {
+      res.json({ models: [], suggested: null, error: 'No Gemini key is connected yet.' });
+      return;
+    }
+
+    try {
+      const models = await listModels(apiKey);
+      res.json({
+        models,
+        suggested: models.length ? pickDefault(models) : null,
+        current: (await setting('AI_MODEL')) ?? null,
+      });
+    } catch (err) {
+      // A failure here is information, not an outage: the screen says what
+      // Google answered so the owner can act on it.
+      const status = err instanceof Error ? err.message : 'unknown';
+      res.json({
+        models: [],
+        suggested: null,
+        error: status === '403' || status === '401'
+          ? 'Google would not accept the key. Check it is correct, that the Generative Language API is '
+            + 'enabled on that project, and that billing is on.'
+          : `Google could not be asked for the model list (${status}).`,
+      });
+    }
   }),
 );
 
@@ -143,7 +194,9 @@ aiRouter.post(
       temperature: 0.4,
     });
 
-    const model = (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite';
+    // What the call actually used, not what is configured — they differ when
+    // nothing is chosen and the provider falls back.
+    const model = provider.model;
     await recordUsage({
       userId: user.id,
       feature: 'try',

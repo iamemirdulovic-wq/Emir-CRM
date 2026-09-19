@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import type { GeminiModel } from '../lib/types.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import {
@@ -158,8 +159,41 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<GeminiModel[] | null>(null);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const fromHost = provider.keySource === 'env';
+
+  /*
+   * Ask Google which models this key can use.
+   *
+   * Hard-coding two names is what produced a 404 the owner could do nothing
+   * about: Google retires and renames models, and a name compiled into the CRM
+   * is a guess with an expiry date. The list below is evidence instead.
+   */
+  async function loadModels() {
+    setChecking(true);
+    setModelsError(null);
+    try {
+      const data = await api.get<{ models: GeminiModel[]; suggested: string | null; error?: string }>('/api/ai/models');
+      setModels(data.models);
+      if (data.error) setModelsError(data.error);
+      // Nothing chosen, or a name Google does not have — take the suggestion.
+      if (data.suggested && (!model || !data.models.some((row) => row.name === model))) {
+        setModel(data.suggested);
+      }
+    } catch (err) {
+      setModelsError(err instanceof Error ? err.message : 'Could not ask Google for the list');
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    if (provider.ready) void loadModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider.ready]);
 
   async function save() {
     setSaving(true);
@@ -236,16 +270,53 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
       )}
 
       <div className="field-row">
-        <Field label="Model" hint="Flash-Lite is the cheapest and is enough for everything here.">
+        <Field
+          label="Model"
+          hint={
+            models === null
+              ? 'Connect a key and this lists what your key can actually use.'
+              : models.length === 0
+                // Zero is not a fact about the key — the list could not be read.
+                ? 'The list could not be read, so this is whatever was saved before.'
+                : `${models.length} model${models.length === 1 ? '' : 's'} your key can use. A "lite" one is the cheapest and is enough for everything here.`
+          }
+        >
           <Select value={model} onChange={(event) => setModel(event.target.value)}>
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — cheapest</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash — a little sharper</option>
+            {!model && <option value="">— choose a model —</option>}
+            {models === null || models.length === 0 ? (
+              model ? <option value={model}>{model}</option> : null
+            ) : (
+              models.map((row) => (
+                <option key={row.name} value={row.name}>
+                  {row.name}{row.name.includes('lite') ? ' — cheapest' : ''}
+                </option>
+              ))
+            )}
+            {/* A saved name Google no longer has: shown, and marked, rather
+                than silently swapped out under the owner. */}
+            {model && models !== null && models.length > 0 && !models.some((row) => row.name === model) && (
+              <option value={model}>{model} — your key does not have this one</option>
+            )}
           </Select>
         </Field>
         <Field label="Monthly budget (US$)" hint="The AI stops when this is reached. It cannot go over.">
           <Input inputMode="decimal" value={cap} onChange={(event) => setCap(event.target.value)} />
         </Field>
       </div>
+
+      <div className="ai-row" style={{ marginTop: -4 }}>
+        <button type="button" className="rowbtn" onClick={() => void loadModels()} disabled={checking || !provider.ready}>
+          <Icon name={checking ? 'loader-2' : 'refresh-cw'} size={13} className={checking ? 'spin' : undefined} />
+          <span>{checking ? 'Asking Google…' : 'Refresh the list from Google'}</span>
+        </button>
+      </div>
+
+      {modelsError && (
+        <div className="aihint" style={{ borderColor: 'color-mix(in srgb, var(--hot) 35%, transparent)' }}>
+          <Icon name="alert-triangle" />
+          <div>{modelsError}</div>
+        </div>
+      )}
 
       <div className="ai-row">
         {provider.ready && !fromHost && (

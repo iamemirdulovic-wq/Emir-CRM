@@ -16,6 +16,8 @@ export type AiCompletionRequest = {
 export interface AiProvider {
   readonly name: string;
   readonly enabled: boolean;
+  /** The model this provider will actually call, for usage accounting. */
+  readonly model: string;
   complete(request: AiCompletionRequest): Promise<string | null>;
 }
 
@@ -23,6 +25,7 @@ export interface AiProvider {
 export class NullProvider implements AiProvider {
   readonly name = 'none';
   readonly enabled = false;
+  readonly model = 'none';
   async complete(): Promise<string | null> {
     return null;
   }

@@ -4,12 +4,12 @@ import type { AiCompletionRequest, AiProvider } from './provider.js';
 
 export class OpenAiProvider implements AiProvider {
   private readonly apiKey: string | null;
-  private readonly configuredModel: string | null;
+  readonly model: string;
 
   /** Same shape as Gemini: key and model resolved before construction. */
   constructor(apiKey?: string | null, model?: string | null) {
     this.apiKey = apiKey ?? env().OPENAI_API_KEY ?? null;
-    this.configuredModel = model ?? env().AI_MODEL ?? null;
+    this.model = model || env().AI_MODEL || 'gpt-4o-mini';
   }
 
   readonly name = 'openai';
@@ -19,7 +19,6 @@ export class OpenAiProvider implements AiProvider {
   }
 
   async complete(request: AiCompletionRequest): Promise<string | null> {
-    const cfg = env();
     if (!this.apiKey) return null;
 
     try {
@@ -27,7 +26,7 @@ export class OpenAiProvider implements AiProvider {
         method: 'POST',
         headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: cfg.AI_MODEL ?? 'gpt-4o-mini',
+          model: this.model,
           messages: request.messages,
           temperature: request.temperature ?? 0.2,
           max_tokens: request.maxOutputTokens ?? 512,

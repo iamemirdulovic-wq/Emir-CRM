@@ -2,6 +2,62 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The 404 — Emir AI now asks Google which models it has
+
+The owner dropped a developer file and got *"Emir AI could not read that (404). Check the key has
+billing enabled."* Both halves of that were my fault. A 404 from Gemini means the **model name
+does not exist for that key**; it has nothing to do with billing, so the message sent them to the
+billing page for a problem they could not find there.
+
+The cause: two model names — `gemini-2.0-flash-lite` and `gemini-2.0-flash` — were written into
+the code in five places, and their key had neither. Google retires and renames models on its own
+schedule, so **any model name compiled into this codebase is a guess with an expiry date on it.**
+
+**So the CRM asks instead**
+- New `server/src/ai/models.ts` — the one place the Gemini API version and model preferences live,
+  per the hard rule this had been breaking.
+- `GET /api/ai/models` reads what the key can actually use, straight from Google.
+- Settings → Emir AI now shows **that** list, with a **Refresh the list from Google** button.
+- If Google cannot be asked, the screen says so rather than reporting "0 models" as a fact.
+
+**And it heals itself**
+`configured ?? default` was not enough: a *saved* stale name beats a default every time, so the
+404 would have repeated on every attempt until someone opened Settings. A configured model Google
+does not report is treated as stale, not as a preference — the call falls back to one the key has
+and goes through. There is a test named after exactly this case.
+
+**Honest errors, by status**
+404 names the model and points at Settings. 401/403 blames the key and says to check the
+Generative Language API and billing. 429 says to wait. 5xx blames Google.
+
+**Two more bugs found while in there**
+- **Stepping up to read a PDF could pick a model the key lacks.** Flash-Lite cannot read a
+  document, so a file steps up to the full model — but the step-up was not checked against the
+  key's catalogue, which would have produced the same 404 from the other direction. It now steps
+  up only to something the key reports, falling back to Pro if that is all there is: a document
+  the CRM cannot read is worth nothing, and the monthly cap is what bounds the spend.
+- **The price table matched model names exactly**, so every dated release
+  (`gemini-2.5-flash-lite-preview-09-2025`) and the whole 2.5 family fell through to the
+  unknown-model rate. Worse, that rate was *below* what Pro actually costs, so a Pro-class call
+  would have been under-billed roughly twelve-fold and the cap could have been sailed past.
+  Pricing now matches by family, longest prefix first, and an unknown model is priced at the
+  dearest rate known.
+- **OpenAI ignored the model chosen in Settings** — the provider stored it and then read the
+  environment variable anyway. Fixed; `model` is now on the provider interface, so usage records
+  what the call actually ran on.
+
+**Verified** in a browser against a stubbed catalogue that deliberately does *not* contain the old
+hard-coded names — the dropdown listed the three real models, the stale saved name was replaced
+with the cheapest available, and the bad-key path showed the key error rather than a silent empty
+list. Could not test against Google directly: this sandbox's proxy blocks
+`generativelanguage.googleapis.com`, which is why the fix is built to not depend on my guesses.
+
+780 server tests (20 for model choice and messages, 5 for family pricing), 102 web tests.
+
+**For the owner**: after deploying, open Settings → Emir AI and check the Model box — it should
+now list real models. If it still says the list could not be read, the error under it names what
+Google said.
+
 ## Developers — who we sell for, and who to ring
 
 The Add-project screen had an empty Developer dropdown, because there was no way in the CRM to add

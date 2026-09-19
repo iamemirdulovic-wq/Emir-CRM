@@ -24,15 +24,41 @@ const MICROS_PER_DOLLAR = 1_000_000;
  * deliberately a little high: a cap that stops slightly early costs nothing,
  * while one that stops late has already spent the money.
  */
-const PRICE: Record<string, { input: number; output: number }> = {
-  'gemini-2.0-flash-lite': { input: 75_000, output: 300_000 },
-  'gemini-2.0-flash': { input: 100_000, output: 400_000 },
-  'gemini-1.5-flash': { input: 100_000, output: 400_000 },
-};
-const FALLBACK_PRICE = { input: 200_000, output: 800_000 };
+const PRICE: [prefix: string, price: { input: number; output: number }][] = [
+  // Longest prefix first: 'gemini-2.5-flash-lite' must win over 'gemini-2.5-flash'.
+  ['gemini-2.5-flash-lite', { input: 120_000, output: 450_000 }],
+  ['gemini-2.0-flash-lite', { input: 75_000, output: 300_000 }],
+  ['gemini-flash-lite', { input: 120_000, output: 450_000 }],
+  ['gemini-2.5-flash', { input: 350_000, output: 2_600_000 }],
+  ['gemini-2.0-flash', { input: 100_000, output: 400_000 }],
+  ['gemini-1.5-flash', { input: 100_000, output: 400_000 }],
+  ['gemini-flash', { input: 350_000, output: 2_600_000 }],
+  ['gemini-2.5-pro', { input: 1_400_000, output: 11_000_000 }],
+  ['gemini-1.5-pro', { input: 1_400_000, output: 11_000_000 }],
+  ['gemini-pro', { input: 1_400_000, output: 11_000_000 }],
+  ['gpt-4o-mini', { input: 200_000, output: 800_000 }],
+  ['gpt-4o', { input: 3_000_000, output: 12_000_000 }],
+];
 
+/**
+ * An unknown model is priced as the dearest one we know of.
+ *
+ * Not a middling guess: Pro costs roughly twelve times Flash, so a fallback
+ * set between them would let a Pro call spend most of the month's budget
+ * before the cap noticed. Over-estimating an unknown model stops the CRM
+ * slightly early, which costs nothing.
+ */
+const FALLBACK_PRICE = { input: 1_400_000, output: 11_000_000 };
+
+/**
+ * Matched by prefix, because Google ships dated releases
+ * (`gemini-2.5-flash-lite-preview-09-2025`) that an exact-name table misses —
+ * and a miss used to mean the cheapest model in the list was billed at the
+ * fallback rate, or an expensive one at far less than it costs.
+ */
 export function estimateCostMicros(model: string, inputTokens: number, outputTokens: number): number {
-  const price = PRICE[model] ?? FALLBACK_PRICE;
+  const match = PRICE.find(([prefix]) => model.startsWith(prefix));
+  const price = match?.[1] ?? FALLBACK_PRICE;
   return Math.ceil((inputTokens * price.input + outputTokens * price.output) / 1_000_000);
 }
 

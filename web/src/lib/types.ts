@@ -650,3 +650,11 @@ export type ProjectDraft = {
   visibility: Visibility;
   goldenVisaEligible: boolean;
 };
+
+/** A Gemini model the connected key can actually use, as Google reports it. */
+export type GeminiModel = {
+  name: string;
+  displayName: string;
+  description: string;
+  inputTokenLimit: number | null;
+};
