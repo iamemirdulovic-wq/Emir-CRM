@@ -2,6 +2,50 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Connecting Emir AI without touching the hosting panel
+
+The owner asked me to add the API key for them. I cannot — there is no Hostinger login here and
+the network blocks it — so instead the CRM can now take the key itself.
+
+**Added — Settings › Emir AI › Connect**
+- Paste the Gemini key, choose the model, set the monthly budget, press Connect. No environment
+  variables, no restart.
+- It does not just save the key: it makes a real request with it and says whether the AI actually
+  answered. A key that is merely stored is not a key that works, and finding that out later is
+  worse than finding it out now.
+- Owner and admin only. This is a credential that spends money; managers can write the knowledge,
+  which is a different kind of decision.
+
+**The hard rule still holds**
+- Secrets belong in environment variables, and an environment variable still wins over anything
+  stored here. This is the fallback for an owner with no terminal: on managed hosting every
+  variable is a trip through a control panel and a restart, and a key that can only be set that
+  way is a key that never gets set.
+- Whatever is stored is AES-256-GCM encrypted. `ENCRYPTION_KEY` stays in the environment and
+  never goes in the database — a key kept beside the data it protects protects nothing.
+- The key never comes back to the browser. The screen shows the last four characters so one key
+  can be told from another, and the audit log records that a key changed and who by, never what
+  it was.
+
+**Fixed — an error message nobody could act on**
+- Saving a key with `ENCRYPTION_KEY` missing or the wrong length produced a 500 and a message
+  about AES-256 block sizes. It now checks whether encryption actually works before trying, and
+  says what to do: 64 hex characters, in the hosting settings, because that one value cannot live
+  in the database.
+
+**Fixed — a trap in "the environment always wins"**
+- `AI_PROVIDER=none` in the hosting panel would silently beat the Connect button, so pressing it
+  did nothing with nothing on screen to explain why. `none` is the absence of a choice rather than
+  a choice, so it no longer overrides — while a host that names a real provider still does.
+
+**Also** — the AI provider is now resolved asynchronously, with its key and model passed in at
+construction rather than read from the environment inside it. Three call sites; the alternative
+was a key saved in Settings looking like no key at all.
+
+**Verified** in a browser: pasted a key, watched it save, encrypt and come back with an honest
+"the test question came back empty" for a deliberately fake one. 732 server tests (13 for the
+encrypted store), 97 web tests.
+
 ## Teaching Emir AI about the brokerage
 
 The owner asked for a place to train the AI, and for it to cost very little. Both are here, and

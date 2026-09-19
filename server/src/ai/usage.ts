@@ -9,7 +9,7 @@
  * Money is kept in micro-dollars as integers. Floats drift, and a total that
  * drifts is exactly the thing a spending cap must not do.
  */
-import { env } from '../config/env.js';
+import { setting } from '../config/secrets.js';
 import { execute, getPool, queryOne, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
@@ -51,7 +51,10 @@ export type MonthSpend = { micros: number; calls: number; capMicros: number; rem
 
 /** What has been spent this calendar month, against the cap. */
 export async function monthSpend(exec: Executor = getPool()): Promise<MonthSpend> {
-  const capMicros = Math.round(env().AI_MONTHLY_CAP_USD * MICROS_PER_DOLLAR);
+  // The cap can be changed from Settings as well as the environment, so it is
+  // read the same way everything else is.
+  const capUsd = Number((await setting('AI_MONTHLY_CAP_USD', exec)) ?? 5);
+  const capMicros = Math.round((Number.isFinite(capUsd) ? capUsd : 5) * MICROS_PER_DOLLAR);
   const row = await queryOne<{ micros: string | null; calls: number }>(
     `SELECT COALESCE(SUM(cost_micros), 0) AS micros, COUNT(*) AS calls
        FROM ai_usage

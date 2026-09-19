@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { secret, setting } from '../config/secrets.js';
 import { logger } from '../lib/logger.js';
 import { query, queryOne, execute } from '../db/client.js';
 import { newId } from '../lib/ids.js';
@@ -8,25 +9,52 @@ import { GeminiProvider } from './gemini.js';
 import { OpenAiProvider } from './openai.js';
 import { NullProvider, parseJsonReply, type AiProvider } from './provider.js';
 
-let provider: AiProvider | null = null;
+let override: AiProvider | null = null;
 
+/**
+ * The provider, with its key and model resolved.
+ *
+ * Async because the key may be one the owner saved in Settings rather than an
+ * environment variable — managed hosting gives them no terminal, and a key that
+ * can only be set through a control panel is a key that never gets set. The
+ * environment still wins wherever it is present.
+ */
+export async function aiProvider(): Promise<AiProvider> {
+  if (override) return override;
+
+  const name = (await setting('AI_PROVIDER')) ?? 'none';
+  const model = await setting('AI_MODEL');
+
+  switch (name) {
+    case 'gemini':
+      return new GeminiProvider(await secret('GEMINI_API_KEY'), model);
+    case 'openai':
+      return new OpenAiProvider(await secret('OPENAI_API_KEY'), model);
+    default:
+      return new NullProvider();
+  }
+}
+
+/**
+ * The environment-only view, for the few paths that cannot await.
+ *
+ * Kept deliberately narrow: anything that actually sends a request should use
+ * `aiProvider`, or a key saved in Settings will look like no key at all.
+ */
 export function ai(): AiProvider {
-  if (provider) return provider;
+  if (override) return override;
   switch (env().AI_PROVIDER) {
     case 'gemini':
-      provider = new GeminiProvider();
-      break;
+      return new GeminiProvider(env().GEMINI_API_KEY ?? null, env().AI_MODEL);
     case 'openai':
-      provider = new OpenAiProvider();
-      break;
+      return new OpenAiProvider();
     default:
-      provider = new NullProvider();
+      return new NullProvider();
   }
-  return provider;
 }
 
 export function setAiProviderForTesting(next: AiProvider | null): void {
-  provider = next;
+  override = next;
 }
 
 /**

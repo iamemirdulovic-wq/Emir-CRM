@@ -12,6 +12,22 @@ function keyBuffer(): Buffer {
   return buf;
 }
 
+/**
+ * Can anything be encrypted at all?
+ *
+ * Callers use this to say something useful *before* trying, rather than letting
+ * a key of the wrong length surface as a 500 with a message about AES that
+ * means nothing to the person who has to fix it.
+ */
+export function encryptionReady(): boolean {
+  try {
+    keyBuffer();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Encrypt a secret for storage at rest. Output: v1:<iv>:<tag>:<ciphertext> (base64url). */
 export function encryptSecret(plain: string): string {
   const iv = randomBytes(12);

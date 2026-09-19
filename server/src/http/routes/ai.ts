@@ -10,15 +10,17 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import {
-  actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireManager,
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth, requireManager,
 } from '../middleware/auth.js';
 import {
   SECTIONS, buildKnowledge, completeness, loadKnowledge, restoreVersion, saveSection, sectionHistory,
 } from '../../ai/knowledge.js';
 import { estimateTokens, monthSpend, recordUsage, usd, withinCap } from '../../ai/usage.js';
-import { ai } from '../../ai/index.js';
+import { aiProvider } from '../../ai/index.js';
 import { env } from '../../config/env.js';
+import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
+import { clearSecret, saveSecret, saveSetting, secretHint, secretSource, setting } from '../../config/secrets.js';
 
 export const aiRouter = Router();
 aiRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -42,7 +44,18 @@ aiRouter.get(
       },
       // Whether a key is configured at all — the screen says so plainly rather
       // than letting the Try box fail with something cryptic.
-      provider: { name: env().AI_PROVIDER, ready: ai().enabled },
+      // Resolved the same way a real call resolves it, so the screen cannot
+      // say "ready" about a key the request path would not find.
+      provider: {
+        name: (await setting('AI_PROVIDER')) ?? 'none',
+        ready: (await aiProvider()).enabled,
+        model: (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite',
+        // Where the key came from, so the screen can be honest about it rather
+        // than implying the owner can change one that is set in the host.
+        keySource: await secretSource('GEMINI_API_KEY'),
+        keyEndsWith: await secretHint('GEMINI_API_KEY'),
+        capUsd: (await setting('AI_MONTHLY_CAP_USD')) ?? '5',
+      },
     });
   }),
 );
@@ -106,7 +119,7 @@ aiRouter.post(
       language: z.enum(['en', 'ar']).default('en'),
     }).parse(req.body);
 
-    const provider = ai();
+    const provider = await aiProvider();
     if (!provider.enabled) {
       throw badRequest('No AI key is configured yet. Add GEMINI_API_KEY and set AI_PROVIDER=gemini, then restart.');
     }
@@ -130,7 +143,7 @@ aiRouter.post(
       temperature: 0.4,
     });
 
-    const model = env().AI_MODEL ?? 'gemini-2.0-flash';
+    const model = (await setting('AI_MODEL')) ?? 'gemini-2.0-flash-lite';
     await recordUsage({
       userId: user.id,
       feature: 'try',
@@ -147,6 +160,68 @@ aiRouter.post(
       knowledgeChars: knowledge.length,
       spend: usd((await monthSpend()).micros),
     });
+  }),
+);
+
+/* ── The connection: key, model and budget, without a redeploy ─────────── */
+
+const connectionSchema = z.object({
+  // Never logged, never returned. Written straight to AES-256-GCM.
+  apiKey: z.string().trim().min(10).max(400).optional(),
+  model: z.string().trim().max(64).optional(),
+  monthlyCapUsd: z.number().min(0).max(1000).optional(),
+  enabled: z.boolean().optional(),
+});
+
+/**
+ * Owner and admin only — this is a credential that spends money. Managers may
+ * write the knowledge, which is a different kind of decision.
+ */
+aiRouter.put(
+  '/connection',
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = connectionSchema.parse(req.body);
+    const actor = actorFrom(req);
+
+    if (body.apiKey) {
+      /*
+       * Checked for usability, not merely presence: a key of the wrong length
+       * is as unusable as a missing one, and previously surfaced as a 500
+       * about AES-256 that told the owner nothing they could act on.
+       */
+      if (!encryptionReady()) {
+        throw badRequest(
+          'This CRM cannot store a key safely yet: ENCRYPTION_KEY is missing or the wrong length. '
+          + 'It must be 64 hex characters, and it is the one value that cannot live in the database — '
+          + 'add it in your hosting settings and restart, then come back here.',
+        );
+      }
+      await saveSecret(actor, 'GEMINI_API_KEY', body.apiKey);
+    }
+    if (body.model !== undefined) await saveSetting(actor, 'AI_MODEL', body.model || null);
+    if (body.monthlyCapUsd !== undefined) await saveSetting(actor, 'AI_MONTHLY_CAP_USD', String(body.monthlyCapUsd));
+    if (body.enabled !== undefined) await saveSetting(actor, 'AI_PROVIDER', body.enabled ? 'gemini' : 'none');
+
+    // Prove it works before saying it does — a key that is merely stored is not
+    // a key that answers.
+    const provider = await aiProvider();
+    let works: boolean | null = null;
+    if (provider.enabled) {
+      works = Boolean(await provider.complete({ messages: [{ role: 'user', content: 'Reply with the single word: ready' }], maxOutputTokens: 8 }));
+    }
+
+    res.json({ ok: true, ready: provider.enabled, works });
+  }),
+);
+
+aiRouter.delete(
+  '/connection',
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    await clearSecret(actorFrom(req), 'GEMINI_API_KEY');
+    await saveSetting(actorFrom(req), 'AI_PROVIDER', 'none');
+    res.json({ ok: true });
   }),
 );
 

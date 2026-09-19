@@ -10,7 +10,7 @@
  * The matcher is pure, so the rules that decide where someone's phone number
  * ends up are testable without a database or a network.
  */
-import { ai, parseJsonReply } from '../ai/index.js';
+import { aiProvider, parseJsonReply } from '../ai/index.js';
 import { logger } from '../lib/logger.js';
 
 /** Every field a column can be mapped to. */
@@ -150,7 +150,7 @@ export async function suggestMappingWithAi(headers: string[]): Promise<ColumnMap
   const unmapped = headers.filter((header) => mapping[header] === null && normalizeHeader(header));
   if (unmapped.length === 0) return mapping;
 
-  const provider = ai();
+  const provider = await aiProvider();
   if (!provider.enabled) return mapping;
 
   const taken = new Set(Object.values(mapping).filter(Boolean) as ImportField[]);

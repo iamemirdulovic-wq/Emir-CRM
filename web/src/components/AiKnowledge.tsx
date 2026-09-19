@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
-import { Chip, Empty, ErrorNote, Field, Note, Panel, Spinner, TextArea, useToast } from '../design/ui.js';
+import {
+  Chip, Empty, ErrorNote, Field, Input, Note, Panel, Select, Spinner, TextArea, useToast,
+} from '../design/ui.js';
 
 type Section = {
   key: string;
@@ -21,7 +23,15 @@ type Payload = {
   values: Value[];
   completeness: { filled: number; total: number; chars: number };
   spend: { spentUsd: string; capUsd: string; calls: number; capped: boolean };
-  provider: { name: string; ready: boolean };
+  provider: {
+    name: string;
+    ready: boolean;
+    model: string;
+    /** 'env' = set in the hosting panel and not editable here. */
+    keySource: 'env' | 'crm' | 'none';
+    keyEndsWith: string | null;
+    capUsd: string;
+  };
 };
 
 type Version = { id: string; content: string | null; created_at: string; updated_by_name: string | null };
@@ -82,13 +92,6 @@ export function AiKnowledgeTab() {
           </div>
         </div>
 
-        {!provider.ready && (
-          <Note>
-            No AI key yet, so nothing here is being used. Add <code>GEMINI_API_KEY</code> and set
-            <code> AI_PROVIDER=gemini</code> in Hostinger, then Restart. You can fill all of this in
-            now — it starts working the moment the key is in.
-          </Note>
-        )}
         {spend.capped && (
           <div className="err" style={{ display: 'block' }} role="alert">
             This month's ${spend.capUsd} budget is used up, so the AI has stopped. It starts again
@@ -106,6 +109,8 @@ export function AiKnowledgeTab() {
           <Chip on={language === 'ar'} onClick={() => setLanguage('ar')}>العربية</Chip>
         </div>
       </Panel>
+
+      <Connection provider={provider} onSaved={() => data.reload()} />
 
       {sections
         .filter((section) => language === 'en' || section.bilingual)
@@ -132,6 +137,136 @@ export function AiKnowledgeTab() {
 
       <TryBox ready={provider.ready} onAsked={() => data.reload()} />
     </>
+  );
+}
+
+/**
+ * The key, the model and the budget — set from here rather than from the
+ * hosting panel.
+ *
+ * The owner has no terminal, and every environment variable on managed hosting
+ * is a trip through a control panel and a restart. A key that can only be set
+ * that way is a key that never gets set. What is typed here is encrypted before
+ * it is stored and never comes back to the browser; only the last four
+ * characters do, so one key can be told from another.
+ */
+function Connection({ provider, onSaved }: { provider: Payload['provider']; onSaved: () => void }) {
+  const toast = useToast();
+  const [key, setKey] = useState('');
+  const [model, setModel] = useState(provider.model);
+  const [cap, setCap] = useState(provider.capUsd);
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fromHost = provider.keySource === 'env';
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setResult(null);
+    try {
+      const body: Record<string, unknown> = {
+        model,
+        monthlyCapUsd: Number(cap) || 0,
+        enabled: true,
+      };
+      if (key.trim()) body.apiKey = key.trim();
+
+      const response = await api.put<{ ready: boolean; works: boolean | null }>('/api/ai/connection', body);
+      setKey('');
+      setResult(
+        response.works === true
+          ? 'Connected. Emir AI answered.'
+          : response.ready
+            ? 'Key saved, but the test question came back empty. Check the key and that billing is on.'
+            : 'Saved, but there is still no usable key.',
+      );
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save that');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function disconnect() {
+    try {
+      await api.del('/api/ai/connection');
+      toast('Emir AI switched off');
+      onSaved();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not switch it off');
+    }
+  }
+
+  return (
+    <Panel span={12} index={0} icon="key-round" title="Connect Emir AI">
+      {provider.ready ? (
+        <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
+          <span className="pill ok">Connected</span>{' '}
+          {fromHost
+            ? 'The key is set in your hosting panel, so it cannot be changed from here.'
+            : provider.keyEndsWith
+              ? `Using the key ending ${provider.keyEndsWith}.`
+              : 'A key is saved.'}
+        </p>
+      ) : (
+        <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
+          Paste your Gemini key below and press Connect. Nothing else is needed — no hosting
+          settings, no restart. Get a key at{' '}
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>.
+        </p>
+      )}
+
+      {!fromHost && (
+        <Field
+          label={provider.ready ? 'Replace the key' : 'Gemini API key'}
+          hint="Stored encrypted. It is never shown again and never leaves the server."
+        >
+          <Input
+            type="password"
+            value={key}
+            onChange={(event) => setKey(event.target.value)}
+            placeholder={provider.ready ? 'Leave blank to keep the current key' : 'Paste the key here'}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
+      )}
+
+      <div className="field-row">
+        <Field label="Model" hint="Flash-Lite is the cheapest and is enough for everything here.">
+          <Select value={model} onChange={(event) => setModel(event.target.value)}>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — cheapest</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash — a little sharper</option>
+          </Select>
+        </Field>
+        <Field label="Monthly budget (US$)" hint="The AI stops when this is reached. It cannot go over.">
+          <Input inputMode="decimal" value={cap} onChange={(event) => setCap(event.target.value)} />
+        </Field>
+      </div>
+
+      <div className="ai-row">
+        {provider.ready && !fromHost && (
+          <button type="button" className="rowbtn danger" onClick={() => void disconnect()}>
+            Switch off
+          </button>
+        )}
+        <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saving}>
+          {saving ? 'Checking…' : provider.ready ? 'Save' : 'Connect'}
+        </button>
+      </div>
+
+      {result && <Note>{result}</Note>}
+      {error && <div className="err" style={{ display: 'block', marginTop: 10 }} role="alert">{error}</div>}
+
+      <Note>
+        Use a key with billing switched on. On Google&rsquo;s free tier your prompts may be used to
+        improve their models, and these prompts contain real buyers&rsquo; names, numbers and
+        conversations.
+      </Note>
+    </Panel>
   );
 }
 

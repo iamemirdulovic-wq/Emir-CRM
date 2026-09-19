@@ -1,18 +1,30 @@
-import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
 import type { AiCompletionRequest, AiProvider } from './provider.js';
 
+/**
+ * Gemini, given its key and model at construction.
+ *
+ * Both are resolved before the provider is built — the environment first, then
+ * what the owner saved in Settings — because reading them is a database call
+ * and `enabled` has to be able to answer synchronously.
+ */
 export class GeminiProvider implements AiProvider {
   readonly name = 'gemini';
+  private readonly apiKey: string | null;
+  readonly model: string;
+
+  constructor(apiKey: string | null, model?: string | null) {
+    this.apiKey = apiKey;
+    this.model = model || 'gemini-2.0-flash-lite';
+  }
 
   get enabled(): boolean {
-    return Boolean(env().GEMINI_API_KEY);
+    return Boolean(this.apiKey);
   }
 
   async complete(request: AiCompletionRequest): Promise<string | null> {
-    const cfg = env();
-    if (!cfg.GEMINI_API_KEY) return null;
-    const model = cfg.AI_MODEL ?? 'gemini-2.0-flash';
+    if (!this.apiKey) return null;
+    const model = this.model;
 
     const system = request.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
     const user = request.messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n');
@@ -22,7 +34,7 @@ export class GeminiProvider implements AiProvider {
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.GEMINI_API_KEY },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
           body: JSON.stringify({
             ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
             contents: [{ role: 'user', parts: [{ text: user }] }],
