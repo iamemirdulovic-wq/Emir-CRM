@@ -17,3 +17,9 @@ dist-preview/
 # Uploaded import files. They are read back by the import job and deleted with
 # the import; nothing here belongs in version control.
 var/
+
+# The encryption key the CRM creates for itself when ENCRYPTION_KEY is unset.
+# Never committed: it protects the API keys stored in the database.
+var/emir-crm.key
+server/var/emir-crm.key
+*.key

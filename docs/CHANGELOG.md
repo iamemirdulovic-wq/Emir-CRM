@@ -2,6 +2,40 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The CRM looks after its own encryption key
+
+Pressing Connect on the AI screen sent the owner back to the hosting panel to add an
+ENCRYPTION_KEY — the exact trip the screen was built to avoid. The message was clear about what
+was wrong and useless about what to do, because the answer was "go and do the thing you cannot
+do".
+
+**Fixed**
+- With no ENCRYPTION_KEY set, the CRM now creates one on first use and keeps it in a file beside
+  the uploads: 64 hex characters, mode 0600, written to a temporary name and renamed so a crash
+  cannot leave a half-written key that looks valid on the next boot.
+- `ENCRYPTION_KEY` in the environment still wins, unchanged. This is the fallback, not the
+  replacement.
+- It is **never** regenerated over an existing file. A fresh key would not fail loudly — it would
+  quietly make every stored secret undecryptable, and the owner would find out the next time the
+  AI stopped working. A corrupt file is an error to look at, not something to paper over.
+
+**Why a file rather than the database**
+- The leak that actually happens is a database dump: a backup copied somewhere careless, a
+  restore onto a laptop. The key is not in it.
+- Against an attacker who already has the server, a file is no weaker than an environment
+  variable — both are readable to the process and to whoever owns it. The honest comparison is
+  not file-versus-env, it is encrypted-versus-not: a key that can only be set through a control
+  panel is one that never gets set, and then nothing is encrypted at all.
+- Added to `.gitignore`, because it protects the API keys in the database.
+
+**Also** — the remaining error message now only fires for a key that is genuinely malformed, and
+says what to do about it: correct it, or remove it and let the CRM handle its own.
+
+**Verified** with `ENCRYPTION_KEY` unset entirely, exactly as the owner's install is: pressed
+Connect, the key saved and encrypted, a real request went out, and the honest result came back —
+no red error, and a key file created readable only by the server. 739 server tests (7 for the key
+file), 97 web tests.
+
 ## Connecting Emir AI without touching the hosting panel
 
 The owner asked me to add the API key for them. I cannot — there is no Hostinger login here and

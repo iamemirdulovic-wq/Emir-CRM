@@ -39,6 +39,14 @@ const envSchema = z.object({
   // a persistent filesystem and an object store would be a second dependency
   // for files we delete within days.
   UPLOAD_DIR: z.string().default('./var/uploads'),
+  /**
+   * Where the encryption key lives when ENCRYPTION_KEY is not set.
+   *
+   * On disk rather than in the database, deliberately: a key kept beside the
+   * rows it protects protects nothing, and a database dump is the leak that
+   * actually happens. See lib/crypto.ts.
+   */
+  KEY_FILE: z.string().default('./var/emir-crm.key'),
   /** Largest import file accepted, in megabytes. 100k rows is roughly 12 MB. */
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(512).default(64),
   /**

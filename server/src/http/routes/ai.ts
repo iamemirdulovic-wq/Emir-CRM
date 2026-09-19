@@ -186,15 +186,16 @@ aiRouter.put(
 
     if (body.apiKey) {
       /*
-       * Checked for usability, not merely presence: a key of the wrong length
-       * is as unusable as a missing one, and previously surfaced as a 500
-       * about AES-256 that told the owner nothing they could act on.
+       * Encryption now looks after itself: with no ENCRYPTION_KEY set, one is
+       * created on disk the first time it is needed. This only fires when the
+       * environment supplies a key that is the wrong length — a real mistake
+       * the owner has to correct, rather than something to work around.
        */
       if (!encryptionReady()) {
         throw badRequest(
-          'This CRM cannot store a key safely yet: ENCRYPTION_KEY is missing or the wrong length. '
-          + 'It must be 64 hex characters, and it is the one value that cannot live in the database — '
-          + 'add it in your hosting settings and restart, then come back here.',
+          'The ENCRYPTION_KEY in your hosting settings is not a valid key — it must be 64 hex '
+          + 'characters. Correct it and restart, or remove it entirely and the CRM will look after '
+          + 'its own key.',
         );
       }
       await saveSecret(actor, 'GEMINI_API_KEY', body.apiKey);
