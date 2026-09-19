@@ -9,6 +9,51 @@ Your priorities, in order:
 3. WhatsApp-first communication.
 4. A clean, modern, easy UI.
 
+## ASK ME FIRST — THE MOST IMPORTANT RULE
+**Never build anything without asking me first.** I would rather answer five questions than throw away a day of work. When in doubt, ask. Asking is never "bothering me".
+
+**Always ask before you:**
+- start a phase or a new feature
+- make a design or layout decision that I have not already approved
+- choose between two ways of doing something
+- add, rename or remove a field, table, screen, button or menu item
+- change anything that is already working
+- delete or overwrite data, drop a table or run a migration that is not reversible
+- install a new library, change the tech stack, or add a paid service
+- send anything to a real client, or connect to the live Meta, WhatsApp, Google or bank accounts
+- spend money, or do anything that needs an API key
+- go live / deploy
+
+**How to ask:**
+- Ask in **short, plain English**, not developer language. I am not a programmer. Write like you are explaining to a friend.
+- Ask **one thing at a time**, or at most 2–3 short questions together. Never a wall of questions.
+- Always **give me options with a recommendation**, like this:
+  > The lead card can show either the budget or the project name — there isn't room for both.
+  > **A) Budget** (recommended — agents said it's the first thing they look for)
+  > **B) Project name**
+  > Which one?
+- If I say "you decide" or "do what's best", then decide, tell me in one line what you chose and why, and carry on.
+- If I don't answer, **stop and wait**. Do not guess and keep building.
+
+**Show me before you finish:**
+- Before you build a screen, describe it in a few lines, or show a rough sketch, and ask if that's what I meant.
+- After each phase, **show me a preview link or screenshots** and ask: *"Is this right, or do you want changes?"* Wait for my OK before the next phase.
+- If something you are about to build does not match the design file, ask instead of guessing.
+
+**Tell me straight away when:**
+- something is not possible, or would be slow, expensive or risky
+- you think my idea has a problem — say so plainly, suggest a better way, and let me decide
+- you found a bug, or you broke something
+- you need something from me (a key, a file, a decision, an account)
+
+**Never do these silently:**
+- do not invent business rules, prices, commission numbers or company details — ask me
+- do not change the design, colours or wording I approved
+- do not remove a feature because it seems unused
+- do not assume how we work in UAE real estate — ask me, I know the business
+
+**At the start of every session:** read this file and `/docs/CHANGELOG.md`, then tell me in 3 lines where we are, what's next, and what you need from me. Then wait.
+
 ## PRODUCT GOAL
 A single CRM that automatically ingests leads from:
 - Meta Lead Ads
@@ -34,7 +79,7 @@ It then:
 - **Frontend:** React + Tailwind, installable PWA, Material-Design look (Google-like, modern icons, clean colour system), fully mobile-friendly. RTL-ready for Arabic.
 - **Push:** Firebase Cloud Messaging.
 - **Messaging:** WhatsApp Cloud API (direct from Meta), SMTP/IMAP email, optional SMS.
-- **AI:** provider-agnostic interface; Gemini or OpenAI via environment config.
+- **AI:** provider-agnostic interface; Gemini or OpenAI via environment config. The assistant is called **Emir AI** everywhere in the CRM.
 - **Background work:** a MySQL `jobs` table polled by cron / worker. Instant actions run in-process right after the webhook responds.
 
 ## LOGIN (email + password only)
@@ -201,6 +246,221 @@ Fallback:
   - appointment_confirm, appointment_reminder, agent_new_lead_alert (Utility)
   - new_launch_alert (Marketing)
 
+
+## PROJECT LIBRARY — OFF-PLAN (part of the CRM launch, build before Sales offers)
+The single source of truth for every off-plan project. Everything else — the pipeline, the AI, the WhatsApp replies and the sales offers — may only quote what is stored here. **Private to the team now; a public website listing is planned for later**, so the visibility switch is built from day one even though the public option stays off.
+
+### Library screen
+- **Cards** with cover photo, project name, developer, community, status pill (Selling now / Coming soon / Sold out), a **Private** badge, price from, unit type, handover, payment plan, units available, and a **Sales offer** button that starts an offer from that project.
+- **Filters:** All · Dubai · Abu Dhabi · Selling now · Coming soon · Our picks (starred). Plus free-text search over project, developer and community.
+- **Add project** (see the wizard below) and **Import** (developer price list as CSV/XLSX, or a PDF the AI reads).
+- Agents can view and build offers; only owner, admin and managers can add, edit or delete a project.
+
+
+### Library extras (must build)
+- **4 KPI cards across the top**, each clickable straight through to that project:
+  1. **Most leads this month** — the project bringing the most leads, with its offers-sent count and a 7-day bar sparkline.
+  2. **Trending now** — biggest week-on-week rise in leads, shown as a percentage. Styled warm so it stands out.
+  3. **Best converting** — highest lead → reservation rate, with the deal count.
+  4. **Available inventory** — total units available and their total value, plus a mini bar list of the top 3 projects by stock.
+  All numbers come from real queries over `opportunities`, `offers` and `units`. Agents see their own numbers; managers their team's; owner/admin everything.
+- **Emir AI search bar** above the filters. Plain-language queries such as "2 bedroom under AED 2M in Dubai", "handover before 2028", "Abu Dhabi waterfront", "Golden Visa eligible", "ready to sell today", "Emaar only". Show suggested example queries as chips. After searching, show a result banner: *"Emir AI found N projects"* plus a chip for every filter it understood (Dubai · Under AED 2M · 2 bedroom) and a **Clear** button. The AI turns the sentence into structured filters over the database — it never invents a project.
+- **Row menu (⋯) on every project card and on the project page:** open, create sales offer, copy project link, edit, duplicate, add/remove from our picks, **archive**, **delete**.
+- **Deleting a project** opens a confirmation panel that states plainly:
+  - what is deleted: the project, its units and prices, payment plans, photos, floor plans and documents;
+  - what stays: the leads (project name kept as text), any sales offers already sent to clients, and Won deals and commissions in Books;
+  - an **Archive instead** option, recommended;
+  - the user must **type the project name** to enable the delete button.
+  Delete and archive are owner/admin only and both are written to `audit_log`.
+
+### Project page — tabs
+1. **Overview** — a stat strip (price from, handover, payment plan, total units, available, our commission, DLD project number, construction %), the description with a **Rewrite with Gemini** button, a construction progress bar, key facts (developer, emirate, community, ownership, escrow, Golden Visa threshold, service charge per sq ft, last price update) and the developer incentives.
+2. **Units & prices** — the full inventory table: unit no., type, floor, internal area, balcony, view, price, price per sq ft, status (Available / On hold / Reserved / Sold). Multi-select rows → **Offer selected**. **Update price list** re-imports from the developer file and shows what changed. This table is the only price source the system may quote.
+3. **Payment plans** — one or more named plans (e.g. Standard 60/40, Post-handover 40/60), each a milestone list with % and due date. Offers may only use a plan listed here.
+4. **Photos & video** — gallery upload plus video links (YouTube/Vimeo), with a 360 tour field.
+5. **Floor plans** — per layout (1BR, 2BR type A/B/C, 3BR, key plan), uploadable and sendable.
+6. **Amenities** — a chip list that can be switched on or off per project, plus custom entries.
+7. **Documents** — a drop zone and a file list: **developer sales offer**, brochure (EN/AR), price list, floor plan pack, master plan, payment plan sheet, RERA/DLD project certificate, commission agreement, SPA template. Each file can be opened or sent on WhatsApp. If a developer sales offer PDF is uploaded here, the offer builder attaches **that file** instead of generating its own sheet.
+8. **Location** — map, coordinates, sales centre details and an editable distances list (airport, downtown, marina, mall, schools, hospital).
+9. **Developer** — legal name, ORN/TRN, escrow bank, track record, and the developer's own contacts (broker relations, inventory, bookings email) with call/WhatsApp/email buttons.
+10. **Commission** — our rate, the value on a sample price, payment terms, agreement date, average days to be paid, default agent split, plus how the project performs (leads, reply rate, viewings, reservations, cost per deal, offers sent). **Visible to owner, admin and managers only — never shown in a client offer.**
+11. **Visibility** — Private (team only) · Specific team only · **Public on the website (built but switched off, marked "coming later")** · Shareable project link that sends the whole project page to a client without building an offer.
+
+### Adding a project — Emir AI does the typing
+The **Add project** flow starts by asking how to begin, because typing a project by hand is the slow way:
+1. **Drop a developer file** (recommended) — sales offer, brochure or price list. Emir AI reads it and fills project name, developer, community, emirate, type, status, handover, DLD number, price from, payment plan, the unit list, amenities and photos. A progress checklist shows what it is reading; each filled field is highlighted and carries a confidence score.
+2. **Paste a link** — the developer's project page or a portal listing; AI pulls the facts and images.
+3. **Type it myself** — a blank form with an Emir AI button beside the fields that benefit.
+
+Nothing is saved until the user confirms. The wizard has 5 steps with a **live project card preview** and a **completeness ring** beside it:
+1. **Basics** — name (with a **duplicate check** button), developer (select, or **New developer** inline), emirate, community, property type, status, handover, DLD/RERA number, ownership, escrow, cover style.
+2. **Prices & units** — price from, payment plan, service charge per sq ft, Golden Visa threshold, plus a drop zone for the price list that AI turns into the unit table. AI flags a price per sq ft that is out of line with the community.
+3. **Description** — **Write with Emir AI** from the entered facts only, with one-tap rewrites (shorter, more luxury, investor, family, Arabic, Russian); **Suggest selling points** (4 short lines for WhatsApp); **Suggest buyer** (best fit, budget band, languages, timeline, plus how many CRM leads match and a "build call list" action); **Generate marketing text** (WhatsApp blurb, Instagram caption, ad headline).
+4. **Media & documents** — photo drop zone where AI names each image and picks the cover, video link, document drop zone (developer sales offer, brochure, price list), and **Detect amenities from the brochure**.
+5. **Commission & visibility** — our commission, default agent split, payment terms, agreement date, then the visibility switches. A final **Emir AI check** confirms no duplicate, handover in the future, price in range, documents attached.
+
+### Developers
+A **Projects | Developers** switch at the top of the library. Each developer card shows logo, head office, ORN, project count, contact count and commission rate. Opening one gives:
+- Legal name, short name, **ORN**, **TRN**, head office, escrow bank.
+- Our commission, payment terms, agreement date, average days to be paid.
+- **Their sales contacts** — name, role, direct mobile/WhatsApp, email, with call, WhatsApp and email buttons. This is where the developer's sales agents' numbers live. Contacts can be added and removed.
+- **Add developer** has an Emir AI button that fills the legal name, ORN, TRN and address from their website for the user to check.
+- Developer contacts and commission terms are visible to owner, admin and managers only, and never appear in a client offer.
+
+### Rules
+- Prices, sizes, plans, handover dates and availability live only here. The AI, the WhatsApp auto-replies and the offer builder read from this table and never invent a figure; a missing field is left blank, not guessed.
+- Every price-list import is versioned, so an offer always records which price version it used.
+- Changing a price or a unit status writes to `audit_log` and flags any open offer that used the old figure.
+- Commission and performance data are hidden from agents and never leave the CRM.
+
+**Tables:** `projects` (name, developer_id, description, buyer_profile, marketing_copy, emirate, community, type, price_from, handover, status, rera_no, escrow, service_charge_sqft, construction_pct, visibility, starred), `units`, `unit_price_versions`, `payment_plans`, `payment_plan_rows`, `project_media`, `project_floorplans`, `project_amenities`, `project_documents`, `project_locations`, `developers` (legal name, short name, ORN, TRN, head office, escrow bank, commission, payment terms), `developer_contacts` (name, role, phone, whatsapp, email), `project_commissions`, `project_imports` (source file, extracted JSON, confidence, confirmed_by).
+
+## SALES OFFERS (part of the CRM launch)
+A builder that turns a lead + a project into one private, branded offer page the client opens on their phone, plus a matching PDF and a ready WhatsApp message. Offers live in a Google-Drive-style library.
+
+**Why it exists:** agents currently send a brochure PDF and lose the thread. An offer page is personal, trackable and holds prices for a deadline, so the agent knows exactly when to call.
+
+### Library (Drive-style)
+- **Folders:** create, rename, drag-and-drop, nest one level (e.g. "Saadiyat Island", "VIP investors", "Templates").
+- **Views:** grid (cover image cards) and list. Search across client name, project, agent and offer title.
+- **Filters:** All · Starred · Opened by client · Drafts · Trash.
+- **Cards show:** cover photo, project, client name, status pill (Draft / Sent / Opened / Reading now), opens count + total time, owner avatar.
+- **Row menu:** open, preview as client, copy private link, send on WhatsApp, download PDF, star, duplicate, rename, move to folder, move to trash.
+- **Trash:** restore or delete forever; auto-purge after 30 days. Only owner/admin can delete forever.
+- **Permissions:** agents see their own offers; managers their team's; owner/admin everything. Templates folder is shared and read-only for agents.
+
+### Builder (5 steps)
+1. **Client** — pick a lead from the CRM (or type a new one), budget shown, unit type, and **offer language** (English / Arabic / Russian / Hindi). The whole offer and the WhatsApp message are written in that language.
+2. **Project & units** — pick a project from the **project library**, then tick the specific units from its inventory (unit no., floor, size, balcony, view, price, status). Attach brochure PDF, floor plans, video link and the project page URL. Prices, handover date and payment plan come from the `projects` table only.
+3. **Content** — AI writes "About this project" with a **Write with Gemini** button, plus one-tap rewrites: Shorter · More luxury · For an investor · For a family. Below it, a reorderable list of sections with on/off switches:
+   - Cover & personal greeting *(always on)*
+   - Photo gallery · About this project · Why it fits you
+   - Prices & availability · **Full cost breakdown** · Floor plans
+   - Payment plan · **Developer incentives** · **Developer sales offer**
+   - Video tour · Location & what is nearby
+   - **Ownership, fees & visa** · **How the purchase works** · **Questions people ask**
+   - About the developer · About the company
+   - Your agent · Message from the CEO · Follow us
+   - Next steps *(always on)*
+4. **Branding & people** — choose who appears: **Me + the agent** (default) · Only the agent · Only me · Company only. Pick which social links show. Pick a cover style.
+5. **Share** — choose what the client gets (both documents, presentation only, or developer sales offer only), private link, price-hold deadline (adds a live countdown to the page), notify-me-on-open toggle, optional phone-number gate, allow client reactions/questions, and an AI-written WhatsApp message. Buttons: Send on WhatsApp · Email it · Download PDF.
+
+A **live phone preview** sits beside every step and updates as sections are toggled.
+
+### Two documents, one offer
+Every offer produces **two views** the agent can send together or separately:
+1. **Client presentation** — the rich, friendly page below.
+2. **Developer sales offer** — the formal offer sheet in the developer's own format (see below).
+A segmented control at the top switches between them. In the builder's Share step the agent chooses: send both, presentation only, or developer sales offer only.
+
+### The client presentation page
+- Own private URL (`/offer/{slug}`), no login, mobile-first, same glass design, RTL for Arabic.
+- **Hero:** cover photo, "Prepared for {client} · {date}", project name, price-hold countdown, and trust badges (DLD escrow protected · Freehold · Golden Visa threshold · construction %).
+- **Quick stats:** price from · size range · handover · payment plan.
+- **Sticky section nav** that scrolls to each part of the page.
+- **Personal greeting** from the agent.
+- **Why I picked these for you** — 3–4 reasons tied to what the client actually said (budget, view, timeline, visa).
+- **The project:** gallery, AI-written description, then a **key-facts grid** — developer, community, ownership, project status, completion, total units, DLD project number, escrow registered. Plus a **construction progress bar** and an **amenities list**.
+- **Units held for you:** a side-by-side **comparison table** (floor, internal area, balcony, view, parking, price, price per sq ft, status) with a heart on each unit and a "See full cost" button that switches the cost section to that unit.
+- **Full cost breakdown** for the selected unit: unit price, price per sq ft, DLD 4%, Oqood, trustee/admin, **total to own it**, plus "cash to start" versus "rest until handover", and a line stating the agency commission is paid by the developer.
+- **Payment plan:** visual timeline plus a table of milestone · % · due date · AED amount, totalled.
+- **Developer incentives:** DLD waiver, free service-charge years, post-handover option — each as a card.
+- **Location:** map plus a distances list (airport, Downtown, Marina, mall, school, hospital).
+- **Floor plan and video.**
+- **Ownership, fees & visa:** yearly service charge (per sq ft × area), cooling/utilities, Golden Visa threshold, mortgage availability, resale-before-handover rules, escrow protection.
+- **How the purchase works:** 6 numbered steps (reserve → SPA → Oqood → milestones → snagging/handover → after handover) and a checklist of documents needed from the buyer.
+- **About the developer** (with track record) **and about the company.**
+- **Your team:** agent and/or CEO cards with photo, role, BRN and contact buttons.
+- **FAQ:** 7 expandable answers, all editable (foreigner ownership, missed instalment, escrow, resale, mortgage, Golden Visa, yearly costs).
+- **Ask-a-question box** that lands in the CRM inbox on that lead.
+- **Follow us** links, then a footer with company legal name, TRN, contacts and a full **disclaimer**: prices, availability, sizes, fees and plan are the developer's and subject to written confirmation; areas approximate; government fees can change; visa eligibility decided by the authority; the page is information, not a contract, and does not replace the SPA or legal advice.
+
+### The developer sales offer (formal sheet)
+A clean, printable A4-style document that mirrors what developers issue, so the client recognises it:
+- **Letterhead:** developer name, address, ORN/TRN, offer reference number, issue date, "issued through {brokerage}", and a **valid-until** stamp.
+- **Prospective purchaser:** name, mobile, email, nationality.
+- **Property:** project, unit number, floor, type, internal area, balcony, view, parking, ownership, anticipated handover.
+- **Price & purchase costs table:** unit price (with price per sq ft), DLD 4%, Oqood, trustee/admin, **total purchase cost**.
+- **Payment schedule table:** # · milestone · % · due · amount, totalled.
+- **Developer incentives** and **escrow & registration** blocks (escrow account, DLD project number, payment method, payable-to).
+- **Terms & conditions:** a numbered list covering validity, not-a-contract, subject-to-confirmation, approximate areas, government fees, payment to escrow only, SPA within 14 days, late-payment consequences, independent advice, commission paid by developer.
+- **Signature blocks** for purchaser and for the issuing brokerage (agent name, BRN, phone).
+- **Footer** repeating the legal identifiers and stating figures must be confirmed in writing before payment.
+- **Actions:** download as PDF, send to client, send for e-signature, start reservation.
+
+Fields are populated from `projects`, `units` and `developers`; anything missing is left blank rather than guessed. If the developer supplies their own offer PDF, it can be uploaded and attached instead, and the generated sheet is skipped.
+
+### Tracking (the part that makes it worth building)
+- Record: opened at, device, city, opens count, total time, **time per section**, units hearted, brochure downloaded, link forwarded (new device on same link), questions asked.
+- Agent gets a push/WhatsApp alert the moment the client opens it, and again on a heart or a question.
+- A **Live tracking** panel per offer shows all of the above plus a one-paragraph AI reading of intent and a recommended next step.
+- Feed "offer opened" and "offer engaged" into the lead score and into Meta CAPI as engagement signals.
+
+### PDF
+Same content as the page, branded with company logo, agent name, photo, BRN, phone and email. Generated server-side. The PDF has no tracking — say so in the UI so agents prefer the link.
+
+### Rules
+- Never invent prices, availability, handover dates, payment plans, floor plan sizes or ROI. Everything numeric comes from the `projects` and `units` tables; if a field is missing, leave the section out rather than guessing.
+- AI writes prose only, and every AI draft is editable before sending. Nothing is sent without the agent pressing send.
+- An offer link can be revoked, and expires automatically a configurable number of days after the hold deadline.
+- Client questions and hearts are personal data: store under the contact, covered by the same consent and PDPL rules.
+- Every create, send, edit and delete is written to `audit_log`.
+
+**Tables:** `offers` (slug, doc_types, contact_id, opportunity_id, project_id, agent_id, language, sections JSON, cover, hold_until, status, folder_id, starred, deleted_at), `offer_units` (unit no., floor, internal area, balcony, view, parking, price, status), `offer_terms`, `developers` (legal name, ORN/TRN, address, escrow bank), `offer_incentives`, `offer_views` (opened_at, device, city, duration, sections JSON), `offer_events` (heart, question, download, forward), `offer_folders`, `offer_templates`.
+
+## EMIR AI IN THE CRM (Gemini) — part of the CRM launch
+An AI layer on top of the CRM, powered by **Google Gemini** through the paid Gemini API. Use the paid tier so client data is not used to train Google's models. Keep it behind the provider-agnostic AI interface, with the API key in `.env` only.
+
+**1. AI lead check (top of the Dashboard):**
+- Refresh every morning and on demand. Show "read X leads, Y messages, Z calls · N min ago" and a Gemini badge.
+- **What's happening:** 3 short points on trends (lead volume and source changes, best project, language or response patterns).
+- **Problems found:** 3 short points on issues, for example:
+  - junk-lead rate by form or ad set
+  - slow agents
+  - hot leads not called
+  - stuck deals
+  - template failures
+- **Do this today:** 3–5 numbered actions, each with a button that opens the right list or screen, drafts a rule for approval, or asks Emir AI "why".
+- **Grounding:** every number must come from real database queries. Gemini writes the wording only, and never invents numbers.
+
+**2. AI lead quality check (every lead):**
+- **Verdicts:** 🔥 Hot / Good / Weak / Junk, each with a one-line "why" and a "best next step".
+- **Signals used:**
+  - valid phone and name, duplicate or spam patterns (same IP or number reused)
+  - budget vs the project's real prices, timeline
+  - WhatsApp reply speed and wording (intent), brochure opens, call outcomes
+  - source quality history
+- **Where verdicts show:**
+  - on the pipeline card and Contact 360
+  - in a dashboard table with filter chips and counts
+  - in smart-list filters
+- **What a verdict can change:**
+  - the lead score (0–100)
+  - "Junk" suggests "Mark invalid", which the agent confirms; the AI never deletes or closes anything itself
+- **Re-scoring:** re-score when new messages, calls or stage changes arrive.
+- **Feedback loop:** feed confirmed Junk/Valid back into Meta CAPI lead-quality events (valid_lead / invalid).
+
+**3. "Ask Emir AI" button (floating, bottom-right on every CRM screen):**
+- A chat that understands the whole CRM: leads, pipeline, WhatsApp and email threads, calls, tasks, campaigns, agents, projects and sources.
+- **Example questions:**
+  - "Which leads should I call first?"
+  - "Why so many junk leads?"
+  - "Which campaign works best?"
+  - "How is Raj doing?"
+  - "What should we do today?"
+  - "Summarise Ahmed Khan's chat"
+- **How it works:** Gemini function-calling over **read-only**, permission-checked tools (search_leads, get_lead, get_pipeline_stats, get_source_quality, get_agent_stats, get_conversation, get_campaign_stats).
+- **Permissions:** answers respect the user's role. Agents only get data about their own leads, managers their team, owner/admin everything.
+- **Actions:** it can **suggest** actions and create drafts (call list, routing rule, message draft), but every change needs a human click to confirm.
+- **Answers:**
+  - English and Arabic
+  - include links to the leads or lists they mention
+  - say "I don't know" rather than guess
+  - never invent prices, availability or payment plans (projects table only)
+- **Logging:** log every AI request (user, tools called, tokens), with a monthly cost cap set in Settings.
+- **Emir Books:** it has its own separate "Ask Books" assistant (see Emir Books); the two share code but not permissions.
+
+**Tables:** `ai_insights` (daily snapshots), `lead_ai_scores` (verdict, reasons, next step, model, version, scored_at), `ai_conversations`, `ai_messages`, `ai_usage`.
 
 ## BULK IMPORT, LISTS & TEAM ASSIGNMENT (part of the CRM launch)
 
@@ -485,10 +745,12 @@ Salaries are visible only to the owner and the accountant.
 - Every data-changing action writes to `audit_log`, with actor, role, before and after.
 - Posted invoices, payments and ledger entries are never edited or deleted. Corrections are made with credit notes or reversing entries.
 - Only the owner or admin can export or bulk-delete. Every such action is logged.
-- If a requirement is ambiguous or an action is destructive (schema drop, data migration, bulk message), stop and ask the owner first.
+- If a requirement is ambiguous or an action is destructive (schema drop, data migration, bulk message, deployment, spending money), **stop and ask the owner first** — see ASK ME FIRST at the top of this file.
+- When unsure about anything at all, ask. Never guess and never silently assume.
 
 ## HOW TO WORK
-1. **Plan first:** before each phase, write a short plan listing files, tables and endpoints, and wait for approval on big changes.
+0. **Ask first.** Re-read the "ASK ME FIRST" section above before every phase. Questions in plain English, options with a recommendation, then wait for my answer.
+1. **Plan first:** before each phase, write a short plan in plain English (what you will build, what it will look like, what could go wrong), ask me anything you are unsure about, and **wait for my OK**. No code before I approve.
 2. **Build in this order:**
    1. Foundation: auth, roles, schema, audit
    2. Ingestion and dedup
@@ -497,8 +759,10 @@ Salaries are visible only to the owner and the accountant.
    5. Workflow engine and workflows A/B/C, round-robin, SLA, push
    6. Unified inbox
    7. CAPI / Google feedback, scoring, AI, reports
-   8. Emir Books app: ledger & settings → invoices & commissions → AI inbox & expenses → payroll → payouts → office & rent → marketing spend → banking → VAT & reports → automations → AI copilot & Ask Books
-   9. Hardening
+   8. Project library: projects, units & price versions, plans, media, documents, developers, commission, visibility
+   9. Sales offers: library, builder, client page, tracking, PDF
+   10. Emir Books app: ledger & settings → invoices & commissions → AI inbox & expenses → payroll → payouts → office & rent → marketing spend → banking → VAT & reports → automations → AI copilot & Ask Books
+   11. Hardening
 3. **Test as you go:**
    - Unit tests for normalization, identity resolution, round-robin and intent matching.
    - Replay tests using the sample webhook payloads in `/fixtures`.
@@ -510,4 +774,5 @@ Salaries are visible only to the owner and the accountant.
    - `README` and `.env.example` updated.
    - A short changelog entry written in `/docs/CHANGELOG.md`.
 5. **Keep docs current:** `/docs/ARCHITECTURE.md`, `/docs/WEBHOOKS.md` (with sample payloads), `/docs/WORKFLOWS.md`.
-6. **Report after each phase:** what was built, what still needs owner action (Meta app review, template approval, DNS/SMTP), and any risks found.
+6. **Report after each phase, in plain English:** what was built, a preview link or screenshots so I can see it, what still needs me (Meta app review, template approval, DNS/SMTP, keys, decisions), and any risks you found. End every report with: **"Is this right, or do you want changes?"** and wait.
+7. **Never say a phase is done** until I have seen it and said OK.
