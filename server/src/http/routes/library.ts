@@ -32,6 +32,7 @@ import { writeAudit } from '../../audit/audit.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
 import { extractProject } from '../../ai/extract-project.js';
+import { extractDeveloper } from '../../ai/extract-developer.js';
 
 export const libraryRouter = Router();
 libraryRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -40,6 +41,14 @@ libraryRouter.use(requireAuth, blockUntilPasswordChanged);
 function canSeeCommercials(role: string): boolean {
   return role === 'owner' || role === 'admin' || role === 'manager';
 }
+
+/** Reading a document is the most expensive call the CRM makes, so it is bounded. */
+const extractLimit = rateLimit({
+  max: 20,
+  windowMs: 15 * 60 * 1000,
+  keyFor: (req) => `project-extract:${currentUser(req).id}`,
+  message: 'Too many documents read in a short time. Please wait a few minutes.',
+});
 
 /* ── Developers ─────────────────────────────────────────────────────────── */
 
@@ -113,6 +122,34 @@ libraryRouter.delete(
   asyncHandler(async (req: Request, res: Response) => {
     await deleteDeveloper(actorFrom(req), String(req.params.id));
     res.json({ ok: true });
+  }),
+);
+
+/**
+ * Emir AI looks a developer up from their website or name.
+ *
+ * Rate-limited with the document reader rather than separately: both cost
+ * money per call and both are pressed from the same two screens.
+ */
+libraryRouter.post(
+  '/developers/lookup',
+  extractLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const body = z.object({ query: z.string().trim().min(2).max(255) }).parse(req.body);
+    const result = await extractDeveloper(body.query, user.id);
+
+    // A read, not a write — nothing is stored until a person presses save.
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'developer.ai_lookup',
+      entityType: 'developer',
+      entityId: null,
+      after: { query: body.query, model: result.model, filled: result.filled.length },
+    });
+
+    res.json(result);
   }),
 );
 
@@ -192,14 +229,6 @@ libraryRouter.get(
 );
 
 /* ── Emir AI reads a developer file ─────────────────────────────────────── */
-
-/** Reading a document is the most expensive call the CRM makes, so it is bounded. */
-const extractLimit = rateLimit({
-  max: 20,
-  windowMs: 15 * 60 * 1000,
-  keyFor: (req) => `project-extract:${currentUser(req).id}`,
-  message: 'Too many documents read in a short time. Please wait a few minutes.',
-});
 
 const EXTRACT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 

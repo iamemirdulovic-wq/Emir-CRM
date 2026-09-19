@@ -2,6 +2,44 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Developers — who we sell for, and who to ring
+
+The Add-project screen had an empty Developer dropdown, because there was no way in the CRM to add
+a developer. The server side had been there all along — seven endpoints, nothing to open them with.
+
+**Built**
+- A **Projects | Developers** switch on the library toolbar, as the design draws it.
+- A grid of **developer cards**: logo, name, head office, ORN, project and contact counts, and the
+  commission rate on the right. Plus an **Add developer** card at the end.
+- A **drawer** for each: legal name, short name, ORN, TRN, head office, escrow bank, website, our
+  commission, payment terms, track record — and **their sales contacts** underneath, each with
+  call, WhatsApp and email buttons that actually dial, open WhatsApp and open mail.
+- **Add developer starts with Emir AI**: type `emaar.com`, press the sparkle, and it fills the
+  legal name, ORN, TRN, head office, escrow bank and track record, each with a confidence chip.
+  It is told to leave a field null rather than guess — an invented ORN goes onto an offer sheet a
+  buyer reads.
+
+**Who sees what**
+Commission and payment terms are stripped by the server for an agent's role, so the block simply
+is not there for them. The contacts stay — an agent needs the bookings desk to hold a unit. The
+note under them says it plainly: these numbers never appear in a client offer.
+
+**Caught before it shipped**
+The drawer sends every field it holds, and `draftFrom` was reading the track record as an empty
+string. Opening any developer and pressing Save, changing nothing, would have erased it. Fixed,
+and pinned down by a round-trip test that loads a stored developer, saves it back unchanged and
+asserts nothing is lost — proved by reverting the fix and watching the test fail.
+
+Also: a commission stored as `4.00` now reads `4`, the way a person writes it.
+
+**Verified** in a browser: seeded three developers through the real API, opened one, added a
+fourth with the lookup stubbed, and confirmed over the API that editing one field leaves the
+track record intact. 756 server tests (7 new for the lookup), 102 web tests (5 new for the
+round-trip).
+
+**Needs the owner**: the sparkle button needs the Gemini key connected in Settings → Emir AI.
+Everything else on this screen works without it.
+
 ## Add a project the way the design draws it — Emir AI reads the developer's file
 
 Adding a project was a flat form with eighteen boxes. The design opens with a question instead —

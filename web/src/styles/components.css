@@ -770,3 +770,27 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .sof-bar .crumb{font-size:15px}
 .sof-bar .right{margin-inline-start:auto;display:flex;gap:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* For an icon that turns while something is in flight. */
+.spin{animation:spin .8s linear infinite}
+
+/* ── Developers ─────────────────────────────────────────────────────────── */
+.dev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.devcard{display:flex;align-items:center;gap:13px;padding:14px;border-radius:18px;background:var(--glass-strong);border:1px solid var(--glass-line);box-shadow:var(--shadow);cursor:pointer;transition:transform .15s var(--ease);animation:pop .35s var(--ease) both}
+.devcard:hover{transform:translateY(-2px)}
+.devcard .lg{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-weight:700;font-size:17px;color:#fff;flex-shrink:0}
+.devcard b{display:block;font-size:14.5px;letter-spacing:-.01em}
+.devcard small{color:var(--ink-3);font-size:12px}
+.devcard .st2{margin-left:auto;text-align:right;font-size:12px;color:var(--ink-3)}
+.devcard .st2 b{font-size:15px;color:var(--ink)}
+.ctc{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.ctc b{display:block}
+.ctc small{font-size:12px}
+.acts2{margin-left:auto;display:flex;gap:6px}
+.acts2 .icon-btn{width:30px;height:30px}
+.acts2 .icon-btn svg{width:15px;height:15px}
+.wand{border:0;border-radius:10px;width:40px;height:43px;display:grid;place-items:center;background:linear-gradient(135deg,#4F8DF7,#A57CF3 55%,#E7707E);color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(120,110,230,.3)}
+.wand:disabled{opacity:.5;box-shadow:none}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fieldrow{display:flex;gap:8px;align-items:flex-end}
+.fieldrow .field{flex:1;margin-bottom:0}
+@media (max-width:560px){.two{grid-template-columns:1fr}}

@@ -608,6 +608,7 @@ export type DeveloperRow = {
   head_office: string | null;
   escrow_bank: string | null;
   website: string | null;
+  track_record: string | null;
   /** Absent for agents — the server strips it. */
   commission_pct?: string | null;
   payment_terms?: string | null;
