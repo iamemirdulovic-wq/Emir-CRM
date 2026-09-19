@@ -4,6 +4,7 @@ import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { formatAed, humanize } from '../lib/format.js';
 import { useShellSearch } from '../components/Layout.js';
+import { AddProject } from '../components/AddProject.js';
 import { ProjectModal } from '../components/ProjectModal.js';
 import { ProjectDetail } from '../components/ProjectDetail.js';
 import type { DeveloperRow, LibraryCard, LibraryStats, SaleStatus } from '../lib/types.js';
@@ -100,6 +101,27 @@ export function Library() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /*
+   * Adding takes the whole screen rather than a dialog: the design opens with
+   * "How do you want to start?", and the reading panel and the live card do
+   * not fit in a modal.
+   */
+  if (adding) {
+    return (
+      <AddProject
+        developers={developers.data?.items ?? []}
+        onCancel={() => setAdding(false)}
+        onDone={(id) => {
+          setAdding(false);
+          toast('Project added');
+          list.reload();
+          stats.reload();
+          setOpenId(id);
+        }}
+      />
+    );
   }
 
   if (openId) {
@@ -257,18 +279,18 @@ export function Library() {
         </div>
       </Panel>
 
+      {/* Editing stays a dialog — the wizard is for a project that does not
+          exist yet. */}
       <ProjectModal
-        open={adding || editing !== null}
+        open={editing !== null}
         project={editing}
         developers={developers.data?.items ?? []}
-        onClose={() => { setAdding(false); setEditing(null); }}
-        onSaved={(id) => {
-          setAdding(false);
+        onClose={() => setEditing(null)}
+        onSaved={() => {
           setEditing(null);
           toast('Project saved');
           list.reload();
           stats.reload();
-          if (!editing) setOpenId(id);
         }}
       />
 

@@ -25,7 +25,9 @@
 .login-form h1{font-size:28px;margin:0 0 6px;letter-spacing:-.03em}
 .login-form .sub{color:var(--ink-2);margin:0 0 26px}
 .field{display:block;margin-bottom:14px}
-.field span{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--ink-2)}
+/* Direct child, not any descendant: the design's `.field span` also caught a
+   chip sitting inside the label and laid it out as a full-width block. */
+.field>span{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--ink-2)}
 .input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);outline:none;transition:box-shadow .15s,border-color .15s}
 .input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
 .row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -422,7 +424,12 @@ th.money{text-align:right}
 .inv-calc{margin-top:6px;padding:14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--glass-line)}
 .inv-calc .kv:last-child b{font-size:18px;color:var(--primary)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.rowbtn{background:none;border:0;color:var(--primary);font-weight:600;font-size:12.5px;padding:0}
+/* inline-flex is ours, not the design's: the design never puts an icon in a
+   rowbtn, and without it the glyph sits flush against the label. */
+.rowbtn{background:none;border:0;color:var(--primary);font-weight:600;font-size:12.5px;padding:0;
+  display:inline-flex;align-items:center;gap:6px}
+.rowbtn svg{width:13px;height:13px}
+.rowbtn:disabled{opacity:.5}
 tbody tr{transition:background .15s}
 tbody tr:hover{background:var(--surface-2)}
 .flash{animation:flash 1.4s ease}
@@ -697,3 +704,69 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .ai-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
 .ai-row .btn{margin-inline-start:auto}
 @media (max-width:520px){.ai-row .btn{margin-inline-start:0;width:100%}}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ADD PROJECT WIZARD
+   Lifted from design/emir-crm-design-v2.html so the built screen and the
+   approved one are the same thing rather than an approximation of it.
+   ───────────────────────────────────────────────────────────────────────── */
+.orb{width:46px;height:46px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 30% 30%,#fff 0%,color-mix(in srgb,var(--primary) 60%,#fff) 35%,var(--primary) 75%);box-shadow:0 0 0 6px var(--primary-soft),0 8px 24px color-mix(in srgb,var(--primary) 40%,transparent);animation:orb 4s ease-in-out infinite}
+@keyframes orb{50%{transform:scale(1.06);box-shadow:0 0 0 10px var(--primary-soft),0 10px 30px color-mix(in srgb,var(--primary) 45%,transparent)}}
+.close-list{display:grid;gap:6px}
+.close-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;transition:background .3s}
+.close-item .ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;flex-shrink:0;transition:all .3s}
+.close-item .ck svg{width:13px;height:13px;opacity:0;color:#fff}
+.close-item.ok .ck{background:var(--s-won);border-color:var(--s-won)}
+.close-item.ok .ck svg{opacity:1}
+.close-item.warn .ck{border-color:var(--hot);background:rgba(232,121,79,.15)}
+.close-item.run .ck{border-color:var(--primary);border-top-color:transparent;animation:spin .7s linear infinite}
+.close-item small{margin-left:auto;color:var(--ink-3)}
+.close-item.warn small{color:var(--hot);font-weight:600}
+.ai-head{display:flex;align-items:center;gap:12px;width:100%}
+.ai-head small{display:block;color:var(--ink-3);font-size:12px;font-weight:500}
+.gem{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--ink-3);padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface-2);margin-left:auto}
+.gem i{width:10px;height:10px;border-radius:2px;transform:rotate(45deg);background:linear-gradient(135deg,#4F8DF7,#A57CF3,#E7707E)}
+.steps2{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--surface-2);border:1px solid var(--glass-line);overflow-x:auto}
+.steps2 button{border:0;background:none;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-3);white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.steps2 button .n{width:19px;height:19px;border-radius:50%;background:var(--line);color:var(--ink-3);font-size:11px;display:grid;place-items:center;font-weight:700}
+.steps2 button.on{background:var(--glass-strong);color:var(--ink);box-shadow:0 1px 6px rgba(15,50,90,.1)}
+.steps2 button.on .n{background:var(--primary);color:#fff}
+.steps2 button.done .n{background:var(--s-won);color:#fff}
+.startgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.startcard{padding:20px;border-radius:20px;background:var(--glass-strong);border:1px solid var(--glass-line);box-shadow:var(--shadow);cursor:pointer;transition:transform .15s var(--ease),box-shadow .15s;text-align:left}
+.startcard:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,50,90,.16)}
+.startcard.hero{border-color:color-mix(in srgb,var(--primary) 45%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 13%,transparent),transparent 65%),var(--glass-strong)}
+.startcard .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);margin-bottom:12px}
+.startcard.hero .ic{background:linear-gradient(135deg,#4F8DF7,#A57CF3 55%,#E7707E);color:#fff}
+.startcard .ic svg{width:21px;height:21px}
+.startcard b{display:block;font-size:15px;letter-spacing:-.01em}
+.startcard p{margin:5px 0 0;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.startcard .tag{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:10.5px;font-weight:700;color:var(--primary);background:var(--primary-soft);padding:3px 9px;border-radius:99px}
+.filled{animation:flash 1.6s ease}
+.aihint{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 10%,transparent),transparent),var(--surface-2);border:1px solid color-mix(in srgb,var(--primary) 25%,transparent);border-radius:12px;padding:10px 12px;margin-top:8px}
+.aihint svg{width:15px;height:15px;color:var(--primary);flex-shrink:0;margin-top:1px}
+.aihint b{color:var(--ink)}
+.aihint .rowbtn{margin-left:auto;white-space:nowrap}
+.aisearch .orb{width:32px;height:32px;box-shadow:0 0 0 4px var(--primary-soft);animation:none}
+/* The completeness ring beside the live card. */
+.ring{width:84px;height:84px;margin:0 auto 10px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:8;stroke-linecap:round}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--primary);transition:stroke-dasharray .5s var(--ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:17px}
+/* A field Emir AI filled, so the eye goes to what needs checking. */
+.input.filled{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,transparent),transparent),var(--surface-2);
+  border-color:color-mix(in srgb,var(--primary) 35%,transparent)}
+.conf{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;margin-inline-start:6px}
+.conf.hi{color:#2E9E6A;background:rgba(93,187,143,.14)}
+.conf.mid{color:#B7852F;background:rgba(196,161,114,.16)}
+.conf.lo{color:var(--hot);background:rgba(232,121,79,.14)}
+/* The step body and the live preview beside it. */
+.npgrid{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
+@media (max-width:1000px){.npgrid{grid-template-columns:1fr}}
+.sof-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sof-bar .crumb{font-size:15px}
+.sof-bar .right{margin-inline-start:auto;display:flex;gap:8px}
+@keyframes spin{to{transform:rotate(360deg)}}

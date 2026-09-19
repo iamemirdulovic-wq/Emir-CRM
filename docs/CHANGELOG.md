@@ -2,6 +2,61 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Add a project the way the design draws it — Emir AI reads the developer's file
+
+Adding a project was a flat form with eighteen boxes. The design opens with a question instead —
+*"How do you want to start?"* — because typing a project by hand is the slow way, and the slow way
+is why a project library stays empty.
+
+**Built**
+- **The start screen**: three cards — *Drop a developer file* (marked Fastest), *Paste a link*,
+  *Type it myself*. Ported from the design markup rather than approximated.
+- **Emir AI reads the document**: drop a sales offer, brochure or price list and Gemini fills the
+  name, developer, community, emirate, status, handover, DLD number, price from, payment plan,
+  service charge, description, amenities, the **unit list** and the **payment milestones**. The
+  reading panel ticks through a six-row checklist while it works.
+- **The five steps** — Basics · Prices & units · Description · Media & documents · Commission &
+  visibility — with a **live project card** and a **completeness ring** beside them.
+- Every field Emir AI touched is **highlighted** and carries a **confidence chip**: green above
+  85%, amber to 60%, orange below. The eye goes to what needs checking.
+- **Check for duplicates** beside the project name, as the spec asks. Two rows for the same tower
+  is how a library stops being the single source of truth.
+- Units, the payment plan and the amenities are saved with the project, and the price list is
+  versioned like any other import.
+
+**The rule that shaped it**
+Nothing is saved until a person presses the button, and the model is told — repeatedly — to return
+null rather than guess. A guessed handover date or price goes out to a buyer over WhatsApp with
+the brokerage's name on it. The project also saves **unverified**, so the auto-replies will not
+quote it until someone has read the figures and pressed Verify.
+
+**Fixed along the way**
+- `safeParse` claimed in its own comment to drop a bad field rather than fail the lot. It did not:
+  zod fails the whole object on one bad key, so a model answering `"emirate": "riyadh"` would have
+  taken a forty-row price list down with it. It now validates key by key.
+- What Gemini returns is now shaped to what the import endpoints accept — whole numbers, trimmed
+  strings, the same length caps. A price of `1790000.4` or a fifty-character floor label used to
+  pass extraction and be rejected at import, losing the units the agent had just watched it read.
+- Rows the model could not name (a unit with no number, a blank amenity) are dropped; the rest of
+  the list survives.
+- `.field span` in the design also matched a chip nested inside a label and laid it out as a
+  full-width block. Scoped to `.field>span`.
+- A pre-existing test, `offers no key when the host already has one`, depended on whether
+  `ENCRYPTION_KEY` happened to be in the shell that ran the suite. It now arranges its own
+  precondition.
+
+**Verified** in a browser end to end with the model stubbed — read a file, watched the checklist
+run, saw 16 fields highlighted with their scores, saved, and confirmed in MySQL that the project,
+2 units, a 3-milestone plan, 4 amenities, a price version and 4 audit rows all landed.
+749 server tests (10 new for the extraction), 97 web tests.
+
+**Still to build in the library**: the 7 remaining project tabs (photos, floor plans, amenities,
+documents, location, developer, visibility), the Developers screen, the Projects | Developers
+switch, the Emir AI search bar and the row menu.
+
+**Needs the owner**: the Gemini key must be connected in Settings → Emir AI for the file and link
+buttons to work; without it they say so rather than failing quietly.
+
 ## The CRM looks after its own encryption key
 
 Pressing Connect on the AI screen sent the owner back to the hosting panel to add an

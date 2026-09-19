@@ -68,8 +68,16 @@ describeWithDb('first-run setup', () => {
   });
 
   it('offers no key when the host already has one', async () => {
-    const body = await readJson<SetupStatus>(await fetch(`${base}/api/setup/status`));
-    expect(body.suggestedEncryptionKey).toBeUndefined();
+    // Arranged rather than assumed: whether ENCRYPTION_KEY happens to be in the
+    // shell that ran the suite is not what this test is about.
+    const configured = loadEnv(process.env);
+    setEnvForTesting({ ...configured, ENCRYPTION_KEY: 'f'.repeat(64) });
+    try {
+      const body = await readJson<SetupStatus>(await fetch(`${base}/api/setup/status`));
+      expect(body.suggestedEncryptionKey).toBeUndefined();
+    } finally {
+      setEnvForTesting(configured);
+    }
   });
 
   it('creates the owner, lowercases the email, and signs them straight in', async () => {

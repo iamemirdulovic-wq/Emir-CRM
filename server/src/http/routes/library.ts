@@ -30,6 +30,8 @@ import {
 import { query, queryOne, execute } from '../../db/client.js';
 import { writeAudit } from '../../audit/audit.js';
 import { newId } from '../../lib/ids.js';
+import { badRequest } from '../../lib/errors.js';
+import { extractProject } from '../../ai/extract-project.js';
 
 export const libraryRouter = Router();
 libraryRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -186,6 +188,86 @@ libraryRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const name = String(req.query.name ?? '');
     res.json({ items: await findSimilarProjects(name) });
+  }),
+);
+
+/* ── Emir AI reads a developer file ─────────────────────────────────────── */
+
+/** Reading a document is the most expensive call the CRM makes, so it is bounded. */
+const extractLimit = rateLimit({
+  max: 20,
+  windowMs: 15 * 60 * 1000,
+  keyFor: (req) => `project-extract:${currentUser(req).id}`,
+  message: 'Too many documents read in a short time. Please wait a few minutes.',
+});
+
+const EXTRACT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Drop a developer file, get the project back as fields.
+ *
+ * Nothing is written. The reply is a suggestion the wizard shows with
+ * confidence scores, and the owner presses the button — which is why this is a
+ * POST that creates nothing and why the audit entry records a read, not a
+ * change.
+ */
+libraryRouter.post(
+  '/extract/file',
+  extractLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const contentType = (req.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    if (!EXTRACT_TYPES.includes(contentType)) {
+      throw badRequest(`${contentType || 'That file'} cannot be read. PDF or an image of the page.`);
+    }
+
+    // 20 MB: a brochure with photographs, and no more.
+    const limit = 20 * 1024 * 1024;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > limit) throw badRequest('That file is larger than 20 MB. Send the price list or the offer rather than the full brochure.');
+      chunks.push(chunk as Buffer);
+    }
+    if (size === 0) throw badRequest('That file is empty');
+
+    const filename = decodeURIComponent(String(req.get('x-filename') ?? 'document')).slice(0, 255);
+    const result = await extractProject(
+      { kind: 'file', data: Buffer.concat(chunks), mimeType: contentType, filename },
+      user.id,
+    );
+
+    // What was read, not what was written — nothing was.
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'project.ai_read_document',
+      entityType: 'project',
+      entityId: null,
+      after: { filename, model: result.model, filled: result.filled.length },
+    });
+
+    res.json(result);
+  }),
+);
+
+libraryRouter.post(
+  '/extract/link',
+  extractLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const body = z.object({ url: z.string().trim().url().max(2048) }).parse(req.body);
+    const result = await extractProject({ kind: 'link', url: body.url }, user.id);
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'project.ai_read_link',
+      entityType: 'project',
+      entityId: null,
+      after: { url: body.url, model: result.model, filled: result.filled.length },
+    });
+    res.json(result);
   }),
 );
 
