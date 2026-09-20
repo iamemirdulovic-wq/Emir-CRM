@@ -42,9 +42,18 @@ export type LibraryCard = {
   units_total: number;
 };
 
+/*
+ * `cover_photo_id` is the photo marked as the cover, so a project whose picture
+ * was uploaded rather than linked still has one on its card. Without it the
+ * card fell back to a plain gradient and the upload looked like it had done
+ * nothing.
+ */
 const CARD_COLUMNS = `p.id, p.slug, p.name, p.developer, p.developer_id, p.emirate, p.community,
   p.property_type, p.sale_status, p.starting_price_aed, p.handover_date, p.payment_plan,
-  p.image_url, p.visibility, p.starred, p.verified_at, p.archived_at`;
+  p.image_url, p.visibility, p.starred, p.verified_at, p.archived_at,
+  (SELECT m.id FROM project_media m
+    WHERE m.project_id = p.id AND m.kind = 'photo' AND m.storage_path IS NOT NULL
+    ORDER BY m.is_cover DESC, m.sort_order ASC, m.created_at ASC LIMIT 1) AS cover_photo_id`;
 
 export type LibraryFilters = {
   emirate?: string;

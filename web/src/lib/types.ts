@@ -551,6 +551,8 @@ export type UnitStatus = 'available' | 'on_hold' | 'reserved' | 'sold';
 export type Visibility = 'private' | 'team' | 'public';
 
 export type LibraryCard = {
+  /** The uploaded cover, used when no image_url was typed in. */
+  cover_photo_id?: string | null;
   id: string;
   slug: string;
   name: string;

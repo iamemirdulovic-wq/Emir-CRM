@@ -228,7 +228,7 @@ export function Library() {
             <article className="proj-card" key={card.id}>
               <div
                 className="proj-cover"
-                style={card.image_url ? { backgroundImage: `url(${card.image_url})` } : undefined}
+                style={coverOf(card) ? { backgroundImage: `url(${coverOf(card)})` } : undefined}
               >
                 <div className="proj-badges">
                   <span className={STATUS_PILL[card.sale_status]}>{STATUS_LABEL[card.sale_status]}</span>
@@ -349,6 +349,18 @@ export function Library() {
       </Modal>
     </>
   );
+}
+
+/**
+ * A project's picture: whatever was typed in, or the photo marked as the cover.
+ *
+ * Uploading a cover used to leave the card showing a plain gradient, because
+ * only `image_url` was ever read — which made the upload look like it had done
+ * nothing at all.
+ */
+export function coverOf(card: { image_url: string | null; cover_photo_id?: string | null }): string | null {
+  if (card.image_url) return card.image_url;
+  return card.cover_photo_id ? `/api/library/photos/${card.cover_photo_id}` : null;
 }
 
 function Kpi({ label, value, sub, icon, warm }: {

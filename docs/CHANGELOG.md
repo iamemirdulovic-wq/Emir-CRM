@@ -2,6 +2,50 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Emir AI takes the photographs out of the brochure too
+
+Dropping a 40-page brochure filled in the name, the prices and the payment plan — and left every
+render inside the PDF. The owner still had a project card with no photograph on it.
+
+**The pictures now come out with the words.** A JPEG inside a PDF is stored with no transformation
+at all: `/Filter /DCTDecode` means the bytes between `stream` and `endstream` *are* a complete JPEG
+file. Finding those and copying them out is the whole of it — **no new dependency**, which is the
+owner's call to make and was not needed here. They arrive in the wizard as ordinary photos:
+previewed, removable, uploaded with the project, first one the cover.
+
+What it deliberately does not do is decode FlateDecode, JPX or CCITT images, which need real
+reconstruction, or a logo drawn as vector artwork. Neither is worth a dependency for a brochure.
+Repeated images (a logo on every page), banners, rules and icons are filtered out by shape and by
+fingerprint.
+
+## The uploaded cover now actually appears
+
+The project card read only `image_url` — the box you paste a link into. A cover *uploaded* through
+the new photo drop zone was stored, marked as the cover, shown on the project page, and then
+ignored by the card, which fell back to a plain gradient. It looked exactly like the upload had
+done nothing. The card now takes the uploaded cover when no link was typed.
+
+## "Write with Emir AI" on the description
+
+The spec has had it since the beginning and it was never built: the Description step was a plain
+box. There is now a **Write with Emir AI** button and the one-tap rewrites — Shorter, More luxury,
+For an investor, For a family.
+
+It is given the facts already on the form **and nothing else**, because a description is the one
+place a model will happily invent a beach, a school and a metro stop. It is also told outright
+never to state or imply a return, a yield or a rental figure — that is regulated in the UAE and the
+brokerage carries the liability. Too few facts and it refuses rather than filling the gap itself.
+
+## Also
+
+- The Photos and Documents panels sat flush against each other; they now have the gap the rest of
+  the app has.
+- The PDF scanner was including the newline before `endstream` in the extracted image. It now uses
+  the stream's declared `/Length`, and trims the separator when there isn't one.
+
+865 server tests (12 new for the PDF scanner), 102 web tests. Verified on a running server: the
+card renders its uploaded cover, and the two panels have room between them.
+
 ## Why the Gemini key kept disconnecting — and the photos that were going with it
 
 Every deploy, Emir AI was disconnected again. The cause was one word in a default path.

@@ -40,6 +40,7 @@ import {
 import { env } from '../../config/env.js';
 import { contentDisposition, decodeFilename } from './tasks.js';
 import { extractDeveloper } from '../../ai/extract-developer.js';
+import { describeProject, REWRITE_TONES } from '../../ai/describe-project.js';
 
 export const libraryRouter = Router();
 libraryRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -310,6 +311,48 @@ libraryRouter.post(
       after: { url: body.url, model: result.model, filled: result.filled.length },
     });
     res.json(result);
+  }),
+);
+
+/**
+ * Emir AI writes the project's description from the facts already entered.
+ *
+ * Grounded on purpose: it is given only what is on the form, and told to use
+ * nothing else. A description is the one place a model will happily invent a
+ * beach, a school and a metro stop — and that text goes to a buyer with the
+ * brokerage's name on it.
+ */
+libraryRouter.post(
+  '/describe',
+  extractLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const body = z.object({
+      name: z.string().trim().min(1).max(160),
+      developer: z.string().trim().max(160).nullable().optional(),
+      emirate: z.string().trim().max(40).nullable().optional(),
+      community: z.string().trim().max(160).nullable().optional(),
+      propertyType: z.string().trim().max(40).nullable().optional(),
+      handoverDate: z.string().trim().max(48).nullable().optional(),
+      startingPriceAed: z.number().nullable().optional(),
+      paymentPlan: z.string().trim().max(255).nullable().optional(),
+      amenities: z.array(z.string().max(120)).max(60).optional(),
+      tone: z.enum(REWRITE_TONES).default('plain'),
+      language: z.enum(['en', 'ar']).default('en'),
+    }).parse(req.body);
+
+    const description = await describeProject(body, user.id);
+
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'project.ai_described',
+      entityType: 'project',
+      entityId: null,
+      after: { name: body.name, tone: body.tone, chars: description.length },
+    });
+
+    res.json({ description });
   }),
 );
 

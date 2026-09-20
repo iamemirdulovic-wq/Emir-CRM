@@ -24,6 +24,7 @@ import { setting, secret } from '../config/secrets.js';
 import { cachedModels, GEMINI_INLINE_LIMIT_BYTES, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
 import { fetchPage } from './fetch-page.js';
+import { extractPdfImages, usefulImages } from './pdf-images.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -132,6 +133,8 @@ export type ExtractResult = {
   model: string;
   /** Pictures found on the page, for the wizard to offer as the cover. */
   images?: string[];
+  /** Photographs lifted out of the PDF, as data URLs the wizard can show. */
+  pdfImages?: { dataUrl: string; width: number | null; height: number | null }[];
 };
 
 /**
@@ -186,7 +189,16 @@ export async function extractProject(
 
   const parts: Record<string, unknown>[] = [];
   let page: Awaited<ReturnType<typeof fetchPage>> | null = null;
+  let pdfImages: ReturnType<typeof usefulImages> = [];
   if (input.kind === 'file') {
+    /*
+     * The brochure's own photographs, taken out before it is sent. Gemini
+     * reads the words; the renders are in the file already and do not need a
+     * model to find them.
+     */
+    if (input.mimeType === 'application/pdf') {
+      pdfImages = usefulImages(extractPdfImages(input.data));
+    }
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {
@@ -231,7 +243,17 @@ export async function extractProject(
   const parsed = safeParse(raw);
   if (!parsed) throw badRequest('Emir AI could not make sense of that document. Try another file, or type it in.');
 
-  return { extracted: parsed, filled: filledFields(parsed), model, images: page?.images ?? [] };
+  return {
+    extracted: parsed,
+    filled: filledFields(parsed),
+    model,
+    images: page?.images ?? [],
+    pdfImages: pdfImages.map((image) => ({
+      dataUrl: `data:image/jpeg;base64,${image.data.toString('base64')}`,
+      width: image.width,
+      height: image.height,
+    })),
+  };
 }
 
 

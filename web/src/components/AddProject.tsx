@@ -28,6 +28,14 @@ type Extracted = {
   confidence: Record<string, number> | null;
 };
 
+/** The one-tap rewrites the design puts under the description. */
+const REWRITES: [string, string][] = [
+  ['shorter', 'Shorter'],
+  ['luxury', 'More luxury'],
+  ['investor', 'For an investor'],
+  ['family', 'For a family'],
+];
+
 const STEPS: [string, string][] = [
   ['Basics', 'building-2'],
   ['Prices & units', 'banknote'],
@@ -88,6 +96,26 @@ function normaliseDeveloper(value: string): string {
     .replace(/\b(pjsc|llc|psc|fzco|fz-llc|properties|property|developments?|group|holdings?)\b/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+}
+
+/**
+ * A picture Emir AI lifted out of a PDF, as a file ready to upload.
+ *
+ * Turned into a real File rather than kept as a data URL so it travels the
+ * same path as a photo the user chose themselves — same preview, same removal,
+ * same upload, same size limit.
+ */
+function dataUrlToFile(dataUrl: string, name: string): File | null {
+  const comma = dataUrl.indexOf(',');
+  if (comma === -1) return null;
+  try {
+    const binary = atob(dataUrl.slice(comma + 1));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new File([bytes], name, { type: 'image/jpeg' });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -214,6 +242,7 @@ export function AddProject({ developers, onDone, onCancel }: {
   const [dupes, setDupes] = useState<LibraryCard[] | null>(null);
   const [addingDeveloper, setAddingDeveloper] = useState(false);
   const [foundImages, setFoundImages] = useState<string[]>([]);
+  const [writing, setWriting] = useState<string | null>(null);
   const [knownDevelopers, setKnownDevelopers] = useState(developers);
   const [checkingDupes, setCheckingDupes] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
@@ -285,6 +314,39 @@ export function AddProject({ developers, onDone, onCancel }: {
     }
   }
 
+  /**
+   * Ask Emir AI for the description, from the facts already on the form.
+   *
+   * Grounded: the server sends it only what is filled in, because a
+   * description is where a model will happily invent a beach and a metro stop.
+   */
+  async function describe(tone: string) {
+    if (!draft.name.trim()) { setError('Give the project a name first.'); return; }
+    setWriting(tone);
+    setError(null);
+    try {
+      const { description } = await api.post<{ description: string }>('/api/library/describe', {
+        name: draft.name.trim(),
+        developer: draft.developer,
+        emirate: draft.emirate,
+        community: draft.community,
+        propertyType: draft.propertyType,
+        handoverDate: draft.handoverDate,
+        startingPriceAed: draft.startingPriceAed,
+        paymentPlan: draft.paymentPlan,
+        amenities: extracted?.amenities ?? undefined,
+        tone,
+      });
+      set('description', description);
+      // It came from Emir AI, so it is highlighted like anything else it filled.
+      setAiFilled((current) => new Set([...current, 'description']));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not write that');
+    } finally {
+      setWriting(null);
+    }
+  }
+
   function addPhotos(files: File[]) {
     setPhotos((current) => [...current, ...files]);
     // Shown from the browser's own copy, so nothing is uploaded to preview it.
@@ -339,7 +401,12 @@ export function AddProject({ developers, onDone, onCancel }: {
     return () => window.clearInterval(timer);
   }
 
-  function applyExtraction(result: { extracted: Extracted; filled: string[]; images?: string[] }) {
+  function applyExtraction(result: {
+    extracted: Extracted;
+    filled: string[];
+    images?: string[];
+    pdfImages?: { dataUrl: string; width: number | null; height: number | null }[];
+  }) {
     const e = result.extracted;
     setExtracted(e);
     setAiFilled(new Set(result.filled));
@@ -359,11 +426,26 @@ export function AddProject({ developers, onDone, onCancel }: {
       ownership: e.ownership ?? current.ownership,
       description: e.description ?? current.description,
     }));
-    // Pictures the page carried, offered as the cover rather than taken.
+    /*
+     * Pictures that came with the document or the page, offered rather than
+     * taken. A brochure's photographs arrive as files and are queued for
+     * upload; a web page's arrive as addresses and stay addresses.
+     */
     setFoundImages(result.images ?? []);
     if (result.images?.[0]) setDraft((current) => ({ ...current, imageUrl: current.imageUrl ?? result.images![0]! }));
 
+    if (result.pdfImages?.length) {
+      const files = result.pdfImages.map((image, index) =>
+        dataUrlToFile(image.dataUrl, `${(result.extracted.name ?? 'project').replace(/[^\w -]/g, '')} ${index + 1}.jpg`));
+      addPhotos(files.filter((file): file is File => file !== null));
+    }
+
     setStep(0);
+    const pictures = (result.pdfImages?.length ?? 0) + (result.images?.length ?? 0);
+    if (pictures > 0) {
+      toast(`Emir AI filled ${result.filled.length} fields and found ${pictures} picture${pictures === 1 ? '' : 's'}`);
+      return;
+    }
     toast(
       result.filled.length
         ? `Emir AI filled ${result.filled.length} field${result.filled.length === 1 ? '' : 's'} · check them before saving`
@@ -883,8 +965,36 @@ export function AddProject({ developers, onDone, onCancel }: {
           {step === 2 && (
             <>
               <h3><Icon name="sparkles" />Description</h3>
-              <Note>Emir AI writes from the project facts only. It never invents a price, a date or
-                a feature that is not above.</Note>
+              <Note>Emir AI writes from the facts you have entered and nothing else. It will not
+                mention a beach, a school or a metro stop that is not on the form, and it never
+                promises a return or a yield.</Note>
+
+              <div className="ai-row" style={{ marginBottom: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void describe('plain')}
+                  disabled={writing !== null}
+                >
+                  <Icon name={writing === 'plain' ? 'loader-2' : 'sparkles'} size={15} className={writing === 'plain' ? 'spin' : undefined} />
+                  <span>{writing === 'plain' ? 'Writing…' : 'Write with Emir AI'}</span>
+                </button>
+              </div>
+
+              {/* One tap each, as the design has it. */}
+              <div className="thumbs" style={{ marginBottom: 12 }}>
+                {REWRITES.map(([tone, label]) => (
+                  <button
+                    type="button"
+                    className="chip"
+                    key={tone}
+                    onClick={() => void describe(tone)}
+                    disabled={writing !== null}
+                  >
+                    {writing === tone ? 'Writing…' : label}
+                  </button>
+                ))}
+              </div>
               <Field label={<>About this project {conf('description')}</>}>
                 <TextArea className={cls('description')} rows={7} value={draft.description ?? ''} onChange={(e) => set('description', e.target.value || null)} maxLength={10000} />
               </Field>

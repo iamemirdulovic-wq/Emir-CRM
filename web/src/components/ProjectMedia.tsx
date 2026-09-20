@@ -146,6 +146,8 @@ export function ProjectMedia({ projectId, canManage }: { projectId: string; canM
         </div>
       </Panel>
 
+      <div style={{ height: 14 }} />
+
       <Panel index={2} icon="folder" title={`Documents${documentRows.length ? ` · ${documentRows.length}` : ''}`}>
         {canManage && (
           <FileDrop
