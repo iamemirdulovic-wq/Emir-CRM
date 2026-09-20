@@ -24,7 +24,13 @@ export type SettingName = 'AI_PROVIDER' | 'AI_MODEL' | 'AI_MONTHLY_CAP_USD';
  * round trip per call is a silly price for a value that changes twice a year.
  * Cleared the moment anything is written, so a new key takes effect at once.
  */
-let cache: { secrets: Map<string, string>; settings: Map<string, string>; at: number } | null = null;
+let cache: {
+  secrets: Map<string, string>;
+  settings: Map<string, string>;
+  /** Stored but undecryptable: not saved with the key we now hold. */
+  unreadable: Set<string>;
+  at: number;
+} | null = null;
 const TTL_MS = 30_000;
 
 export function clearSecretCache(): void {
@@ -36,6 +42,7 @@ async function load(exec: Executor): Promise<NonNullable<typeof cache>> {
 
   const secrets = new Map<string, string>();
   const settings = new Map<string, string>();
+  const unreadable = new Set<string>();
 
   try {
     for (const row of await query<{ name: string; value_enc: string }>('SELECT name, value_enc FROM app_secrets', [], exec)) {
@@ -48,6 +55,7 @@ async function load(exec: Executor): Promise<NonNullable<typeof cache>> {
          * error, which can echo the ciphertext.
          */
         logger.warn('a stored secret could not be decrypted; re-enter it in Settings', { name: row.name });
+        unreadable.add(row.name);
       }
     }
     for (const row of await query<{ name: string; value: string | null }>('SELECT name, value FROM app_settings', [], exec)) {
@@ -58,8 +66,20 @@ async function load(exec: Executor): Promise<NonNullable<typeof cache>> {
     // fall back to the environment rather than taking the whole app down.
   }
 
-  cache = { secrets, settings, at: Date.now() };
+  cache = { secrets, settings, unreadable, at: Date.now() };
   return cache;
+}
+
+/**
+ * Secrets that are stored but cannot be read.
+ *
+ * Not the same as "not configured": the owner did connect a key, and the
+ * encryption key has changed underneath it since. The difference matters,
+ * because the screen otherwise says "not connected" to someone who connected
+ * it last week and has no idea what happened.
+ */
+export async function unreadableSecrets(exec: Executor = getPool()): Promise<string[]> {
+  return [...(await load(exec)).unreadable];
 }
 
 /** The environment first, then what the owner saved in the CRM. */

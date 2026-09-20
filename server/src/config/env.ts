@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { defaultKeyFile, defaultUploadDir } from './state.js';
 
 /**
  * All configuration comes from the environment. Secrets are never logged and
@@ -35,18 +36,27 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().optional(),
   SESSION_COOKIE_NAME: z.string().default('emir_sid'),
 
-  // Uploaded import files. Local disk, as the owner chose: Hostinger gives us
-  // a persistent filesystem and an object store would be a second dependency
-  // for files we delete within days.
-  UPLOAD_DIR: z.string().default('./var/uploads'),
+  /*
+   * Uploaded files: import spreadsheets, task attachments, project photographs
+   * and developers' documents. Local disk, as the owner chose.
+   *
+   * The default lives outside the application folder, because a host that
+   * replaces that folder on every deploy would otherwise delete every
+   * photograph the team had uploaded, without saying so. See config/state.ts.
+   */
+  UPLOAD_DIR: z.string().default(() => defaultUploadDir()),
   /**
    * Where the encryption key lives when ENCRYPTION_KEY is not set.
    *
    * On disk rather than in the database, deliberately: a key kept beside the
    * rows it protects protects nothing, and a database dump is the leak that
    * actually happens. See lib/crypto.ts.
+   *
+   * Outside the application folder by default, because when it sat inside it
+   * every deploy generated a new key and the owner found Emir AI disconnected
+   * again. See config/state.ts.
    */
-  KEY_FILE: z.string().default('./var/emir-crm.key'),
+  KEY_FILE: z.string().default(() => defaultKeyFile()),
   /** Largest import file accepted, in megabytes. 100k rows is roughly 12 MB. */
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(512).default(64),
   /**

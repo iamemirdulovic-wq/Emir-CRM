@@ -21,7 +21,9 @@ import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
 import { writeAudit } from '../../audit/audit.js';
-import { clearSecret, saveSecret, saveSetting, secret, secretHint, secretSource, setting } from '../../config/secrets.js';
+import {
+  clearSecret, saveSecret, saveSetting, secret, secretHint, secretSource, setting, unreadableSecrets,
+} from '../../config/secrets.js';
 import { GEMINI_BASE, explainGeminiError, listModels, pickDefault, rankModels, readGeminiError } from '../../ai/models.js';
 
 export const aiRouter = Router();
@@ -58,6 +60,13 @@ aiRouter.get(
         // than implying the owner can change one that is set in the host.
         keySource: await secretSource('GEMINI_API_KEY'),
         keyEndsWith: await secretHint('GEMINI_API_KEY'),
+        /*
+         * Stored but undecryptable — the encryption key changed underneath it.
+         * Worth saying out loud: "not connected" to someone who connected it
+         * last week explains nothing, and the cause is almost always a deploy
+         * that replaced the folder the key file was sitting in.
+         */
+        keyUnreadable: (await unreadableSecrets()).includes('GEMINI_API_KEY'),
         capUsd: (await setting('AI_MONTHLY_CAP_USD')) ?? '5',
       },
     });

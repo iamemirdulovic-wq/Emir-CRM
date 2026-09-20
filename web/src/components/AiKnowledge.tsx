@@ -28,6 +28,7 @@ type Payload = {
     name: string;
     ready: boolean;
     model: string;
+    keyUnreadable?: boolean;
     /** 'env' = set in the hosting panel and not editable here. */
     keySource: 'env' | 'crm' | 'none';
     keyEndsWith: string | null;
@@ -273,6 +274,22 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
               ? `Using the key ending ${provider.keyEndsWith}.`
               : 'A key is saved.'}
         </p>
+      ) : provider.keyUnreadable ? (
+        /*
+         * A key *is* stored — it just cannot be read with the encryption key
+         * the server now holds. Saying "not connected" to someone who
+         * connected it last week explains nothing, and the cause is nearly
+         * always a deploy that replaced the folder the key file lived in.
+         */
+        <div className="aihint" style={{ borderColor: 'color-mix(in srgb, var(--hot) 35%, transparent)', marginTop: 0 }}>
+          <Icon name="alert-triangle" />
+          <div>
+            <b>Your key is still saved, but the CRM can no longer read it.</b> That happens when the
+            server&rsquo;s encryption key changes — usually a deploy that replaced the folder it was
+            kept in. From this version the key is stored outside that folder, so it should not
+            happen again. Paste the Gemini key once more below.
+          </div>
+        </div>
       ) : (
         <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
           Paste your Gemini key below and press Connect. Nothing else is needed — no hosting

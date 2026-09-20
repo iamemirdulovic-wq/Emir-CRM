@@ -2,6 +2,44 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Why the Gemini key kept disconnecting — and the photos that were going with it
+
+Every deploy, Emir AI was disconnected again. The cause was one word in a default path.
+
+The encryption key that reads the stored API keys lived at `./var/emir-crm.key` — **relative to
+the application folder**. Hostinger's own git deployment replaces that folder, so every deploy:
+the key file was gone, the CRM generated a fresh one, the stored Gemini key could no longer be
+decrypted, and the screen said "not connected" to someone who had connected it the week before.
+The SSH deployment in `deploy/` handles this with a shared directory and an `ENCRYPTION_KEY` in
+the environment; the owner deploys by hand from the hosting panel, so none of that applied.
+
+**`UPLOAD_DIR` had the same default**, which is worse: it means every task attachment, every
+project photograph and every developer document uploaded through the feature added yesterday would
+have been deleted on the next deploy, silently.
+
+**Fixed**
+- Both now default to `~/.emir-crm/` — the home directory of the user the app runs as, which a
+  deploy does not touch. `EMIR_STATE_DIR` overrides it, and `KEY_FILE`/`UPLOAD_DIR` still override
+  individually, so a deployment already pointing them at a shared directory is unaffected.
+- **Existing installs are rescued on boot.** Anything still under `./var` is moved before anything
+  reads it, so the upgrade itself keeps the key — and with it the stored API keys. It only ever
+  moves into an empty or absent destination: guessing which of two copies is current is how data
+  gets lost.
+- The startup log names the state directory and says plainly that it has to survive a deploy.
+
+**And the screen now explains itself.** A key that is stored but undecryptable is not the same as
+no key, and saying "not connected" to someone who connected it explains nothing. Settings → Emir AI
+now says: *your key is still saved, but the CRM can no longer read it* — with the reason, and the
+note that it should not happen again.
+
+**Caught while testing.** The legacy paths were resolved when the module loaded rather than when
+asked, so they pointed at whatever the working directory happened to be at import. A test proved it
+by moving a real key file out of the repository. Resolved on demand now.
+
+**Verified** on a running server: planted a key in the old place, booted, watched it move; then
+deleted the application folder's `var` exactly as a deploy would and booted again — same key, same
+photographs, nothing regenerated. 853 server tests (6 new), 102 web tests.
+
 ## "Paste a link" now actually reads the page
 
 The owner pasted a real project page and nothing came back. The reason was plain once looked at:

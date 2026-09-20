@@ -3,9 +3,33 @@ import { env } from './config/env.js';
 import { logger, errorContext } from './lib/logger.js';
 import { closePool } from './db/client.js';
 import { startWorker, type WorkerHandle } from './jobs/worker.js';
+import { migrateState, stateDir } from './config/state.js';
 
 async function main(): Promise<void> {
   const cfg = env();
+
+  /*
+   * Rescue anything still under the old `./var`, which sits inside the
+   * application folder and is therefore deleted by any host that replaces that
+   * folder on deploy. Doing it here, before anything reads a key or a file,
+   * means an existing install keeps its encryption key — and with it the
+   * stored API keys — across the upgrade that introduced this.
+   */
+  const { moved, failed } = migrateState(cfg.KEY_FILE, cfg.UPLOAD_DIR);
+  for (const move of moved) logger.warn('moved state somewhere a deploy will not delete it', move);
+  for (const problem of failed) {
+    logger.error('could not move state out of the application folder', {
+      ...problem,
+      note: 'Move it by hand, or set EMIR_STATE_DIR to a directory outside the app.',
+    });
+  }
+  logger.info('state directory', {
+    dir: stateDir(),
+    keyFile: cfg.KEY_FILE,
+    uploads: cfg.UPLOAD_DIR,
+    note: 'These must survive a deploy. If they are inside the app folder, every deploy loses them.',
+  });
+
   const app = createApp();
   const server = app.listen(cfg.PORT, cfg.HOST, () => {
     logger.info('emir-crm api listening', { host: cfg.HOST, port: cfg.PORT, env: cfg.NODE_ENV });
