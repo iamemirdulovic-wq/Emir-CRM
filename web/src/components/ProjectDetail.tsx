@@ -5,7 +5,8 @@ import { useAuth } from '../lib/auth.js';
 import { formatAed, humanize } from '../lib/format.js';
 import type { PaymentPlan, UnitRow, UnitStatus } from '../lib/types.js';
 import { Icon } from '../design/index.js';
-import { Chip, Empty, ErrorNote, Field, Input, Modal, Note, Panel, Spinner, Toolbar, useToast } from '../design/ui.js';
+import { Chip, Empty, ErrorNote, Field, Input, Modal, Note, Panel, Select, Spinner, Toolbar, useToast } from '../design/ui.js';
+import { ProjectMedia } from './ProjectMedia.js';
 
 type Detail = {
   project: Record<string, unknown>;
@@ -16,7 +17,7 @@ type Detail = {
   amenities: { id: string; name: string; enabled: number }[];
 };
 
-type Tab = 'overview' | 'units' | 'plans' | 'commission';
+type Tab = 'overview' | 'units' | 'plans' | 'media' | 'commission';
 
 const UNIT_PILL: Record<UnitStatus, string> = {
   available: 'pill ok',
@@ -28,10 +29,10 @@ const UNIT_PILL: Record<UnitStatus, string> = {
 /**
  * One project.
  *
- * Four tabs are here; the spec lists eleven. The rest — photos, floor plans,
- * amenities, documents, location, developer, visibility — need file upload and
- * are the next slice. What is here is what the WhatsApp replies and the offer
- * builder read: the facts, the inventory, the plans and the commission.
+ * Five tabs are here; the spec lists eleven. The rest — floor plans,
+ * amenities, location, developer, visibility — are the next slice. What is
+ * here is what the WhatsApp replies and the offer builder read: the facts, the
+ * inventory, the plans, the pictures and the commission.
  */
 export function ProjectDetail({ projectId, onBack, onEdit }: {
   projectId: string;
@@ -106,6 +107,7 @@ export function ProjectDetail({ projectId, onBack, onEdit }: {
           Units &amp; prices{units.length > 0 && <span className="n" style={{ marginInlineStart: 6, opacity: 0.75 }}>{units.length}</span>}
         </Chip>
         <Chip on={tab === 'plans'} onClick={() => setTab('plans')}>Payment plans</Chip>
+        <Chip on={tab === 'media'} onClick={() => setTab('media')}>Photos &amp; documents</Chip>
         {canManage && <Chip on={tab === 'commission'} onClick={() => setTab('commission')}>Commission</Chip>}
       </Toolbar>
 
@@ -268,6 +270,8 @@ export function ProjectDetail({ projectId, onBack, onEdit }: {
           )}
         </Panel>
       )}
+
+      {tab === 'media' && <ProjectMedia projectId={projectId} canManage={canManage} />}
 
       {tab === 'commission' && canManage && (
         <Panel index={1} icon="hand-coins" title="Commission">

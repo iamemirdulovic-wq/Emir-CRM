@@ -2,6 +2,49 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Real photo and document upload
+
+The Media step of the Add-project wizard offered two boxes to paste a URL into, with a note saying
+uploading "comes next". For an agent standing in a developer's sales centre with the price list in
+front of them, a URL box is not a feature.
+
+**Built**
+- A **drop zone** on the wizard's Media step and on a new **Photos & documents** tab on the project
+  page. It takes a drag, and it opens the picker on a tap — on a phone there is nothing to drag,
+  and the phone is where the photographs are.
+- **Photos** show as thumbnails as soon as they are picked, straight from the browser's own copy,
+  so nothing is uploaded to preview it. The first becomes the **cover**; any other can be made the
+  cover later, and deleting the cover hands it to another rather than leaving a project with
+  pictures and no cover.
+- **Documents** carry their kind — developer sales offer, brochure, price list, floor plans, RERA
+  certificate, SPA template — guessed from the file name and correctable in a dropdown beside each
+  row. A developer sales offer uploaded here is what a client offer will attach instead of a
+  generated sheet.
+- In the wizard, files are held in the browser until the project is saved, so abandoning a draft
+  leaves nothing on the server. They then upload **one at a time**: forty photos in one request is
+  one failure that loses all forty, and this way the ones that arrived stay.
+
+**The two rules from the task attachments, kept**
+- **An allow-list, not a block-list.** SVG is refused although it is an image: an SVG is a document
+  that can carry script, and serving one from the CRM's own origin would run that script with the
+  session cookie in scope. HTML likewise.
+- **The file on disk is named after its row id**, never after anything the uploader typed, and
+  every read or delete checks the resolved path is inside the upload directory first. A filename is
+  a path, and a path is a way out of the directory.
+
+Files are served back through the API rather than from a public folder, so the session cookie is
+what decides who sees a developer's price list. Every add and removal is audited.
+
+Also ported the design's `.drop` styling, which had never made it across — the zone was rendering
+as a plain grey box with its two lines of text run together.
+
+**Verified** against a running server: uploaded, set and moved the cover, deleted the cover and
+watched another take it, served a PDF back under an Arabic filename, had an SVG refused, and
+confirmed a signed-out request gets 401. 828 server tests (9 new), 102 web tests.
+
+**Still to come on the project page**: floor plans, amenities, location, developer and visibility
+tabs.
+
 ## Test my connection — ending the loop
 
 Four rounds: the owner pressed a button, got a different Google error, sent it to me, I read it and

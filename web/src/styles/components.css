@@ -794,3 +794,35 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .fieldrow{display:flex;gap:8px;align-items:flex-end}
 .fieldrow .field{flex:1;margin-bottom:0}
 @media (max-width:560px){.two{grid-template-columns:1fr}}
+
+/* ── Uploading photos and documents ─────────────────────────────────────── */
+/* Ported from the design. It renders as a <button> here so it is reachable by
+   keyboard and opens the picker on a phone, where there is nothing to drag. */
+.drop{display:block;width:100%;border:1.5px dashed color-mix(in srgb,var(--primary) 45%,transparent);
+  border-radius:20px;padding:28px;text-align:center;background:var(--primary-soft);
+  transition:background .2s,transform .2s;cursor:pointer}
+.drop.over{transform:scale(1.01);background:color-mix(in srgb,var(--primary) 20%,transparent)}
+.drop:disabled{opacity:.6;cursor:default}
+.drop .ic{width:52px;height:52px;border-radius:16px;margin:0 auto 10px;display:grid;place-items:center;
+  background:var(--glass-strong);color:var(--primary);box-shadow:var(--shadow)}
+.drop .ic svg{width:22px;height:22px}
+.drop b{display:block;font-size:15px}
+.drop small{display:block;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+
+/* The design's .gal is a fixed three-up layout for a curated gallery; an
+   upload list is however many the user dropped, so it gets its own grid in the
+   same visual language. */
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;margin-top:10px}
+.shot{position:relative;margin:0;border-radius:14px;overflow:hidden;background:var(--surface-2);
+  border:1px solid var(--glass-line);aspect-ratio:4/3}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot .pill{position:absolute;top:6px;inset-inline-start:6px;font-size:10px;padding:2px 7px}
+.shot .icon-btn{position:absolute;top:6px;inset-inline-end:6px;width:26px;height:26px;
+  background:rgba(12,28,44,.55);color:#fff;border:0;opacity:0;transition:opacity .15s}
+.shot:hover .icon-btn,.shot:focus-within .icon-btn{opacity:1}
+.shot .icon-btn svg{width:13px;height:13px}
+.shot figcaption{position:absolute;inset-inline:0;bottom:0;padding:4px 8px;font-size:10.5px;color:#fff;
+  background:linear-gradient(transparent,rgba(12,28,44,.65))}
+/* A touch screen has no hover, so the remove button is always there. */
+@media (hover:none){.shot .icon-btn{opacity:1}}
+.close-item .input{margin-inline-start:auto}

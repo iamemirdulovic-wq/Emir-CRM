@@ -4,6 +4,7 @@ import { formatAed, humanize } from '../lib/format.js';
 import type { DeveloperRow, LibraryCard, ProjectDraft, SaleStatus, Visibility } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { Field, Input, Note, Select, TextArea, useToast } from '../design/ui.js';
+import { FileDrop, fileSize } from './FileDrop.js';
 
 /* The shape Emir AI returns. Every field may be null — a missing figure stays
    missing rather than being guessed. */
@@ -55,6 +56,71 @@ const TYPES = [
   ['penthouse', 'Penthouses'], ['plot', 'Plots'], ['office', 'Offices'], ['mixed', 'Mixed'],
 ] as const;
 
+/**
+ * Send one file as a raw body.
+ *
+ * Not multipart: the server reads the stream straight through, and the name
+ * rides in a header because an HTTP header is Latin-1 and a developer's file
+ * is as likely to be named in Arabic as in English.
+ */
+async function uploadFile(path: string, file: File, headers: Record<string, string> = {}): Promise<void> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': file.type,
+      'X-Filename': encodeURIComponent(file.name),
+      ...headers,
+    },
+    body: file,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `Upload failed (${response.status})`);
+  }
+}
+
+/** The document kinds a developer actually sends, in the order they matter. */
+const DOC_KINDS: [string, string][] = [
+  ['developer_offer', 'Developer sales offer'],
+  ['brochure_en', 'Brochure (English)'],
+  ['brochure_ar', 'Brochure (Arabic)'],
+  ['price_list', 'Price list'],
+  ['floor_plan_pack', 'Floor plans'],
+  ['master_plan', 'Master plan'],
+  ['payment_plan_sheet', 'Payment plan'],
+  ['rera_certificate', 'RERA / DLD certificate'],
+  ['commission_agreement', 'Commission agreement'],
+  ['spa_template', 'SPA template'],
+  ['other', 'Something else'],
+];
+
+/**
+ * A first guess at what a file is, from what the developer called it.
+ *
+ * Only a guess — the dropdown beside each row is the real answer, and it is
+ * right there because the file name is often no help at all.
+ */
+function guessKind(filename: string): string {
+  const name = filename.toLowerCase();
+  if (name.includes('offer')) return 'developer_offer';
+  if (name.includes('price')) return 'price_list';
+  if (name.includes('floor') || name.includes('plan') && name.includes('unit')) return 'floor_plan_pack';
+  if (name.includes('master')) return 'master_plan';
+  if (name.includes('payment')) return 'payment_plan_sheet';
+  if (name.includes('rera') || name.includes('dld')) return 'rera_certificate';
+  if (name.includes('spa')) return 'spa_template';
+  if (name.includes('commission')) return 'commission_agreement';
+  if (name.includes('brochure') && (name.includes('ar') || name.includes('arabic'))) return 'brochure_ar';
+  if (name.includes('brochure')) return 'brochure_en';
+  return 'other';
+}
+
+/** Stable per pick, so a preview URL survives re-renders and reordering. */
+function fileKey(file: File): string {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
 function blank(): ProjectDraft {
   return {
     name: '', developerId: null, developer: null, emirate: 'dubai', community: null,
@@ -98,9 +164,33 @@ export function AddProject({ developers, onDone, onCancel }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
+  /*
+   * The project has no id until it is saved, so photos and documents are held
+   * here and uploaded straight after. Nothing is stored on the server for a
+   * project the user then abandons.
+   */
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<{ file: File; kind: string }[]>([]);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
   const [dupes, setDupes] = useState<LibraryCard[] | null>(null);
   const [checkingDupes, setCheckingDupes] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
+
+  function addPhotos(files: File[]) {
+    setPhotos((current) => [...current, ...files]);
+    // Shown from the browser's own copy, so nothing is uploaded to preview it.
+    setPreviews((current) => {
+      const next = { ...current };
+      for (const file of files) next[fileKey(file)] = URL.createObjectURL(file);
+      return next;
+    });
+  }
+
+  function removePhoto(file: File) {
+    setPhotos((current) => current.filter((row) => row !== file));
+    const url = previews[fileKey(file)];
+    if (url) URL.revokeObjectURL(url);
+  }
 
   const set = <K extends keyof ProjectDraft>(key: K, value: ProjectDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -261,6 +351,31 @@ export function AddProject({ developers, onDone, onCancel }: {
           missed.push('the amenities');
         }
       }
+
+      /*
+       * Photos and documents go up now the project has an id. Uploaded one at
+       * a time on purpose: forty photos in one request is one failure that
+       * loses all forty, and this way the ones that arrived stay.
+       */
+      let photosFailed = 0;
+      for (const file of photos) {
+        try {
+          await uploadFile(`/api/library/${id}/photos`, file);
+        } catch {
+          photosFailed += 1;
+        }
+      }
+      if (photosFailed) missed.push(`${photosFailed} photo${photosFailed === 1 ? '' : 's'}`);
+
+      let documentsFailed = 0;
+      for (const { file, kind } of documents) {
+        try {
+          await uploadFile(`/api/library/${id}/documents`, file, { 'X-Kind': kind });
+        } catch {
+          documentsFailed += 1;
+        }
+      }
+      if (documentsFailed) missed.push(`${documentsFailed} document${documentsFailed === 1 ? '' : 's'}`);
 
       if (missed.length) {
         toast(`Project saved, but ${missed.join(' and ')} did not — add ${missed.length > 1 ? 'them' : 'it'} from the project page.`);
@@ -618,16 +733,94 @@ export function AddProject({ developers, onDone, onCancel }: {
           {step === 3 && (
             <>
               <h3><Icon name="camera" />Media &amp; documents</h3>
+
+              <FileDrop
+                accept="image/jpeg,image/png,image/webp"
+                icon="image-up"
+                title="Add photos"
+                hint="Drag them here, or tap to choose. The first one becomes the cover."
+                onFiles={addPhotos}
+              />
+
+              {photos.length > 0 && (
+                <>
+                  <div className="sec-t">
+                    {photos.length} photo{photos.length === 1 ? '' : 's'}
+                    <span className="muted" style={{ fontWeight: 400 }}> — the first is the cover</span>
+                  </div>
+                  <div className="shots">
+                    {photos.map((file, index) => (
+                      <figure className="shot" key={fileKey(file)}>
+                        <img src={previews[fileKey(file)]} alt={file.name} />
+                        {index === 0 && <span className="pill ok">Cover</span>}
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => removePhoto(file)}
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <Icon name="trash-2" />
+                        </button>
+                        <figcaption>{fileSize(file.size)}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="sec-t">Documents</div>
+              <FileDrop
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                icon="file-up"
+                title="Add the developer's files"
+                hint="Sales offer, brochure, price list, floor plans. PDF or a photo of the page."
+                onFiles={(files) => setDocuments((current) => [
+                  ...current,
+                  ...files.map((file) => ({ file, kind: guessKind(file.name) })),
+                ])}
+              />
+
+              {documents.length > 0 && (
+                <div className="close-list" style={{ marginTop: 10 }}>
+                  {documents.map(({ file, kind }, index) => (
+                    <div className="close-item" key={`${file.name}-${index}`}>
+                      <Icon name="file-text" />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <b style={{ display: 'block' }}>{file.name}</b>
+                        <small className="muted">{fileSize(file.size)}</small>
+                      </div>
+                      <Select
+                        value={kind}
+                        onChange={(event) => setDocuments((current) =>
+                          current.map((row, i) => (i === index ? { ...row, kind: event.target.value } : row)))}
+                        style={{ width: 'auto', maxWidth: 190 }}
+                      >
+                        {DOC_KINDS.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </Select>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => setDocuments((current) => current.filter((_, i) => i !== index))}
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <Icon name="trash-2" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="sec-t">Or link to them instead</div>
               <div className="field-row">
-                <Field label="Cover image URL">
+                <Field label="Cover image URL" hint="Only needed if you are not uploading a photo.">
                   <Input value={draft.imageUrl ?? ''} onChange={(e) => set('imageUrl', e.target.value || null)} maxLength={1024} />
                 </Field>
                 <Field label="Brochure URL" hint="What the BROCHURE reply sends on WhatsApp.">
                   <Input value={draft.brochureUrl ?? ''} onChange={(e) => set('brochureUrl', e.target.value || null)} maxLength={1024} />
                 </Field>
               </div>
-              <Note>Uploading photos, floor plans and documents comes next — for now these two links
-                are what the WhatsApp replies use.</Note>
             </>
           )}
 

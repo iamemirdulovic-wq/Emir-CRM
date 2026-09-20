@@ -146,7 +146,7 @@ const uploadLimit = rateLimit({
  * the upload; control characters go the same way, since this string is later
  * written into a Content-Disposition header.
  */
-function decodeFilename(raw: string | undefined): string {
+export function decodeFilename(raw: string | undefined): string {
   if (!raw) return 'attachment';
   let name: string;
   try {

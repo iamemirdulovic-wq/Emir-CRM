@@ -33,6 +33,12 @@ import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
 import { extractProject } from '../../ai/extract-project.js';
 import { GEMINI_INLINE_LIMIT_BYTES } from '../../ai/models.js';
+import {
+  DOCUMENT_CONTENT_TYPES, DOCUMENT_KINDS, PHOTO_CONTENT_TYPES, deleteDocument, deletePhoto,
+  findDocument, findPhoto, listDocuments, listPhotos, openFile, saveDocument, savePhoto, setCover,
+} from '../../services/project-files.js';
+import { env } from '../../config/env.js';
+import { contentDisposition, decodeFilename } from './tasks.js';
 import { extractDeveloper } from '../../ai/extract-developer.js';
 
 export const libraryRouter = Router();
@@ -513,6 +519,153 @@ libraryRouter.delete(
   requirePermission('projects:manage'),
   asyncHandler(async (req: Request, res: Response) => {
     await deletePaymentPlan(actorFrom(req), String(req.params.planId));
+    res.json({ ok: true });
+  }),
+);
+
+/* ── Photos and documents ───────────────────────────────────────────────── */
+
+/** Uploading is bounded per user: a drop of forty photos is one burst, not forty. */
+const fileUploadLimit = rateLimit({
+  max: 200,
+  windowMs: 15 * 60 * 1000,
+  keyFor: (req) => `project-file:${currentUser(req).id}`,
+  message: 'Too many files in a short time. Please wait a few minutes.',
+});
+
+/** Read the body, refusing anything over the limit before it is all in memory. */
+async function readBody(req: Request): Promise<Buffer> {
+  const limit = env().MAX_ATTACHMENT_MB * 1024 * 1024;
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > limit) throw badRequest(`That file is larger than the ${env().MAX_ATTACHMENT_MB} MB limit`);
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks);
+}
+
+libraryRouter.get(
+  '/:id/photos',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({ items: await listPhotos(String(req.params.id)) });
+  }),
+);
+
+libraryRouter.post(
+  '/:id/photos',
+  fileUploadLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const contentType = (req.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    if (!PHOTO_CONTENT_TYPES.includes(contentType)) {
+      throw badRequest(`${contentType || 'That file'} is not a photo. JPEG, PNG or WebP.`);
+    }
+    const projectId = String(req.params.id);
+    await getProject(projectId);
+
+    const photo = await savePhoto(actorFrom(req), {
+      projectId,
+      filename: decodeFilename(req.get('x-filename')),
+      contentType,
+      body: await readBody(req),
+      caption: req.get('x-caption') ? decodeURIComponent(String(req.get('x-caption'))).slice(0, 255) : null,
+    });
+    res.status(201).json(photo);
+  }),
+);
+
+/*
+ * Served from this origin rather than linked from disk, so the session cookie
+ * is what decides who sees a project's photographs.
+ */
+libraryRouter.get(
+  '/photos/:photoId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const row = await findPhoto(String(req.params.photoId));
+    const stream = await openFile(row);
+    res.setHeader('Content-Type', row.content_type);
+    res.setHeader('Content-Disposition', contentDisposition('inline', row.filename));
+    // Immutable: the file is named after a row id that never gets reused.
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    stream.pipe(res);
+  }),
+);
+
+libraryRouter.post(
+  '/photos/:photoId/cover',
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    await setCover(actorFrom(req), String(req.params.photoId));
+    res.json({ ok: true });
+  }),
+);
+
+libraryRouter.delete(
+  '/photos/:photoId',
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    await deletePhoto(actorFrom(req), await findPhoto(String(req.params.photoId)));
+    res.json({ ok: true });
+  }),
+);
+
+libraryRouter.get(
+  '/:id/documents',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({ items: await listDocuments(String(req.params.id)) });
+  }),
+);
+
+libraryRouter.post(
+  '/:id/documents',
+  fileUploadLimit,
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const contentType = (req.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    if (!DOCUMENT_CONTENT_TYPES.includes(contentType)) {
+      throw badRequest(`${contentType || 'That file'} cannot be stored. PDF, or a photo of the page.`);
+    }
+    const kind = z.enum(DOCUMENT_KINDS).catch('other').parse(req.get('x-kind'));
+    const projectId = String(req.params.id);
+    await getProject(projectId);
+
+    const document = await saveDocument(actorFrom(req), {
+      projectId,
+      kind,
+      filename: decodeFilename(req.get('x-filename')),
+      contentType,
+      body: await readBody(req),
+      uploadedByUserId: user.id,
+    });
+    res.status(201).json(document);
+  }),
+);
+
+libraryRouter.get(
+  '/documents/:documentId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const row = await findDocument(String(req.params.documentId));
+    const stream = await openFile(row);
+    res.setHeader('Content-Type', row.content_type);
+    /*
+     * A PDF opens in the tab; anything else downloads. Never inline for a type
+     * the browser might execute — see the allow-list in project-files.ts.
+     */
+    const inline = row.content_type === 'application/pdf' || row.content_type.startsWith('image/');
+    res.setHeader('Content-Disposition', contentDisposition(inline ? 'inline' : 'attachment', row.filename));
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    stream.pipe(res);
+  }),
+);
+
+libraryRouter.delete(
+  '/documents/:documentId',
+  requirePermission('projects:manage'),
+  asyncHandler(async (req: Request, res: Response) => {
+    await deleteDocument(actorFrom(req), await findDocument(String(req.params.documentId)));
     res.json({ ok: true });
   }),
 );
