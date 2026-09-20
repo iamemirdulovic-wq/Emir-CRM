@@ -21,10 +21,13 @@ import { logger } from '../lib/logger.js';
 import { buildKnowledge } from './knowledge.js';
 import { withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
-import { cachedModels, GEMINI_INLINE_LIMIT_BYTES, rankModels, resolveModel } from './models.js';
+import { cachedModels, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
 import { fetchPage } from './fetch-page.js';
 import { extractPdfImages, usefulImages } from './pdf-images.js';
+import {
+  deleteFromGemini, INLINE_THRESHOLD_BYTES, MAX_DOCUMENT_BYTES, uploadToGemini,
+} from './gemini-files.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -149,16 +152,16 @@ export async function extractProject(
   userId: string | null,
 ): Promise<ExtractResult> {
   /*
-   * Size first, before a key lookup or a round trip to Google. The limit that
-   * matters is Google's and it is about the *encoded* request, so it is
-   * checked here as well as at the route — and checking it first turns a 400
-   * from Google into a sentence the owner can act on.
+   * Only what is genuinely beyond reach is refused now. A file too big to send
+   * inline goes through Google's Files API instead, which is what a
+   * developer's brochure needs — refusing one and asking for "the price list
+   * rather than the full brochure" was putting my limit on the owner's desk.
    */
-  if (input.kind === 'file' && input.data.length > GEMINI_INLINE_LIMIT_BYTES) {
+  if (input.kind === 'file' && input.data.length > MAX_DOCUMENT_BYTES) {
     throw badRequest(
-      `That file is ${Math.round(input.data.length / (1024 * 1024))} MB. Google will not accept more `
-      + `than about ${Math.round(GEMINI_INLINE_LIMIT_BYTES / (1024 * 1024))} MB in one go — send the `
-      + 'price list or the offer rather than the full brochure.',
+      `That file is ${Math.round(input.data.length / (1024 * 1024))} MB, which is past what the CRM `
+      + `will read (${Math.round(MAX_DOCUMENT_BYTES / (1024 * 1024))} MB). It is probably a `
+      + 'print-resolution master — ask the developer for the web version.',
     );
   }
 
@@ -190,6 +193,7 @@ export async function extractProject(
   const parts: Record<string, unknown>[] = [];
   let page: Awaited<ReturnType<typeof fetchPage>> | null = null;
   let pdfImages: ReturnType<typeof usefulImages> = [];
+  let uploaded: Awaited<ReturnType<typeof uploadToGemini>> | null = null;
   if (input.kind === 'file') {
     /*
      * The brochure's own photographs, taken out before it is sent. Gemini
@@ -199,7 +203,19 @@ export async function extractProject(
     if (input.mimeType === 'application/pdf') {
       pdfImages = usefulImages(extractPdfImages(input.data));
     }
-    parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
+
+    if (input.data.length > INLINE_THRESHOLD_BYTES) {
+      /*
+       * Too big to ride along in the request. Uploaded to Google's Files API
+       * and referenced by URI, which raises the ceiling from 20 MB to 2 GB.
+       */
+      uploaded = await uploadToGemini(apiKey, {
+        data: input.data, mimeType: input.mimeType, filename: input.filename,
+      });
+      parts.push({ fileData: { mimeType: input.mimeType, fileUri: uploaded.uri } });
+    } else {
+      parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
+    }
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {
     /*
@@ -222,21 +238,33 @@ export async function extractProject(
     });
   }
 
-  const { text: raw, model } = await callGemini({
-    apiKey,
-    candidates,
-    feature: 'extract_project',
-    userId,
-    body: {
-      systemInstruction: { parts: [{ text: `${INSTRUCTION}\n\n${knowledge}` }] },
-      contents: [{ role: 'user', parts }],
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: 'application/json',
-        maxOutputTokens: 8192,
+  let answer: { text: string | null; model: string };
+  try {
+    answer = await callGemini({
+      apiKey,
+      candidates,
+      feature: 'extract_project',
+      userId,
+      body: {
+        systemInstruction: { parts: [{ text: `${INSTRUCTION}\n\n${knowledge}` }] },
+        contents: [{ role: 'user', parts }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+          maxOutputTokens: 8192,
+        },
       },
-    },
-  });
+    });
+  } finally {
+    /*
+     * Our copy on Google's disk is not needed once the answer is in hand.
+     * Best effort: it expires there on its own in about two days, and a
+     * failure to tidy up must never lose an extraction that succeeded.
+     */
+    if (uploaded) await deleteFromGemini(apiKey, uploaded.name);
+  }
+
+  const { text: raw, model } = answer;
 
   if (!raw) throw badRequest('Emir AI read the document but returned nothing. Try again.');
 

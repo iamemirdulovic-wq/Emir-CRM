@@ -19,18 +19,6 @@ export const GEMINI_API_VERSION = 'v1beta';
 export const GEMINI_BASE = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}`;
 
 /**
- * Google caps a `generateContent` request with inline data at 20 MB — and that
- * is the size of the *encoded* request, not of the file.
- *
- * Base64 inflates by about a third, so a 20 MB PDF arrives as roughly 27 MB
- * and Google answers 400. The route's own limit was set against the raw file,
- * which meant a large brochure was accepted by the CRM and then rejected by
- * Google with nothing useful said about why. 14 MB of PDF encodes to a little
- * under 19 MB, which leaves room for the prompt.
- */
-export const GEMINI_INLINE_LIMIT_BYTES = 14 * 1024 * 1024;
-
-/**
  * Which tier a model belongs to, and how new it is.
  *
  * A list of literal names was the second thing to age badly here: it knew

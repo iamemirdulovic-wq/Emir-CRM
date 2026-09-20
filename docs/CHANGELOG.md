@@ -2,6 +2,35 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## A brochure is allowed to be a brochure
+
+*"That file is larger than 14 MB… send the price list rather than the full brochure."*
+
+That limit was mine, not Google's, and it was the wrong answer. A `generateContent` request
+carrying a file **inline** is capped at 20 MB for the whole encoded request — but Google's **Files
+API** takes 2 GB, and that is what large documents are meant to go through. I had written the
+inline ceiling into the product and handed it to the owner as a rule about their own brochures.
+
+**Fixed.** A file under 8 MB still rides along in the request, which is one round trip instead of
+three. Anything larger is uploaded to the Files API and referenced by URI. The CRM now reads a
+brochure up to **100 MB**, and past that says what it actually means: that is a print-resolution
+master, ask the developer for the web version.
+
+The uploaded copy is **deleted from Google as soon as the answer comes back**, rather than left to
+expire on its own in two days — a developer's confidential price list should not sit on someone
+else's disk for longer than the job takes. That tidy-up is best effort and can never lose an
+extraction that succeeded.
+
+A PDF is processed by Google before it can be read, so the upload waits for it to become readable,
+and says plainly when a file comes back as unreadable — usually damaged, or password-protected.
+
+10 tests over the upload: the two-step protocol, the declared length, waiting through processing,
+a failed file, a refused start, a start that named no address, and a bytes upload that failed.
+Verified against the running server: a 25 MB brochure now gets past the size check, and 110 MB is
+refused with a sentence that is about the file rather than about my limit.
+
+874 server tests, 102 web tests.
+
 ## Emir AI takes the photographs out of the brochure too
 
 Dropping a 40-page brochure filled in the name, the prices and the payment plan — and left every

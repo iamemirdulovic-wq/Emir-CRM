@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, GEMINI_INLINE_LIMIT_BYTES, isModelBusy, isModelUnavailable,
-  isTextModel, parseModelName, pickDefault, rankModels, readGeminiError, resolveModel,
+  explainGeminiError, FALLBACK_MODEL, GEMINI_BASE, isModelBusy, isModelUnavailable, isTextModel, parseModelName, pickDefault, rankModels, readGeminiError, resolveModel,
   stepUpForFiles, type GeminiModel,
 } from './models.js';
 
@@ -211,18 +210,6 @@ describe('keeping non-text models out of the choice', () => {
   it('replaces a saved model that turns out to be an image generator', () => {
     const available = [model('gemini-2.5-flash-image'), model('gemini-2.5-flash-lite')];
     expect(resolveModel('gemini-2.5-flash-image', available)).toBe('gemini-2.5-flash-lite');
-  });
-});
-
-describe('what Google will accept in one request', () => {
-  /*
-   * Google's ceiling is 20 MB for the *encoded* request. Base64 inflates by a
-   * third, so the raw file has to be well under that — the first cap was set
-   * against the raw size and let through files Google then refused.
-   */
-  it('leaves room for base64 to inflate the file', () => {
-    const encoded = GEMINI_INLINE_LIMIT_BYTES * 4 / 3;
-    expect(encoded).toBeLessThan(20 * 1024 * 1024);
   });
 });
 

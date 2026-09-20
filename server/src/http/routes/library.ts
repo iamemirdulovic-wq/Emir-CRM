@@ -32,7 +32,7 @@ import { writeAudit } from '../../audit/audit.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
 import { extractProject } from '../../ai/extract-project.js';
-import { GEMINI_INLINE_LIMIT_BYTES } from '../../ai/models.js';
+import { MAX_DOCUMENT_BYTES } from '../../ai/gemini-files.js';
 import {
   DOCUMENT_CONTENT_TYPES, DOCUMENT_KINDS, PHOTO_CONTENT_TYPES, deleteDocument, deletePhoto,
   findDocument, findPhoto, listDocuments, listPhotos, openFile, saveDocument, savePhoto, setCover,
@@ -259,17 +259,21 @@ libraryRouter.post(
       throw badRequest(`${contentType || 'That file'} cannot be read. PDF or an image of the page.`);
     }
 
-    // Google's ceiling, not one of ours: the request is base64 and it is the
-    // encoded size that has to fit under 20 MB. See GEMINI_INLINE_LIMIT_BYTES.
-    const limit = GEMINI_INLINE_LIMIT_BYTES;
+    /*
+     * A brochure is routinely bigger than a request can carry inline, so one
+     * that is goes through Google's Files API instead. This limit is only the
+     * point past which a file is not a brochure at all.
+     */
+    const limit = MAX_DOCUMENT_BYTES;
     const chunks: Buffer[] = [];
     let size = 0;
     for await (const chunk of req) {
       size += (chunk as Buffer).length;
       if (size > limit) {
         throw badRequest(
-          `That file is larger than ${Math.round(limit / (1024 * 1024))} MB, which is as much as `
-          + 'Google will read in one go. Send the price list or the offer rather than the full brochure.',
+          `That file is larger than ${Math.round(limit / (1024 * 1024))} MB, which is past what the `
+          + 'CRM will read. It is probably a print-resolution master — ask the developer for the '
+          + 'web version.',
         );
       }
       chunks.push(chunk as Buffer);
