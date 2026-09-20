@@ -23,6 +23,7 @@ import { withinCap } from './usage.js';
 import { setting, secret } from '../config/secrets.js';
 import { cachedModels, GEMINI_INLINE_LIMIT_BYTES, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
+import { fetchPage } from './fetch-page.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -116,7 +117,9 @@ The rules, in order of importance:
 7. description: 2-4 plain sentences built ONLY from facts in this document. No selling language,
    no claims about returns or investment.
 8. confidence: a number from 0 to 1 for each field you filled, where 1 means it was printed
-   plainly and 0.5 means you inferred it from context. Do not include fields you left null.`;
+   plainly and 0.5 means you inferred it from context. Do not include fields you left null.
+9. When you are given the text of a web page, use only what that text says. Do not fill a field
+   from what you happen to know about the project elsewhere — the page is the source.`;
 
 export type ExtractInput =
   | { kind: 'file'; data: Buffer; mimeType: string; filename: string }
@@ -127,6 +130,8 @@ export type ExtractResult = {
   /** Which fields came back with something in them. */
   filled: string[];
   model: string;
+  /** Pictures found on the page, for the wizard to offer as the cover. */
+  images?: string[];
 };
 
 /**
@@ -180,14 +185,28 @@ export async function extractProject(
   const knowledge = await buildKnowledge('draft');
 
   const parts: Record<string, unknown>[] = [];
+  let page: Awaited<ReturnType<typeof fetchPage>> | null = null;
   if (input.kind === 'file') {
     parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {
+    /*
+     * The page is fetched here and handed over as text. Gemini has no browser:
+     * given a bare address it can only guess from the words in the URL, which
+     * is exactly the invention this whole file exists to prevent — and in
+     * practice it returned nulls and the wizard filled in nothing.
+     */
+    page = await fetchPage(input.url);
+    if (page.text.trim().length < 80) {
+      throw badRequest(
+        'There was almost no text on that page — it is probably built in a way that needs a '
+        + 'browser to read. Drop the developer\'s PDF instead, or type it in.',
+      );
+    }
     parts.push({
       text:
-        `Read the developer project page at ${input.url} and return the project as JSON. `
-        + 'If you cannot read the page, return nulls rather than guessing from the address.',
+        `Read this developer project page and return the project as JSON.\n\n`
+        + `Page address: ${page.url}\n\n${page.text}`,
     });
   }
 
@@ -212,7 +231,7 @@ export async function extractProject(
   const parsed = safeParse(raw);
   if (!parsed) throw badRequest('Emir AI could not make sense of that document. Try another file, or type it in.');
 
-  return { extracted: parsed, filled: filledFields(parsed), model };
+  return { extracted: parsed, filled: filledFields(parsed), model, images: page?.images ?? [] };
 }
 
 

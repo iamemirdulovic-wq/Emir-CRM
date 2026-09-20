@@ -319,4 +319,91 @@ describeWithDb('the project library', () => {
     expect(stats.mostLeads?.project_name).toBe('Emaar Beachfront');
     expect(stats.mostLeads?.leads).toBe(3);
   });
+
+  /**
+   * Emir AI reads "ALDAR" off a brochure and the wizard stored it as loose text
+   * with `developer_id` left null — so the project never appeared under Aldar on
+   * the Developers screen, and an offer built from it had no ORN, no escrow bank
+   * and nobody to ring.
+   */
+  it('files a typed developer name under the developer we already hold', async () => {
+    const user = await createTestUser({ role: 'owner' });
+    const devId = await createDeveloper(owner(user.id), {
+      legalName: 'Aldar Properties PJSC', shortName: 'Aldar',
+    });
+
+    // The brochure's spelling, not the record's.
+    const id = await createProject(owner(user.id), {
+      name: 'Sei Saadiyat', developer: 'ALDAR', emirate: 'abu_dhabi',
+    });
+
+    const rows = await query<{ developer_id: string | null; developer: string }>(
+      'SELECT developer_id, developer FROM projects WHERE id = ?', [id],
+    );
+    expect(rows[0]?.developer_id).toBe(devId);
+    // And the text column follows the record, so the WhatsApp replies agree.
+    expect(rows[0]?.developer).toBe('Aldar');
+  });
+
+  it('matches a short name against the full legal name', async () => {
+    const user = await createTestUser({ role: 'owner' });
+    const devId = await createDeveloper(owner(user.id), {
+      legalName: 'Emaar Properties PJSC', shortName: 'Emaar',
+    });
+
+    const id = await createProject(owner(user.id), {
+      name: 'Creek Harbour', developer: 'Emaar Properties', emirate: 'dubai',
+    });
+
+    const rows = await query<{ developer_id: string | null }>(
+      'SELECT developer_id FROM projects WHERE id = ?', [id],
+    );
+    expect(rows[0]?.developer_id).toBe(devId);
+  });
+
+  /* Guessing between two look-alike records would file a project under the wrong
+     company, which is worse than filing it under none. */
+  it('leaves an ambiguous name unlinked rather than guessing', async () => {
+    const user = await createTestUser({ role: 'owner' });
+    await createDeveloper(owner(user.id), { legalName: 'Damac Lagoons LLC', shortName: 'Damac Lagoons' });
+    await createDeveloper(owner(user.id), { legalName: 'Damac Islands LLC', shortName: 'Damac Islands' });
+
+    // Prefixes both and is neither: two companies could be meant.
+    const id = await createProject(owner(user.id), {
+      name: 'Somewhere', developer: 'Damac', emirate: 'dubai',
+    });
+
+    const rows = await query<{ developer_id: string | null; developer: string }>(
+      'SELECT developer_id, developer FROM projects WHERE id = ?', [id],
+    );
+    expect(rows[0]?.developer_id).toBeNull();
+    // The name is still kept, so nothing is lost.
+    expect(rows[0]?.developer).toBe('Damac');
+  });
+
+  it('never invents a developer from a name on a brochure', async () => {
+    const user = await createTestUser({ role: 'owner' });
+
+    await createProject(owner(user.id), {
+      name: 'Somewhere New', developer: 'A Developer Nobody Has Heard Of', emirate: 'dubai',
+    });
+
+    expect(await query('SELECT id FROM developers', [])).toHaveLength(0);
+  });
+
+  it('keeps an explicitly chosen developer over anything typed', async () => {
+    const user = await createTestUser({ role: 'owner' });
+    const chosen = await createDeveloper(owner(user.id), { legalName: 'Sobha Realty', shortName: 'Sobha' });
+    await createDeveloper(owner(user.id), { legalName: 'Emaar Properties PJSC', shortName: 'Emaar' });
+
+    const id = await createProject(owner(user.id), {
+      name: 'A Tower', developerId: chosen, developer: 'Emaar', emirate: 'dubai',
+    });
+
+    const rows = await query<{ developer_id: string | null; developer: string }>(
+      'SELECT developer_id, developer FROM projects WHERE id = ?', [id],
+    );
+    expect(rows[0]?.developer_id).toBe(chosen);
+    expect(rows[0]?.developer).toBe('Sobha');
+  });
 });

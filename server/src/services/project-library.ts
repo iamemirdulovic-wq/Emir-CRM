@@ -196,6 +196,59 @@ async function developerName(developerId: string | null | undefined, exec: Execu
   return row?.short_name ?? null;
 }
 
+/**
+ * The developer record a typed name belongs to, if there is one.
+ *
+ * Emir AI reads "ALDAR" off a brochure and the wizard used to store that as
+ * loose text with `developer_id` left null — so the project never appeared
+ * under Aldar on the Developers screen, and an offer built from it had no ORN,
+ * no escrow bank and nobody to ring.
+ *
+ * Matching is on the short name or the legal name, case- and
+ * punctuation-insensitive, because a brochure says "ALDAR" where the record
+ * says "Aldar Properties PJSC". It never *creates* a developer: inventing a
+ * company record from a line in a PDF is exactly the kind of guess this CRM
+ * does not make. The wizard offers that as a button instead.
+ */
+export async function findDeveloperByName(
+  name: string | null | undefined,
+  exec: Executor = getPool(),
+): Promise<string | null> {
+  const needle = normaliseDeveloper(name ?? '');
+  if (needle.length < 2) return null;
+
+  const rows = await query<{ id: string; short_name: string; legal_name: string }>(
+    'SELECT id, short_name, legal_name FROM developers',
+    [],
+    exec,
+  );
+
+  const exact = rows.find((row) =>
+    normaliseDeveloper(row.short_name) === needle || normaliseDeveloper(row.legal_name) === needle);
+  if (exact) return exact.id;
+
+  /*
+   * "Aldar" against "Aldar Properties PJSC". Only one way round: a record whose
+   * name starts with what was typed. The reverse would let "A" match anything.
+   */
+  const startsWith = rows.filter((row) =>
+    normaliseDeveloper(row.legal_name).startsWith(needle)
+    || normaliseDeveloper(row.short_name).startsWith(needle));
+
+  // Ambiguous is not a match: two developers called "Emaar something" must not
+  // be resolved by luck.
+  return startsWith.length === 1 ? (startsWith[0]?.id ?? null) : null;
+}
+
+/** Lowercase, and without the punctuation and suffixes a brochure varies on. */
+function normaliseDeveloper(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b(pjsc|llc|psc|fzco|fz-llc|l\.l\.c|properties|property|development[s]?|group|holding[s]?)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 export async function createProject(
   actor: AuditActor,
   input: ProjectInput,
@@ -204,7 +257,13 @@ export async function createProject(
   const name = input.name.trim();
   if (!name) throw badRequest('A project needs a name');
 
-  const linked = await developerName(input.developerId, exec);
+  /*
+   * A typed name that belongs to a developer we already hold is linked to it,
+   * so the project shows up under that developer and an offer built from it
+   * can reach their ORN, escrow bank and contacts.
+   */
+  const developerId = input.developerId ?? await findDeveloperByName(input.developer, exec);
+  const linked = await developerName(developerId, exec);
   const developer = (linked ?? input.developer ?? '').trim();
   if (!developer) throw badRequest('Choose a developer, or type the developer name');
 
@@ -219,7 +278,7 @@ export async function createProject(
                            image_url, cover_style, visibility, golden_visa_eligible)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      id, slug, name, developer, input.developerId ?? null, input.emirate,
+      id, slug, name, developer, developerId, input.emirate,
       input.community ?? null, input.propertyType ?? null, input.saleStatus ?? 'selling_now',
       input.startingPriceAed ?? null, input.handoverDate ?? null, input.paymentPlan ?? null,
       input.reraNo ?? null, input.escrowAccount ?? null, input.ownership ?? null,

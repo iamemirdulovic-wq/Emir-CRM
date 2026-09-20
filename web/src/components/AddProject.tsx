@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatAed, humanize } from '../lib/format.js';
 import type { DeveloperRow, LibraryCard, ProjectDraft, SaleStatus, Visibility } from '../lib/types.js';
@@ -57,13 +57,51 @@ const TYPES = [
 ] as const;
 
 /**
+ * The developer record a typed name belongs to, if we already hold one.
+ *
+ * The same rule as the server's `findDeveloperByName`, repeated here so the
+ * wizard can *show* the match while the user is looking at it rather than
+ * silently applying it on save. Names on a brochure ("ALDAR") and names in the
+ * record ("Aldar Properties PJSC") rarely agree on punctuation or suffix.
+ */
+function matchDeveloper(name: string | null, developers: DeveloperRow[]): DeveloperRow | null {
+  const needle = normaliseDeveloper(name ?? '');
+  if (needle.length < 2) return null;
+
+  const exact = developers.find((row) =>
+    normaliseDeveloper(row.short_name) === needle || normaliseDeveloper(row.legal_name) === needle);
+  if (exact) return exact;
+
+  // Only one way round: a record that starts with what was typed. The reverse
+  // would let a single letter match anything.
+  const startsWith = developers.filter((row) =>
+    normaliseDeveloper(row.legal_name).startsWith(needle)
+    || normaliseDeveloper(row.short_name).startsWith(needle));
+
+  // Ambiguous is not a match.
+  return startsWith.length === 1 ? (startsWith[0] ?? null) : null;
+}
+
+function normaliseDeveloper(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b(pjsc|llc|psc|fzco|fz-llc|properties|property|developments?|group|holdings?)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
  * Send one file as a raw body.
  *
  * Not multipart: the server reads the stream straight through, and the name
  * rides in a header because an HTTP header is Latin-1 and a developer's file
  * is as likely to be named in Arabic as in English.
  */
-async function uploadFile(path: string, file: File, headers: Record<string, string> = {}): Promise<void> {
+async function uploadFile(
+  path: string,
+  file: File,
+  headers: Record<string, string> = {},
+): Promise<{ id: string } | null> {
   const response = await fetch(path, {
     method: 'POST',
     credentials: 'same-origin',
@@ -78,6 +116,7 @@ async function uploadFile(path: string, file: File, headers: Record<string, stri
     const text = await response.text().catch(() => '');
     throw new Error(text || `Upload failed (${response.status})`);
   }
+  return response.json().catch(() => null) as Promise<{ id: string } | null>;
 }
 
 /** The document kinds a developer actually sends, in the order they matter. */
@@ -173,8 +212,78 @@ export function AddProject({ developers, onDone, onCancel }: {
   const [documents, setDocuments] = useState<{ file: File; kind: string }[]>([]);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [dupes, setDupes] = useState<LibraryCard[] | null>(null);
+  const [addingDeveloper, setAddingDeveloper] = useState(false);
+  const [foundImages, setFoundImages] = useState<string[]>([]);
+  const [knownDevelopers, setKnownDevelopers] = useState(developers);
   const [checkingDupes, setCheckingDupes] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
+
+  // The parent loads developers asynchronously, and one created here is added
+  // to the same list rather than waiting for a reload.
+  useEffect(() => { setKnownDevelopers(developers); }, [developers]);
+
+  const matched = draft.developerId
+    ? knownDevelopers.find((row) => row.id === draft.developerId) ?? null
+    : matchDeveloper(draft.developer, knownDevelopers);
+
+  /**
+   * Create the developer Emir AI named, and link the project to it.
+   *
+   * Emir AI reading "ALDAR" off a brochure is not enough to invent a company
+   * record, so this is a button rather than something that happens by itself —
+   * but once pressed, the AI lookup fills the ORN, TRN and head office so it is
+   * one click rather than a form.
+   */
+  async function createDeveloperFromName() {
+    const name = draft.developer?.trim();
+    if (!name) return;
+    setAddingDeveloper(true);
+    setError(null);
+    try {
+      let details: Record<string, unknown> = { legalName: name, shortName: name };
+      try {
+        const { extracted } = await api.post<{ extracted: Record<string, string | null> }>(
+          '/api/library/developers/lookup', { query: name },
+        );
+        details = {
+          legalName: extracted.legalName ?? name,
+          shortName: extracted.shortName ?? name,
+          orn: extracted.orn,
+          trn: extracted.trn,
+          headOffice: extracted.headOffice,
+          escrowBank: extracted.escrowBank,
+          website: extracted.website,
+          trackRecord: extracted.trackRecord,
+        };
+      } catch {
+        // No key, no budget, or Google was unhelpful. The record is still worth
+        // having with just the name on it.
+      }
+
+      const { id } = await api.post<{ id: string }>('/api/library/developers', details);
+      const row: DeveloperRow = {
+        id,
+        slug: '',
+        legal_name: String(details.legalName ?? name),
+        short_name: String(details.shortName ?? name),
+        orn: (details.orn as string | null) ?? null,
+        trn: (details.trn as string | null) ?? null,
+        head_office: (details.headOffice as string | null) ?? null,
+        escrow_bank: (details.escrowBank as string | null) ?? null,
+        website: (details.website as string | null) ?? null,
+        track_record: (details.trackRecord as string | null) ?? null,
+        project_count: 0,
+        contact_count: 0,
+      };
+      setKnownDevelopers((current) => [...current, row]);
+      set('developerId', id);
+      toast(`${row.short_name} added — check their details on the Developers tab`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add that developer');
+    } finally {
+      setAddingDeveloper(false);
+    }
+  }
 
   function addPhotos(files: File[]) {
     setPhotos((current) => [...current, ...files]);
@@ -230,7 +339,7 @@ export function AddProject({ developers, onDone, onCancel }: {
     return () => window.clearInterval(timer);
   }
 
-  function applyExtraction(result: { extracted: Extracted; filled: string[] }) {
+  function applyExtraction(result: { extracted: Extracted; filled: string[]; images?: string[] }) {
     const e = result.extracted;
     setExtracted(e);
     setAiFilled(new Set(result.filled));
@@ -250,8 +359,16 @@ export function AddProject({ developers, onDone, onCancel }: {
       ownership: e.ownership ?? current.ownership,
       description: e.description ?? current.description,
     }));
+    // Pictures the page carried, offered as the cover rather than taken.
+    setFoundImages(result.images ?? []);
+    if (result.images?.[0]) setDraft((current) => ({ ...current, imageUrl: current.imageUrl ?? result.images![0]! }));
+
     setStep(0);
-    toast(`Emir AI filled ${result.filled.length} field${result.filled.length === 1 ? '' : 's'} · check them before saving`);
+    toast(
+      result.filled.length
+        ? `Emir AI filled ${result.filled.length} field${result.filled.length === 1 ? '' : 's'} · check them before saving`
+        : 'Emir AI could not find anything on that page — try the PDF, or type it in',
+    );
   }
 
   async function readFile(file: File) {
@@ -368,14 +485,23 @@ export function AddProject({ developers, onDone, onCancel }: {
       if (photosFailed) missed.push(`${photosFailed} photo${photosFailed === 1 ? '' : 's'}`);
 
       let documentsFailed = 0;
+      let brochureId: string | null = null;
       for (const { file, kind } of documents) {
         try {
-          await uploadFile(`/api/library/${id}/documents`, file, { 'X-Kind': kind });
+          const saved = await uploadFile(`/api/library/${id}/documents`, file, { 'X-Kind': kind });
+          // The first brochure uploaded becomes what WhatsApp sends, unless a
+          // link was typed in on purpose.
+          if (!brochureId && (kind === 'brochure_en' || kind === 'brochure_ar')) brochureId = saved?.id ?? null;
         } catch {
           documentsFailed += 1;
         }
       }
       if (documentsFailed) missed.push(`${documentsFailed} document${documentsFailed === 1 ? '' : 's'}`);
+
+      if (brochureId && !draft.brochureUrl?.trim()) {
+        await api.patch(`/api/library/${id}`, { brochureUrl: `/api/library/documents/${brochureId}` })
+          .catch(() => missed.push('the brochure link'));
+      }
 
       if (missed.length) {
         toast(`Project saved, but ${missed.join(' and ')} did not — add ${missed.length > 1 ? 'them' : 'it'} from the project page.`);
@@ -565,7 +691,7 @@ export function AddProject({ developers, onDone, onCancel }: {
                 <Field label="Developer">
                   <Select value={draft.developerId ?? ''} onChange={(e) => set('developerId', e.target.value || null)}>
                     <option value="">— choose —</option>
-                    {developers.map((d) => <option key={d.id} value={d.id}>{d.short_name}</option>)}
+                    {knownDevelopers.map((d) => <option key={d.id} value={d.id}>{d.short_name}</option>)}
                   </Select>
                 </Field>
               </div>
@@ -598,9 +724,52 @@ export function AddProject({ developers, onDone, onCancel }: {
               )}
 
               {!draft.developerId && (
-                <Field label={<>Or type the developer {conf('developer')}</>}>
-                  <Input className={cls('developer')} value={draft.developer ?? ''} onChange={(e) => set('developer', e.target.value || null)} maxLength={160} />
-                </Field>
+                <>
+                  <Field label={<>Or type the developer {conf('developer')}</>}>
+                    <Input
+                      className={cls('developer')}
+                      value={draft.developer ?? ''}
+                      onChange={(e) => set('developer', e.target.value || null)}
+                      maxLength={160}
+                    />
+                  </Field>
+
+                  {/* A typed name that belongs to a developer we hold, linked
+                      where the user can see it rather than silently on save. */}
+                  {matched && (
+                    <div className="aihint" style={{ marginTop: -8 }}>
+                      <Icon name="badge-check" />
+                      <div>
+                        This is <b>{matched.short_name}</b>, already in your developers.
+                        The project will be filed under them.
+                      </div>
+                      <button type="button" className="rowbtn" onClick={() => set('developerId', matched.id)}>
+                        Use them
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Nobody by that name yet. Emir AI naming a developer is not
+                      enough to invent a company record, so this is a button. */}
+                  {!matched && (draft.developer ?? '').trim().length > 1 && (
+                    <div className="aihint" style={{ marginTop: -8 }}>
+                      <Icon name="building" />
+                      <div>
+                        <b>{draft.developer}</b> is not in your developers yet. Without a record the
+                        project has a name but no ORN, escrow bank or contacts to ring.
+                      </div>
+                      <button
+                        type="button"
+                        className="rowbtn"
+                        onClick={() => void createDeveloperFromName()}
+                        disabled={addingDeveloper}
+                      >
+                        <Icon name={addingDeveloper ? 'loader-2' : 'plus'} size={13} className={addingDeveloper ? 'spin' : undefined} />
+                        <span>{addingDeveloper ? 'Adding…' : `Add ${draft.developer}`}</span>
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
               <div className="field-row">
                 <Field label="Emirate">
@@ -812,15 +981,44 @@ export function AddProject({ developers, onDone, onCancel }: {
                 </div>
               )}
 
-              <div className="sec-t">Or link to them instead</div>
-              <div className="field-row">
-                <Field label="Cover image URL" hint="Only needed if you are not uploading a photo.">
-                  <Input value={draft.imageUrl ?? ''} onChange={(e) => set('imageUrl', e.target.value || null)} maxLength={1024} />
-                </Field>
-                <Field label="Brochure URL" hint="What the BROCHURE reply sends on WhatsApp.">
-                  <Input value={draft.brochureUrl ?? ''} onChange={(e) => set('brochureUrl', e.target.value || null)} maxLength={1024} />
-                </Field>
-              </div>
+              {/* Pictures Emir AI found on the page it read. Offered, not
+                  taken: a page's biggest image is as often a banner as a
+                  building. */}
+              {foundImages.length > 0 && (
+                <>
+                  <div className="sec-t">
+                    Emir AI found {foundImages.length} picture{foundImages.length === 1 ? '' : 's'} on that page
+                    <span className="muted" style={{ fontWeight: 400 }}> — tap one to use it as the cover</span>
+                  </div>
+                  <div className="shots">
+                    {foundImages.map((url) => (
+                      <figure
+                        className="shot"
+                        key={url}
+                        onClick={() => set('imageUrl', url)}
+                        style={{ cursor: 'pointer', outline: draft.imageUrl === url ? '2px solid var(--primary)' : undefined }}
+                      >
+                        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                        {draft.imageUrl === url && <span className="pill ok">Cover</span>}
+                      </figure>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <details style={{ marginTop: 14 }}>
+                <summary className="rowbtn" style={{ cursor: 'pointer' }}>
+                  Or paste a link instead of uploading
+                </summary>
+                <div className="field-row" style={{ marginTop: 10 }}>
+                  <Field label="Cover image URL" hint="Only if you are not uploading a photo.">
+                    <Input value={draft.imageUrl ?? ''} onChange={(e) => set('imageUrl', e.target.value || null)} maxLength={1024} />
+                  </Field>
+                  <Field label="Brochure URL" hint="Only if you are not uploading the brochure above.">
+                    <Input value={draft.brochureUrl ?? ''} onChange={(e) => set('brochureUrl', e.target.value || null)} maxLength={1024} />
+                  </Field>
+                </div>
+              </details>
             </>
           )}
 

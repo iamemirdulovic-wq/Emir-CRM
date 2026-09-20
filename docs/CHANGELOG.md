@@ -2,6 +2,57 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## "Paste a link" now actually reads the page
+
+The owner pasted a real project page and nothing came back. The reason was plain once looked at:
+the link was handed to Gemini as a sentence — *"read the developer project page at this address"* —
+and **Gemini has no browser**. Told to return nulls rather than guess, it correctly returned nulls,
+and the wizard filled in nothing and said nothing about why.
+
+**The page is now fetched here** and handed over as text. A page with almost no text in it (a site
+that needs a browser to render) says so and points at the PDF instead, rather than failing silently.
+
+**Pictures come with it.** The page's own `og:image` and its `<img>` tags — including the
+`data-src` a lazy-loaded page hides the real address in — are collected, made absolute, and offered
+in the Media step as cover candidates. Logos, share icons, spacers and SVGs are filtered out. The
+first is pre-selected but nothing is taken: a page's biggest image is as often a banner as a
+building.
+
+**Fetching a URL on request is a capability worth being careful with.** It lets a caller make the
+server reach things they cannot — its own loopback, the private network around it, the cloud
+metadata endpoint at 169.254.169.254 that hands out credentials to anything that can make one HTTP
+request. So: http and https only; every address the hostname resolves to is checked, not just the
+first; redirects are followed **by hand** so each hop is checked again (a public address that
+redirects to a private one is the obvious way past a check that only runs once); a 12-second
+timeout and a 3 MB cap. 14 tests cover the refusals, including IPv4 addresses wearing an IPv6 hat.
+
+## Emir AI names a developer; now the CRM files the project under them
+
+Reading "ALDAR" off a brochure put the name in a text box and left `developer_id` null — so the
+project never appeared under Aldar on the Developers screen, and an offer built from it had no ORN,
+no escrow bank and nobody to ring.
+
+- **The server links it.** A typed name that matches a developer already held is linked to it,
+  case- and punctuation-insensitive, so the brochure's "ALDAR" finds the record's "Aldar Properties
+  PJSC". An ambiguous name is left unlinked rather than filed under the wrong company, and a name
+  nobody holds **never creates a developer** — inventing a company record from a line in a PDF is
+  exactly the guess this CRM does not make.
+- **The wizard shows it.** A match is displayed while the user is looking at it rather than applied
+  quietly on save. No match gets a button — *"Add ALDAR"* — which creates the record and uses the
+  Emir AI lookup to fill the ORN, TRN, head office and escrow bank, so it is one press rather than
+  a form.
+
+## Uploads first, links second
+
+The Media step put two URL boxes above the drop zones, which read as the main way to do it. They
+are now behind a *"Or paste a link instead of uploading"* fold, and **a brochure uploaded there
+becomes what the WhatsApp BROCHURE reply sends** — previously uploading one and expecting WhatsApp
+to use it would have quietly done nothing.
+
+847 server tests, 102 web tests. The page fetcher was exercised against a local server: loopback
+refused, a redirect toward the metadata address refused at the hop, and a real page parsed down to
+its title, its price and its photographs.
+
 ## Real photo and document upload
 
 The Media step of the Add-project wizard offered two boxes to paste a URL into, with a note saying
