@@ -29,7 +29,18 @@ export type GeminiCall = {
   userId: string | null;
 };
 
-export type GeminiResult = { text: string | null; model: string };
+export type GeminiResult = {
+  text: string | null;
+  model: string;
+  /**
+   * The raw parts of the reply.
+   *
+   * Needed by function calling, where the interesting content is a
+   * `functionCall` rather than text, and where the model's own turn has to go
+   * back into the conversation exactly as it came out.
+   */
+  parts: Record<string, unknown>[];
+};
 
 export async function callGemini(call: GeminiCall): Promise<GeminiResult> {
   const candidates = call.candidates.slice(0, MAX_MODEL_ATTEMPTS);
@@ -68,7 +79,7 @@ export async function callGemini(call: GeminiCall): Promise<GeminiResult> {
       lastModel = model;
       const outcome = await attempt(call, model);
 
-      if (outcome.kind === 'answered') return { text: outcome.text, model };
+      if (outcome.kind === 'answered') return { text: outcome.text, parts: outcome.parts, model };
 
       lastStatus = outcome.status;
       if (outcome.detail) explained = { status: outcome.status, detail: outcome.detail, model };
@@ -92,7 +103,7 @@ export async function callGemini(call: GeminiCall): Promise<GeminiResult> {
 }
 
 type Attempt =
-  | { kind: 'answered'; text: string | null }
+  | { kind: 'answered'; text: string | null; parts: Record<string, unknown>[] }
   | { kind: 'busy'; status: number; detail: string | null }
   | { kind: 'unavailable'; status: number; detail: string | null };
 
@@ -105,6 +116,7 @@ type Attempt =
  */
 async function attempt(call: GeminiCall, model: string): Promise<Attempt> {
   let text: string | null = null;
+  let parts: Record<string, unknown>[] = [];
   let usage = { input: 0, output: 0 };
   let ran = false;
 
@@ -139,12 +151,13 @@ async function attempt(call: GeminiCall, model: string): Promise<Attempt> {
     }
 
     const json = (await response.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: { content?: { parts?: Record<string, unknown>[] } }[];
       usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
     };
+    parts = json.candidates?.[0]?.content?.parts ?? [];
     // Parts can be split, and a thinking model puts its answer in the last one.
-    text = (json.candidates?.[0]?.content?.parts ?? [])
-      .map((part) => part.text ?? '')
+    text = parts
+      .map((part) => (typeof part.text === 'string' ? part.text : ''))
       .join('')
       .trim() || null;
     ran = true;
@@ -166,7 +179,7 @@ async function attempt(call: GeminiCall, model: string): Promise<Attempt> {
     }
   }
 
-  return { kind: 'answered', text };
+  return { kind: 'answered', text, parts };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

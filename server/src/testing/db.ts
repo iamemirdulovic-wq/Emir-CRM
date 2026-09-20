@@ -114,6 +114,8 @@ export async function seedFieldMappings(): Promise<void> {
  * so no test can depend on a previous one's leftovers.
  */
 const TRUNCATE_ORDER = [
+  'ai_messages',
+  'ai_conversations',
   // Project library — children first, though FOREIGN_KEY_CHECKS is off anyway.
   'payment_plan_rows',
   'payment_plans',

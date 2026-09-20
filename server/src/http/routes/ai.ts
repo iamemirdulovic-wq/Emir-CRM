@@ -17,10 +17,13 @@ import {
 } from '../../ai/knowledge.js';
 import { monthSpend, usd, withinCap } from '../../ai/usage.js';
 import { aiProvider } from '../../ai/index.js';
+import { ask } from '../../ai/ask.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
 import { writeAudit } from '../../audit/audit.js';
+import { execute, query, queryOne } from '../../db/client.js';
+import { newId } from '../../lib/ids.js';
 import {
   clearSecret, saveSecret, saveSetting, secret, secretHint, secretSource, setting, unreadableSecrets,
 } from '../../config/secrets.js';
@@ -232,6 +235,75 @@ aiRouter.post(
       models: results,
       current: (await setting('AI_MODEL')) ?? null,
     });
+  }),
+);
+
+/**
+ * Ask Emir AI a question about the CRM.
+ *
+ * Open to everyone signed in, not just managers: an agent asking "which of my
+ * leads should I call first?" is the point of it. What they get back is fenced
+ * to what they may see, in the SQL, from their session — see `ask-tools.ts`.
+ */
+aiRouter.post(
+  '/ask',
+  rateLimit({
+    max: 40,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `ai-ask:${currentUser(req).id}`,
+    message: 'That is a lot of questions in a short time. Give it a minute.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const body = z.object({
+      question: z.string().trim().min(2).max(1000),
+      conversationId: z.string().max(36).nullable().optional(),
+    }).parse(req.body);
+
+    /*
+     * A thread belongs to the person who opened it. Scoped by user_id on the
+     * way in as well as the way out, so passing someone else's id reads
+     * nothing.
+     */
+    let conversationId = body.conversationId ?? null;
+    if (conversationId) {
+      const own = await queryOne<{ id: string }>(
+        'SELECT id FROM ai_conversations WHERE id = ? AND user_id = ?',
+        [conversationId, user.id],
+      );
+      if (!own) conversationId = null;
+    }
+
+    const history = conversationId
+      ? (await query<{ role: 'user' | 'assistant'; body: string }>(
+        `SELECT role, body FROM ai_messages WHERE conversation_id = ?
+          ORDER BY created_at DESC LIMIT 6`,
+        [conversationId],
+      )).reverse()
+      : [];
+
+    const result = await ask(body.question, { id: user.id, role: user.role }, history);
+
+    if (!conversationId) {
+      conversationId = newId();
+      await execute(
+        'INSERT INTO ai_conversations (id, user_id, title) VALUES (?, ?, ?)',
+        [conversationId, user.id, body.question.slice(0, 160)],
+      );
+    } else {
+      await execute('UPDATE ai_conversations SET updated_at = NOW(3) WHERE id = ?', [conversationId]);
+    }
+
+    await execute(
+      'INSERT INTO ai_messages (id, conversation_id, role, body) VALUES (?, ?, ?, ?)',
+      [newId(), conversationId, 'user', body.question],
+    );
+    await execute(
+      'INSERT INTO ai_messages (id, conversation_id, role, body, tools_used, model) VALUES (?, ?, ?, ?, ?, ?)',
+      [newId(), conversationId, 'assistant', result.answer, JSON.stringify(result.toolsUsed), result.model],
+    );
+
+    res.json({ ...result, conversationId });
   }),
 );
 

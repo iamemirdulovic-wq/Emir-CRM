@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { AskEmirAi } from './AskEmirAi.js';
 import { api, qs } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { t } from '../lib/i18n.js';
@@ -178,6 +179,8 @@ function Chrome() {
     >
       <SearchContext.Provider value={{ value: search, set: setSearch }}>
         <Outlet />
+        {/* On every CRM screen, as the design has it. */}
+        <AskEmirAi />
       </SearchContext.Provider>
     </AppShell>
   );

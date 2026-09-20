@@ -826,3 +826,46 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 /* A touch screen has no hover, so the remove button is always there. */
 @media (hover:none){.shot .icon-btn{opacity:1}}
 .close-item .input{margin-inline-start:auto}
+
+/* ── Ask Emir AI ─────────────────────────────────────────────────────────── */
+/* Ported from the design. The panel is always in the DOM and hidden with
+   opacity and pointer-events, so opening it animates rather than appears. */
+.ask-fab{position:fixed;right:24px;bottom:24px;z-index:45;display:flex;align-items:center;gap:10px;
+  padding:10px 16px 10px 10px;border-radius:99px;border:1px solid var(--glass-line);
+  background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  box-shadow:0 10px 30px rgba(15,40,90,.18);font-weight:600;color:var(--ink)}
+.ask-fab .orb{width:30px;height:30px;box-shadow:0 0 0 4px var(--primary-soft)}
+.ask{position:fixed;right:24px;bottom:84px;width:min(380px,calc(100% - 28px));
+  height:min(540px,calc(100vh - 120px));z-index:46;border-radius:26px;display:flex;flex-direction:column;
+  background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-line);box-shadow:0 20px 50px rgba(15,40,90,.22);
+  opacity:0;transform:translateY(16px) scale(.97);pointer-events:none;transition:all .3s var(--ease)}
+.ask.show{opacity:1;transform:none;pointer-events:auto}
+.ask-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ask-h .orb{width:28px;height:28px;box-shadow:none;animation:none}
+.ask-h small{display:block;color:var(--ink-3);font-size:12px}
+.ask-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.ask-body .bubble{max-width:88%;font-size:13.5px;white-space:pre-wrap}
+.ask-body .bubble.me{align-self:flex-end;background:var(--primary);color:#fff;border-color:transparent;
+  border-radius:18px 18px 6px 18px}
+.sugg{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+.sugg button{border:1px solid var(--glass-line);background:var(--surface-2);border-radius:99px;
+  padding:5px 10px;font-size:12px;font-weight:600;color:var(--ink-2);text-align:start}
+.ask-in{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.ask-in input{flex:1}
+/* The three dots while it is thinking. */
+.dots{display:inline-flex;gap:3px;align-items:center;height:14px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--ink-3);animation:dots 1.1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}
+.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dots{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+/* The phone has a bottom bar, so both sit above it. */
+@media (max-width:760px){.ask-fab{bottom:92px;right:14px}.ask{bottom:150px;right:14px}}
+/* The orb pulses; someone who asked for less motion should not have it. */
+@media (prefers-reduced-motion:reduce){.dots i{animation:none}.ask{transition:none}}
+/* The mark Emir AI leaves after a lead's name, so the answer is one tap from
+   the person it is about. */
+.lead-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+  border:0;border-radius:6px;background:rgba(255,255,255,.22);color:inherit;
+  vertical-align:-3px;margin-inline-start:3px}
+.ask-body .bubble:not(.me) .lead-link{background:var(--primary-soft);color:var(--primary)}

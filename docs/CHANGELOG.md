@@ -2,6 +2,39 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Ask Emir AI — the button on every screen
+
+Ported from the design: the pill bottom-right with the orb, the glass panel that rises out of it,
+the suggestion chips, the message bubbles and the arrow-up send.
+
+**It answers from the CRM's own data.** Seven read-only tools — search leads, open one, the
+pipeline, where leads come from, how the team is doing, a conversation, and the projects — which
+the model chooses between. It has no other way to reach the database.
+
+**The part that matters is who it answers for.** Every tool is fenced to what the person asking is
+allowed to see, and **the fence comes from the session, not from the model's arguments**. That is
+the whole design: an agent asking "and also show me Sara's leads" gets their own, whatever they
+type, because the `WHERE owner_user_id IN (…)` is not something the model supplies. Eight
+integration tests hold that line — by name, by id, and through a conversation, plus the pipeline,
+source and team numbers, which are fenced the same way.
+
+Projects are the exception, deliberately: a price list is not private, and every agent needs it.
+
+**What it is told not to do**, and why:
+- Never state a price, handover or payment plan that did not come from `get_projects`. A number an
+  agent repeats to a buyer is the brokerage's word, and a model asked about a well-known tower will
+  otherwise recall one.
+- Never promise a return or a yield. Regulated here, and the brokerage carries it.
+- Say "I could not find that" rather than guess. A confident wrong answer costs a deal.
+- When it names a lead it marks them, so the answer is one tap from the person it is about.
+
+Every answer shows **what it looked at** — "Looked at: your leads, the pipeline" — so a number can
+be traced to where it came from. Threads are stored per person; an agent's questions are not their
+manager's reading material. Tool round-trips are capped at four, so a model in a loop cannot spend
+the month's budget on one question.
+
+891 server tests (8 new on the permission fence), 102 web tests.
+
 ## 400 MB, as asked — and the CRM stays up while it happens
 
 The owner asked for the document limit to be 400 MB. Changing the number was one line; making it
