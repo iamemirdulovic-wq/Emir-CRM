@@ -2,6 +2,33 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## 400 MB, as asked — and the CRM stays up while it happens
+
+The owner asked for the document limit to be 400 MB. Changing the number was one line; making it
+safe was the work.
+
+**Every byte was being buffered in memory.** At 100 MB that was careless; at 400 MB it is a CRM
+that dies when somebody uploads a brochure. One request would have held 400 MB of a process the
+whole team shares — and that process is the pipeline, the inbox and the WhatsApp replies too, so a
+single large upload would have taken the lot down. Two at once, certainly.
+
+**So the file never lands in memory.**
+- The request is **streamed straight to a temporary file** and counted as it arrives, so a file
+  over the limit is refused part-way through rather than accepted and then measured.
+- It is **streamed from disk to Google**, not loaded and posted.
+- The PDF's photographs are found by reading the file in **overlapping windows**, so a 400 MB
+  brochure is scanned in 24 MB at a time. The windows overlap by half, because an image straddling
+  a boundary would otherwise be seen twice in halves and copied from neither.
+- Only a file small enough to go inline anyway (under 8 MB) is ever loaded whole, and
+  `readWholeDocument` refuses outright if asked to load more than the caller promised.
+- The scratch copy is deleted in a `finally`, and an hourly sweep clears anything left by a
+  process that died mid-read — at 400 MB each, those fill a disk quickly.
+
+**Measured, not assumed.** A 380 MB upload through the running server: memory went from 125 MB to
+**127 MB**, the whole request took four seconds, and no scratch file was left behind.
+
+883 server tests (9 new for the store), 102 web tests.
+
 ## A brochure is allowed to be a brochure
 
 *"That file is larger than 14 MB… send the price list rather than the full brochure."*

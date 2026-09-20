@@ -24,10 +24,10 @@ import { setting, secret } from '../config/secrets.js';
 import { cachedModels, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
 import { fetchPage } from './fetch-page.js';
-import { extractPdfImages, usefulImages } from './pdf-images.js';
-import {
-  deleteFromGemini, INLINE_THRESHOLD_BYTES, MAX_DOCUMENT_BYTES, uploadToGemini,
-} from './gemini-files.js';
+import { usefulImages } from './pdf-images.js';
+import { deleteFromGemini, INLINE_THRESHOLD_BYTES, uploadToGemini } from './gemini-files.js';
+import { readDocument, readWholeDocument, type StoredDocument } from './document-store.js';
+import { extractPdfImagesFromFile } from './pdf-images.js';
 import { badRequest } from '../lib/errors.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
@@ -126,7 +126,12 @@ The rules, in order of importance:
    from what you happen to know about the project elsewhere — the page is the source.`;
 
 export type ExtractInput =
-  | { kind: 'file'; data: Buffer; mimeType: string; filename: string }
+  /*
+   * A document arrives as a file on disk, not as bytes in hand. A 400 MB
+   * brochure held in memory is 400 MB of a shared process, and two at once is
+   * the CRM going down for everyone.
+   */
+  | { kind: 'file'; document: StoredDocument; mimeType: string; filename: string }
   | { kind: 'link'; url: string };
 
 export type ExtractResult = {
@@ -151,20 +156,6 @@ export async function extractProject(
   input: ExtractInput,
   userId: string | null,
 ): Promise<ExtractResult> {
-  /*
-   * Only what is genuinely beyond reach is refused now. A file too big to send
-   * inline goes through Google's Files API instead, which is what a
-   * developer's brochure needs — refusing one and asking for "the price list
-   * rather than the full brochure" was putting my limit on the owner's desk.
-   */
-  if (input.kind === 'file' && input.data.length > MAX_DOCUMENT_BYTES) {
-    throw badRequest(
-      `That file is ${Math.round(input.data.length / (1024 * 1024))} MB, which is past what the CRM `
-      + `will read (${Math.round(MAX_DOCUMENT_BYTES / (1024 * 1024))} MB). It is probably a `
-      + 'print-resolution master — ask the developer for the web version.',
-    );
-  }
-
   const apiKey = await secret('GEMINI_API_KEY');
   if (!apiKey) throw badRequest('Emir AI is not connected yet. Add the key in Settings → Emir AI.');
   if (!(await withinCap())) {
@@ -201,20 +192,27 @@ export async function extractProject(
      * model to find them.
      */
     if (input.mimeType === 'application/pdf') {
-      pdfImages = usefulImages(extractPdfImages(input.data));
+      // Read from disk in windows, so the file is never held whole.
+      pdfImages = usefulImages(await extractPdfImagesFromFile(input.document.filePath));
     }
 
-    if (input.data.length > INLINE_THRESHOLD_BYTES) {
+    if (input.document.bytes > INLINE_THRESHOLD_BYTES) {
       /*
-       * Too big to ride along in the request. Uploaded to Google's Files API
-       * and referenced by URI, which raises the ceiling from 20 MB to 2 GB.
+       * Too big to ride along in the request. Streamed to Google's Files API
+       * and referenced by URI, which raises the ceiling from 20 MB to 2 GB —
+       * and streamed, so a 400 MB brochure costs a file handle, not memory.
        */
       uploaded = await uploadToGemini(apiKey, {
-        data: input.data, mimeType: input.mimeType, filename: input.filename,
+        body: readDocument(input.document),
+        bytes: input.document.bytes,
+        mimeType: input.mimeType,
+        filename: input.filename,
       });
       parts.push({ fileData: { mimeType: input.mimeType, fileUri: uploaded.uri } });
     } else {
-      parts.push({ inlineData: { mimeType: input.mimeType, data: input.data.toString('base64') } });
+      // Small enough that loading it is cheaper than a second round trip.
+      const data = await readWholeDocument(input.document, INLINE_THRESHOLD_BYTES);
+      parts.push({ inlineData: { mimeType: input.mimeType, data: data.toString('base64') } });
     }
     parts.push({ text: `Read this document (${input.filename}) and return the project as JSON.` });
   } else {

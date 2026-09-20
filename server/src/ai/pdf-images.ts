@@ -107,6 +107,54 @@ function trimEol(pdf: Buffer, start: number, end: number): number {
   return stop;
 }
 
+/**
+ * The same scan, reading the file from disk instead of holding it in memory.
+ *
+ * A 400 MB brochure must never be loaded whole — that was the memory cost this
+ * whole change exists to avoid. The file is read in windows that overlap by
+ * enough to catch a marker straddling the boundary, and only the image
+ * currently being copied is held.
+ */
+export async function extractPdfImagesFromFile(filePath: string): Promise<PdfImage[]> {
+  const { createReadStream } = await import('node:fs');
+  const { stat } = await import('node:fs/promises');
+
+  const size = (await stat(filePath)).size;
+  /*
+   * A window big enough to hold any single embedded image plus its dictionary.
+   * A render inside a brochure is a few megabytes; 24 MB is generous, and
+   * bounded whatever the file's total size.
+   */
+  const WINDOW = 24 * 1024 * 1024;
+  /* The overlap must exceed the largest image, or one straddling a boundary is
+     seen twice in halves and copied from neither. Half the window does that. */
+  const OVERLAP = WINDOW / 2;
+
+  const found: PdfImage[] = [];
+  const seenOffsets = new Set<number>();
+
+  for (let start = 0; start < size && found.length < MAX_IMAGES; start += WINDOW - OVERLAP) {
+    const end = Math.min(start + WINDOW, size);
+    const chunks: Buffer[] = [];
+    for await (const chunk of createReadStream(filePath, { start, end: end - 1 })) {
+      chunks.push(chunk as Buffer);
+    }
+
+    for (const image of extractPdfImages(Buffer.concat(chunks))) {
+      // Offsets are window-relative; make them absolute so the same image
+      // found in two overlapping windows is recognised as one.
+      const absolute = start + image.offset;
+      if (seenOffsets.has(absolute)) continue;
+      seenOffsets.add(absolute);
+      found.push({ ...image, offset: absolute });
+    }
+
+    if (end >= size) break;
+  }
+
+  return found.sort((a, b) => b.data.length - a.data.length);
+}
+
 function readNumber(dictionary: string, key: string): number | null {
   const match = new RegExp(`/${key}\\s+(\\d+)`).exec(dictionary);
   return match?.[1] ? Number(match[1]) : null;

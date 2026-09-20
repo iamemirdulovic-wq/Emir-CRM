@@ -33,6 +33,7 @@ import { newId } from '../../lib/ids.js';
 import { badRequest } from '../../lib/errors.js';
 import { extractProject } from '../../ai/extract-project.js';
 import { MAX_DOCUMENT_BYTES } from '../../ai/gemini-files.js';
+import { storeDocument } from '../../ai/document-store.js';
 import {
   DOCUMENT_CONTENT_TYPES, DOCUMENT_KINDS, PHOTO_CONTENT_TYPES, deleteDocument, deletePhoto,
   findDocument, findPhoto, listDocuments, listPhotos, openFile, saveDocument, savePhoto, setCover,
@@ -260,42 +261,33 @@ libraryRouter.post(
     }
 
     /*
-     * A brochure is routinely bigger than a request can carry inline, so one
-     * that is goes through Google's Files API instead. This limit is only the
-     * point past which a file is not a brochure at all.
+     * Streamed straight to disk and never held in memory. At 400 MB a buffered
+     * upload is 400 MB of a process the whole team shares, and two at once
+     * would take the CRM down with it — see ai/document-store.ts.
      */
-    const limit = MAX_DOCUMENT_BYTES;
-    const chunks: Buffer[] = [];
-    let size = 0;
-    for await (const chunk of req) {
-      size += (chunk as Buffer).length;
-      if (size > limit) {
-        throw badRequest(
-          `That file is larger than ${Math.round(limit / (1024 * 1024))} MB, which is past what the `
-          + 'CRM will read. It is probably a print-resolution master — ask the developer for the '
-          + 'web version.',
-        );
-      }
-      chunks.push(chunk as Buffer);
+    const document = await storeDocument(req, MAX_DOCUMENT_BYTES);
+    const filename = decodeFilename(req.get('x-filename'));
+
+    try {
+      const result = await extractProject(
+        { kind: 'file', document, mimeType: contentType, filename },
+        user.id,
+      );
+
+      // What was read, not what was written — nothing was.
+      await writeAudit({
+        actor: actorFrom(req),
+        action: 'project.ai_read_document',
+        entityType: 'project',
+        entityId: null,
+        after: { filename, bytes: document.bytes, model: result.model, filled: result.filled.length },
+      });
+
+      res.json(result);
+    } finally {
+      // The scratch copy goes whether or not the reading worked.
+      await document.discard();
     }
-    if (size === 0) throw badRequest('That file is empty');
-
-    const filename = decodeURIComponent(String(req.get('x-filename') ?? 'document')).slice(0, 255);
-    const result = await extractProject(
-      { kind: 'file', data: Buffer.concat(chunks), mimeType: contentType, filename },
-      user.id,
-    );
-
-    // What was read, not what was written — nothing was.
-    await writeAudit({
-      actor: actorFrom(req),
-      action: 'project.ai_read_document',
-      entityType: 'project',
-      entityId: null,
-      after: { filename, model: result.model, filled: result.filled.length },
-    });
-
-    res.json(result);
   }),
 );
 

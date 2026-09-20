@@ -15,6 +15,7 @@
  */
 import { logger } from '../lib/logger.js';
 import { badRequest } from '../lib/errors.js';
+import { Readable } from 'node:stream';
 import { GEMINI_API_VERSION } from './models.js';
 
 const BASE = 'https://generativelanguage.googleapis.com';
@@ -27,8 +28,14 @@ const BASE = 'https://generativelanguage.googleapis.com';
  */
 export const INLINE_THRESHOLD_BYTES = 8 * 1024 * 1024;
 
-/** What the CRM will read at all. Beyond this is a print-resolution master. */
-export const MAX_DOCUMENT_BYTES = 100 * 1024 * 1024;
+/**
+ * What the CRM will read at all, set by the owner.
+ *
+ * Well inside the Files API's own 2 GB ceiling. The number is only safe
+ * because the file is streamed from disk and never held in memory — see
+ * `document-store.ts` for why that mattered.
+ */
+export const MAX_DOCUMENT_BYTES = 400 * 1024 * 1024;
 
 export type UploadedFile = { uri: string; name: string };
 
@@ -40,7 +47,7 @@ export type UploadedFile = { uri: string; name: string };
  */
 export async function uploadToGemini(
   apiKey: string,
-  file: { data: Buffer; mimeType: string; filename: string },
+  file: { body: Readable | Buffer; bytes: number; mimeType: string; filename: string },
 ): Promise<UploadedFile> {
   const start = await fetch(`${BASE}/upload/${GEMINI_API_VERSION}/files`, {
     method: 'POST',
@@ -48,7 +55,7 @@ export async function uploadToGemini(
       'x-goog-api-key': apiKey,
       'X-Goog-Upload-Protocol': 'resumable',
       'X-Goog-Upload-Command': 'start',
-      'X-Goog-Upload-Header-Content-Length': String(file.data.length),
+      'X-Goog-Upload-Header-Content-Length': String(file.bytes),
       'X-Goog-Upload-Header-Content-Type': file.mimeType,
       'Content-Type': 'application/json',
     },
@@ -69,12 +76,15 @@ export async function uploadToGemini(
   const sent = await fetch(uploadUrl, {
     method: 'POST',
     headers: {
-      'Content-Length': String(file.data.length),
+      'Content-Length': String(file.bytes),
       'X-Goog-Upload-Offset': '0',
       'X-Goog-Upload-Command': 'upload, finalize',
     },
-    body: new Uint8Array(file.data),
-  });
+    body: Buffer.isBuffer(file.body) ? new Uint8Array(file.body) : (Readable.toWeb(file.body) as ReadableStream),
+    // Required by Node when the body is a stream: the request is sent before
+    // the response is read, which is exactly what an upload does.
+    duplex: 'half',
+  } as RequestInit & { duplex: 'half' });
 
   if (!sent.ok) {
     logger.warn('gemini file upload failed', { status: sent.status });

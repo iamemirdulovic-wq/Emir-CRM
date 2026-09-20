@@ -38,7 +38,7 @@ describe('uploading a document to Google', () => {
   const finished = (state: string) =>
     new Response(JSON.stringify({ file: { uri: 'https://g/files/abc', name: 'files/abc', state } }), { status: 200 });
 
-  const file = { data: Buffer.alloc(32), mimeType: 'application/pdf', filename: 'brochure.pdf' };
+  const file = { body: Buffer.alloc(32), bytes: 32, mimeType: 'application/pdf', filename: 'brochure.pdf' };
 
   it('starts, sends the bytes, and hands back the reference', async () => {
     fetchMock
@@ -57,7 +57,7 @@ describe('uploading a document to Google', () => {
       .mockResolvedValueOnce(started('https://upload/here'))
       .mockResolvedValueOnce(finished('ACTIVE'));
 
-    await uploadToGemini('k', { ...file, data: Buffer.alloc(1234) });
+    await uploadToGemini('k', { ...file, body: Buffer.alloc(1234), bytes: 1234 });
 
     const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers['X-Goog-Upload-Protocol']).toBe('resumable');
