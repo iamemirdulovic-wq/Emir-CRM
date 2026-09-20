@@ -20,8 +20,9 @@ import { aiProvider } from '../../ai/index.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
+import { writeAudit } from '../../audit/audit.js';
 import { clearSecret, saveSecret, saveSetting, secret, secretHint, secretSource, setting } from '../../config/secrets.js';
-import { listModels, pickDefault } from '../../ai/models.js';
+import { GEMINI_BASE, explainGeminiError, listModels, pickDefault, rankModels, readGeminiError } from '../../ai/models.js';
 
 export const aiRouter = Router();
 aiRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -108,6 +109,120 @@ aiRouter.get(
           : `Google could not be asked for the model list (${status}).`,
       });
     }
+  }),
+);
+
+/**
+ * Try every model the key offers and report what each one actually does.
+ *
+ * Built after four rounds of the owner pressing a button, getting a different
+ * Google error each time, and sending it to me to interpret. Each error was
+ * real and each fix was right, but the loop itself was the problem: the person
+ * who can see the failure had no way to see the cause.
+ *
+ * This asks each model the same two-word question and reports, in plain words,
+ * which ones answer. A working model can then be chosen on the spot.
+ *
+ * The prompts are a few tokens each, so the whole check costs a fraction of a
+ * cent, and it is rate-limited so it cannot be leaned on.
+ */
+aiRouter.post(
+  '/diagnose',
+  rateLimit({
+    max: 6,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `ai-diagnose:${currentUser(req).id}`,
+    message: 'Checked a few times already. Wait a few minutes.',
+  }),
+  requireManager,
+  asyncHandler(async (req: Request, res: Response) => {
+    const apiKey = await secret('GEMINI_API_KEY');
+    if (!apiKey) {
+      res.json({ ok: false, headline: 'No Gemini key is connected yet.', models: [] });
+      return;
+    }
+
+    let catalogue;
+    try {
+      catalogue = await listModels(apiKey);
+    } catch (err) {
+      const status = err instanceof Error ? err.message : 'unknown';
+      res.json({
+        ok: false,
+        headline: status === '403' || status === '401'
+          ? 'Google would not accept the key at all. It is either wrong, or the Generative Language '
+            + 'API is switched off for that project.'
+          : `Google would not give us the model list (${status}).`,
+        models: [],
+      });
+      return;
+    }
+
+    if (catalogue.length === 0) {
+      res.json({
+        ok: false,
+        headline: 'The key works, but Google lists no usable models on it. That usually means the '
+          + 'Generative Language API is not enabled on that project.',
+        models: [],
+      });
+      return;
+    }
+
+    // The five best; testing forty would cost time and tell us nothing more.
+    const toTest = rankModels(catalogue).slice(0, 5);
+    const results = [];
+
+    for (const model of toTest) {
+      const started = Date.now();
+      try {
+        const response = await fetch(`${GEMINI_BASE}/models/${model.name}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ready' }] }],
+            generationConfig: { maxOutputTokens: 8, temperature: 0 },
+          }),
+        });
+
+        if (response.ok) {
+          results.push({ model: model.name, works: true, ms: Date.now() - started, why: null });
+        } else {
+          const detail = await readGeminiError(response);
+          results.push({
+            model: model.name,
+            works: false,
+            ms: Date.now() - started,
+            why: explainGeminiError(response.status, model.name, detail),
+          });
+        }
+      } catch (err) {
+        results.push({
+          model: model.name,
+          works: false,
+          ms: Date.now() - started,
+          why: `Could not reach Google: ${err instanceof Error ? err.message : 'unknown error'}`,
+        });
+      }
+    }
+
+    const working = results.filter((row) => row.works);
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'ai.diagnosed',
+      entityType: 'setting',
+      entityId: null,
+      after: { tested: results.length, working: working.length },
+    });
+
+    res.json({
+      ok: working.length > 0,
+      headline: working.length > 0
+        ? `${working.length} of ${results.length} models answered. Pick one below and press Save.`
+        : 'None of the models answered. Every one was refused or busy — see the reasons below. '
+          + 'This is almost always a Google project that has no billing on it yet.',
+      models: results,
+      current: (await setting('AI_MODEL')) ?? null,
+    });
   }),
 );
 

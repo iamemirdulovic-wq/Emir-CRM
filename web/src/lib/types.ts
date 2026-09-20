@@ -658,3 +658,11 @@ export type GeminiModel = {
   description: string;
   inputTokenLimit: number | null;
 };
+
+/** What each model did when the connection check asked it a question. */
+export type Diagnosis = {
+  ok: boolean;
+  headline: string;
+  models: { model: string; works: boolean; ms: number; why: string | null }[];
+  current?: string | null;
+};

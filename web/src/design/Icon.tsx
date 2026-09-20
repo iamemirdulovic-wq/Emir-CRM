@@ -30,7 +30,7 @@ import {
   LogOut, Mail, MapPin, Megaphone, Menu, MessageCircle, MessageSquare, MessageSquareHeart,
   Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOutgoing, PieChart, Play,
   PencilLine, Plus, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
-  Shield, ShieldCheck, ShoppingBag, Sparkles, SquarePen, Stamp, Star, StickyNote, Sun, Target,
+  Shield, ShieldCheck, ShoppingBag, Sparkles, Stethoscope, SquarePen, Stamp, Star, StickyNote, Sun, Target,
   Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, UserCheck, UserPlus,
   UserX, Users, UsersRound, Wallet, X, Zap,
 } from 'lucide-react';
@@ -66,7 +66,7 @@ const ICONS = {
   'play': Play, 'plus': Plus, 'radar': Radar, 'radio': Radio, 'receipt': Receipt,
   'refresh-cw': RefreshCw, 'repeat': Repeat, 'save': Save, 'scale': Scale,
   'scan-line': ScanLine, 'search': Search, 'send': Send, 'settings': Settings, 'shield': Shield,
-  'shield-check': ShieldCheck, 'shopping-bag': ShoppingBag, 'sparkles': Sparkles,
+  'shield-check': ShieldCheck, 'shopping-bag': ShoppingBag, 'sparkles': Sparkles, 'stethoscope': Stethoscope,
   'square-pen': SquarePen, 'stamp': Stamp, 'star': Star, 'sticky-note': StickyNote, 'sun': Sun,
   'target': Target, 'timer': Timer, 'toggle-left': ToggleLeft, 'trash-2': Trash2,
   'trending-up': TrendingUp, 'trophy': Trophy, 'umbrella': Umbrella, 'upload': Upload,

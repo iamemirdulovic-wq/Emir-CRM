@@ -2,6 +2,31 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Test my connection — ending the loop
+
+Four rounds: the owner pressed a button, got a different Google error, sent it to me, I read it and
+fixed something real. Every error was genuine and every fix was right. **The loop itself was the
+failure.** The person who could see the problem had no way to see the cause, and the person who
+could read the cause could not press the button — this sandbox cannot reach
+`generativelanguage.googleapis.com` at all.
+
+**Settings → Emir AI now has a "Test my connection" button.** It asks each of the five best models
+the same two-word question and reports, one line each, which answered and — in plain words — why
+the others did not. A working model can be chosen on the spot. The whole check costs a fraction of
+a cent and is rate-limited.
+
+When nothing answers it says what that almost always means: a Google project with no billing card
+gets few models, a small allowance, and is first to be turned away when Google is busy. That
+single sentence is what four rounds of errors were circling.
+
+**Why this rather than another fix to the caller.** The caller is now about as robust as it can be
+— it reads the catalogue, skips models that cannot answer with text, falls through models Google
+refuses, and waits out a busy one. What it could not do is tell the owner what is true about their
+own Google account. Now the CRM does, and nobody has to relay an error message to find out.
+
+819 server tests, 102 web tests. Verified in a browser against the owner's real situation — one
+model working, one busy, one withdrawn — with the working one selected automatically.
+
 ## A busy model is not a broken one
 
 Next message from Google:

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
-import type { GeminiModel } from '../lib/types.js';
+import type { Diagnosis, GeminiModel } from '../lib/types.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import {
@@ -162,6 +162,8 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
   const [models, setModels] = useState<GeminiModel[] | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
 
   const fromHost = provider.keySource === 'env';
 
@@ -187,6 +189,32 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
       setModelsError(err instanceof Error ? err.message : 'Could not ask Google for the list');
     } finally {
       setChecking(false);
+    }
+  }
+
+  /*
+   * Ask every model the same two-word question and report which ones answer.
+   *
+   * Here because four rounds of "press the button, send me the error" is a
+   * loop the owner should never have been in: the person who can see the
+   * failure could not see the cause.
+   */
+  async function diagnose() {
+    setDiagnosing(true);
+    setDiagnosis(null);
+    try {
+      const result = await api.post<Diagnosis>('/api/ai/diagnose', {});
+      setDiagnosis(result);
+      const firstWorking = result.models.find((row) => row.works);
+      if (firstWorking) setModel(firstWorking.model);
+    } catch (err) {
+      setDiagnosis({
+        ok: false,
+        headline: err instanceof Error ? err.message : 'Could not run the check',
+        models: [],
+      });
+    } finally {
+      setDiagnosing(false);
     }
   }
 
@@ -315,6 +343,61 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
         <div className="aihint" style={{ borderColor: 'color-mix(in srgb, var(--hot) 35%, transparent)' }}>
           <Icon name="alert-triangle" />
           <div>{modelsError}</div>
+        </div>
+      )}
+
+      {/* ── Test every model and say which ones answer ─────────────────── */}
+      <div className="ai-row">
+        <button type="button" className="btn" onClick={() => void diagnose()} disabled={diagnosing || !provider.ready}>
+          <Icon name={diagnosing ? 'loader-2' : 'stethoscope'} size={15} className={diagnosing ? 'spin' : undefined} />
+          <span>{diagnosing ? 'Asking each model…' : 'Test my connection'}</span>
+        </button>
+        <small className="muted">
+          Asks every model a two-word question and tells you which ones work. Costs a fraction of a cent.
+        </small>
+      </div>
+
+      {diagnosis && (
+        <div
+          className="aihint"
+          style={{
+            borderColor: diagnosis.ok
+              ? 'color-mix(in srgb, var(--s-won) 40%, transparent)'
+              : 'color-mix(in srgb, var(--hot) 35%, transparent)',
+            display: 'block',
+          }}
+        >
+          <b style={{ display: 'block', marginBottom: 8 }}>{diagnosis.headline}</b>
+
+          {diagnosis.models.map((row) => (
+            <div key={row.model} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0' }}>
+              <Icon
+                name={row.works ? 'circle-check' : 'circle-x'}
+                size={15}
+                style={{ color: row.works ? 'var(--s-won)' : 'var(--hot)', flexShrink: 0, marginTop: 1 }}
+              />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <b style={{ fontWeight: 600 }}>{row.model}</b>
+                {row.works
+                  ? <span className="muted"> — answered in {(row.ms / 1000).toFixed(1)}s</span>
+                  : <div className="muted" style={{ fontSize: 12 }}>{row.why}</div>}
+              </div>
+              {row.works && (
+                <button type="button" className="rowbtn" onClick={() => setModel(row.model)}>
+                  {model === row.model ? 'Chosen' : 'Use this one'}
+                </button>
+              )}
+            </div>
+          ))}
+
+          {!diagnosis.ok && diagnosis.models.length > 0 && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+              <b>What this usually means.</b> A Google project with no billing card on it gets a
+              small free allowance, few models, and is the first to be turned away when Google is
+              busy. Adding billing to the project — you are still charged only for what you use,
+              and the monthly limit above still stops it — normally clears all of this at once.
+            </div>
+          )}
         </div>
       )}
 
