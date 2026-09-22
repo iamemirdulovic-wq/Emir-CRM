@@ -168,10 +168,45 @@ await step('tasks page lists the follow-ups', async () => {
   await shot(page, '07-tasks.png');
 });
 
-await step('projects page shows verification state', async () => {
+/*
+ * /projects serves the off-plan library now, not the old verified-projects
+ * list, so this asserts what the library actually puts on screen.
+ */
+await step('project library shows its filters and the developers switch', async () => {
   await page.goto(`${BASE}/projects`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Verified only', { timeout: 10000 });
+  await page.waitForSelector('text=Selling now', { timeout: 10000 });
+  await page.waitForSelector('text=Developers', { timeout: 10000 });
   await shot(page, '08-projects.png');
+});
+
+/*
+ * The sales-offers library. The offer created here is left in the trash rather
+ * than deleted for good, so a second run of this script finds a clean library
+ * and the step stays idempotent.
+ */
+await step('sales offers library creates, renames and trashes an offer', async () => {
+  await page.goto(`${BASE}/offers`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.sof-bar', { timeout: 10000 });
+
+  await page.click('button:has-text("New offer")');
+  await page.waitForSelector('.ocard', { timeout: 10000 });
+
+  await page.hover('.ocard');
+  await page.click('.ocard .kebab');
+  await page.waitForSelector('.menu', { timeout: 8000 });
+  await page.click('.menu button:has-text("Rename")');
+  const name = page.getByRole('dialog').locator('input').first();
+  await name.waitFor({ timeout: 8000 });
+  await name.fill('Smoke test offer');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForSelector('text=Smoke test offer', { timeout: 10000 });
+  await shot(page, '09-offers.png');
+
+  await page.hover('.ocard');
+  await page.click('.ocard .kebab');
+  await page.waitForSelector('.menu', { timeout: 8000 });
+  await page.click('.menu button:has-text("Move to trash")');
+  await page.waitForSelector('.empty, .drive', { timeout: 10000 });
 });
 
 await step('automations page lists the workflows', async () => {

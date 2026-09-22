@@ -89,9 +89,15 @@ describe('uploading a document to Google', () => {
       .mockResolvedValueOnce(finished('PROCESSING'))
       .mockResolvedValueOnce(new Response(JSON.stringify({ state: 'FAILED' }), { status: 200 }));
 
-    const pending = uploadToGemini('k', file);
+    /*
+     * The expectation is attached before the clock moves, not after. Advancing
+     * fake timers settles the promise, and a promise that rejects with nothing
+     * yet listening is an unhandled rejection — which Vitest reports against
+     * whichever test file happens to be running when it surfaces.
+     */
+    const rejects = expect(uploadToGemini('k', file)).rejects.toThrow(/damaged, or password-protected/);
     await vi.advanceTimersByTimeAsync(3_000);
-    await expect(pending).rejects.toThrow(/damaged, or password-protected/);
+    await rejects;
     vi.useRealTimers();
   });
 

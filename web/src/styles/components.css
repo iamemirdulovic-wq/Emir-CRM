@@ -869,3 +869,107 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
   border:0;border-radius:6px;background:rgba(255,255,255,.22);color:inherit;
   vertical-align:-3px;margin-inline-start:3px}
 .ask-body .bubble:not(.me) .lead-link{background:var(--primary-soft);color:var(--primary)}
+
+/* ── Sales offers: the Drive-style library ──────────────────────────────── */
+/* Ported from design/emir-crm-design-v2.html. `margin-left` in the design
+   becomes `margin-inline-start` here: the whole CRM mirrors for Arabic, and a
+   kebab pinned to the right in an RTL layout lands on top of the text. */
+.crumb{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700;letter-spacing:-.02em}
+.crumb button{background:none;border:0;font:inherit;color:var(--ink-3);padding:0}
+.crumb button:hover{color:var(--primary)}
+.crumb svg{width:15px;height:15px;color:var(--ink-3)}
+.crumb svg:dir(rtl){transform:scaleX(-1)}
+.drive{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}
+.drive.list{grid-template-columns:1fr}
+.folder{display:flex;align-items:center;gap:10px;padding:14px;border-radius:16px;
+  background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--shadow);
+  cursor:pointer;transition:transform .15s var(--ease),box-shadow .15s;
+  animation:pop .35s var(--ease) both;text-align:start;width:100%}
+.folder:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,50,90,.12)}
+.folder .fi{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:var(--primary-soft);color:var(--primary);flex-shrink:0}
+.folder b{display:block;font-size:13.5px}
+.folder small{color:var(--ink-3);font-size:12px}
+.ocard{border-radius:18px;overflow:hidden;background:var(--glass-strong);
+  border:1px solid var(--glass-line);box-shadow:var(--shadow);cursor:pointer;
+  transition:transform .15s var(--ease),box-shadow .15s;animation:pop .35s var(--ease) both;
+  position:relative;text-align:start;width:100%;padding:0;font:inherit;color:inherit}
+.ocard:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,50,90,.16)}
+.ocard:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.ocover{height:104px;position:relative;display:flex;align-items:flex-end;padding:10px}
+.ocover::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 30%,rgba(8,20,35,.55))}
+.ocover .tag{position:relative;z-index:1;font-size:11px;font-weight:700;color:#fff;
+  background:rgba(255,255,255,.22);padding:3px 9px;border-radius:99px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ocard .body{padding:12px}
+.ocard .body b{display:block;font-size:13.5px;letter-spacing:-.01em}
+.ocard .body small{color:var(--ink-3);font-size:12px}
+.ocard .meta{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);
+  white-space:nowrap;overflow:hidden}
+.ocard .meta .avatar{width:22px;height:22px;font-size:9px;margin-inline-start:auto}
+@media (max-width:760px){.ocard .meta{font-size:10.5px;gap:6px}.ocard .meta .st{padding:2px 6px}}
+/* The list view lays the same card on its side: one compact row, with the
+   name on the left and the state, reading time and owner on the right. The
+   client's name moves off the cover, which is too small to carry it. */
+.ocard .meta .who{display:none}
+.drive.list .ocard{display:flex;align-items:center;gap:12px;border-radius:14px}
+.drive.list .ocover{height:44px;width:62px;flex-shrink:0;border-radius:10px;
+  margin-inline-start:10px;padding:0}
+.drive.list .ocover::after{border-radius:10px}
+.drive.list .ocover .tag{display:none}
+.drive.list .ocard .body{flex:1;min-width:0;display:flex;align-items:center;gap:12px;
+  padding:10px 12px 10px 0}
+.drive.list .ocard .body b,.drive.list .ocard .body small{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drive.list .ocard .body>b{flex:0 1 auto;min-width:0}
+.drive.list .ocard .body>small{flex:1 1 auto;min-width:0}
+.drive.list .ocard .meta{margin:0;padding:0;border-top:0;flex-shrink:0;gap:10px}
+.drive.list .ocard .meta .who{display:inline-flex;align-items:center;gap:4px;max-width:150px;
+  overflow:hidden;text-overflow:ellipsis}
+.drive.list .ocard .meta .avatar{margin-inline-start:0}
+/* On a phone the row has no room for the client and the reading time. */
+@media (max-width:620px){
+  .drive.list .ocard .body{display:block}
+  .drive.list .ocard .meta{margin-top:6px}
+  .drive.list .ocard .meta .who{display:none}
+}
+/* The status pill. "Reading now" is live, so it is the one that draws the eye. */
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  padding:2px 8px;border-radius:99px}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.draft{background:var(--surface-2);color:var(--ink-3)}
+.st.sent{background:var(--primary-soft);color:var(--primary)}
+.st.opened{background:rgba(93,187,143,.14);color:#2E9E6A}
+.st.reading{background:rgba(232,121,79,.14);color:#D2623A}
+.st.reading::before{animation:livedot 1.4s ease-in-out infinite}
+.st.revoked{background:var(--surface-2);color:var(--ink-3);text-decoration:line-through}
+@keyframes livedot{0%,100%{opacity:1}50%{opacity:.25}}
+.kebab{position:absolute;top:8px;inset-inline-end:8px;z-index:2;width:28px;height:28px;
+  border-radius:9px;border:0;background:rgba(255,255,255,.25);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;
+  display:grid;place-items:center;opacity:0;transition:opacity .15s}
+.ocard:hover .kebab,.kebab:focus-visible{opacity:1}
+/* Touch has no hover, so the kebab has to be there from the start. */
+@media (hover:none){.kebab{opacity:1}}
+.drive.list .kebab{position:static;opacity:1;background:var(--surface-2);color:var(--ink-3);
+  margin-inline-end:10px;flex-shrink:0}
+/* The row menu. */
+.menu{position:fixed;z-index:70;min-width:200px;padding:6px;border-radius:14px;
+  background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-line);box-shadow:0 16px 40px rgba(15,40,90,.22);
+  animation:pop .16s var(--ease) both}
+.menu button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;
+  padding:8px 10px;border-radius:9px;font-size:13px;font-weight:600;color:var(--ink);text-align:start}
+.menu button:hover,.menu button:focus-visible{background:var(--surface-2)}
+.menu button svg{width:15px;height:15px;color:var(--ink-3)}
+.menu button.danger{color:#D9534F}
+.menu button.danger svg{color:#D9534F}
+.menu hr{border:0;border-top:1px solid var(--line);margin:5px 2px}
+@media (prefers-reduced-motion:reduce){
+  .folder,.ocard,.menu{animation:none}
+  .folder:hover,.ocard:hover{transform:none}
+  .st.reading::before{animation:none}
+}

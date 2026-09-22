@@ -169,8 +169,9 @@ web/src/
   design/        shell, icons, charts, theme, shared UI — see docs/DESIGN.md
   components/    the signed-in layout and the lead drawer
   pages/         login, change password, dashboard, pipeline, inbox, contacts,
-                 contact 360, tasks, projects, automations, settings,
-                 imports, lists, campaigns, the dialler, the lead pool
+                 contact 360, tasks, projects, sales offers, automations,
+                 settings, imports, lists, campaigns, the dialler, the lead
+                 pool
 ```
 
 ## Data model in one paragraph
@@ -181,6 +182,15 @@ attribution. A `conversation` is the single thread per contact; `messages` mix
 WhatsApp, email, SMS, notes and system events inside it. `activities` are the
 human-readable trail, `audit_log` the tamper-evident one. Everything automated
 runs through `jobs` and is recorded in `workflow_runs`.
+
+An `offer` is one lead plus one project, published at `/offer/{slug}` with no
+login in front of it. Its `offer_units` are a **snapshot** of the inventory,
+not a pointer to it: an offer is a quotation and must keep showing the figures
+the client was shown, even after the developer sends a new price list.
+`offer_views` and `offer_events` record what the client did with it, and the
+card's "Opened" and "Reading now" are read from those rows rather than stored,
+so they cannot drift. Who may see an offer is decided by `agent_user_id`
+alone, in SQL, from the session.
 
 ## What is deliberately not here
 

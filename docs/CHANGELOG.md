@@ -2,6 +2,68 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Sales offers, part 1 — the library
+
+The Drive the offers live in, built from the design: folders, grid and list views, the filter
+chips (All · Starred · Opened by client · Drafts · Trash), search, and the ⋯ row menu on every
+card. The builder, the client page and the tracking follow in parts 2 to 4.
+
+**Added**
+- `offer_folders`, `offers`, `offer_units`, `offer_views`, `offer_events` (migration 0011).
+- `services/offers.ts` and `/api/offers` — list, create, rename, move, star, duplicate, trash,
+  restore, delete for good, plus folders.
+- `pages/Offers.tsx`, `components/OfferMenu.tsx`, the ported CSS, and the nav entry.
+
+**Three decisions worth writing down**
+
+*Whose offer it is decides who may see it.* `agent_user_id` is the only column the fence reads,
+and the fence is built from the signed-in session in SQL — never from anything in the request. An
+agent naming another agent's offer by id is told it does not exist, not that it is someone else's:
+confirming that a client is being worked is itself a leak. Fifteen integration tests hold this,
+and removing the fence fails five of them.
+
+*The card's state is derived, not stored.* "Opened" and "Reading now" are read from `offer_views`
+every time, so they cannot drift out of step with reality the way a counter updated by a webhook
+eventually does. "Reading now" means a heartbeat within 90 seconds.
+
+*The link is the secret.* `/offer/{slug}` has no login in front of it and carries a named client
+and a price list, so the slug is a readable stem plus 128 bits of randomness rather than the
+design's four characters. The "ask for the client's phone number" switch is built from day one,
+and off by default.
+
+`offer_units` stores the unit's figures rather than pointing at `units`: an offer is a quotation
+and must keep showing the price the client was actually shown, even after the developer sends a
+new price list. `unit_id` and `price_version_id` stay, so a price change can flag the open offers
+it has stranded.
+
+`offer_terms` and `offer_incentives` from the specification are deliberately not in this
+migration. They belong to the developer sheet in part 3, and a table guessed at now is a table
+rewritten later.
+
+**Two bugs found on the way, both older than this work**
+- The workflow integration tests asserted that an automated follow-up is *sent*, while the guards
+  correctly defer everything between 22:00 and 08:00 Asia/Dubai — so the suite went red every
+  night. Quiet hours are now answered `false` for that file alone; the rule itself keeps its own
+  tests against pinned dates in `lib/time.test.ts`. The clock is deliberately **not** faked: the
+  database's `NOW()` would keep telling the truth, and the gap between the two breaks the
+  24-hour-window arithmetic that compares them.
+- `gemini-files.test.ts` attached its rejection expectation after advancing fake timers, which
+  left an unhandled rejection that Vitest reported against whichever file was running.
+
+**Verified**
+- 906 server tests and 102 web tests green; removing the offers fence fails five.
+- 19 browser steps through real Chromium, including a new sales-offers step in `e2e/ui.mjs`:
+  create, rename, star, list view, trash, restore, and the phone layout. An agent's trash menu
+  offers Restore and no Delete forever.
+- Arabic mirrors correctly, kebab and all. Folder counts carry `dir="auto"` — "0 offers" was
+  rendering as "offers 0" inside an RTL page.
+
+**Known, not fixed here**
+- `web/src/pages/Projects.tsx` is no longer routed anywhere; `/projects` serves the library. The
+  smoke test was still asserting against it.
+- The offers screen's own words are English inside the Arabic layout, the same as the rest of the
+  CRM's page content.
+
 ## Ask Emir AI — the button on every screen
 
 Ported from the design: the pill bottom-right with the orb, the glass panel that rises out of it,

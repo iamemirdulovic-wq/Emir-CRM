@@ -23,8 +23,9 @@ import {
   Building, Building2, Calculator, CalendarCheck, CalendarCheck2, CalendarDays, CalendarPlus,
   Camera, Check, CheckCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronLeft, ChevronRight,
   ChevronUp, Circle, CircleAlert, CircleCheck, CircleX, Clock, Clock3, Crown, Download,
-  ExternalLink, Eye, EyeOff, Facebook, FileBadge, FileBarChart, FileCheck2, FileDown, FileUp,
-  FileOutput, FileSignature, FileSpreadsheet, FileText, Filter, Flame, Folder, Gauge, GitCompare, Globe,
+  Copy, CopyPlus, ExternalLink, Eye, EyeOff, Facebook, FileBadge, FileBarChart, FileCheck2, FileDown, FileUp,
+  FileOutput, FileSignature, FileSpreadsheet, FileText, Files, Filter, Flame, Folder, FolderInput,
+  FolderPlus, Gauge, GitCompare, Globe,
   GripVertical, HandCoins, Hourglass, IdCard, Inbox, Info, Instagram, Kanban, KeyRound,
   ImageUp, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Lightbulb, Link, List, Loader2,
   LogOut, Mail, MapPin, Megaphone, Menu, MessageCircle, MessageSquare, MessageSquareHeart,
@@ -32,7 +33,7 @@ import {
   PencilLine, Plus, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
   Shield, ShieldCheck, ShoppingBag, Sparkles, Stethoscope, SquarePen, Stamp, Star, StickyNote, Sun, Target,
   Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, UserCheck, UserPlus,
-  UserX, Users, UsersRound, Wallet, X, Zap,
+  Undo2, UserX, Users, UsersRound, Wallet, X, Zap,
 } from 'lucide-react';
 
 const ICONS = {
@@ -58,6 +59,8 @@ const ICONS = {
   'info': Info, 'instagram': Instagram, 'kanban': Kanban, 'key-round': KeyRound,
   'landmark': Landmark, 'layers': Layers, 'layout-dashboard': LayoutDashboard,
   'layout-grid': LayoutGrid, 'layout-template': LayoutTemplate, 'lightbulb': Lightbulb,
+  'copy': Copy, 'copy-plus': CopyPlus, 'files': Files, 'folder-input': FolderInput,
+  'folder-plus': FolderPlus, 'undo-2': Undo2,
   'link': Link, 'list': List, 'loader-2': Loader2, 'log-out': LogOut, 'mail': Mail,
   'map-pin': MapPin, 'megaphone': Megaphone, 'menu': Menu, 'message-circle': MessageCircle,
   'message-square': MessageSquare, 'message-square-heart': MessageSquareHeart, 'minus': Minus,

@@ -668,3 +668,44 @@ export type Diagnosis = {
   models: { model: string; works: boolean; ms: number; why: string | null }[];
   current?: string | null;
 };
+
+/* ── Sales offers ───────────────────────────────────────────────────────── */
+
+/** What the card shows. 'opened' and 'reading' come from the views. */
+export type OfferState = 'draft' | 'sent' | 'opened' | 'reading' | 'revoked';
+
+export type OfferCard = {
+  id: string;
+  slug: string;
+  title: string;
+  folder_id: string | null;
+  contact_id: string | null;
+  project_id: string | null;
+  agent_user_id: string;
+  client_name: string | null;
+  project_name: string | null;
+  agent_name: string | null;
+  language: string;
+  cover_style: number;
+  status: 'draft' | 'sent' | 'revoked';
+  starred: number;
+  hold_until: string | null;
+  sent_at: string | null;
+  deleted_at: string | null;
+  updated_at: string;
+  opens: number;
+  total_secs: number;
+  last_view_at: string | null;
+  state: OfferState;
+};
+
+export type OfferFolder = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  is_shared: number;
+  created_by: string | null;
+  offer_count: number;
+};
+
+export type OfferFilter = 'all' | 'star' | 'viewed' | 'draft' | 'trash';

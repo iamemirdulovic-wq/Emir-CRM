@@ -47,6 +47,7 @@ const ENTRIES: Entry[] = [
   { to: '/campaigns', label: t('campaigns'), icon: 'megaphone', title: t('campaigns') },
   { to: '/pool', label: t('pool'), icon: 'inbox', title: t('pool'), roles: ['agent'] },
   { to: '/projects', label: t('projects'), icon: 'building-2', title: t('projects') },
+  { to: '/offers', label: t('offers'), icon: 'sparkles', title: t('offers') },
   {
     to: '/automations',
     label: t('automations'),

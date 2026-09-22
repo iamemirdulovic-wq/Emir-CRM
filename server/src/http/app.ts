@@ -29,6 +29,7 @@ import { listsRouter } from './routes/lists.js';
 import { campaignsRouter } from './routes/campaigns.js';
 import { teamsRouter } from './routes/teams.js';
 import { brochureRouter } from './routes/brochure.js';
+import { offersRouter } from './routes/offers.js';
 import { startHeartbeat } from '../realtime/hub.js';
 
 /**
@@ -145,6 +146,7 @@ export function createApp(): Express {
   app.use('/api/lists', listsRouter);
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/teams', teamsRouter);
+  app.use('/api/offers', offersRouter);
   app.use('/webhooks', webhookRouter);
   // Public: leads open this straight from WhatsApp.
   app.use('/b', brochureRouter);

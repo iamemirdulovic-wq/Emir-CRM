@@ -116,6 +116,12 @@ export async function seedFieldMappings(): Promise<void> {
 const TRUNCATE_ORDER = [
   'ai_messages',
   'ai_conversations',
+  // Sales offers — children first.
+  'offer_events',
+  'offer_views',
+  'offer_units',
+  'offers',
+  'offer_folders',
   // Project library — children first, though FOREIGN_KEY_CHECKS is off anyway.
   'payment_plan_rows',
   'payment_plans',

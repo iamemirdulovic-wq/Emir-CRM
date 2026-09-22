@@ -20,6 +20,22 @@ import { runWorkflowC } from './workflow-c.js';
 import { setWhatsAppAdapterForTesting } from '../messaging/whatsapp/index.js';
 import { LogAdapter } from '../messaging/whatsapp/log.js';
 
+/*
+ * These tests assert that an automated follow-up is *sent*. The guards defer
+ * every automated message between 22:00 and 08:00 Asia/Dubai, so run overnight
+ * the suite went red on a rule that was working exactly as specified.
+ *
+ * The clock is not faked to get around it: `Date` is global, the database's own
+ * NOW() would keep telling the truth, and the gap between the two clocks breaks
+ * the 24-hour-window arithmetic that compares them. Only the one question is
+ * answered differently, for this file alone. The rule itself is tested against
+ * pinned dates in `src/lib/time.test.ts`, which is where it belongs.
+ */
+vi.mock('../lib/time.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../lib/time.js')>(),
+  isQuietHours: () => false,
+}));
+
 /** Approve every template so the guards let the welcome through. */
 async function approveTemplates(): Promise<void> {
   await execute(

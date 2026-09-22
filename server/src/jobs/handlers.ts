@@ -26,6 +26,7 @@ import { purgeExpiredUploads } from '../imports/retention.js';
 import { sweepTaskReminders } from '../tasks/reminders.js';
 import { purgeOrphanedAttachments } from '../tasks/attachments.js';
 import { purgeStaleDocuments } from '../ai/document-store.js';
+import { purgeStaleTrash } from '../services/offers.js';
 import { sendBatch } from '../campaigns/run.js';
 import { recycleList } from '../lists/store.js';
 import { recycleStaleClaims } from '../assignment/apply.js';
@@ -351,6 +352,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     const orphans = await purgeOrphanedAttachments();
     // A brochure left behind by a request that died mid-read.
     const scratch = await purgeStaleDocuments();
+    // Offers in the trash are recoverable for thirty days, then they are not.
+    const offers = await purgeStaleTrash();
     return {
       expiredSessions: sessions,
       oldLoginAttempts: attempts,
@@ -360,6 +363,7 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       deletedUploads: uploads,
       orphanedAttachments: orphans,
       staleDocuments: scratch,
+      purgedOffers: offers,
     };
   },
 };

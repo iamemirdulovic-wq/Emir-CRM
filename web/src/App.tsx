@@ -13,6 +13,7 @@ import { Contacts } from './pages/Contacts.js';
 import { ContactDetail } from './pages/ContactDetail.js';
 import { Tasks } from './pages/Tasks.js';
 import { Library } from './pages/Library.js';
+import { Offers } from './pages/Offers.js';
 import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
@@ -68,6 +69,7 @@ export function App() {
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/projects" element={<Library />} />
+          <Route path="/offers" element={<Offers />} />
           <Route path="/lists" element={<Lists />} />
           <Route path="/lists/:id" element={<ListDetail />} />
           <Route path="/campaigns" element={<Campaigns />} />
