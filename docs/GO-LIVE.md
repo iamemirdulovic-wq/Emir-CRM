@@ -77,6 +77,9 @@ WORKER_IN_PROCESS=1
 
 WHATSAPP_PROVIDER=log
 ALLOW_FAKE_WHATSAPP=1
+
+PROPERTY_INVESTMENT_HMAC_SECRET=   ← you (the shared secret, from the website team)
+PROPERTY_INVESTMENT_URL=https://www.property-investment.ae/api/webhooks/crm
 ```
 
 `ENCRYPTION_KEY` is deliberately absent: the app generates one for you on the
@@ -94,6 +97,17 @@ Two of these matter more than they look:
 
 Do not set `PORT`. Hostinger provides it, and the app reads it — it also binds
 `0.0.0.0` so the platform's proxy can reach it.
+
+**`PROPERTY_INVESTMENT_HMAC_SECRET` belongs here and nowhere else.** There is
+no screen in the CRM for it, and a value set here survives a deploy, whereas
+anything written inside the deployed folder does not. It must match the
+website's value character for character — a single trailing space is a 401. The
+CRM refuses every lead with `503` until it is set, rather than quietly
+accepting unsigned ones.
+
+After adding it, restart the app, then open **Settings → Health → Website
+connection**: it says in words whether the secret took and what a correctly
+signed lead would get right now.
 
 ---
 
