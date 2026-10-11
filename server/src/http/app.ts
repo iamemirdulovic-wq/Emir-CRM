@@ -30,6 +30,7 @@ import { campaignsRouter } from './routes/campaigns.js';
 import { teamsRouter } from './routes/teams.js';
 import { brochureRouter } from './routes/brochure.js';
 import { offersRouter } from './routes/offers.js';
+import { integrationsRouter } from './routes/integrations.js';
 import { startHeartbeat } from '../realtime/hub.js';
 
 /**
@@ -151,6 +152,7 @@ export function createApp(): Express {
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/teams', teamsRouter);
   app.use('/api/offers', offersRouter);
+  app.use('/api/integrations', integrationsRouter);
   app.use('/webhooks', webhookRouter);
   /*
    * The same webhooks under /api as well. Every other integration in this

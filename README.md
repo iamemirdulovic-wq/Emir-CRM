@@ -115,7 +115,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-1,028 tests. The ones worth knowing about:
+1,035 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -134,6 +134,11 @@ database layer around them is thin on purpose.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
+- **Setting the website secret.** An agent cannot, and nor can a manager — a
+  manager may read whether the connection is up, not change it. A secret
+  pasted with a trailing newline still works, the value never comes back to
+  the screen or reaches the audit log, and the next signed lead is accepted
+  with no restart.
 - **The website connection panel.** The serialised status contains neither the
   shared secret nor its last four characters — a status screen that leaks the
   key is worse than no status screen.

@@ -2,6 +2,40 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Connect the website from inside the CRM
+
+The shared secret could only be set in the hosting panel, which meant a trip to
+hPanel, a restart, and the owner waiting on somebody else. It can be pasted
+into **Settings → Health → Website connection** now: encrypted at rest with the
+same key as every other secret, and live immediately, because saving clears the
+cache the signature check reads.
+
+The environment still wins when it is set, and the screen refuses to save over
+it with a message saying where the value is actually coming from — a box that
+appears to save but changes nothing is worse than no box.
+
+**What the tests hold in place**
+- An agent cannot set it. **Neither can a manager** — they can read whether the
+  connection is up, which is operational, and not change it, which is not.
+- Pasted secret, no restart, next signed lead answered `202` — the promise the
+  screen makes, tested end to end through the real HTTP endpoint.
+- A secret pasted **with a trailing newline** still works. A value copied out
+  of a text file almost always brings one, and storing it as-is would fail
+  every signature with nothing on screen to explain why.
+- The value never comes back to the screen, and never reaches `audit_log` —
+  only that it changed and who by.
+- Removing it stops leads being accepted the same moment.
+
+Also added `testing/http.ts`: signing in over HTTP in a test, so a route test
+can prove the route checks something rather than trusting the service behind
+it. It throws rather than returning an empty cookie, because a test that
+silently continued unauthenticated would pass for the wrong reason.
+
+**Verified in a browser**, start to finish: a clean CRM with no secret refuses
+a lead with `503`; the owner pastes the secret on the screen and presses Save;
+the panel turns to `202 — accepted`; a signed lead is accepted and appears with
+its reference, project and the site's own temperature.
+
 ## Website connection panel — is it actually wired up?
 
 **Settings → Health → Website connection.** It answers, in words, the question

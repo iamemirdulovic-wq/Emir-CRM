@@ -150,17 +150,20 @@ overwrites it. The stage is what the agent has actually done.
 
 ## What the owner sets, once
 
-**Both go in the Hostinger environment panel.** There is no screen in the CRM
-for either of them, and the hosting panel is the better place anyway: values
-there survive a deploy, whereas anything kept inside the deployed folder does
-not — which is exactly how the Gemini key kept disappearing.
+**Settings → Health → Website connection**, signed in as owner or admin. Paste
+the shared secret, paste the address to report stage changes back to, press
+Save. It is encrypted before it is stored, never shown again, and takes effect
+**immediately — no restart, no hosting panel**.
 
-| Name | Value |
-|---|---|
-| `PROPERTY_INVESTMENT_HMAC_SECRET` | the shared secret, character for character the same as the website's |
-| `PROPERTY_INVESTMENT_URL` | `https://www.property-investment.ae/api/webhooks/crm` |
+The hosting panel still works, and still wins: set
+`PROPERTY_INVESTMENT_HMAC_SECRET` or `PROPERTY_INVESTMENT_URL` there and the
+environment value is used, the screen says so, and it refuses to save over it
+rather than leaving the owner looking at a value that is not the one in use.
 
-Then **restart the app** — the values are read at boot.
+Either way the secret must match the website's **character for character**. The
+screen trims whitespace, because a value copied out of a text file almost
+always brings a newline — but a single character's difference anywhere else is
+a `401`.
 
 Until the secret is set the endpoint answers `503` and accepts nothing. It will
 not quietly take unsigned leads.

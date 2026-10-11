@@ -98,16 +98,15 @@ Two of these matter more than they look:
 Do not set `PORT`. Hostinger provides it, and the app reads it — it also binds
 `0.0.0.0` so the platform's proxy can reach it.
 
-**`PROPERTY_INVESTMENT_HMAC_SECRET` belongs here and nowhere else.** There is
-no screen in the CRM for it, and a value set here survives a deploy, whereas
-anything written inside the deployed folder does not. It must match the
-website's value character for character — a single trailing space is a 401. The
-CRM refuses every lead with `503` until it is set, rather than quietly
-accepting unsigned ones.
+**The two `PROPERTY_INVESTMENT_` lines are optional here.** They can be pasted
+into the CRM instead — **Settings → Health → Website connection** — where the
+secret is encrypted at rest and takes effect immediately, with no restart. Set
+them here only if you would rather keep them with the rest of your hosting
+configuration; a value here wins over the screen, and the screen says so.
 
-After adding it, restart the app, then open **Settings → Health → Website
-connection**: it says in words whether the secret took and what a correctly
-signed lead would get right now.
+Either way the secret must match the website's character for character — a
+single trailing space is a `401`. Until it is set the CRM refuses every lead
+with `503` rather than quietly accepting unsigned ones.
 
 ---
 

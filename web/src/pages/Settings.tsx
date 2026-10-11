@@ -660,7 +660,7 @@ function HealthTab() {
 
   return (
     <div className="dash">
-      <WebsiteConnectionPanel health={data} />
+      <WebsiteConnectionPanel health={data} onSaved={health.reload} />
 
       <Panel span={6} index={0} icon="activity" title="Needs attention">
         {attention.map((row) => (
@@ -752,10 +752,37 @@ function HealthTab() {
  * leads are landing, and what the last failure was. The secret itself is never
  * sent to this screen — only whether one exists.
  */
-function WebsiteConnectionPanel({ health }: { health: Health }) {
-  const site = health.website;
+function WebsiteConnectionPanel({ health, onSaved }: { health: Health; onSaved: () => void }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [site, setSite] = useState(health.website);
+  const [secretInput, setSecretInput] = useState('');
+  const [urlInput, setUrlInput] = useState(health.website.outboundUrl ?? '');
+  const [busy, setBusy] = useState(false);
   const leads = health.recentWebsiteLeads ?? [];
   const ready = site.secretConfigured;
+  const canEdit = user?.role === 'owner' || user?.role === 'admin';
+  // An environment value wins, so offering a box that cannot take effect
+  // would be a box that lies.
+  const lockedToHost = site.secretSource === 'env';
+
+  async function save() {
+    setBusy(true);
+    try {
+      const next = await api.put<Health['website']>('/api/integrations/property-investment', {
+        ...(secretInput.trim() ? { secret: secretInput.trim() } : {}),
+        url: urlInput.trim() || null,
+      });
+      setSite(next);
+      setSecretInput('');
+      toast(next.secretConfigured ? 'Saved — the site can send leads now' : 'Saved');
+      onSaved();
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : 'That did not save');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <Panel span={12} index={0} icon="radio" title={`Website connection · ${site.site}`}>
@@ -799,10 +826,57 @@ function WebsiteConnectionPanel({ health }: { health: Health }) {
       {!ready && (
         <Note>
           Until the secret is set the endpoint refuses every lead with 503, rather
-          than quietly accepting unsigned ones. Add
-          {' '}<code>PROPERTY_INVESTMENT_HMAC_SECRET</code>{' '}
-          in the hosting panel and restart the app.
+          than quietly accepting unsigned ones.
         </Note>
+      )}
+
+      {canEdit && lockedToHost && (
+        <Note>
+          This secret comes from your hosting panel, which takes priority over
+          anything saved here. Change it there, or remove
+          {' '}<code>PROPERTY_INVESTMENT_HMAC_SECRET</code>{' '}
+          from the panel to manage it on this screen instead.
+        </Note>
+      )}
+
+      {canEdit && !lockedToHost && (
+        <div style={{ marginTop: 14 }}>
+          <Field
+            label={ready ? 'Replace the shared secret' : 'Shared secret'}
+            hint="Paste the one line the website team gave you. It is encrypted before it is stored, never shown again, and takes effect immediately — no restart."
+          >
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={ready ? 'Leave blank to keep the current one' : 'Paste it here'}
+              value={secretInput}
+              onChange={(event) => setSecretInput(event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Report stage changes back to"
+            hint="The address on the website that listens for a lead's stage changing. Leave empty to report nothing."
+          >
+            <input
+              className="input"
+              type="url"
+              spellCheck={false}
+              placeholder="https://www.property-investment.ae/api/webhooks/crm"
+              value={urlInput}
+              onChange={(event) => setUrlInput(event.target.value)}
+            />
+          </Field>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy || (!secretInput.trim() && (urlInput.trim() === (site.outboundUrl ?? '')))}
+            onClick={() => { void save(); }}
+          >
+            <Icon name="save" /><span>{busy ? 'Saving…' : 'Save'}</span>
+          </button>
+        </div>
       )}
 
       {leads.length > 0 && (
