@@ -2,6 +2,41 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Website connection panel — is it actually wired up?
+
+**Settings → Health → Website connection.** It answers, in words, the question
+the owner cannot otherwise ask: whether the shared secret is set and where it
+came from, **what a correctly signed lead would get right now** (`202` or
+`503`), where stage changes report back to, how many leads have arrived and
+when, the last five by name and reference, and the last failure with its
+reason.
+
+It exists because the owner has no terminal and cannot read an HTTP code, and
+because this session cannot reach the live CRM to check on their behalf — the
+sandbox's network policy denies the host. A screen they can open beats a check
+only I can run.
+
+**It never carries the secret.** Not the value, not a hint, not a length — only
+whether one exists. A panel helpfully showing the last four characters is a
+panel that leaks the key to anyone who can open a manager's laptop, and there
+is a test asserting the serialised response contains neither the value nor its
+last four characters.
+
+Also recorded in `docs/PROPERTY-INVESTMENT.md`: both settings belong in the
+**Hostinger environment panel**, not in the CRM — there is no screen for them,
+and values there survive a deploy, which is exactly how the Gemini key kept
+disappearing.
+
+**Verified**
+- 5 integration tests: 503 before, 202 after, the secret never serialised,
+  leads counted, the last failure surfaced.
+- Driven in a real browser end to end: start with no secret → the endpoint
+  answers 503; set one and restart → a signed lead is accepted `202`, and the
+  panel shows it with its reference, project and the site's temperature.
+- That test lead matched a demo contact on phone number and attached to the
+  existing person rather than creating a second one — identity resolution
+  doing its job on a real website lead.
+
 ## Leads from property-investment.ae — the inbound half
 
 `POST /api/webhooks/property-investment` (also on `/webhooks/...`), signed with

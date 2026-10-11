@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -610,6 +611,27 @@ type Health = {
   unverifiedActiveProjects: number;
   crons: { name: string; lastRunAt: string | null }[];
   realtimeClients: number;
+  website: {
+    site: string;
+    secretConfigured: boolean;
+    secretSource: 'env' | 'crm' | 'none';
+    outboundUrl: string | null;
+    wouldAnswer: 202 | 503;
+    leadsReceived: number;
+    lastEventAt: string | null;
+    lastEventStatus: string | null;
+    lastFailureAt: string | null;
+    lastFailureReason: string | null;
+  };
+  recentWebsiteLeads: {
+    external_id: string;
+    public_ref: string | null;
+    temperature: string | null;
+    full_name: string | null;
+    site_project_name: string | null;
+    last_event_at: string;
+    contact_id: string;
+  }[];
 };
 
 function HealthTab() {
@@ -638,6 +660,8 @@ function HealthTab() {
 
   return (
     <div className="dash">
+      <WebsiteConnectionPanel health={data} />
+
       <Panel span={6} index={0} icon="activity" title="Needs attention">
         {attention.map((row) => (
           <div className="kv" key={row.label}>
@@ -717,5 +741,90 @@ function HealthTab() {
         )}
       </Panel>
     </div>
+  );
+}
+
+/**
+ * Is the website connection actually working?
+ *
+ * The owner has no terminal and cannot read an HTTP status code, so this
+ * answers in words: whether the secret is set, where it came from, whether
+ * leads are landing, and what the last failure was. The secret itself is never
+ * sent to this screen — only whether one exists.
+ */
+function WebsiteConnectionPanel({ health }: { health: Health }) {
+  const site = health.website;
+  const leads = health.recentWebsiteLeads ?? [];
+  const ready = site.secretConfigured;
+
+  return (
+    <Panel span={12} index={0} icon="radio" title={`Website connection · ${site.site}`}>
+      <div className="kv">
+        <span>Shared secret</span>
+        <b className={ready ? 'pill ok' : 'pill due'}>
+          {ready
+            ? `Set${site.secretSource === 'env' ? ' in the hosting panel' : ' in the CRM'}`
+            : 'Not set'}
+        </b>
+      </div>
+      <div className="kv">
+        <span>A correctly signed lead right now would get</span>
+        <b className={ready ? 'pill ok' : 'pill due'}>
+          {site.wouldAnswer === 202 ? '202 — accepted' : '503 — not configured'}
+        </b>
+      </div>
+      <div className="kv">
+        <span>Stage changes reported back to</span>
+        <b className={site.outboundUrl ? 'pill ok' : 'pill'}>
+          {site.outboundUrl ?? 'Nowhere yet'}
+        </b>
+      </div>
+      <div className="kv">
+        <span>Leads received from the site</span>
+        <b className={site.leadsReceived > 0 ? 'pill ok' : 'pill'}>{site.leadsReceived}</b>
+      </div>
+      {site.lastEventAt && (
+        <div className="kv">
+          <span>Last one arrived</span>
+          <b>{new Date(site.lastEventAt).toLocaleString()}</b>
+        </div>
+      )}
+      {site.lastFailureAt && (
+        <Note>
+          The last failure was {new Date(site.lastFailureAt).toLocaleString()}
+          {site.lastFailureReason ? `: ${site.lastFailureReason}` : '.'}
+        </Note>
+      )}
+
+      {!ready && (
+        <Note>
+          Until the secret is set the endpoint refuses every lead with 503, rather
+          than quietly accepting unsigned ones. Add
+          {' '}<code>PROPERTY_INVESTMENT_HMAC_SECRET</code>{' '}
+          in the hosting panel and restart the app.
+        </Note>
+      )}
+
+      {leads.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 12 }}>
+          <table>
+            <thead>
+              <tr><th>Lead</th><th>Reference</th><th>Project</th><th>Site says</th><th>Arrived</th></tr>
+            </thead>
+            <tbody>
+              {leads.map((lead) => (
+                <tr key={lead.external_id}>
+                  <td><Link to={`/contacts/${lead.contact_id}`}>{lead.full_name ?? 'No name sent'}</Link></td>
+                  <td>{lead.public_ref ?? '—'}</td>
+                  <td>{lead.site_project_name ?? '—'}</td>
+                  <td>{lead.temperature ?? '—'}</td>
+                  <td>{new Date(lead.last_event_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   );
 }

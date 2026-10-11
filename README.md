@@ -115,7 +115,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-1,023 tests. The ones worth knowing about:
+1,028 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -134,6 +134,9 @@ database layer around them is thin on purpose.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
+- **The website connection panel.** The serialised status contains neither the
+  shared secret nor its last four characters — a status screen that leaks the
+  key is worse than no status screen.
 - **property-investment.ae.** An unsigned event, one signed with the wrong
   secret, and one whose body changed after it was signed are all refused;
   disabling the check fails three tests. A replayed event answers 202 with

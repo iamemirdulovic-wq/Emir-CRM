@@ -150,10 +150,34 @@ overwrites it. The stage is what the agent has actually done.
 
 ## What the owner sets, once
 
-| Where | Name | Value |
-|---|---|---|
-| Hostinger panel, or the CRM's settings | `PROPERTY_INVESTMENT_HMAC_SECRET` | the shared secret, same as the website's |
-| Hostinger panel, or the CRM's settings | `PROPERTY_INVESTMENT_URL` | where to report stage changes back to (used by the outbound half) |
+**Both go in the Hostinger environment panel.** There is no screen in the CRM
+for either of them, and the hosting panel is the better place anyway: values
+there survive a deploy, whereas anything kept inside the deployed folder does
+not — which is exactly how the Gemini key kept disappearing.
+
+| Name | Value |
+|---|---|
+| `PROPERTY_INVESTMENT_HMAC_SECRET` | the shared secret, character for character the same as the website's |
+| `PROPERTY_INVESTMENT_URL` | `https://www.property-investment.ae/api/webhooks/crm` |
+
+Then **restart the app** — the values are read at boot.
 
 Until the secret is set the endpoint answers `503` and accepts nothing. It will
 not quietly take unsigned leads.
+
+## Checking it worked, without a terminal
+
+**Settings → Health → Website connection.** The panel says, in words:
+
+- whether the shared secret is set, and whether it came from the hosting panel
+  or the CRM — never what it is;
+- **what a correctly signed lead would get right now**: `202 — accepted`, or
+  `503 — not configured`;
+- where stage changes are reported back to;
+- how many leads have arrived, and when the last one did, with the last five
+  listed by name, reference, project and the site's own temperature;
+- the last failure and its reason, if there was one.
+
+If it still says `503` after a restart, the name is misspelled or the app did
+not restart. If the site gets `401` while the panel says `202`, the two secrets
+differ, or the site is signing something other than the exact bytes it sends.
