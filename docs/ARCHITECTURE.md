@@ -183,6 +183,15 @@ WhatsApp, email, SMS, notes and system events inside it. `activities` are the
 human-readable trail, `audit_log` the tamper-evident one. Everything automated
 runs through `jobs` and is recorded in `workflow_runs`.
 
+A lead from property-investment.ae is an ordinary contact and opportunity,
+not a record of its own — see the note at the top of migration 0012. The site
+knows things the CRM has nowhere else to put (the matchmaker answers, the
+projects the buyer browsed before enquiring, its own score and summary), and
+`website_leads` holds exactly that, keyed on the site's own lead id so an
+update lands on the row its creation made. The site's status is kept apart
+from the pipeline stage on purpose: the stage is what the agent has done, and
+letting a website status overwrite it would undo their work on every re-send.
+
 An `offer` is one lead plus one project, published at `/offer/{slug}` with no
 login in front of it. Its `offer_units` are a **snapshot** of the inventory,
 not a pointer to it: an offer is a quotation and must keep showing the figures

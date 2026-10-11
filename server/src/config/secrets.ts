@@ -16,8 +16,18 @@ import { decryptSecret, encryptSecret } from '../lib/crypto.js';
 import { logger } from '../lib/logger.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 
-export type SecretName = 'GEMINI_API_KEY' | 'OPENAI_API_KEY';
-export type SettingName = 'AI_PROVIDER' | 'AI_MODEL' | 'AI_MONTHLY_CAP_USD';
+export type SecretName =
+  | 'GEMINI_API_KEY'
+  | 'OPENAI_API_KEY'
+  /* Shared with property-investment.ae. Signs their leads in, and our stage
+     changes back out. Encrypted at rest like every other secret here. */
+  | 'PROPERTY_INVESTMENT_HMAC_SECRET';
+export type SettingName =
+  | 'AI_PROVIDER'
+  | 'AI_MODEL'
+  | 'AI_MONTHLY_CAP_USD'
+  /* Where to POST a stage change back to. Empty means do not report back. */
+  | 'PROPERTY_INVESTMENT_URL';
 
 /*
  * Cached, because this is read on the path of every AI call and a database

@@ -115,7 +115,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-1,008 tests. The ones worth knowing about:
+1,023 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -134,6 +134,12 @@ database layer around them is thin on purpose.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
+- **property-investment.ae.** An unsigned event, one signed with the wrong
+  secret, and one whose body changed after it was signed are all refused;
+  disabling the check fails three tests. A replayed event answers 202 with
+  `duplicate: true` and creates nothing, `lead.updated` lands on the row its
+  `lead.created` made, a missing consent field means no consent rather than
+  yes, and a site clock claiming 2020 cannot backdate the lead.
 - **Offer permissions.** An agent cannot reach another agent's offer by listing,
   by id, by renaming, starring, duplicating or trashing it, and is never told
   it exists. Managers get their team, owner and admin everything. Removing the

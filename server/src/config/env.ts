@@ -116,6 +116,13 @@ const envSchema = z.object({
   // --- Website form -------------------------------------------------------
   WEBSITE_FORM_HMAC_SECRET: z.string().optional(),
   RECAPTCHA_SECRET: z.string().optional(),
+  /*
+   * property-investment.ae. Both may instead be set inside the CRM, where the
+   * secret is encrypted at rest; an environment value wins when present, so an
+   * owner who prefers the hosting panel is not overridden from a screen.
+   */
+  PROPERTY_INVESTMENT_HMAC_SECRET: z.string().optional(),
+  PROPERTY_INVESTMENT_URL: z.string().url().optional(),
 
   // --- Email --------------------------------------------------------------
   SMTP_HOST: z.string().optional(),

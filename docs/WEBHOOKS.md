@@ -184,6 +184,27 @@ so a double-clicked form produces one lead.
 
 ---
 
+## property-investment.ae
+
+```
+POST /api/webhooks/property-investment     (also /webhooks/property-investment)
+X-Signature: <hex hmac of the raw body with PROPERTY_INVESTMENT_HMAC_SECRET>
+```
+
+Its own endpoint rather than the website-form one above, because the site sends
+far more than a form: the matchmaker answers, the projects the buyer browsed
+before enquiring, its own temperature and score. See
+[PROPERTY-INVESTMENT.md](PROPERTY-INVESTMENT.md) for the full event, the
+responses and the prompt for their developer.
+
+Keyed on `lead.id`: `lead.updated` lands on the row `lead.created` made, and a
+replay answers `202 { duplicate: true }` rather than an error, so their retry
+logic is always safe. The secret may be set in the hosting panel or inside the
+CRM, where it is encrypted at rest; unset, the endpoint answers 503.
+
+**A missing `consent` field means no consent**, so no automatic WhatsApp goes
+out and the agent sees it on the card.
+
 ## Google Ads lead forms
 
 ```

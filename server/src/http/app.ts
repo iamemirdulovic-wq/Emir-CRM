@@ -121,6 +121,10 @@ export function createApp(): Express {
   app.use('/api/auth/login', rateLimit({ max: 20, windowMs: 5 * 60 * 1000, message: 'Too many sign-in attempts. Please wait a few minutes.' }));
   // Meta bursts hard on retry; generous, but bounded.
   app.use('/webhooks', rateLimit({ max: 600, windowMs: 60 * 1000 }));
+  // The same budget on the /api alias below. Without this line the alias is an
+  // unauthenticated endpoint with no ceiling, which is the whole reason the
+  // limit on the line above exists.
+  app.use('/api/webhooks', rateLimit({ max: 600, windowMs: 60 * 1000 }));
   app.use('/b', rateLimit({ max: 120, windowMs: 60 * 1000 }));
 
   // Unauthenticated by necessity, and only while the users table is empty.
@@ -148,6 +152,13 @@ export function createApp(): Express {
   app.use('/api/teams', teamsRouter);
   app.use('/api/offers', offersRouter);
   app.use('/webhooks', webhookRouter);
+  /*
+   * The same webhooks under /api as well. Every other integration in this
+   * system was given a /webhooks address, and property-investment.ae was
+   * specified an /api/webhooks one; mounting both costs a line and means
+   * neither side has to be told it used the wrong URL.
+   */
+  app.use('/api/webhooks', webhookRouter);
   // Public: leads open this straight from WhatsApp.
   app.use('/b', brochureRouter);
 

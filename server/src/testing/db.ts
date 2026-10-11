@@ -114,6 +114,7 @@ export async function seedFieldMappings(): Promise<void> {
  * so no test can depend on a previous one's leftovers.
  */
 const TRUNCATE_ORDER = [
+  'website_leads',
   'ai_messages',
   'ai_conversations',
   // Sales offers — children first.

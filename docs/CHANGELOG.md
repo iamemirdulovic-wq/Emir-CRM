@@ -2,6 +2,61 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Leads from property-investment.ae — the inbound half
+
+`POST /api/webhooks/property-investment` (also on `/webhooks/...`), signed with
+HMAC-SHA256 over the raw body, taking `{ event, sent_at, lead }` for
+`lead.created` and `lead.updated`.
+
+**There is no second leads table, and that was the main decision.** The brief
+asked for `leads`, `lead_activities`, `lead_tasks` and `lead_sources`. This CRM
+already has all four under other names — `contacts` + `opportunities`,
+`activities`, `tasks`, and the source fields behind the Source Quality report —
+and every rule that stops a lead being lost or duplicated hangs off them:
+identity resolution, sticky ownership, the 30-day re-inquiry window, the SLA.
+A parallel table would mean a lead answered in one place still looked untouched
+in the other, which is the one thing this system exists to prevent.
+
+So a website lead becomes an ordinary contact and opportunity, and the new
+`website_leads` table holds only what the site knows and the CRM had nowhere to
+put: the matchmaker answers, the projects the buyer browsed before enquiring,
+the site's own temperature, score reasons and summary, which CTA they pressed,
+and the whole event as received. Kept whole rather than shredded into columns,
+because the site will add fields faster than the schema can follow and a field
+nobody parsed is still worth showing to the person about to make the call.
+
+**Consent is the thing to watch.** The agreed payload has no consent field.
+Treating its absence as permission would break UAE PDPL and risk the
+brokerage's WhatsApp number, so absence means *no*: the lead is accepted and
+stored, no automatic WhatsApp goes out, and the card says "consent missing".
+The schema accepts `consent` and `consent_text` already, so the site can start
+sending them without another release here. Until it does, the 30-second reply —
+the main reason for connecting the sites at all — stays off.
+
+**Smaller decisions.** The source stays `website` rather than a new one, so the
+quality report, the CAPI mapping and every workflow keep working; which site it
+came from is on the `website_leads` row. `fbclid` is assembled into the `fbc`
+form Meta's Conversions API matches on, stamped with the lead's creation time
+rather than the moment the webhook happened to arrive. The site's `created_at`
+is stored but never used as the lead's: a site clock running fast would
+backdate leads and flatter speed-to-lead, which is the number the team is
+judged on. The site's `status` never touches the pipeline stage.
+
+**Verified**
+- 15 integration tests. Disabling the signature check fails three of them.
+- Proven: unsigned rejected, wrong secret rejected, a body altered after
+  signing rejected, `503` when unconfigured, `400` with the reason when
+  malformed, one contact and one opportunity from a valid event, the site's
+  knowledge stored and readable, an activity written, a replay answered `202`
+  with `duplicate: true` and creating nothing, `lead.updated` landing on the
+  same row, consent absent meaning no, consent present recorded with its
+  wording, and a backdated `created_at` refused.
+- Found while re-reading the diff: mounting the router on the `/api` alias had
+  left that path outside the rate limit the `/webhooks` path has — an
+  unauthenticated endpoint with no ceiling. Fixed, with a test that floods it.
+
+**Next**: the outbound half — telling the site when a stage changes.
+
 ## Sales offers, part 1 — the library
 
 The Drive the offers live in, built from the design: folders, grid and list views, the filter

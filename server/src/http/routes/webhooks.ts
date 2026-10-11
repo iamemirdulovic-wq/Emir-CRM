@@ -21,8 +21,18 @@ import {
   websiteExternalId,
   websiteFormSchema,
 } from '../../ingestion/sources/website.js';
+import {
+  SITE,
+  consentUnknown,
+  normalizePropertyInvestmentLead,
+  propertyInvestmentEventSchema,
+  propertyInvestmentExternalId,
+} from '../../ingestion/sources/property-investment.js';
+import { describeEvent, saveWebsiteContext } from '../../services/website-leads.js';
+import { secret } from '../../config/secrets.js';
+import { withRetryingTransaction } from '../../db/client.js';
 import { handleInboundMessage, handleStatusUpdate } from '../../ingestion/whatsapp-inbound.js';
-import { ingestLead } from '../../ingestion/ingest.js';
+import { addActivity, ingestLead } from '../../ingestion/ingest.js';
 import { enqueue } from '../../jobs/queue.js';
 
 export const webhookRouter = Router();
@@ -318,6 +328,135 @@ webhookRouter.post(
       } catch (err) {
         logger.error('google lead processing failed', errorContext(err));
         await markEventFailed(event.id, err);
+      }
+    });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// property-investment.ae
+// ---------------------------------------------------------------------------
+
+/**
+ * Their site knows a great deal about a buyer before we speak to them — which
+ * projects they browsed, what the matchmaker asked, the site's own score. The
+ * generic `/webhooks/website` endpoint above takes a plain contact form and
+ * has nowhere to put any of it, which is why this one exists.
+ *
+ * The lead itself goes through the ordinary path: one contact, one
+ * opportunity, identity resolution, sticky ownership, the SLA. Only the
+ * site-specific part is stored separately. See migration 0012.
+ */
+webhookRouter.post(
+  '/property-investment',
+  asyncHandler(async (req: Request, res: Response) => {
+    const sharedSecret = await secret('PROPERTY_INVESTMENT_HMAC_SECRET');
+    if (!sharedSecret) {
+      logger.error('property-investment webhook has no shared secret configured');
+      res.status(503).json({
+        error: { code: 'not_configured', message: 'property-investment.ae intake is not configured' },
+      });
+      return;
+    }
+
+    /*
+     * Signature before parsing. An unsigned caller must not be able to reach
+     * the schema, the database or the logs with a body of their choosing.
+     */
+    const signatureValid = verifyHmacSignature(
+      rawBodyOf(req),
+      req.get('x-signature') ?? req.get('x-hub-signature-256'),
+      sharedSecret,
+    );
+    if (!signatureValid) {
+      logger.warn('rejected unsigned property-investment event');
+      res.status(401).json({ error: { code: 'unauthorized', message: 'Invalid signature' } });
+      return;
+    }
+
+    const parsed = propertyInvestmentEventSchema.safeParse(req.body);
+    if (!parsed.success) {
+      /*
+       * 400, not 500, and the reason is returned: their developer is the one
+       * who has to fix it, and a silent failure here is a lead nobody ever
+       * learns was lost.
+       */
+      logger.warn('property-investment event failed validation', { issues: parsed.error.issues.length });
+      res.status(400).json({
+        error: { code: 'bad_request', message: 'Event did not match the agreed shape', details: parsed.error.issues },
+      });
+      return;
+    }
+
+    const event = parsed.data;
+    const externalId = propertyInvestmentExternalId(event.lead);
+
+    /*
+     * One raw row per delivery, keyed by the event as well as the lead: a
+     * `lead.updated` must be stored, not swallowed as a duplicate of the
+     * `lead.created` that came before it.
+     */
+    const recorded = await recordInboundEvent({
+      source: 'property_investment',
+      externalId: `${externalId}:${event.event}:${event.sent_at ?? ''}`,
+      payload: req.body,
+      signatureValid: true,
+    });
+
+    // Answer first. A duplicate is a success: replaying must never look broken
+    // to the sender, or their retry logic will hammer us or give up.
+    res.status(202).json({ ok: true, external_id: externalId, duplicate: recorded.duplicate });
+
+    processAfterResponse(res, async () => {
+      if (recorded.duplicate) return;
+      try {
+        await markEventProcessing(recorded.id);
+        const lead = normalizePropertyInvestmentLead(
+          event.lead,
+          clientIp(req),
+          req.get('user-agent') ?? null,
+        );
+        const result = await ingestLead(lead, { inboundEventId: recorded.id });
+
+        await saveWebsiteContext({
+          event,
+          contactId: result.contactId,
+          opportunityId: result.opportunityId,
+        });
+
+        await withRetryingTransaction(async (tx) => {
+          await addActivity(tx, {
+            contactId: result.contactId,
+            opportunityId: result.opportunityId,
+            type: 'website_lead',
+            title: event.event === 'lead.created'
+              ? `New lead from ${SITE}`
+              : `Updated on ${SITE}`,
+            body: describeEvent(event),
+            meta: {
+              site: SITE,
+              external_id: externalId,
+              public_ref: event.lead.public_ref ?? null,
+              site_status: event.lead.status ?? null,
+              temperature: event.lead.temperature ?? null,
+              /*
+               * Flagged because it decides whether the instant WhatsApp reply
+               * may go out at all. A site that never sends consent silently
+               * turns speed-to-lead off, and the agent should be able to see
+               * that on the card rather than wonder why nothing was sent.
+               */
+              consent_missing: consentUnknown(event.lead),
+            },
+          });
+        });
+
+        await markEventProcessed(recorded.id, {
+          contactId: result.contactId,
+          opportunityId: result.opportunityId,
+        });
+      } catch (err) {
+        logger.error('property-investment lead processing failed', errorContext(err));
+        await markEventFailed(recorded.id, err);
       }
     });
   }),
