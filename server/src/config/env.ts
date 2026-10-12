@@ -142,6 +142,17 @@ const envSchema = z.object({
   FCM_PROJECT_ID: z.string().optional(),
   FCM_CLIENT_EMAIL: z.string().optional(),
   FCM_PRIVATE_KEY: z.string().optional(),
+  /*
+   * The browser half of Firebase. These four are *public* by design — they
+   * ship to every phone that opens the CRM, exactly as Google intends, and
+   * they are not secrets. What stops a stranger sending your agents a
+   * notification is FCM_PRIVATE_KEY above, which never leaves the server.
+   */
+  FCM_WEB_API_KEY: z.string().optional(),
+  FCM_WEB_APP_ID: z.string().optional(),
+  FCM_MESSAGING_SENDER_ID: z.string().optional(),
+  /** The "Web Push certificate" key pair in Firebase → Cloud Messaging. */
+  FCM_VAPID_KEY: z.string().optional(),
 
   // --- AI -----------------------------------------------------------------
   AI_PROVIDER: z.enum(['gemini', 'openai', 'none']).default('none'),

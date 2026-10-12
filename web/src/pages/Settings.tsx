@@ -12,6 +12,7 @@ import {
   Chip, Empty, ErrorNote, Field, Note, Panel, Select, Spinner, Toolbar, useToast,
 } from '../design/ui.js';
 import { AiKnowledgeTab } from '../components/AiKnowledge.js';
+import { PhoneAppPanel } from '../components/PhoneApp.js';
 
 type Tab = 'profile' | 'team' | 'teams' | 'templates' | 'ai' | 'health';
 
@@ -129,7 +130,9 @@ function ProfileTab() {
         </Note>
       </Panel>
 
-      <Panel span={6} index={1} icon="moon" title="Appearance">
+      <PhoneAppPanel index={1} />
+
+      <Panel span={6} index={2} icon="moon" title="Appearance">
         <p className="muted" style={{ marginTop: 0 }}>
           Saved on this device, so the phone you use in the car can differ from your desk.
         </p>

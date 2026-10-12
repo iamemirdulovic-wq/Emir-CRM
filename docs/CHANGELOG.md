@@ -2,6 +2,54 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## Lead notifications actually reach a phone
+
+**They never had.** The server half was built in Phase 5 and has been sending
+into the void ever since: nothing in the browser asked for permission or
+registered a device, so `push_tokens` stayed empty and not one agent was ever
+buzzed about a lead. The only trace was a debug line nobody was going to read.
+That was my gap, and this closes it.
+
+**What was built**
+- `web/src/lib/push.ts` — permission, the device token, registering it, and an
+  honest reading of this device's state.
+- `web/public/sw.js` — receives the push, shows it, and handles the tap:
+  focuses the CRM if it is already open rather than stacking a third tab, then
+  goes to the lead. A notification carrying a phone number offers **Call**.
+- `web/src/components/PhoneApp.tsx` in **Settings → You** — the device's state,
+  a switch, and the install steps for whichever phone is looking at it.
+- `GET /api/users/me/push-config`, and `FCM_WEB_*` / `FCM_VAPID_KEY`.
+- `docs/NOTIFICATIONS.md`, including a table for when a phone is silent.
+
+**Decisions worth stating**
+
+*One service worker, not two.* Firebase's own worker would have raced ours to
+display the same push, and the agent would get every lead twice. Ours handles
+it and Firebase is handed our registration.
+
+*Firebase loads only when someone turns notifications on* — about 100 KB, on
+phones, often on mobile data, for a thing most screens never need. It is split
+into its own chunks; the main bundle grew by roughly 12 KB.
+
+*The panel is on the profile tab, not Health.* It was on Health first, which is
+manager-only — hiding it from the agents who are the entire point of it.
+
+*An iPhone in Safari is called out by name.* iOS gives a browser tab no
+notifications at all; only an installed app gets them. Saying "notifications
+are off" there would send an agent hunting iOS settings for a switch that does
+not exist, so the panel says "add to your home screen first" instead.
+
+*A partly filled set of keys counts as unconfigured.* Four of five would give
+the browser a config it accepts and then fails on, with nothing on screen to
+explain it.
+
+**Verified**
+- 5 integration tests, including that the **private key never reaches the
+  browser** — anyone holding it could notify every agent in the brokerage.
+- Driven on a simulated Android phone: with no keys the panel says "not set up
+  yet" and shows the Chrome install steps; with keys it offers the switch and
+  warns "Off — you will miss new leads". No console errors.
+
 ## Connect the website from inside the CRM
 
 The shared secret could only be set in the hosting panel, which meant a trip to

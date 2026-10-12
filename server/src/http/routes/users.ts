@@ -11,6 +11,7 @@ import { isManagerOrAbove, ROLES } from '../../auth/rbac.js';
 import { generateTemporaryPassword, hashPassword } from '../../auth/password.js';
 import { destroyAllSessionsForUser } from '../../auth/sessions.js';
 import { writeAudit, diffFields } from '../../audit/audit.js';
+import { env } from '../../config/env.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -255,6 +256,45 @@ const pushTokenSchema = z.object({
   token: z.string().min(10).max(512),
   platform: z.enum(['web', 'android', 'ios']).default('web'),
 });
+
+/**
+ * What the browser needs to subscribe to notifications.
+ *
+ * Every value here is public: Google ships them to each phone that opens the
+ * app, and they identify the project rather than authorise anything. The key
+ * that actually permits *sending* is FCM_PRIVATE_KEY, which stays on the
+ * server and is never in this response.
+ *
+ * `configured: false` rather than an error when the keys are unset, so the
+ * Settings screen can say "notifications are not set up yet" instead of
+ * showing a broken button.
+ */
+usersRouter.get(
+  '/me/push-config',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const cfg = env();
+    const ready = Boolean(
+      cfg.FCM_PROJECT_ID && cfg.FCM_WEB_API_KEY && cfg.FCM_WEB_APP_ID
+      && cfg.FCM_MESSAGING_SENDER_ID && cfg.FCM_VAPID_KEY,
+    );
+    if (!ready) {
+      res.json({ configured: false });
+      return;
+    }
+    res.json({
+      configured: true,
+      vapidKey: cfg.FCM_VAPID_KEY,
+      firebase: {
+        apiKey: cfg.FCM_WEB_API_KEY,
+        // Firebase always serves this at the project's own subdomain.
+        authDomain: `${cfg.FCM_PROJECT_ID}.firebaseapp.com`,
+        projectId: cfg.FCM_PROJECT_ID,
+        messagingSenderId: cfg.FCM_MESSAGING_SENDER_ID,
+        appId: cfg.FCM_WEB_APP_ID,
+      },
+    });
+  }),
+);
 
 /** Register this device for push. */
 usersRouter.post(

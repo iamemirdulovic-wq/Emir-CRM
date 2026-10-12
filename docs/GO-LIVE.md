@@ -80,7 +80,20 @@ ALLOW_FAKE_WHATSAPP=1
 
 PROPERTY_INVESTMENT_HMAC_SECRET=   ← you (the shared secret, from the website team)
 PROPERTY_INVESTMENT_URL=https://www.property-investment.ae/api/webhooks/crm
+
+FCM_PROJECT_ID=                    ← you ⎫
+FCM_CLIENT_EMAIL=                  ← you ⎬ lead notifications on phones
+FCM_PRIVATE_KEY=                   ← you ⎪ see docs/NOTIFICATIONS.md
+FCM_WEB_API_KEY=                   ← you ⎪
+FCM_WEB_APP_ID=                    ← you ⎪
+FCM_MESSAGING_SENDER_ID=           ← you ⎪
+FCM_VAPID_KEY=                     ← you ⎭
 ```
+
+Without the `FCM_` lines the CRM runs normally and **no agent is ever notified
+about a lead** — which is most of the value of having it on a phone. They are
+all needed; a partly filled set counts as unconfigured. `docs/NOTIFICATIONS.md`
+says where each one comes from.
 
 `ENCRYPTION_KEY` is deliberately absent: the app generates one for you on the
 setup screen in Step 3, ready to copy and paste back here. Nothing needs it

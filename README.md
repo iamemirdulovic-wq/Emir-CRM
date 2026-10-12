@@ -115,7 +115,7 @@ database layer around them is thin on purpose.
 
 ## Testing
 
-1,035 tests. The ones worth knowing about:
+1,040 tests. The ones worth knowing about:
 
 - **Duplicate storm.** The same lead twenty times in parallel produces exactly
   one contact, one opportunity and one Workflow A job. Also twenty leads across
@@ -134,6 +134,9 @@ database layer around them is thin on purpose.
 - **Theme.** The appearance and reduce-glass settings survive a reload, a forced
   light theme holds on a dark device, and the app still renders when
   `localStorage` throws, which is what private-mode Safari does.
+- **Notification keys.** The Firebase private key never reaches the browser.
+  Anyone holding it could send a notification to every agent in the brokerage,
+  so the test asserts it appears nowhere in what the phone is sent.
 - **Setting the website secret.** An agent cannot, and nor can a manager — a
   manager may read whether the connection is up, not change it. A secret
   pasted with a trailing newline still works, the value never comes back to

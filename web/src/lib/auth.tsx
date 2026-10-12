@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api.js';
+import { refreshPushRegistration } from './push.js';
 import type { CurrentUser } from './types.js';
 import { applyDirection, setLocale } from './i18n.js';
 
@@ -34,6 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.user);
       applyServerLocale(response.user.locale);
       applyDirection();
+      /*
+       * Quietly re-register this device for notifications. The browser rotates
+       * a push token from time to time and ours is cleared on sign-out, so an
+       * agent who already said yes would otherwise go silent one morning with
+       * nothing on screen to explain it. It returns immediately unless
+       * permission was already granted, so nobody is re-prompted.
+       */
+      void refreshPushRegistration();
     } catch (err) {
       // 401 simply means "not signed in"; anything else is worth surfacing.
       if (!(err instanceof ApiError) || err.status !== 401) console.error('session check failed', err);
