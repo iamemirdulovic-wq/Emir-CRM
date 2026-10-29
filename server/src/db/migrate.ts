@@ -1,37 +1,36 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import mysql from 'mysql2/promise';
+import { Client } from 'pg';
 import { env } from '../config/env.js';
 import { logger, errorContext } from '../lib/logger.js';
 import { isEntrypoint } from '../lib/entrypoint.js';
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'migrations');
+const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'migrations-pg');
 
 const TRACKING_TABLE = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
-  name       VARCHAR(191) NOT NULL PRIMARY KEY,
-  applied_at DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`;
+  name       VARCHAR(191)   NOT NULL PRIMARY KEY,
+  applied_at timestamptz(3) NOT NULL DEFAULT now()
+);`;
 
 /**
- * A dedicated connection with multipleStatements enabled. The pool deliberately
- * does not allow multi-statement queries, so migrations get their own.
+ * Migrations get their own single connection rather than the pool: a file is a
+ * batch of statements sent in one go, and the pool is shared with live traffic.
  */
-async function migrationConnection(database?: string): Promise<mysql.Connection> {
+async function migrationClient(database?: string): Promise<Client> {
   const cfg = env();
-  if (cfg.DATABASE_URL) {
-    return mysql.createConnection({ uri: cfg.DATABASE_URL, multipleStatements: true });
-  }
-  return mysql.createConnection({
-    host: cfg.DB_HOST,
-    port: cfg.DB_PORT,
-    user: cfg.DB_USER,
-    password: cfg.DB_PASSWORD,
-    database: database ?? cfg.DB_NAME,
-    multipleStatements: true,
-    charset: 'utf8mb4_unicode_ci',
-  });
+  const client = cfg.DATABASE_URL
+    ? new Client({ connectionString: cfg.DATABASE_URL })
+    : new Client({
+      host: cfg.DB_HOST,
+      port: cfg.DB_PORT,
+      user: cfg.DB_USER,
+      password: cfg.DB_PASSWORD,
+      database: database ?? cfg.DB_NAME,
+    });
+  await client.connect();
+  return client;
 }
 
 export async function listMigrationFiles(): Promise<string[]> {
@@ -42,13 +41,13 @@ export async function listMigrationFiles(): Promise<string[]> {
 export type MigrateResult = { applied: string[]; skipped: string[] };
 
 export async function runMigrations(): Promise<MigrateResult> {
-  const conn = await migrationConnection();
+  const conn = await migrationClient();
   const applied: string[] = [];
   const skipped: string[] = [];
   try {
     await conn.query(TRACKING_TABLE);
-    const [rows] = await conn.query<mysql.RowDataPacket[]>('SELECT name FROM schema_migrations');
-    const done = new Set(rows.map((r) => r.name as string));
+    const { rows } = await conn.query<{ name: string }>('SELECT name FROM schema_migrations');
+    const done = new Set(rows.map((r) => r.name));
 
     for (const file of await listMigrationFiles()) {
       if (done.has(file)) {
@@ -57,10 +56,20 @@ export async function runMigrations(): Promise<MigrateResult> {
       }
       const sql = await readFile(join(MIGRATIONS_DIR, file), 'utf8');
       logger.info('applying migration', { file });
-      // DDL is not transactional in MySQL, so a failure leaves the file
-      // unrecorded and the operator re-runs after fixing it forward.
-      await conn.query(sql);
-      await conn.execute('INSERT INTO schema_migrations (name) VALUES (?)', [file]);
+      /*
+       * Unlike MySQL, Postgres rolls DDL back. A file that fails halfway
+       * leaves nothing behind, so a half-created table can never be mistaken
+       * for a finished migration — the single worst failure mode here.
+       */
+      await conn.query('BEGIN');
+      try {
+        await conn.query(sql);
+        await conn.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file]);
+        await conn.query('COMMIT');
+      } catch (err) {
+        await conn.query('ROLLBACK').catch(() => undefined);
+        throw err;
+      }
       applied.push(file);
     }
     return { applied, skipped };
@@ -69,21 +78,26 @@ export async function runMigrations(): Promise<MigrateResult> {
   }
 }
 
-/** Create the database if it is missing — convenience for local development. */
+/**
+ * Create the database if it is missing — for local development. On a hosted
+ * Postgres (Neon) the database is created for you and the role usually may
+ * not create more, so a refusal here is not an error.
+ */
 export async function ensureDatabase(): Promise<void> {
   const cfg = env();
   if (cfg.DATABASE_URL) return;
-  const conn = await mysql.createConnection({
-    host: cfg.DB_HOST,
-    port: cfg.DB_PORT,
-    user: cfg.DB_USER,
-    password: cfg.DB_PASSWORD,
-    multipleStatements: true,
-  });
+  // CREATE DATABASE cannot run from inside the database being created, so this
+  // connects to the always-present `postgres` database to ask.
+  const conn = await migrationClient('postgres');
   try {
-    await conn.query(
-      `CREATE DATABASE IF NOT EXISTS \`${cfg.DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
-    );
+    const { rows } = await conn.query('SELECT 1 FROM pg_database WHERE datname = $1', [cfg.DB_NAME]);
+    if (rows.length > 0) return;
+    // The name comes from our own config, never from a request; Postgres has
+    // no parameter form for an identifier.
+    await conn.query(`CREATE DATABASE "${cfg.DB_NAME.replace(/"/g, '""')}"`);
+    logger.info('created database', { database: cfg.DB_NAME });
+  } catch (err) {
+    logger.warn('could not create the database; assuming it already exists', errorContext(err));
   } finally {
     await conn.end();
   }

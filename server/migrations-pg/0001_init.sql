@@ -1,5 +1,18 @@
 -- 0001_init: foundation — users, sessions, audit, contacts, pipeline, opportunities.
 
+/*
+ * MySQL refreshed `updated_at` by itself with ON UPDATE CURRENT_TIMESTAMP.
+ * Postgres has no such column clause, so every table that carries the column
+ * gets a BEFORE UPDATE trigger calling this one function. Defined here because
+ * the first trigger in this file already needs it.
+ */
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE users (
   id            varchar(36)     NOT NULL PRIMARY KEY,
   name          VARCHAR(160) NOT NULL,

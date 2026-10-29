@@ -21,11 +21,6 @@ describe('copying the live data in a safe order', () => {
 
   beforeAll(async () => {
     const pg = await new PGlite();
-    await pg.exec(`
-      CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
-      BEGIN NEW.updated_at = now(); RETURN NEW; END;
-      $$ LANGUAGE plpgsql;
-    `);
     for (const file of readdirSync('migrations-pg').filter((f) => f.endsWith('.sql')).sort()) {
       await pg.exec(readFileSync(`migrations-pg/${file}`, 'utf8'));
     }
