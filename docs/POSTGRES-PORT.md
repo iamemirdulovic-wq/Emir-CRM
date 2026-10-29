@@ -198,73 +198,95 @@ minutes so nothing is written to the old database while it runs.
 
 ## The cutover, step by step
 
-Everything in the code is done. What is left needs the Hostinger server and a
-decision to switch. Read it through once before starting; the whole thing is
-about twenty minutes, and the CRM is down for roughly five of them.
+The CRM is deployed by pressing **Deploy** in hPanel, so the move is too. There
+is no terminal in this, and no command to type.
 
 Pick a quiet hour — late evening Dubai time, when leads are not arriving.
 
 ### Before the day
 
-1. **Make the Neon database.** In Neon, create a project in the region nearest
-   the Hostinger server, and a database called `emir_crm`.
-2. **Copy the pooled connection string.** It is the one with `-pooler` in the
-   host name.
-3. **Build the schema on it.** On the server, with `DATABASE_URL` set to that
-   string:
-   ```bash
-   cd ~/emir-crm && npm run migrate
-   ```
-   It should report 13 migrations applied.
-4. **Do a trial copy onto a Neon branch**, not onto `emir_crm`. Real data has
-   history in it — a status value from before a rule tightened, a row from an
-   older schema — and the place to meet that is a branch you can throw away.
-   ```bash
-   npm run copy-to-postgres -- --check     # counts both sides, copies nothing
-   npm run copy-to-postgres                # the real copy, into the branch
-   ```
-   If it stops on a `CHECK` constraint, tell me the message; it means a row in
-   the live data holds a value the new schema does not allow, and the fix is a
-   one-line migration, not a hand edit.
+1. **Make the Neon database.** A project in the region nearest the Hostinger
+   server, with a database called `emir_crm`.
+2. **Copy the pooled connection string** — the one with `-pooler` in the host
+   name.
 
-### On the day
+That is all the preparation. The schema is created by the deploy itself, the
+same way it always has been.
 
-5. **Stop the app**, so nothing writes to MySQL while the copy runs:
-   ```bash
-   pm2 stop emir-api emir-worker
+### The move
+
+3. **In hPanel → Environment variables**, add three settings and change one.
+   Leave `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` and `DB_NAME` exactly as
+   they are: the copy reads the old database through them.
+
    ```
-6. **Copy the data for real**, into `emir_crm`:
-   ```bash
-   npm run copy-to-postgres
+   DATABASE_URL=postgresql://…-pooler….neon.tech/emir_crm?sslmode=require
+   APP_URL=https://crm.homes.me
+   COPY_FROM_MYSQL_ONCE=1
    ```
-   It counts every table afterwards and fails loudly if even one differs.
-   `--replace` empties the Postgres tables first; it is only for a second
-   attempt, and it is irreversible.
-7. **Point the app at Neon.** In `.env`, set `DATABASE_URL` to the pooled
-   string and leave `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
-   as they are — `DATABASE_URL` takes precedence when it is set.
-8. **Start it again:**
-   ```bash
-   pm2 start emir-api emir-worker && pm2 logs --lines 50
-   ```
-9. **Check it, in this order.** Sign in. Open the lead board. Open one lead and
-   see the WhatsApp history. Send yourself a test lead from the website. Check
-   Settings → Health.
+
+4. **Press Deploy.**
+
+   The deploy builds, creates the tables in Neon, copies every row across,
+   checks the counts table by table, and only then starts the CRM. If the copy
+   fails for any reason it stops there rather than starting against a
+   half-filled database, and nothing has been written to MySQL, which still
+   holds everything.
+
+5. **Check it, in this order.** Open `https://crm.homes.me/health`. Sign in.
+   Open the lead board. Open one lead and see its WhatsApp history. Send
+   yourself a test lead from the website. Then Settings → Health.
+
+6. **Remove `COPY_FROM_MYSQL_ONCE`** from the settings. Leaving it does no harm
+   — it refuses to copy into a database that already holds rows, so a later
+   deploy is a no-op — but there is no reason to check on every deploy.
+
+### What the copy refuses to do
+
+- **Copy into a database that already holds rows.** Running twice would double
+  every lead, and there is no clean way back. It warns and starts normally.
+- **Start with an empty database when a copy was wanted and MySQL did not
+  answer.** Coming up empty looks exactly like losing everything, so the deploy
+  stops and says which setting to check.
+- **Write to MySQL.** It only ever reads.
+
+Each of those is a test in `copy-once.test.ts`, and the copy itself — the
+batching, the JSON, the one auto-numbered id, the count that decides whether it
+may call itself finished — runs against a real Postgres in `copy-into.test.ts`.
+
+### If the deploy times out
+
+Only a concern on a large database. The same copy is available from a terminal,
+where nothing is watching the clock:
+
+```bash
+export DATABASE_URL="postgresql://…"
+npm run copy-to-postgres -- --check     # count both sides, copy nothing
+npm run copy-to-postgres                # copy into an empty Postgres
+npm run copy-to-postgres -- --replace   # empty the Postgres tables first
+```
+
+### Do a trial copy first, and expect it to find things
+
+Copy into a Neon **branch**, not the database you intend to keep. Real data has
+history in it: a status value from before a rule tightened, a row from an older
+version of the schema. Those show up as a `CHECK` constraint rejecting a value,
+and it is much better to meet them on a throwaway branch than during a cutover.
 
 ### If something is wrong
 
-Nothing has been deleted. MySQL is untouched and still holds everything.
-Remove `DATABASE_URL` from `.env`, restart, and you are back on MySQL as
+Nothing has been deleted. MySQL is untouched and still holds everything. Remove
+`DATABASE_URL` from the settings, deploy again, and you are back on MySQL as
 though nothing happened — except for anything written while you were on Neon,
-which is why the check in step 9 comes before telling the team.
+which is why the check in step 5 comes before telling the team.
 
 Keep MySQL for at least a week after the switch.
 
 ### Two things to set up once you are on Neon
 
 - **Back up `KEY_FILE`.** The API keys and tokens in `app_secrets` are
-  encrypted with it, and it is deliberately not in the database. A Neon
-  restore without that file comes back with every integration dead.
+  encrypted with it, and it is deliberately not in the database. A Neon restore
+  without that file comes back with every integration dead.
 - **Decide about scale-to-zero.** Neon can suspend an idle database. A lead
   arriving at 3am would wait for it to wake, which eats into the 30-second
   reply the whole system is built around. Either keep the compute warm, or

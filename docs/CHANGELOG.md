@@ -2,6 +2,57 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The move to Neon happens inside a deploy
+
+You deploy by pressing a button in Hostinger, not by typing commands, and you
+are not a developer. The old plan had you SSH into the server and run a copy by
+hand — the single step most likely to go wrong, at the moment going wrong costs
+the most.
+
+So the copy now runs inside the deploy. Three settings and the Deploy button
+you already use.
+
+**What was built**
+- `COPY_FROM_MYSQL_ONCE` — set it beside the Neon connection string, press
+  Deploy, and the deploy creates the tables, copies every row, counts both
+  sides table by table, and only then starts the CRM.
+- `server/src/db/copy-once.ts` — the decision about whether to copy, and what
+  to do when the answer is no.
+
+**What it refuses to do**
+
+*Copy into a database that already holds rows.* Running twice would double
+every lead, and there is no clean way back from that. It warns and starts
+normally — so a routine deploy later, with the setting still in place, is a
+no-op rather than a failure.
+
+*Start with an empty database when a copy was wanted and the old one did not
+answer.* An empty CRM looks exactly like losing everything. The deploy stops
+and names the setting to check.
+
+*Write to the old database.* It only ever reads. Whatever happens, MySQL still
+holds everything.
+
+**How it is tested**
+
+The decision is a pure function, so every combination is stated in a test
+rather than discovered on your server during a deploy — including the one that
+matters most, a second deploy with the setting still on.
+
+The copy itself now runs for real in the test suite, against the real schema in
+a real Postgres: the batching at over a thousand rows, JSON columns surviving
+the crossing, the one auto-numbered id and its counter, the refusal to double,
+and a source that under-reports its own rows being caught rather than believed.
+There is no MySQL on this machine, so the reading half is stood in for; the
+writing half — where data actually gets mangled — is the real thing.
+
+**Where it stands**
+
+974 server tests and 102 web tests pass. The runbook in `POSTGRES-PORT.md` is
+rewritten: no terminal, no commands.
+
+Is this right, or do you want changes?
+
 ## homes.me branding, and the new address
 
 The CRM is now homes.me, on `crm.homes.me`.

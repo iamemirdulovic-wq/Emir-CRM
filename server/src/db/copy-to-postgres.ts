@@ -34,6 +34,46 @@ type Column = { name: string; type: string; isGenerated: boolean };
  */
 export type Queryable = { query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }> };
 
+/**
+ * Everything the copy needs from the database it is reading.
+ *
+ * Behind an interface so the half that writes — batching, JSON, the dates, the
+ * one auto-numbered id, and the count that proves the copy finished — can be
+ * run against a real Postgres in the test suite. The alternative is finding
+ * out whether it works during the owner's cutover, which is the one moment
+ * there is no appetite for a surprise.
+ */
+export interface SourceDatabase {
+  count(table: string): Promise<number>;
+  rows(table: string, columns: string[]): Promise<Array<Record<string, unknown>>>;
+  close(): Promise<void>;
+}
+
+/** The live MySQL database, as the copy reads it. */
+export async function mysqlSource(): Promise<SourceDatabase> {
+  const cfg = env();
+  const conn = await mysql.createConnection({
+    host: cfg.DB_HOST, port: cfg.DB_PORT, user: cfg.DB_USER,
+    password: cfg.DB_PASSWORD, database: cfg.DB_NAME,
+    // Dates must arrive as strings, not as JS Dates in the server's timezone:
+    // the timezone conversion is exactly where an hour goes missing.
+    dateStrings: true,
+  });
+  return {
+    async count(table) {
+      const [[row]] = await conn.query<mysql.RowDataPacket[]>(`SELECT COUNT(*) AS n FROM \`${table}\``);
+      return Number(row?.n ?? 0);
+    },
+    async rows(table, columns) {
+      const [rows] = await conn.query<mysql.RowDataPacket[]>(
+        `SELECT ${columns.map((n) => `\`${n}\``).join(', ')} FROM \`${table}\``,
+      );
+      return rows as Array<Record<string, unknown>>;
+    },
+    close: () => conn.end(),
+  };
+}
+
 export async function postgresTables(pg: Queryable): Promise<Map<string, Column[]>> {
   const { rows } = await pg.query(
     `SELECT table_name, column_name, data_type, is_identity
@@ -93,9 +133,9 @@ function forPostgres(value: unknown, column: Column): unknown {
   return value;
 }
 
-async function copyTable(
-  my: mysql.Connection,
-  pg: Client,
+export async function copyTable(
+  source: SourceDatabase,
+  pg: Queryable,
   table: string,
   columns: Column[],
 ): Promise<number> {
@@ -104,9 +144,7 @@ async function copyTable(
   // An identity column will not accept an explicit value without being told.
   const overriding = columns.some((c) => c.isGenerated) ? ' OVERRIDING SYSTEM VALUE' : '';
 
-  const [rows] = await my.query<mysql.RowDataPacket[]>(
-    `SELECT ${names.map((n) => `\`${n}\``).join(', ')} FROM \`${table}\``,
-  );
+  const rows = await source.rows(table, names);
 
   let written = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -142,18 +180,29 @@ export async function copyToPostgres(opts: { check?: boolean; replace?: boolean 
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set — paste the Neon connection string into it first.');
 
-  const cfg = env();
-  const my = await mysql.createConnection({
-    host: cfg.DB_HOST, port: cfg.DB_PORT, user: cfg.DB_USER,
-    password: cfg.DB_PASSWORD, database: cfg.DB_NAME,
-    // Dates must arrive as strings, not as JS Dates in the server's timezone:
-    // the timezone conversion is exactly where an hour goes missing.
-    dateStrings: true,
-  });
+  const source = await mysqlSource();
   const pg = new Client({ connectionString: url });
   await pg.connect();
-
   try {
+    await copyInto(source, pg, opts);
+  } finally {
+    await pg.end().catch(() => undefined);
+    await source.close().catch(() => undefined);
+  }
+}
+
+/**
+ * The copy itself, against databases already open. Separated from the
+ * connecting so the test suite can run it for real against a Postgres and a
+ * stand-in source — the counting, the batching and the verification are the
+ * parts worth proving, and none of them care where the rows came from.
+ */
+export async function copyInto(
+  source: SourceDatabase,
+  pg: Queryable,
+  opts: { check?: boolean; replace?: boolean } = {},
+): Promise<void> {
+  {
     const tables = await postgresTables(pg);
     if (tables.size === 0) {
       throw new Error('That Postgres database has no tables. Apply server/migrations-pg first.');
@@ -163,9 +212,10 @@ export async function copyToPostgres(opts: { check?: boolean; replace?: boolean 
     // Count both sides before touching anything.
     const counts: Array<{ table: string; mysql: number; postgres: number }> = [];
     for (const table of order) {
-      const [[mine]] = await my.query<mysql.RowDataPacket[]>(`SELECT COUNT(*) AS n FROM \`${table}\``);
-      const { rows: [theirs] } = await pg.query<{ n: string }>(`SELECT COUNT(*) AS n FROM "${table}"`);
-      counts.push({ table, mysql: Number(mine?.n ?? 0), postgres: Number(theirs?.n ?? 0) });
+      const mine = await source.count(table);
+      const { rows } = await pg.query(`SELECT COUNT(*) AS n FROM "${table}"`);
+      const theirs = Number((rows[0] as { n: string } | undefined)?.n ?? 0);
+      counts.push({ table, mysql: mine, postgres: theirs });
     }
 
     const occupied = counts.filter((c) => c.postgres > 0);
@@ -194,7 +244,7 @@ export async function copyToPostgres(opts: { check?: boolean; replace?: boolean 
 
     let copied = 0;
     for (const table of order) {
-      const written = await copyTable(my, pg, table, tables.get(table)!);
+      const written = await copyTable(source, pg, table, tables.get(table)!);
       copied += written;
       if (written > 0) logger.info('copied', { table, rows: written });
     }
@@ -202,17 +252,15 @@ export async function copyToPostgres(opts: { check?: boolean; replace?: boolean 
     // Prove it, rather than trust it.
     const wrong: string[] = [];
     for (const { table, mysql: expected } of counts) {
-      const { rows: [got] } = await pg.query<{ n: string }>(`SELECT COUNT(*) AS n FROM "${table}"`);
-      if (Number(got?.n ?? 0) !== expected) wrong.push(`${table}: MySQL ${expected}, Postgres ${got?.n}`);
+      const { rows } = await pg.query(`SELECT COUNT(*) AS n FROM "${table}"`);
+      const got = Number((rows[0] as { n: string } | undefined)?.n ?? 0);
+      if (got !== expected) wrong.push(`${table}: source ${expected}, Postgres ${got}`);
     }
     if (wrong.length > 0) {
       throw new Error(`the copy finished but the counts do not match:\n  ${wrong.join('\n  ')}`);
     }
 
     logger.info('copy complete and verified', { tables: order.length, rows: copied });
-  } finally {
-    await pg.end().catch(() => undefined);
-    await my.end().catch(() => undefined);
   }
 }
 
