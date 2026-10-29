@@ -89,7 +89,7 @@ export function alignDays(rows: DayCount[], endDate: string, days: number): DayC
 }
 
 export interface ArrivalRow {
-  /** MySQL DAYOFWEEK: 1 = Sunday … 7 = Saturday. */
+  /** Sunday-first, 1 = Sunday … 7 = Saturday — what the query returns. */
   dow: number;
   /** Hour of the day in Dubai, 0–23. */
   hour: number;
@@ -108,7 +108,12 @@ function arrivalBucket(hour: number): number {
   return Math.floor(((hour - ARRIVAL_FIRST_HOUR + 24) % 24) / ARRIVAL_BUCKET_HOURS);
 }
 
-/** MySQL's Sunday-first DAYOFWEEK into our Monday-first row index. */
+/*
+ * The query's Sunday-first day number into our Monday-first row index.
+ *
+ * Postgres counts the week from 0 (Sunday); the query adds 1 so the numbers
+ * are the Sunday-first 1-7 this mapping and its tests were written against.
+ */
 function arrivalRowIndex(dow: number): number {
   return (dow + 5) % 7;
 }

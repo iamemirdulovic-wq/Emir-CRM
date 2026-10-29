@@ -74,8 +74,8 @@ describe('buildArrivalGrid', () => {
     expect(grid.busiest).toBeNull();
   });
 
-  it('puts Monday first, however MySQL numbers the week', () => {
-    // DAYOFWEEK is Sunday-first (1 = Sunday); the design's grid starts Monday.
+  it('puts Monday first, however the database numbers the week', () => {
+    // The query returns Sunday-first (1 = Sunday); the design's grid starts Monday.
     const grid = buildArrivalGrid([{ dow: 2, hour: 8, n: 4 }]);
     expect(grid.rows[0]?.label).toBe('Mon');
     expect(grid.rows[0]?.values[0]).toBe(4);
