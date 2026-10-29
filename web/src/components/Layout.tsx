@@ -9,6 +9,7 @@ import { AppShell, Icon, type NavItem } from '../design/index.js';
 import { ToastHost, useToast } from '../design/ui.js';
 import { avatarColour, initials } from '../design/stages.js';
 import type { Conversation, Role, TasksResponse } from '../lib/types.js';
+import { BRAND } from '../brand.js';
 
 /**
  * The signed-in shell: which nav a role sees, what the top bar says, and the
@@ -64,7 +65,7 @@ function titleFor(pathname: string): string {
   if (pathname.startsWith('/imports')) return 'Import';
   if (pathname.endsWith('/dial')) return 'Calling';
   const entry = ENTRIES.find((item) => pathname.startsWith(item.to));
-  return entry?.title ?? 'Emir CRM';
+  return entry?.title ?? BRAND.name;
 }
 
 export function Layout() {

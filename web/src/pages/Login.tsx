@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.js';
 import { api, ApiError } from '../lib/api.js';
 import { t } from '../lib/i18n.js';
+import { BrandLockup } from '../brand.js';
 
 /**
  * Email, password, a sign-in button. Nothing else.
@@ -61,10 +62,7 @@ export function Login() {
     <section id="login">
       <div className="login-card">
         <div className="login-art">
-          <div className="brand">
-            <div className="brand-mark">E</div>
-            Emir CRM
-          </div>
+          <BrandLockup />
           <div>
             <h2>{t('signInHeadline')}</h2>
             <p>{t('signInBlurb')}</p>

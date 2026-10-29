@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.js';
 import { api, ApiError } from '../lib/api.js';
+import { BrandLockup } from '../brand.js';
 
 /**
  * First run: create the owner account in the browser.
@@ -78,10 +79,7 @@ export function Setup() {
     <section id="login">
       <div className="login-card">
         <div className="login-art">
-          <div className="brand">
-            <div className="brand-mark">E</div>
-            Emir CRM
-          </div>
+          <BrandLockup />
           <div>
             <h2>Let&rsquo;s set up your CRM</h2>
             <p>

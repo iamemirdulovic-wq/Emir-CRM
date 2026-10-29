@@ -11,6 +11,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
+import { BrandLockup } from '../brand.js';
 
 export interface NavItem {
   to: string;
@@ -92,10 +93,7 @@ export function AppShell({
   return (
     <div id="app">
       <aside className="side">
-        <div className="brand">
-          <div className="brand-mark">E</div>
-          <span>Emir CRM</span>
-        </div>
+        <BrandLockup />
 
         <nav className="nav" aria-label="Primary">
           {nav.map((item) => (

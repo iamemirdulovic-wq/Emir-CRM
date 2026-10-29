@@ -4,6 +4,7 @@ import { Note, Panel, useToast } from '../design/ui.js';
 import {
   disablePush, enablePush, iosNeedsInstall, pushState, supported, type PushState,
 } from '../lib/push.js';
+import { BRAND } from '../brand.js';
 
 /**
  * Using the CRM as an app on a phone.
@@ -129,7 +130,8 @@ export function PhoneAppPanel({ index = 0 }: { index?: number }) {
         <Note>
           Your phone is refusing notifications for this site, and only you can
           undo it — the CRM cannot ask again. On iPhone: Settings → Notifications
-          → Emir CRM. On Android: hold the app icon → App info → Notifications.
+          → {BRAND.name}. On Android: hold the app icon → App info →
+          Notifications.
         </Note>
       )}
 

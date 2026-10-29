@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { t } from '../lib/i18n.js';
+import { BrandLockup } from '../brand.js';
 
 const MIN_LENGTH = 8;
 
@@ -41,10 +42,7 @@ export function ChangePassword() {
     <section id="login">
       <div className="login-card">
         <div className="login-art">
-          <div className="brand">
-            <div className="brand-mark">E</div>
-            Emir CRM
-          </div>
+          <BrandLockup />
           <div>
             <h2>Choose your own password.</h2>
             <p>Your admin gave you a temporary one. Replace it and you are in.</p>
