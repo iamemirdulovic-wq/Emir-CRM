@@ -26,8 +26,8 @@ import { TIMEZONE_UTC_OFFSET_HOURS } from '../config/constants.js';
  * in the timezone everyone here actually works in, and matches how the
  * dashboard already buckets its daily counts.
  */
-const DUBAI_DAY = `(((t.due_at) + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})))::date`;
-const DUBAI_TODAY = `(((now()) + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})))::date`;
+const DUBAI_DAY = `((t.due_at + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})) AT TIME ZONE 'UTC')::date`;
+const DUBAI_TODAY = `((now() + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})) AT TIME ZONE 'UTC')::date`;
 
 export type TaskScope = 'mine' | 'team' | 'all';
 export type TaskFilter = 'open' | 'overdue' | 'today' | 'done';

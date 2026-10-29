@@ -207,7 +207,7 @@ export interface Dashboard {
 }
 
 /** `created_at` shifted into Dubai wall-clock, for day and hour grouping. */
-const LOCAL = `((o.created_at) + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS}))`;
+const LOCAL = `((o.created_at + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})) AT TIME ZONE 'UTC')`;
 
 const SPARK_DAYS = 8;
 

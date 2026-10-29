@@ -109,6 +109,13 @@ silently meaningless. Cast to `numeric`.
 `pg_try_advisory_xact_lock`, which releases itself when the transaction ends —
 a crash there can no longer wedge the setup page for everyone.
 
+**The session timezone decides what `::date` and `to_char` return.** Setting it
+per connection meant firing a query on a connection the pool had already handed
+out, which node-postgres warns about and pg 9 will reject. The six queries that
+care now say `AT TIME ZONE 'UTC'` themselves, so the answer does not depend on
+a session setting — or on what timezone the host happens to be in. The tests
+pass with the process set to Asia/Tokyo, which is how that is checked.
+
 **Intervals cannot take a bound parameter.** `INTERVAL '? days'` is not a thing;
 `make_interval(days => ?)` is, and it needs no quotes, which keeps the SQL
 readable inside TypeScript strings.
@@ -151,6 +158,10 @@ npm run copy-to-postgres -- --replace   # empty the Postgres tables first
 
 Apply `server/migrations-pg/` to the Neon database before the first run, or it
 will say so and stop.
+
+`mysql2` stays a dependency for exactly as long as this tool is needed — it is
+the only thing left that speaks MySQL. Once the copy is done and MySQL is
+retired, both can go.
 
 What it does and does not do:
 

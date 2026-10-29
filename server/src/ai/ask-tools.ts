@@ -183,7 +183,7 @@ export async function runTool(
         `SELECT o.contact_id, c.full_name AS name, s."key" AS stage, o.lead_score AS score,
                 o.project_name AS project, o.budget_band AS budget, u.name AS owner,
                 to_char((SELECT MAX(a.created_at) FROM activities a
-                               WHERE a.opportunity_id = o.id), 'YYYY-MM-DD') AS last_activity
+                               WHERE a.opportunity_id = o.id) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS last_activity
            FROM opportunities o
            JOIN contacts c ON c.id = o.contact_id
            LEFT JOIN pipeline_stages s ON s.id = o.stage_id
@@ -204,9 +204,9 @@ export async function runTool(
                 s."key" AS stage, o.sub_status, o.lead_score AS score, o.project_name AS project, o.developer,
                 o.emirate, o.preferred_location, o.budget_band, o.budget_min_aed, o.budget_max_aed,
                 o.unit_type, o.purpose, o.timeline, o.source, o.campaign_name, u.name AS owner,
-                to_char(o.created_at, 'YYYY-MM-DD') AS created,
+                to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS created,
                 to_char((SELECT MAX(a.created_at) FROM activities a
-                               WHERE a.opportunity_id = o.id), 'YYYY-MM-DD HH24:MI') AS last_activity
+                               WHERE a.opportunity_id = o.id) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS last_activity
            FROM opportunities o
            JOIN contacts c ON c.id = o.contact_id
            LEFT JOIN pipeline_stages s ON s.id = o.stage_id
@@ -218,7 +218,7 @@ export async function runTool(
       if (!lead) return { error: 'No lead by that id that you are allowed to see.' };
 
       const activity = await query(
-        `SELECT a.type AS kind, LEFT(COALESCE(a.body, a.title), 200) AS body, to_char(a.created_at, 'YYYY-MM-DD HH24:MI') AS at
+        `SELECT a.type AS kind, LEFT(COALESCE(a.body, a.title), 200) AS body, to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS at
            FROM activities a WHERE a.contact_id = ? ORDER BY a.created_at DESC LIMIT 8`,
         [id],
       );
@@ -290,7 +290,7 @@ export async function runTool(
 
       return query(
         `SELECT m.direction, m.channel, LEFT(m.body, 400) AS body,
-                to_char(m.created_at, 'YYYY-MM-DD HH24:MI') AS at
+                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS at
            FROM messages m
            JOIN conversations cv ON cv.id = m.conversation_id
           WHERE cv.contact_id = ? AND m.body IS NOT NULL

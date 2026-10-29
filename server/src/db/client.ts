@@ -46,17 +46,13 @@ export function getPool(): pg.Pool {
      */
     pool.on('error', (err) => logger.warn('idle database connection failed', { error: err.message }));
     /*
-     * Every timestamp in the schema is timestamptz and every comparison is
-     * meant in UTC, with the Dubai offset applied explicitly where a local day
-     * is wanted. The session timezone still decides what `::date`, `date_trunc`
-     * and `to_char` return, so it is pinned rather than inherited from whatever
-     * the host happens to be set to. node-postgres runs a client's queries in
-     * order, so this one lands before any of ours.
+     * No `SET TIME ZONE` here, deliberately. The session timezone decides what
+     * `::date`, `date_trunc`, `EXTRACT` and `to_char` return, but setting it
+     * per connection means firing a query on a client the pool has already
+     * handed out — which node-postgres warns about and pg 9 will reject. The
+     * queries that care say `AT TIME ZONE 'UTC'` themselves instead, so the
+     * answer does not depend on a session setting at all.
      */
-    pool.on('connect', (client) => {
-      client.query("SET TIME ZONE 'UTC'").catch((err: Error) =>
-        logger.warn('could not pin the session timezone to UTC', { error: err.message }));
-    });
     logger.info('postgres pool created', { database: env().DB_NAME, poolSize: env().DB_POOL_SIZE });
   }
   return pool;

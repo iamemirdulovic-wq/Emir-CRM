@@ -64,6 +64,14 @@ objected to: a worker's reset truncates every table, which deadlocks against
 another worker's inserts. The silent version of that bug is worse — one test
 file emptying another's rows.
 
+*The timezone is said in the SQL, not set on the connection.* `::date` and
+`to_char` are answered in whatever timezone the session is in. Pinning the
+session worked, but it meant firing a `SET` on a connection the pool had
+already handed out — which node-postgres warns about and the next major
+version will reject. The six queries that care say `AT TIME ZONE 'UTC'`
+themselves, so the answer no longer depends on the host's clock settings. The
+tests pass with the process set to Asia/Tokyo, which is how that is checked.
+
 *`make_interval(days => ?)` rather than `INTERVAL '? days'`.* Postgres cannot
 bind a parameter inside an interval literal, and the quotes a literal needs
 collided with the quotes of the TypeScript strings the SQL lives in.
