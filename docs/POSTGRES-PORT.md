@@ -20,7 +20,7 @@ file.
 | 3. `ON DUPLICATE KEY UPDATE` → `ON CONFLICT` (26 places) | not started |
 | 4. Test harness runs against Postgres | not started |
 | 5. Full suite green on Postgres, duplicate storm included | not started |
-| 6. Copy the live data across | not started |
+| 6. Copy the live data across | **tool built** — `npm run copy-to-postgres` |
 | 7. Cut over | not started |
 
 The MySQL migrations in `server/migrations/` are untouched and still the live
@@ -75,3 +75,53 @@ multiplies there. Pick the Neon region nearest the Hostinger server.
 **Scale to zero.** Neon can suspend an idle database. A lead arriving at 3am
 would then wait for it to wake, which eats into the 30-second reply the whole
 system is built around. Keep the compute warm, or accept that cost knowingly.
+
+## Copying your data in
+
+`server/src/db/copy-to-postgres.ts` reads from the live MySQL and writes to
+Neon. It **must run on the Hostinger server**, which is the only machine that
+can reach both: MySQL is on localhost there, and Neon is out on the internet.
+
+```bash
+export DATABASE_URL="postgresql://…neon.tech/…"   # from the Neon dashboard
+
+npm run copy-to-postgres -- --check     # count both sides, copy nothing
+npm run copy-to-postgres                # copy into an empty Postgres
+npm run copy-to-postgres -- --replace   # empty the Postgres tables first
+```
+
+Apply `server/migrations-pg/` to the Neon database before the first run, or it
+will say so and stop.
+
+What it does and does not do:
+
+- **Never writes to MySQL.** It only reads.
+- **Refuses a Postgres database that already holds rows**, unless `--replace`
+  is given. Copying twice into the same tables would double every lead, and
+  that is the one mistake here with no clean way back.
+- **Copies parents before children**, worked out from the foreign keys rather
+  than from a hand-written list that would drift as tables are added. Five
+  tests hold this against the real schema; reversing the order fails two of
+  them.
+- **Counts every table afterwards** and fails loudly if a single one differs
+  from MySQL. A copy that *looks* finished is worse than one that admits it
+  broke.
+- Moves the sequence on `login_attempts`, the one auto-numbered id, past the
+  copied rows — otherwise the next sign-in attempt collides.
+- Reads dates as strings rather than as JS dates, because converting through
+  the server's timezone is exactly where an hour goes missing.
+
+### Do a trial copy first, and expect it to find things
+
+Copy into a Neon **branch**, not the database you intend to keep. Real data has
+history in it: a status value from before a rule tightened, a row from an older
+version of the schema. Those show up as a `CHECK` constraint rejecting a value,
+and it is much better to meet them on a throwaway branch than during a cutover.
+
+### This does not move the CRM
+
+Until step 2 is done, the CRM still reads and writes MySQL. A copy made now is
+a **snapshot**, and it starts going out of date the moment the next lead
+arrives. Its purpose is to prove the copy works and to surface data surprises
+early — the real copy happens at cutover, with the app stopped for a few
+minutes so nothing is written to the old database while it runs.

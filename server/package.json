@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "demo": "tsx src/db/demo.ts"
+    "demo": "tsx src/db/demo.ts",
+    "copy-to-postgres": "tsx src/db/copy-to-postgres.ts"
   },
   "dependencies": {
     "argon2": "^0.41.1",
@@ -29,6 +30,7 @@
     "mailparser": "^3.7.2",
     "mysql2": "^3.11.5",
     "nodemailer": "^10.0.10",
+    "pg": "^8.23.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -39,6 +41,7 @@
     "@types/mailparser": "^3.4.6",
     "@types/node": "^22.10.2",
     "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
