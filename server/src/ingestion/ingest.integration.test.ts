@@ -263,11 +263,11 @@ describeWithDb('ingestion (integration)', () => {
   it('maps a Meta custom question once an admin adds the mapping', async () => {
     await execute(
       `INSERT INTO form_field_map (id, source, form_id, external_field, crm_field)
-       VALUES (gen_random_uuid()::text, 'meta_lead_ads', '1234567890123456', 'what_is_your_budget?', 'budget_band'),
-              (gen_random_uuid()::text, 'meta_lead_ads', '1234567890123456', 'which_project_are_you_interested_in?', 'project'),
-              (gen_random_uuid()::text, 'meta_lead_ads', '1234567890123456', 'when_are_you_looking_to_buy?', 'timeline'),
-              (gen_random_uuid()::text, 'meta_lead_ads', '1234567890123456', 'are_you_buying_to_invest_or_to_live_in?', 'purpose'),
-              (gen_random_uuid()::text, 'meta_lead_ads', '1234567890123456', 'are_you_interested_in_the_golden_visa?', 'golden_visa')`,
+       VALUES (UUID(), 'meta_lead_ads', '1234567890123456', 'what_is_your_budget?', 'budget_band'),
+              (UUID(), 'meta_lead_ads', '1234567890123456', 'which_project_are_you_interested_in?', 'project'),
+              (UUID(), 'meta_lead_ads', '1234567890123456', 'when_are_you_looking_to_buy?', 'timeline'),
+              (UUID(), 'meta_lead_ads', '1234567890123456', 'are_you_buying_to_invest_or_to_live_in?', 'purpose'),
+              (UUID(), 'meta_lead_ads', '1234567890123456', 'are_you_interested_in_the_golden_visa?', 'golden_visa')`,
     );
 
     const detail = metaLeadDetailSchema.parse(await fixture('meta_lead_detail.json'));
@@ -402,7 +402,7 @@ describeWithDb('ingestion (integration)', () => {
     // Record an outbound message we can tick.
     await execute(
       `INSERT INTO messages (id, conversation_id, contact_id, channel, direction, provider, provider_message_id, body, status)
-       VALUES (gen_random_uuid()::text, ?, ?, 'whatsapp', 'outbound', 'whatsapp_cloud', ?, 'hello', 'sent')`,
+       VALUES (UUID(), ?, ?, 'whatsapp', 'outbound', 'whatsapp_cloud', ?, 'hello', 'sent')`,
       [inbound.conversationId, inbound.contactId, 'wamid.HBgLOTcxNDEyMzQ1NjcVAgARGBI5QTBCMUMyRDNFNEY1QTZCN0MA'],
     );
 
@@ -429,7 +429,7 @@ describeWithDb('ingestion (integration)', () => {
     const inbound = await handleInboundMessage(parsed.messages[0]!);
     await execute(
       `INSERT INTO messages (id, conversation_id, contact_id, channel, direction, provider, provider_message_id, body, status, is_automated)
-       VALUES (gen_random_uuid()::text, ?, ?, 'whatsapp', 'outbound', 'whatsapp_cloud', ?, 'hello', 'sent', 1)`,
+       VALUES (UUID(), ?, ?, 'whatsapp', 'outbound', 'whatsapp_cloud', ?, 'hello', 'sent', 1)`,
       [inbound.conversationId, inbound.contactId, 'wamid.HBgLOTcxNDEyMzQ1NjcVAgARGBJBMEIxQzJEM0U0RjVBNkI3QzgA'],
     );
 

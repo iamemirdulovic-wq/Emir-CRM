@@ -1,32 +1,27 @@
-import { execute, queryOne, type Executor, getPool } from '../db/client.js';
+import { execute, isDuplicateKeyError, queryOne, type Executor, getPool } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 
 export type WorkflowKey = 'A_instant_capture' | 'B_no_response_followup' | 'C_inbound_routing';
 
-export interface StartRunInput {
-  workflowKey: WorkflowKey;
-  contactId: string;
-  opportunityId?: string | null;
-  context?: Record<string, unknown>;
-  /**
-   * Set for workflows that must run exactly once per opportunity. The unique
-   * index on `singleton_key` turns the INSERT itself into the lock, so two
-   * concurrent callers cannot both start a run.
-   */
-  singletonKey?: string | null;
-}
-
-/**
- * The insert both entry points share. Returns null when the singleton key is
- * already taken: DO NOTHING rather than a caught error, because this runs
- * inside the ingestion transaction and an error there would abort all of it.
- */
-async function insertRun(input: StartRunInput, exec: Executor): Promise<string | null> {
+export async function startRun(
+  input: {
+    workflowKey: WorkflowKey;
+    contactId: string;
+    opportunityId?: string | null;
+    context?: Record<string, unknown>;
+    /**
+     * Set for workflows that must run exactly once per opportunity. The unique
+     * index on `singleton_key` turns the INSERT itself into the lock, so two
+     * concurrent callers cannot both start a run.
+     */
+    singletonKey?: string | null;
+  },
+  exec: Executor = getPool(),
+): Promise<string> {
   const id = newId();
-  const written = await execute(
+  await execute(
     `INSERT INTO workflow_runs (id, workflow_key, contact_id, opportunity_id, status, context, singleton_key)
-     VALUES (?, ?, ?, ?, 'running', ?, ?)
-     ON CONFLICT DO NOTHING`,
+     VALUES (?, ?, ?, ?, 'running', ?, ?)`,
     [
       id,
       input.workflowKey,
@@ -37,15 +32,6 @@ async function insertRun(input: StartRunInput, exec: Executor): Promise<string |
     ],
     exec,
   );
-  return written.affectedRows > 0 ? id : null;
-}
-
-export async function startRun(input: StartRunInput, exec: Executor = getPool()): Promise<string> {
-  const id = await insertRun(input, exec);
-  if (id === null) {
-    // Only reachable with a singletonKey, where the caller wants startRunOnce.
-    throw new Error(`a workflow run already holds the singleton key ${input.singletonKey}`);
-  }
   return id;
 }
 
@@ -57,10 +43,21 @@ export async function startRun(input: StartRunInput, exec: Executor = getPool())
  * this is safe under concurrency in a way a read-then-write check is not.
  */
 export async function startRunOnce(
-  input: StartRunInput & { singletonKey: string },
+  input: {
+    workflowKey: WorkflowKey;
+    contactId: string;
+    opportunityId?: string | null;
+    context?: Record<string, unknown>;
+    singletonKey: string;
+  },
   exec: Executor = getPool(),
 ): Promise<string | null> {
-  return insertRun(input, exec);
+  try {
+    return await startRun(input, exec);
+  } catch (err) {
+    if (isDuplicateKeyError(err)) return null;
+    throw err;
+  }
 }
 
 export async function setStep(runId: string, step: string, exec: Executor = getPool()): Promise<void> {
@@ -69,7 +66,7 @@ export async function setStep(runId: string, step: string, exec: Executor = getP
 
 export async function completeRun(runId: string, exec: Executor = getPool()): Promise<void> {
   await execute(
-    `UPDATE workflow_runs SET status = 'completed', finished_at = now() WHERE id = ? AND status = 'running'`,
+    `UPDATE workflow_runs SET status = 'completed', finished_at = NOW(3) WHERE id = ? AND status = 'running'`,
     [runId],
     exec,
   );
@@ -77,7 +74,7 @@ export async function completeRun(runId: string, exec: Executor = getPool()): Pr
 
 export async function failRun(runId: string, reason: string, exec: Executor = getPool()): Promise<void> {
   await execute(
-    `UPDATE workflow_runs SET status = 'failed', finished_at = now(), cancel_reason = ? WHERE id = ? AND status = 'running'`,
+    `UPDATE workflow_runs SET status = 'failed', finished_at = NOW(3), cancel_reason = ? WHERE id = ? AND status = 'running'`,
     [reason.slice(0, 160), runId],
     exec,
   );
@@ -94,7 +91,7 @@ export async function cancelRuns(
     params.push(input.workflowKey);
   }
   const result = await execute(
-    `UPDATE workflow_runs SET status = 'cancelled', finished_at = now(), cancel_reason = ?
+    `UPDATE workflow_runs SET status = 'cancelled', finished_at = NOW(3), cancel_reason = ?
       WHERE contact_id = ? AND status = 'running'${clause}`,
     params,
     exec,

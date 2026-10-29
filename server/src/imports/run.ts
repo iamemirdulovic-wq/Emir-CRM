@@ -81,7 +81,7 @@ export async function stageRows(importId: string, exec: Executor = getPool()): P
   const record = await loadImport(importId, exec);
   if (!record?.file_path) throw new Error('That import has no file');
 
-  await execute("UPDATE imports SET status = 'validating', started_at = now() WHERE id = ?", [importId], exec);
+  await execute("UPDATE imports SET status = 'validating', started_at = NOW(3) WHERE id = ?", [importId], exec);
 
   const source = await readRows(record.file_path, record.file_kind);
   await execute('UPDATE imports SET headers = ? WHERE id = ?', [JSON.stringify(source.headers), importId], exec);
@@ -380,8 +380,8 @@ async function finish(importId: string, exec: Executor): Promise<void> {
 
   await execute(
     `UPDATE imports
-        SET status = 'completed', finished_at = now(),
-            undo_deadline_at = ((now()) + make_interval(hours => ?))
+        SET status = 'completed', finished_at = NOW(3),
+            undo_deadline_at = DATE_ADD(NOW(3), INTERVAL ? HOUR)
       WHERE id = ?`,
     [UNDO_WINDOW_HOURS, importId],
     exec,
@@ -495,7 +495,7 @@ export async function undoImport(
     deleted += result.affectedRows;
   }
 
-  await execute("UPDATE imports SET status = 'undone', undone_at = now() WHERE id = ?", [importId], exec);
+  await execute("UPDATE imports SET status = 'undone', undone_at = NOW(3) WHERE id = ?", [importId], exec);
   await writeAudit(
     {
       actor,

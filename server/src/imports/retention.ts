@@ -29,8 +29,8 @@ export async function purgeExpiredUploads(): Promise<number> {
     `SELECT id, file_path FROM imports
       WHERE file_path IS NOT NULL
         AND (
-          (status IN ('completed','undone','failed') AND COALESCE(finished_at, created_at) < ((now()) - make_interval(hours => ?)))
-          OR (status IN ('uploaded','mapping','validating','ready') AND created_at < ((now()) - make_interval(days => ?)))
+          (status IN ('completed','undone','failed') AND COALESCE(finished_at, created_at) < DATE_SUB(NOW(3), INTERVAL ? HOUR))
+          OR (status IN ('uploaded','mapping','validating','ready') AND created_at < DATE_SUB(NOW(3), INTERVAL ? DAY))
         )
       LIMIT 500`,
     [UNDO_WINDOW_HOURS, ABANDONED_DAYS],

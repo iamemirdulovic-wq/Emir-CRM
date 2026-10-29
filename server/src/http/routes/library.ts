@@ -745,8 +745,8 @@ libraryRouter.put(
     await execute(
       `INSERT INTO project_locations (project_id, lat, lng, address, sales_centre, distances)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT ON CONSTRAINT project_locations_pkey DO UPDATE SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, address = EXCLUDED.address,
-                               sales_centre = EXCLUDED.sales_centre, distances = EXCLUDED.distances`,
+       ON DUPLICATE KEY UPDATE lat = VALUES(lat), lng = VALUES(lng), address = VALUES(address),
+                               sales_centre = VALUES(sales_centre), distances = VALUES(distances)`,
       [id, body.lat ?? null, body.lng ?? null, body.address ?? null, body.salesCentre ?? null,
        body.distances ? JSON.stringify(body.distances) : null],
     );
@@ -775,9 +775,9 @@ libraryRouter.put(
       `INSERT INTO project_commissions (project_id, rate_pct, payment_terms, agreement_date,
                                         avg_days_to_pay, default_agent_split_pct, note)
        VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT ON CONSTRAINT project_commissions_pkey DO UPDATE SET rate_pct = EXCLUDED.rate_pct, payment_terms = EXCLUDED.payment_terms,
-                               agreement_date = EXCLUDED.agreement_date, avg_days_to_pay = EXCLUDED.avg_days_to_pay,
-                               default_agent_split_pct = EXCLUDED.default_agent_split_pct, note = EXCLUDED.note`,
+       ON DUPLICATE KEY UPDATE rate_pct = VALUES(rate_pct), payment_terms = VALUES(payment_terms),
+                               agreement_date = VALUES(agreement_date), avg_days_to_pay = VALUES(avg_days_to_pay),
+                               default_agent_split_pct = VALUES(default_agent_split_pct), note = VALUES(note)`,
       [id, body.ratePct ?? null, body.paymentTerms ?? null, body.agreementDate ?? null,
        body.avgDaysToPay ?? null, body.defaultAgentSplitPct ?? null, body.note ?? null],
     );

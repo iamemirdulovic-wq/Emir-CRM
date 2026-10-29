@@ -1,4 +1,4 @@
-import { execute, queryOne, type Executor, getPool } from '../db/client.js';
+import { execute, isDuplicateKeyError, queryOne, type Executor, getPool } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 
 export type RecordedEvent = {
@@ -23,33 +23,30 @@ export async function recordInboundEvent(
   exec: Executor = getPool(),
 ): Promise<RecordedEvent> {
   const id = newId();
-  /*
-   * DO NOTHING rather than catching the unique violation: this often runs
-   * inside the ingestion transaction, and in Postgres a raised error aborts
-   * the whole transaction rather than just the statement.
-   */
-  const written = await execute(
-    `INSERT INTO inbound_events (id, source, external_id, signature_valid, raw_payload, headers)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT ON CONSTRAINT uq_inbound_source_external DO NOTHING`,
-    [
-      id,
-      input.source,
-      input.externalId.slice(0, 191),
-      input.signatureValid ? 1 : 0,
-      JSON.stringify(input.payload ?? null),
-      input.headers ? JSON.stringify(input.headers) : null,
-    ],
-    exec,
-  );
-  if (written.affectedRows > 0) return { id, duplicate: false };
-
-  const existing = await queryOne<{ id: string }>(
-    'SELECT id FROM inbound_events WHERE source = ? AND external_id = ?',
-    [input.source, input.externalId.slice(0, 191)],
-    exec,
-  );
-  return { id: existing?.id ?? id, duplicate: true };
+  try {
+    await execute(
+      `INSERT INTO inbound_events (id, source, external_id, signature_valid, raw_payload, headers)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.source,
+        input.externalId.slice(0, 191),
+        input.signatureValid ? 1 : 0,
+        JSON.stringify(input.payload ?? null),
+        input.headers ? JSON.stringify(input.headers) : null,
+      ],
+      exec,
+    );
+    return { id, duplicate: false };
+  } catch (err) {
+    if (!isDuplicateKeyError(err)) throw err;
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM inbound_events WHERE source = ? AND external_id = ?',
+      [input.source, input.externalId.slice(0, 191)],
+      exec,
+    );
+    return { id: existing?.id ?? id, duplicate: true };
+  }
 }
 
 export async function markEventProcessing(id: string, exec: Executor = getPool()): Promise<void> {
@@ -63,7 +60,7 @@ export async function markEventProcessed(
 ): Promise<void> {
   await execute(
     `UPDATE inbound_events
-        SET status = 'processed', processed_at = now(), error = NULL, contact_id = ?, opportunity_id = ?
+        SET status = 'processed', processed_at = NOW(3), error = NULL, contact_id = ?, opportunity_id = ?
       WHERE id = ?`,
     [refs.contactId ?? null, refs.opportunityId ?? null, id],
     exec,
@@ -73,7 +70,7 @@ export async function markEventProcessed(
 export async function markEventFailed(id: string, error: unknown, exec: Executor = getPool()): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
   await execute(
-    `UPDATE inbound_events SET status = 'failed', processed_at = now(), error = ? WHERE id = ?`,
+    `UPDATE inbound_events SET status = 'failed', processed_at = NOW(3), error = ? WHERE id = ?`,
     [message.slice(0, 2000), id],
     exec,
   );
@@ -81,7 +78,7 @@ export async function markEventFailed(id: string, error: unknown, exec: Executor
 
 export async function markEventIgnored(id: string, reason: string, exec: Executor = getPool()): Promise<void> {
   await execute(
-    `UPDATE inbound_events SET status = 'ignored', processed_at = now(), error = ? WHERE id = ?`,
+    `UPDATE inbound_events SET status = 'ignored', processed_at = NOW(3), error = ? WHERE id = ?`,
     [reason.slice(0, 2000), id],
     exec,
   );

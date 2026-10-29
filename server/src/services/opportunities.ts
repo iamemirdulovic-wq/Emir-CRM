@@ -74,7 +74,7 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
     );
 
     const stage = await queryOne<{ id: string }>(
-      'SELECT id FROM pipeline_stages WHERE pipeline_id = ? AND "key" = ?',
+      'SELECT id FROM pipeline_stages WHERE pipeline_id = ? AND `key` = ?',
       [current.pipeline_id, move.to],
       tx,
     );
@@ -95,9 +95,9 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
       `UPDATE opportunities
           SET stage_id = ?, stage_key = ?, sub_status = ?, status = ?,
               lost_reason = ?, lost_note = ?,
-              stage_changed_at = now(),
-              closed_at = CASE WHEN ? IN ('won','lost') THEN now() ELSE NULL END,
-              first_touch_at = COALESCE(first_touch_at, CASE WHEN ? <> 'new_lead' THEN now() ELSE NULL END)
+              stage_changed_at = NOW(3),
+              closed_at = CASE WHEN ? IN ('won','lost') THEN NOW(3) ELSE NULL END,
+              first_touch_at = COALESCE(first_touch_at, CASE WHEN ? <> 'new_lead' THEN NOW(3) ELSE NULL END)
         WHERE id = ?`,
       [
         stage.id,
@@ -144,7 +144,7 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
         tx,
       );
       await execute(
-        `UPDATE workflow_runs SET status = 'cancelled', finished_at = now(), cancel_reason = ?
+        `UPDATE workflow_runs SET status = 'cancelled', finished_at = NOW(3), cancel_reason = ?
           WHERE contact_id = ? AND workflow_key = 'B_no_response_followup' AND status = 'running'`,
         [`stage moved to ${move.to}`, current.contact_id],
         tx,
@@ -220,7 +220,7 @@ export async function reassign(input: ReassignInput): Promise<void> {
     );
     if (!target || target.is_active !== 1) throw notFound('That user does not exist or is not active');
 
-    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = now() WHERE id = ?', [
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
       input.toUserId,
       input.opportunityId,
     ], tx);
@@ -273,13 +273,13 @@ export async function loadBoard(params: {
   }>
 > {
   const stages = await query<{ key: StageKey; name: string; position: number }>(
-    `SELECT s."key", s.name, s.position
+    `SELECT s.\`key\`, s.name, s.position
        FROM pipeline_stages s JOIN pipelines p ON p.id = s.pipeline_id
-      WHERE p."key" = ? ORDER BY s.position`,
+      WHERE p.\`key\` = ? ORDER BY s.position`,
     [params.pipelineKey],
   );
 
-  const where: string[] = ['o.pipeline_id = (SELECT id FROM pipelines WHERE "key" = ?)'];
+  const where: string[] = ['o.pipeline_id = (SELECT id FROM pipelines WHERE `key` = ?)'];
   const args: Array<string | number> = [params.pipelineKey];
 
   if (params.visibleUserIds !== null) {
@@ -302,7 +302,7 @@ export async function loadBoard(params: {
     args.push(params.filters.projectName);
   }
   if (params.filters?.search) {
-    where.push('(c.full_name ILIKE ? OR c.phone_e164 ILIKE ? OR c.email ILIKE ? OR o.project_name ILIKE ?)');
+    where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?)');
     const like = `%${params.filters.search}%`;
     args.push(like, like, like, like);
   }

@@ -174,7 +174,7 @@ export async function listOffers(
 
   if (filters.search?.trim()) {
     // Offer title, client and project — what an agent actually types.
-    where.push('(o.title ILIKE ? OR c.full_name ILIKE ? OR p.name ILIKE ?)');
+    where.push('(o.title LIKE ? OR c.full_name LIKE ? OR p.name LIKE ?)');
     const needle = `%${filters.search.trim()}%`;
     params.push(needle, needle, needle);
   }
@@ -409,7 +409,7 @@ export async function duplicateOffer(
       `INSERT INTO offer_units (id, offer_id, unit_id, price_version_id, unit_no, unit_type,
                                 bedrooms, floor, internal_area_sqft, balcony_sqft, view_text,
                                 parking, price_aed, price_per_sqft_aed, status, sort_order)
-       SELECT gen_random_uuid()::text, ?, unit_id, price_version_id, unit_no, unit_type, bedrooms, floor,
+       SELECT UUID(), ?, unit_id, price_version_id, unit_no, unit_type, bedrooms, floor,
               internal_area_sqft, balcony_sqft, view_text, parking, price_aed,
               price_per_sqft_aed, status, sort_order
          FROM offer_units WHERE offer_id = ?`,
@@ -434,7 +434,7 @@ export async function trashOffer(
   const viewer: Viewer = { id: actor.id, role: actor.role };
   const before = await getOffer(viewer, id, exec);
   if (before.deleted_at) return;
-  await execute('UPDATE offers SET deleted_at = now() WHERE id = ?', [id], exec);
+  await execute('UPDATE offers SET deleted_at = CURRENT_TIMESTAMP(3) WHERE id = ?', [id], exec);
   await writeAudit({
     actor, action: 'offer.trash', entityType: 'offer', entityId: id,
     before: { title: before.title, deleted_at: null },
@@ -479,7 +479,7 @@ export async function purgeStaleTrash(exec: Executor = getPool()): Promise<numbe
   const result = await execute(
     `DELETE FROM offers
       WHERE deleted_at IS NOT NULL
-        AND deleted_at < ((now()) - make_interval(days => ?))`,
+        AND deleted_at < DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL ? DAY)`,
     [TRASH_DAYS],
     exec,
   );

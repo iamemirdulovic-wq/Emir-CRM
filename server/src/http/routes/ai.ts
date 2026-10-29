@@ -291,7 +291,7 @@ aiRouter.post(
         [conversationId, user.id, body.question.slice(0, 160)],
       );
     } else {
-      await execute('UPDATE ai_conversations SET updated_at = now() WHERE id = ?', [conversationId]);
+      await execute('UPDATE ai_conversations SET updated_at = NOW(3) WHERE id = ?', [conversationId]);
     }
 
     await execute(

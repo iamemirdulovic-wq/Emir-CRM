@@ -21,38 +21,28 @@ export function maskEmail(value: string): string {
 }
 
 /**
- * Contact details also arrive inside free text — most often a duplicate-key
- * error, which repeats the offending value. Those strings reach the log through
- * `errorContext`, so they are masked wherever they appear, not only when they
- * sit under a key we recognise.
+ * Contact details also arrive inside free text — most often a MySQL duplicate-key
+ * error, whose message quotes the offending value ("Duplicate entry
+ * '+971501234567' for key 'uq_contact_phone'"). Those strings reach the log
+ * through `errorContext`, so they are masked wherever they appear, not only when
+ * they sit under a key we recognise.
  */
 const PHONE_IN_TEXT = /\+\d{8,15}\b/g;
 const EMAIL_IN_TEXT = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 /*
- * A `wa_id` is stored without the leading `+` (971501234567), so it would slip
- * past the pattern above. Masking every long number in free text would mangle
- * timestamps and row counts instead, so only the two shapes a database uses to
- * quote a rejected value are masked:
- *
- *   MySQL     Duplicate entry '971501234567' for key 'uq_contacts_wa_id'
- *   Postgres  Key (wa_id)=(971501234567) already exists.
- *
- * The Postgres form names the column, so that is what decides whether the
- * value is a contact detail — more precise than guessing from the digits.
+ * A `wa_id` is stored without the leading `+` (971501234567), so a duplicate-key
+ * error naming `uq_contacts_wa_id` would slip past the pattern above. Bare digit
+ * runs are only masked inside quotes, which is how MySQL prints the offending
+ * value — masking every long number in free text would mangle timestamps and
+ * row counts instead.
  */
 const QUOTED_DIGITS = /'(\d{8,15})'/g;
-const PG_KEY_DETAIL = /Key \(([a-z_, ]+)\)=\(([^)]*)\)/g;
 
 export function scrubText(value: string): string {
   return value
     .replace(EMAIL_IN_TEXT, maskEmail)
     .replace(PHONE_IN_TEXT, maskPhone)
-    .replace(QUOTED_DIGITS, (_match, digits: string) => `'${maskPhone(digits)}'`)
-    .replace(PG_KEY_DETAIL, (match, columns: string, value_: string) => (
-      CONTACT_KEY_PATTERN.test(columns)
-        ? `Key (${columns})=(${value_.includes('@') ? maskEmail(value_) : maskPhone(value_)})`
-        : match
-    ));
+    .replace(QUOTED_DIGITS, (_match, digits: string) => `'${maskPhone(digits)}'`);
 }
 
 /** Deep-clone `value` with secrets removed and contact details masked. */

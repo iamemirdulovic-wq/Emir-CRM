@@ -1,4 +1,4 @@
-import { Client } from 'pg';
+import mysql from 'mysql2/promise';
 import { describe } from 'vitest';
 import { closePool, execute, getPool, query } from '../db/client.js';
 import { loadEnv, setEnvForTesting } from '../config/env.js';
@@ -10,33 +10,18 @@ import { DEFAULT_PIPELINE_KEY, STAGE_DEFINITIONS } from '../pipeline/stages.js';
 /**
  * Integration-test harness. The suites that need a database skip themselves
  * when one is not reachable, so `npm test` stays green on a machine without
- * Postgres while still running for real in CI and locally.
+ * MySQL while still running for real in CI and locally.
  */
 
-/*
- * One database per test worker.
- *
- * Vitest runs test files in parallel workers. Sharing one database means a
- * worker's `resetTables()` TRUNCATE takes an exclusive lock on every table
- * while another worker is mid-insert — which deadlocks, and when it does not
- * deadlock it is worse: one file silently empties another file's rows. A
- * database each costs a few seconds of migrations per worker and removes the
- * whole class of problem.
- */
-const TEST_DB = `${process.env.TEST_DB_NAME ?? 'emir_crm_test'}${workerSuffix()}`;
-
-function workerSuffix(): string {
-  const id = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID;
-  return id ? `_${id}` : '';
-}
+const TEST_DB = process.env.TEST_DB_NAME ?? 'emir_crm_test';
 
 function testEnvSource(): NodeJS.ProcessEnv {
   return {
     ...process.env,
     NODE_ENV: 'test',
     DB_HOST: process.env.TEST_DB_HOST ?? process.env.DB_HOST ?? '127.0.0.1',
-    DB_PORT: process.env.TEST_DB_PORT ?? process.env.DB_PORT ?? '5432',
-    DB_USER: process.env.TEST_DB_USER ?? process.env.DB_USER ?? 'postgres',
+    DB_PORT: process.env.TEST_DB_PORT ?? process.env.DB_PORT ?? '3306',
+    DB_USER: process.env.TEST_DB_USER ?? process.env.DB_USER ?? 'root',
     DB_PASSWORD: process.env.TEST_DB_PASSWORD ?? process.env.DB_PASSWORD ?? '',
     DB_NAME: TEST_DB,
     DATABASE_URL: '',
@@ -49,24 +34,21 @@ function testEnvSource(): NodeJS.ProcessEnv {
 
 let available: boolean | null = null;
 
-/** Can we reach a Postgres server for the integration suites? */
+/** Can we reach a MySQL-compatible server for the integration suites? */
 export async function databaseAvailable(): Promise<boolean> {
   if (available !== null) return available;
   const source = testEnvSource();
-  const client = new Client({
-    host: source.DB_HOST,
-    port: Number(source.DB_PORT),
-    user: source.DB_USER,
-    password: source.DB_PASSWORD,
-    database: 'postgres',
-    connectionTimeoutMillis: 3000,
-  });
   try {
-    await client.connect();
-    await client.end();
+    const conn = await mysql.createConnection({
+      host: source.DB_HOST,
+      port: Number(source.DB_PORT),
+      user: source.DB_USER,
+      password: source.DB_PASSWORD,
+      connectTimeout: 3000,
+    });
+    await conn.end();
     available = true;
   } catch {
-    await client.end().catch(() => undefined);
     available = false;
   }
   return available;
@@ -86,10 +68,10 @@ export async function prepareTestDatabase(): Promise<void> {
 }
 
 async function seedReference(): Promise<void> {
-  const existing = await query<{ id: string }>('SELECT id FROM pipelines WHERE "key" = ?', [DEFAULT_PIPELINE_KEY]);
+  const existing = await query<{ id: string }>('SELECT id FROM pipelines WHERE `key` = ?', [DEFAULT_PIPELINE_KEY]);
   const pipelineId = existing[0]?.id ?? newId();
   if (!existing[0]) {
-    await execute('INSERT INTO pipelines (id, "key", name, is_default) VALUES (?, ?, ?, 1)', [
+    await execute('INSERT INTO pipelines (id, `key`, name, is_default) VALUES (?, ?, ?, 1)', [
       pipelineId,
       DEFAULT_PIPELINE_KEY,
       'Off-plan Sales',
@@ -97,9 +79,9 @@ async function seedReference(): Promise<void> {
   }
   for (const stage of STAGE_DEFINITIONS) {
     await execute(
-      `INSERT INTO pipeline_stages (id, pipeline_id, "key", name, position, is_won, is_lost, sub_statuses)
+      `INSERT INTO pipeline_stages (id, pipeline_id, \`key\`, name, position, is_won, is_lost, sub_statuses)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT ON CONSTRAINT uq_stage_pipeline_key DO UPDATE SET name = EXCLUDED.name`,
+       ON DUPLICATE KEY UPDATE name = VALUES(name)`,
       [newId(), pipelineId, stage.key, stage.name, stage.position, stage.isWon ? 1 : 0, stage.isLost ? 1 : 0, JSON.stringify(stage.subStatuses)],
     );
   }
@@ -121,17 +103,15 @@ export async function seedFieldMappings(): Promise<void> {
             (?, 'google_ads', NULL, 'PHONE_NUMBER', 'phone'),
             (?, 'google_ads', NULL, 'EMAIL', 'email'),
             (?, 'google_ads', NULL, 'CITY', 'city')
-     ON CONFLICT ON CONSTRAINT uq_form_field DO UPDATE SET crm_field = EXCLUDED.crm_field`,
+     ON DUPLICATE KEY UPDATE crm_field = VALUES(crm_field)`,
     Array.from({ length: 11 }, () => newId()),
   );
 }
 
 /**
- * Tables emptied between tests. Reference rows that tests customise (field
- * mappings, tags, projects) are included and re-seeded, so no test can depend
- * on a previous one's leftovers. The order no longer matters — Postgres empties
- * them in one statement — but it is kept, grouped by feature, because that is
- * how the list is read and added to.
+ * Tables emptied between tests, children before parents. Reference rows that
+ * tests customise (field mappings, tags, projects) are included and re-seeded,
+ * so no test can depend on a previous one's leftovers.
  */
 const TRUNCATE_ORDER = [
   'website_leads',
@@ -143,7 +123,7 @@ const TRUNCATE_ORDER = [
   'offer_units',
   'offers',
   'offer_folders',
-  // Project library — children first.
+  // Project library — children first, though FOREIGN_KEY_CHECKS is off anyway.
   'payment_plan_rows',
   'payment_plans',
   'units',
@@ -196,33 +176,11 @@ const TRUNCATE_ORDER = [
 ];
 
 export async function resetTables(): Promise<void> {
-  /*
-   * One statement, so no foreign key is ever looked at while the database is
-   * half empty. CASCADE reaches any table these point at that is not already
-   * listed, and RESTART IDENTITY puts login_attempts' counter back to 1 so a
-   * test can assert on an id.
-   *
-   * Retried, because of the webhook tests. Those endpoints answer 200 and then
-   * process the lead — that is the product requirement — so when a test ends,
-   * work it started can still be writing. TRUNCATE wants an exclusive lock on
-   * every table at once, and against a half-finished ingestion that is a
-   * deadlock. The lock_timeout keeps a wait short, and a few attempts outlast
-   * the leftover work. Only the harness needs this; nothing in the CRM
-   * truncates anything.
-   */
-  const statement = `TRUNCATE ${TRUNCATE_ORDER.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE`;
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      await execute("SET lock_timeout = '4s'");
-      await execute(statement);
-      break;
-    } catch (err) {
-      if (attempt >= 6) throw err;
-      await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
-    } finally {
-      await execute('SET lock_timeout = 0').catch(() => undefined);
-    }
+  await execute('SET FOREIGN_KEY_CHECKS = 0');
+  for (const table of TRUNCATE_ORDER) {
+    await execute(`TRUNCATE TABLE ${table}`);
   }
+  await execute('SET FOREIGN_KEY_CHECKS = 1');
   await seedFieldMappings();
 }
 

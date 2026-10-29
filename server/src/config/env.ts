@@ -25,17 +25,11 @@ const envSchema = z.object({
   // --- Database -----------------------------------------------------------
   DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().default('127.0.0.1'),
-  DB_PORT: z.coerce.number().int().positive().default(5432),
+  DB_PORT: z.coerce.number().int().positive().default(3306),
   DB_USER: z.string().default('root'),
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('emir_crm'),
   DB_POOL_SIZE: z.coerce.number().int().positive().default(10),
-  /*
-   * A one-time instruction to a deploy: copy everything out of the MySQL
-   * database the DB_* settings point at, into the Postgres one DATABASE_URL
-   * points at, before starting. See db/copy-once.ts for what it refuses to do.
-   */
-  COPY_FROM_MYSQL_ONCE: boolish.default(false),
 
   // --- Security -----------------------------------------------------------
   /** 32-byte key, hex or base64, used for AES-256-GCM encryption of tokens at rest. */

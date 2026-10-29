@@ -29,27 +29,11 @@ describe('redact', () => {
   });
 
   it('masks a number quoted inside a database error message', () => {
-    // What MySQL says when the unique phone index rejects a row.
+    // What MySQL actually says when the unique phone index rejects a row.
     const message = "Duplicate entry '+971501234567' for key 'contacts.uq_contact_phone'";
     const out = redact({ error: message }) as { error: string };
     expect(out.error).toBe("Duplicate entry '+971***67' for key 'contacts.uq_contact_phone'");
     expect(out.error).not.toContain('501234567');
-  });
-
-  /*
-   * Postgres phrases it differently, and a wa_id carries no leading `+` to
-   * recognise it by. Taken verbatim from a real server rejecting the row.
-   */
-  it("masks a wa_id in Postgres's duplicate-key detail", () => {
-    const message = 'Key (wa_id)=(971501234567) already exists.';
-    const out = redact({ error: message }) as { error: string };
-    expect(out.error).toBe('Key (wa_id)=(971***67) already exists.');
-    expect(out.error).not.toContain('971501234567');
-  });
-
-  it('leaves a detail that is not a contact detail alone', () => {
-    const message = 'Key (slug)=(marina-heights) already exists.';
-    expect((redact({ error: message }) as { error: string }).error).toBe(message);
   });
 
   it('masks a wa_id, which is stored without a leading plus', () => {

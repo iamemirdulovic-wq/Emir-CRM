@@ -158,12 +158,12 @@ export async function runTool(
       const params: SqlParam[] = [];
 
       if (typeof args.text === 'string' && args.text.trim()) {
-        where.push('(c.full_name ILIKE ? OR c.phone_e164 ILIKE ? OR o.project_name ILIKE ? OR o.preferred_location ILIKE ?)');
+        where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR o.project_name LIKE ? OR o.preferred_location LIKE ?)');
         const like = `%${args.text.trim().slice(0, 60)}%`;
         params.push(like, like, like, like);
       }
       if (typeof args.stage === 'string' && args.stage.trim()) {
-        where.push('s."key" = ?');
+        where.push('s.`key` = ?');
         params.push(args.stage.trim());
       }
       if (args.minScore !== undefined) {
@@ -174,16 +174,16 @@ export async function runTool(
         where.push(
           '(SELECT MAX(a.created_at) FROM activities a WHERE a.opportunity_id = o.id) '
           + 'IS NULL OR (SELECT MAX(a.created_at) FROM activities a WHERE a.opportunity_id = o.id) '
-          + '< ((now()) - make_interval(days => ?))',
+          + '< DATE_SUB(NOW(3), INTERVAL ? DAY)',
         );
         params.push(clamp(args.staleDays, 7, 365));
       }
 
       return query<LeadRow>(
-        `SELECT o.contact_id, c.full_name AS name, s."key" AS stage, o.lead_score AS score,
+        `SELECT o.contact_id, c.full_name AS name, s.\`key\` AS stage, o.lead_score AS score,
                 o.project_name AS project, o.budget_band AS budget, u.name AS owner,
-                to_char((SELECT MAX(a.created_at) FROM activities a
-                               WHERE a.opportunity_id = o.id) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS last_activity
+                DATE_FORMAT((SELECT MAX(a.created_at) FROM activities a
+                               WHERE a.opportunity_id = o.id), '%Y-%m-%d') AS last_activity
            FROM opportunities o
            JOIN contacts c ON c.id = o.contact_id
            LEFT JOIN pipeline_stages s ON s.id = o.stage_id
@@ -201,12 +201,12 @@ export async function runTool(
 
       const lead = await queryOne(
         `SELECT o.contact_id, c.full_name AS name, c.language,
-                s."key" AS stage, o.sub_status, o.lead_score AS score, o.project_name AS project, o.developer,
+                s.\`key\` AS stage, o.sub_status, o.lead_score AS score, o.project_name AS project, o.developer,
                 o.emirate, o.preferred_location, o.budget_band, o.budget_min_aed, o.budget_max_aed,
                 o.unit_type, o.purpose, o.timeline, o.source, o.campaign_name, u.name AS owner,
-                to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS created,
-                to_char((SELECT MAX(a.created_at) FROM activities a
-                               WHERE a.opportunity_id = o.id) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS last_activity
+                DATE_FORMAT(o.created_at, '%Y-%m-%d') AS created,
+                DATE_FORMAT((SELECT MAX(a.created_at) FROM activities a
+                               WHERE a.opportunity_id = o.id), '%Y-%m-%d %H:%i') AS last_activity
            FROM opportunities o
            JOIN contacts c ON c.id = o.contact_id
            LEFT JOIN pipeline_stages s ON s.id = o.stage_id
@@ -218,7 +218,7 @@ export async function runTool(
       if (!lead) return { error: 'No lead by that id that you are allowed to see.' };
 
       const activity = await query(
-        `SELECT a.type AS kind, LEFT(COALESCE(a.body, a.title), 200) AS body, to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS at
+        `SELECT a.type AS kind, LEFT(COALESCE(a.body, a.title), 200) AS body, DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i') AS at
            FROM activities a WHERE a.contact_id = ? ORDER BY a.created_at DESC LIMIT 8`,
         [id],
       );
@@ -228,12 +228,12 @@ export async function runTool(
     case 'get_pipeline_stats': {
       const days = clamp(args.days, 30, 365);
       return query(
-        `SELECT s."key" AS stage, s.name AS label, COUNT(*) AS leads,
-                COUNT(*) FILTER (WHERE o.created_at >= ((now()) - make_interval(days => ?))) AS recent
+        `SELECT s.\`key\` AS stage, s.name AS label, COUNT(*) AS leads,
+                SUM(o.created_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)) AS recent
            FROM opportunities o
            LEFT JOIN pipeline_stages s ON s.id = o.stage_id
           WHERE o.status = 'open'${fence.clause}
-          GROUP BY s."key", s.name, s.position
+          GROUP BY s.\`key\`, s.name, s.position
           ORDER BY s.position`,
         [days, ...fence.params],
       );
@@ -244,13 +244,13 @@ export async function runTool(
       return query(
         `SELECT COALESCE(o.campaign_name, o.source, 'unknown') AS source,
                 COUNT(*) AS leads,
-                COUNT(*) FILTER (WHERE o.sub_status = 'invalid') AS invalid,
-                COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM activities a WHERE a.opportunity_id = o.id)) AS touched,
-                COUNT(*) FILTER (WHERE o.status = 'won') AS won,
+                SUM(o.sub_status = 'invalid') AS invalid,
+                SUM(EXISTS (SELECT 1 FROM activities a WHERE a.opportunity_id = o.id)) AS touched,
+                SUM(o.status = 'won') AS won,
                 ROUND(AVG(o.lead_score), 1) AS average_score
            FROM opportunities o
-          WHERE o.created_at >= ((now()) - make_interval(days => ?))${fence.clause}
-          GROUP BY COALESCE(o.campaign_name, o.source, 'unknown')
+          WHERE o.created_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)${fence.clause}
+          GROUP BY source
           HAVING COUNT(*) > 0
           ORDER BY COUNT(*) DESC
           LIMIT 20`,
@@ -262,13 +262,13 @@ export async function runTool(
       const days = clamp(args.days, 30, 365);
       return query(
         `SELECT u.name AS agent, COUNT(*) AS leads,
-                COUNT(*) FILTER (WHERE o.status = 'won') AS won,
-                COUNT(*) FILTER (WHERE o.status = 'open'
+                SUM(o.status = 'won') AS won,
+                SUM(o.status = 'open'
                     AND NOT EXISTS (SELECT 1 FROM activities a WHERE a.opportunity_id = o.id)) AS never_touched,
                 ROUND(AVG(o.lead_score), 1) AS average_score
            FROM opportunities o
            JOIN users u ON u.id = o.owner_user_id
-          WHERE o.created_at >= ((now()) - make_interval(days => ?))${fence.clause}
+          WHERE o.created_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)${fence.clause}
           GROUP BY u.id, u.name
           ORDER BY COUNT(*) DESC
           LIMIT 25`,
@@ -290,7 +290,7 @@ export async function runTool(
 
       return query(
         `SELECT m.direction, m.channel, LEFT(m.body, 400) AS body,
-                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS at
+                DATE_FORMAT(m.created_at, '%Y-%m-%d %H:%i') AS at
            FROM messages m
            JOIN conversations cv ON cv.id = m.conversation_id
           WHERE cv.contact_id = ? AND m.body IS NOT NULL
@@ -305,7 +305,7 @@ export async function runTool(
       const params: SqlParam[] = [];
       let where = "p.archived_at IS NULL";
       if (typeof args.text === 'string' && args.text.trim()) {
-        where += ' AND (p.name ILIKE ? OR p.developer ILIKE ? OR p.community ILIKE ?)';
+        where += ' AND (p.name LIKE ? OR p.developer LIKE ? OR p.community LIKE ?)';
         const like = `%${args.text.trim().slice(0, 60)}%`;
         params.push(like, like, like);
       }

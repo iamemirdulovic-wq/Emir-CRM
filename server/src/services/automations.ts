@@ -27,7 +27,7 @@ export async function listAutomations(exec: Executor = getPool()): Promise<Autom
     name: string;
     description: string | null;
     is_active: number;
-  }>('SELECT "key", name, description, is_active FROM workflows ORDER BY "key"', [], exec);
+  }>('SELECT `key`, name, description, is_active FROM workflows ORDER BY `key`', [], exec);
 
   const stats = await query<{
     workflow_key: string;
@@ -37,7 +37,7 @@ export async function listAutomations(exec: Executor = getPool()): Promise<Autom
   }>(
     `SELECT workflow_key, status, COUNT(*) AS n, MAX(started_at) AS last_started
        FROM workflow_runs
-      WHERE started_at >= ((now()) - make_interval(days => ?))
+      WHERE started_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)
       GROUP BY workflow_key, status`,
     [RECENT_DAYS],
     exec,
@@ -75,13 +75,13 @@ export async function setAutomationActive(
   exec: Executor = getPool(),
 ): Promise<void> {
   const before = await queryOne<{ is_active: number; name: string }>(
-    'SELECT is_active, name FROM workflows WHERE "key" = ?',
+    'SELECT is_active, name FROM workflows WHERE `key` = ?',
     [key],
     exec,
   );
   if (!before) throw badRequest('That automation does not exist');
 
-  await execute('UPDATE workflows SET is_active = ? WHERE "key" = ?', [isActive ? 1 : 0, key], exec);
+  await execute('UPDATE workflows SET is_active = ? WHERE `key` = ?', [isActive ? 1 : 0, key], exec);
   await writeAudit(
     {
       actor,

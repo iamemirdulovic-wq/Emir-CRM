@@ -128,8 +128,8 @@ async function record(
 ): Promise<void> {
   await execute(
     `INSERT INTO conversion_events (id, opportunity_id, contact_id, destination, event_name, event_time, status, response, error, sent_at)
-     VALUES (gen_random_uuid()::text, ?, ?, 'google', ?, now(), ?, ?, ?, ?)
-     ON CONFLICT ON CONSTRAINT uq_conversion_event DO UPDATE SET status = EXCLUDED.status, response = EXCLUDED.response, error = EXCLUDED.error, sent_at = EXCLUDED.sent_at`,
+     VALUES (UUID(), ?, ?, 'google', ?, NOW(3), ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE status = VALUES(status), response = VALUES(response), error = VALUES(error), sent_at = VALUES(sent_at)`,
     [
       input.opportunityId,
       input.contactId,

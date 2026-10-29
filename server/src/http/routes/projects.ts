@@ -174,7 +174,7 @@ projectsRouter.post(
     const project = await queryOne<{ id: string; name: string }>('SELECT id, name FROM projects WHERE id = ?', [id]);
     if (!project) throw notFound('Project not found');
 
-    await execute('UPDATE projects SET verified_at = now(), verified_by_user_id = ? WHERE id = ?', [user.id, id]);
+    await execute('UPDATE projects SET verified_at = NOW(3), verified_by_user_id = ? WHERE id = ?', [user.id, id]);
     await writeAudit({
       actor: actorFrom(req),
       action: 'project.verified',

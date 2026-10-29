@@ -49,18 +49,6 @@ if (migrated !== 0) {
 }
 
 /*
- * An optional one-time step, off unless COPY_FROM_MYSQL_ONCE is set: move the
- * live data out of MySQL and into Postgres. It sits here because the tables
- * have just been created and the reference seed below has not yet put anything
- * in them — a copy wants a genuinely empty database, and refuses otherwise.
- */
-const copied = run(process.execPath, [join('dist', 'db', 'copy-once.js')], { cwd: join(root, 'server') });
-if (copied !== 0) {
-  console.error('[start] the one-time data copy did not finish — refusing to start.');
-  process.exit(copied);
-}
-
-/*
  * The pipeline, stages, workflows and tags are what the product is made of, not
  * the owner's data, and nothing works without them: an import into a database
  * that has no pipeline fails every single row. Seeded on every start rather

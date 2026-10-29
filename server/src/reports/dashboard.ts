@@ -89,7 +89,7 @@ export function alignDays(rows: DayCount[], endDate: string, days: number): DayC
 }
 
 export interface ArrivalRow {
-  /** Sunday-first, 1 = Sunday … 7 = Saturday — what the query returns. */
+  /** MySQL DAYOFWEEK: 1 = Sunday … 7 = Saturday. */
   dow: number;
   /** Hour of the day in Dubai, 0–23. */
   hour: number;
@@ -108,12 +108,7 @@ function arrivalBucket(hour: number): number {
   return Math.floor(((hour - ARRIVAL_FIRST_HOUR + 24) % 24) / ARRIVAL_BUCKET_HOURS);
 }
 
-/*
- * The query's Sunday-first day number into our Monday-first row index.
- *
- * Postgres counts the week from 0 (Sunday); the query adds 1 so the numbers
- * are the Sunday-first 1-7 this mapping and its tests were written against.
- */
+/** MySQL's Sunday-first DAYOFWEEK into our Monday-first row index. */
 function arrivalRowIndex(dow: number): number {
   return (dow + 5) % 7;
 }
@@ -212,7 +207,7 @@ export interface Dashboard {
 }
 
 /** `created_at` shifted into Dubai wall-clock, for day and hour grouping. */
-const LOCAL = `((o.created_at + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})) AT TIME ZONE 'UTC')`;
+const LOCAL = `DATE_ADD(o.created_at, INTERVAL ${TIMEZONE_UTC_OFFSET_HOURS} HOUR)`;
 
 const SPARK_DAYS = 8;
 
@@ -237,30 +232,30 @@ export async function loadDashboard(
   const [daily, previousDaily, sparkRows, sources, funnelRow, speedRows, arrivals, agents] =
     await Promise.all([
       query<DayCount>(
-        `SELECT (${LOCAL})::date AS date, COUNT(*) AS value
+        `SELECT DATE(${LOCAL}) AS date, COUNT(*) AS value
            FROM opportunities o
           WHERE o.created_at >= ? AND o.created_at <= ? AND ${scope.sql}
-          GROUP BY (${LOCAL})::date`,
+          GROUP BY DATE(${LOCAL})`,
         [from, to, ...scope.params],
         exec,
       ),
       query<DayCount>(
-        `SELECT (${LOCAL})::date AS date, COUNT(*) AS value
+        `SELECT DATE(${LOCAL}) AS date, COUNT(*) AS value
            FROM opportunities o
           WHERE o.created_at >= ? AND o.created_at < ? AND ${scope.sql}
-          GROUP BY (${LOCAL})::date`,
+          GROUP BY DATE(${LOCAL})`,
         [previousFrom, from, ...scope.params],
         exec,
       ),
       query<{ date: string; leads: number; replied: number; appointments: number; reservations: number }>(
-        `SELECT (${LOCAL})::date AS date,
+        `SELECT DATE(${LOCAL}) AS date,
                 COUNT(*) AS leads,
                 SUM(CASE WHEN c.last_inbound_at IS NOT NULL THEN 1 ELSE 0 END) AS replied,
                 SUM(CASE WHEN o.stage_key IN ('appointment_scheduled','deal_sent','won') THEN 1 ELSE 0 END) AS appointments,
                 SUM(CASE WHEN o.status = 'won' THEN 1 ELSE 0 END) AS reservations
            FROM opportunities o JOIN contacts c ON c.id = o.contact_id
           WHERE o.created_at >= ? AND o.created_at <= ? AND ${scope.sql}
-          GROUP BY (${LOCAL})::date`,
+          GROUP BY DATE(${LOCAL})`,
         [sparkFrom, to, ...scope.params],
         exec,
       ),
@@ -296,7 +291,7 @@ export async function loadDashboard(
         exec,
       ),
       query<{ seconds: number }>(
-        `SELECT EXTRACT(EPOCH FROM (o.first_touch_at - o.assigned_at))::int AS seconds
+        `SELECT TIMESTAMPDIFF(SECOND, o.assigned_at, o.first_touch_at) AS seconds
            FROM opportunities o
           WHERE o.created_at >= ? AND o.created_at <= ? AND ${scope.sql}
             AND o.assigned_at IS NOT NULL AND o.first_touch_at IS NOT NULL
@@ -305,10 +300,10 @@ export async function loadDashboard(
         exec,
       ),
       query<ArrivalRow>(
-        `SELECT (EXTRACT(DOW FROM ${LOCAL})::int + 1) AS dow, EXTRACT(HOUR FROM ${LOCAL})::int AS hour, COUNT(*) AS n
+        `SELECT DAYOFWEEK(${LOCAL}) AS dow, HOUR(${LOCAL}) AS hour, COUNT(*) AS n
            FROM opportunities o
           WHERE o.created_at >= ? AND o.created_at <= ? AND ${scope.sql}
-          GROUP BY 1, 2`,
+          GROUP BY dow, hour`,
         [from, to, ...scope.params],
         exec,
       ),
@@ -325,7 +320,7 @@ export async function loadDashboard(
     ]);
 
   const replyTimes = await query<{ user_id: string; seconds: number }>(
-    `SELECT o.owner_user_id AS user_id, EXTRACT(EPOCH FROM (o.first_touch_at - o.assigned_at))::int AS seconds
+    `SELECT o.owner_user_id AS user_id, TIMESTAMPDIFF(SECOND, o.assigned_at, o.first_touch_at) AS seconds
        FROM opportunities o
       WHERE o.created_at >= ? AND o.created_at <= ? AND ${scope.sql}
         AND o.assigned_at IS NOT NULL AND o.first_touch_at IS NOT NULL

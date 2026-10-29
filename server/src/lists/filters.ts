@@ -55,7 +55,7 @@ export function buildFilter(filter: ListFilter): BuiltFilter {
   const params: SqlParam[] = [];
 
   if (filter.search) {
-    where.push('(c.full_name ILIKE ? OR c.phone_e164 ILIKE ? OR c.email ILIKE ?)');
+    where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ?)');
     const like = `%${filter.search}%`;
     params.push(like, like, like);
   }
@@ -73,7 +73,7 @@ export function buildFilter(filter: ListFilter): BuiltFilter {
 
   if (filter.projects && filter.projects.length > 0) {
     // Project names in a file are spelled loosely, so match on substring.
-    where.push(`(${filter.projects.map(() => 'o.project_name ILIKE ?').join(' OR ')})`);
+    where.push(`(${filter.projects.map(() => 'o.project_name LIKE ?').join(' OR ')})`);
     params.push(...filter.projects.map((project) => `%${project}%`));
   }
 
@@ -119,14 +119,14 @@ export function buildFilter(filter: ListFilter): BuiltFilter {
      * neglected, they are in conversation.
      */
     where.push(
-      `(COALESCE(o.first_touch_at, c.created_at) < ((now()) - make_interval(days => ?))
-        AND (c.last_inbound_at IS NULL OR c.last_inbound_at < ((now()) - make_interval(days => ?))))`,
+      `(COALESCE(o.first_touch_at, c.created_at) < DATE_SUB(NOW(3), INTERVAL ? DAY)
+        AND (c.last_inbound_at IS NULL OR c.last_inbound_at < DATE_SUB(NOW(3), INTERVAL ? DAY)))`,
     );
     params.push(filter.notContactedForDays, filter.notContactedForDays);
   }
 
   if (filter.createdWithinDays !== undefined) {
-    where.push('c.created_at >= ((now()) - make_interval(days => ?))');
+    where.push('c.created_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)');
     params.push(filter.createdWithinDays);
   }
 

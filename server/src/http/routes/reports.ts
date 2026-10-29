@@ -146,7 +146,7 @@ reportsRouter.get(
     const items = [];
     for (const row of rows) {
       const durations = await query<{ seconds: number }>(
-        `SELECT EXTRACT(EPOCH FROM (o.first_touch_at - o.assigned_at))::int AS seconds
+        `SELECT TIMESTAMPDIFF(SECOND, o.assigned_at, o.first_touch_at) AS seconds
            FROM opportunities o
           WHERE o.owner_user_id = ? AND o.created_at BETWEEN ? AND ?
             AND o.assigned_at IS NOT NULL AND o.first_touch_at IS NOT NULL
@@ -208,7 +208,7 @@ reportsRouter.get(
       args,
     );
     const speed = await queryOne<{ median_seconds: number | null; breaches: number }>(
-      `SELECT AVG(EXTRACT(EPOCH FROM (first_touch_at - assigned_at))) AS median_seconds, SUM(sla_breached) AS breaches
+      `SELECT AVG(TIMESTAMPDIFF(SECOND, assigned_at, first_touch_at)) AS median_seconds, SUM(sla_breached) AS breaches
          FROM opportunities WHERE created_at BETWEEN ? AND ? ${scope}`,
       args,
     );
@@ -231,7 +231,7 @@ reportsRouter.get(
     );
     const events = await query(
       `SELECT source, status, COUNT(*) AS n FROM inbound_events
-        WHERE received_at > ((now()) - make_interval(hours => 24)) GROUP BY source, status`,
+        WHERE received_at > DATE_SUB(NOW(3), INTERVAL 24 HOUR) GROUP BY source, status`,
     );
     const templates = await query(
       `SELECT name, language, status, rejected_reason FROM wa_templates WHERE status <> 'APPROVED' ORDER BY name`,

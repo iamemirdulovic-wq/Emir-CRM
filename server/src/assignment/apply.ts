@@ -5,7 +5,8 @@
  * candidates, writes the result and records it. Every assignment and
  * reassignment is audited, as the specification requires.
  */
-import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor, type Tx } from '../db/client.js';
+import type { PoolConnection } from 'mysql2/promise';
+import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
@@ -177,7 +178,7 @@ export async function applyPlan(
 
     await execute(
       `UPDATE opportunities
-          SET owner_user_id = ?, assigned_at = COALESCE(assigned_at, now())
+          SET owner_user_id = ?, assigned_at = COALESCE(assigned_at, NOW(3))
         WHERE id = ?`,
       [userId, opportunityId],
       exec,
@@ -185,7 +186,7 @@ export async function applyPlan(
     await execute('UPDATE contacts SET owner_user_id = ? WHERE id = ?', [userId, before.contact_id], exec);
     await execute(
       `INSERT INTO activities (id, contact_id, opportunity_id, user_id, type, title, body, created_at)
-       VALUES (?, ?, ?, ?, 'lead.assigned', ?, ?, now())`,
+       VALUES (?, ?, ?, ?, 'lead.assigned', ?, ?, NOW(3))`,
       [newId(), before.contact_id, opportunityId, actor.userId, `Assigned by ${reason}`, null],
       exec,
     );
@@ -269,7 +270,7 @@ export async function claimNextLead(
 ): Promise<ClaimResult | null> {
   const limit = options.maxOpenClaims ?? POOL_DEFAULTS.maxOpenClaims;
 
-  return withRetryingTransaction(async (tx: Tx) => {
+  return withRetryingTransaction(async (tx: PoolConnection) => {
     const open = await queryOne<{ n: number }>(
       'SELECT COUNT(*) AS n FROM lead_pool_claims WHERE user_id = ? AND released_at IS NULL',
       [userId],
@@ -307,7 +308,7 @@ export async function claimNextLead(
       tx,
     );
     await execute(
-      'UPDATE opportunities SET owner_user_id = ?, assigned_at = COALESCE(assigned_at, now()) WHERE id = ?',
+      'UPDATE opportunities SET owner_user_id = ?, assigned_at = COALESCE(assigned_at, NOW(3)) WHERE id = ?',
       [userId, next.id],
       tx,
     );
@@ -321,7 +322,7 @@ export async function claimNextLead(
 
     await execute(
       `INSERT INTO activities (id, contact_id, opportunity_id, user_id, type, title, body, created_at)
-       VALUES (?, ?, ?, ?, 'lead.assigned', 'Claimed from the shared pool', NULL, now())`,
+       VALUES (?, ?, ?, ?, 'lead.assigned', 'Claimed from the shared pool', NULL, NOW(3))`,
       [newId(), next.contact_id, next.id, userId],
       tx,
     );
@@ -377,7 +378,7 @@ export async function recycleStaleClaims(
        FROM lead_pool_claims pc
        JOIN opportunities o ON o.id = pc.opportunity_id
       WHERE pc.released_at IS NULL
-        AND pc.claimed_at < ((now()) - make_interval(days => ?))
+        AND pc.claimed_at < DATE_SUB(NOW(3), INTERVAL ? DAY)
         AND o.status = 'open'
         AND o.first_touch_at IS NULL
         AND o.stage_key = 'new_lead'
@@ -393,7 +394,7 @@ export async function recycleStaleClaims(
 
   for (const claim of stale) {
     await execute(
-      "UPDATE lead_pool_claims SET released_at = now(), open_key = NULL, release_reason = 'untouched' WHERE id = ?",
+      "UPDATE lead_pool_claims SET released_at = NOW(3), open_key = NULL, release_reason = 'untouched' WHERE id = ?",
       [claim.id],
       exec,
     );
@@ -431,7 +432,7 @@ export async function releaseClaim(
   if (!claim) throw badRequest('You have not claimed that lead');
 
   await execute(
-    "UPDATE lead_pool_claims SET released_at = now(), open_key = NULL, release_reason = 'returned' WHERE id = ?",
+    "UPDATE lead_pool_claims SET released_at = NOW(3), open_key = NULL, release_reason = 'returned' WHERE id = ?",
     [claim.id],
     exec,
   );

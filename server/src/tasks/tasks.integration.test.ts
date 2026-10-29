@@ -68,7 +68,7 @@ describeWithDb('the task manager', () => {
   it('clears the reminder when the deadline moves, so the new one still warns', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const id = await createTask(actor(agent.id), { title: 'Slipping', dueAt: soon(10) }, [agent.id]);
-    await execute('UPDATE tasks SET reminder_sent_at = now() WHERE id = ?', [id]);
+    await execute('UPDATE tasks SET reminder_sent_at = NOW(3) WHERE id = ?', [id]);
 
     await updateTask(actor(agent.id), id, { dueAt: soon(60 * 24 * 7) }, [agent.id]);
 
@@ -144,7 +144,7 @@ describeWithDb('the task manager', () => {
   it('still warns about a task whose moment passed while the worker was down', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const id = await createTask(actor(agent.id), { title: 'Missed it', dueAt: soon(60) }, [agent.id]);
-    await execute('UPDATE tasks SET due_at = ((now()) - make_interval(hours => 2)) WHERE id = ?', [id]);
+    await execute('UPDATE tasks SET due_at = DATE_SUB(NOW(3), INTERVAL 2 HOUR) WHERE id = ?', [id]);
 
     expect((await sweepTaskReminders()).found).toBe(1);
   });
@@ -152,7 +152,7 @@ describeWithDb('the task manager', () => {
   it('never nudges about something already done', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const id = await createTask(actor(agent.id), { title: 'Finished', dueAt: soon(5) }, [agent.id]);
-    await execute('UPDATE tasks SET completed_at = now() WHERE id = ?', [id]);
+    await execute('UPDATE tasks SET completed_at = NOW(3) WHERE id = ?', [id]);
 
     expect((await sweepTaskReminders()).found).toBe(0);
   });
@@ -173,7 +173,7 @@ describeWithDb('the task manager', () => {
 
   /*
    * "Today" has to mean today in Dubai. Timestamps are stored as UTC, so a bare
-   * due_at::date = current_date is a day behind between 20:00 UTC and midnight —
+   * DATE(due_at) = CURDATE() is a day behind between 20:00 UTC and midnight —
    * the small hours of the next morning in Dubai. An agent opening the app at
    * 1am would be shown yesterday afternoon and none of the day ahead.
    */

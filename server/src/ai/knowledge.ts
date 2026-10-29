@@ -205,7 +205,7 @@ export async function saveSection(
   await execute(
     `INSERT INTO ai_knowledge (id, section_key, language, content, updated_by_user_id)
      VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT ON CONSTRAINT uq_knowledge DO UPDATE SET content = EXCLUDED.content, updated_by_user_id = EXCLUDED.updated_by_user_id`,
+     ON DUPLICATE KEY UPDATE content = VALUES(content), updated_by_user_id = VALUES(updated_by_user_id)`,
     [newId(), sectionKey, language, content.trim() || null, actor.userId],
     exec,
   );

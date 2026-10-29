@@ -1,4 +1,4 @@
-import { execute, query, type Executor, getPool } from '../db/client.js';
+import { execute, isDuplicateKeyError, query, type Executor, getPool } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import type { JobRecord, JobType } from './types.js';
@@ -27,26 +27,31 @@ export async function enqueue(
   exec: Executor = getPool(),
 ): Promise<EnqueueResult> {
   const id = newId();
-  const written = await execute(
-    `INSERT INTO jobs (id, type, payload, status, priority, run_at, max_attempts, dedupe_key, workflow_run_id, contact_id)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
-     ON CONFLICT ON CONSTRAINT uq_job_dedupe DO NOTHING`,
-    [
-      id,
-      type,
-      JSON.stringify(payload),
-      opts.priority ?? 5,
-      opts.runAt ?? new Date(),
-      opts.maxAttempts ?? 5,
-      opts.dedupeKey ?? null,
-      opts.workflowRunId ?? null,
-      opts.contactId ?? null,
-    ],
-    exec,
-  );
-  if (written.affectedRows > 0) return { id, enqueued: true };
-  logger.debug('job already queued, skipping', { type, dedupeKey: opts.dedupeKey });
-  return { id: null, enqueued: false };
+  try {
+    await execute(
+      `INSERT INTO jobs (id, type, payload, status, priority, run_at, max_attempts, dedupe_key, workflow_run_id, contact_id)
+       VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        type,
+        JSON.stringify(payload),
+        opts.priority ?? 5,
+        opts.runAt ?? new Date(),
+        opts.maxAttempts ?? 5,
+        opts.dedupeKey ?? null,
+        opts.workflowRunId ?? null,
+        opts.contactId ?? null,
+      ],
+      exec,
+    );
+    return { id, enqueued: true };
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      logger.debug('job already queued, skipping', { type, dedupeKey: opts.dedupeKey });
+      return { id: null, enqueued: false };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -57,12 +62,12 @@ export async function enqueue(
  * be claimed once.
  */
 export async function claimJobs(workerId: string, batchSize: number): Promise<JobRecord[]> {
-  const conn = await getPool().connect();
+  const conn = await getPool().getConnection();
   try {
-    await conn.query('BEGIN');
+    await conn.beginTransaction();
     const candidates = await query<{ id: string }>(
       `SELECT id FROM jobs
-        WHERE status = 'pending' AND run_at <= now()
+        WHERE status = 'pending' AND run_at <= NOW(3)
         ORDER BY priority ASC, run_at ASC
         LIMIT ${Number(batchSize) || 10}
         FOR UPDATE SKIP LOCKED`,
@@ -70,12 +75,12 @@ export async function claimJobs(workerId: string, batchSize: number): Promise<Jo
       conn,
     );
     if (candidates.length === 0) {
-      await conn.query('COMMIT');
+      await conn.commit();
       return [];
     }
     const ids = candidates.map((c) => c.id);
     await execute(
-      `UPDATE jobs SET status = 'running', locked_by = ?, locked_at = now(), attempts = attempts + 1
+      `UPDATE jobs SET status = 'running', locked_by = ?, locked_at = NOW(3), attempts = attempts + 1
         WHERE id IN (${ids.map(() => '?').join(',')}) AND status = 'pending'`,
       [workerId, ...ids],
       conn,
@@ -95,7 +100,7 @@ export async function claimJobs(workerId: string, batchSize: number): Promise<Jo
       [...ids, workerId],
       conn,
     );
-    await conn.query('COMMIT');
+    await conn.commit();
     return rows.map((row) => ({
       id: row.id,
       type: row.type,
@@ -107,7 +112,7 @@ export async function claimJobs(workerId: string, batchSize: number): Promise<Jo
       contactId: row.contact_id,
     }));
   } catch (err) {
-    await conn.query('ROLLBACK').catch(() => undefined);
+    await conn.rollback().catch(() => undefined);
     throw err;
   } finally {
     conn.release();
@@ -126,7 +131,7 @@ function parsePayload(raw: unknown): Record<string, unknown> {
 
 export async function completeJob(id: string, result?: unknown, exec: Executor = getPool()): Promise<void> {
   await execute(
-    `UPDATE jobs SET status = 'done', finished_at = now(), locked_by = NULL, last_error = NULL, result = ?
+    `UPDATE jobs SET status = 'done', finished_at = NOW(3), locked_by = NULL, last_error = NULL, result = ?
       WHERE id = ?`,
     [result === undefined ? null : JSON.stringify(result), id],
     exec,
@@ -140,8 +145,8 @@ export async function failJob(id: string, error: unknown, exec: Executor = getPo
     `UPDATE jobs
         SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
             run_at = CASE WHEN attempts >= max_attempts THEN run_at
-                          ELSE ((now()) + LEAST(POW(2, attempts) * 30, 3600) * make_interval(secs => 1)) END,
-            finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END,
+                          ELSE DATE_ADD(NOW(3), INTERVAL LEAST(POW(2, attempts) * 30, 3600) SECOND) END,
+            finished_at = CASE WHEN attempts >= max_attempts THEN NOW(3) ELSE NULL END,
             locked_by = NULL,
             last_error = ?
       WHERE id = ?`,
@@ -162,7 +167,7 @@ export async function cancelJobs(
     params.push(...filter.types);
   }
   const result = await execute(
-    `UPDATE jobs SET status = 'cancelled', finished_at = now(), last_error = ?
+    `UPDATE jobs SET status = 'cancelled', finished_at = NOW(3), last_error = ?
       WHERE contact_id = ? AND status = 'pending'${typeClause}`,
     [filter.reason ?? 'cancelled', ...params],
     exec,
@@ -174,7 +179,7 @@ export async function cancelJobs(
 export async function reclaimStaleJobs(staleAfterSeconds = 300, exec: Executor = getPool()): Promise<number> {
   const result = await execute(
     `UPDATE jobs SET status = 'pending', locked_by = NULL
-      WHERE status = 'running' AND locked_at < ((now()) - make_interval(secs => ?))`,
+      WHERE status = 'running' AND locked_at < DATE_SUB(NOW(3), INTERVAL ? SECOND)`,
     [staleAfterSeconds],
     exec,
   );

@@ -65,7 +65,7 @@ inboxRouter.get(
       args.push(params.stage);
     }
     if (params.search) {
-      where.push('(c.full_name ILIKE ? OR c.phone_e164 ILIKE ? OR c.email ILIKE ?)');
+      where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ?)');
       const like = `%${params.search}%`;
       args.push(like, like, like);
     }
@@ -209,8 +209,8 @@ inboxRouter.post(
 
     await execute(
       `UPDATE conversations
-          SET reply_lock_user_id = ?, reply_lock_expires_at = ((now()) + make_interval(secs => ?))
-        WHERE id = ? AND (reply_lock_expires_at IS NULL OR reply_lock_expires_at <= now() OR reply_lock_user_id = ?)`,
+          SET reply_lock_user_id = ?, reply_lock_expires_at = DATE_ADD(NOW(3), INTERVAL ? SECOND)
+        WHERE id = ? AND (reply_lock_expires_at IS NULL OR reply_lock_expires_at <= NOW(3) OR reply_lock_user_id = ?)`,
       [user.id, Math.floor(REPLY_LOCK_MS / 1000), conversationId, user.id],
     );
 
@@ -259,7 +259,7 @@ inboxRouter.post(
       const id = newId();
       await execute(
         `INSERT INTO messages (id, conversation_id, contact_id, channel, direction, user_id, body, status, sent_at)
-         VALUES (?, ?, ?, 'note', 'outbound', ?, ?, 'sent', now())`,
+         VALUES (?, ?, ?, 'note', 'outbound', ?, ?, 'sent', NOW(3))`,
         [id, conversationId, conversation.contact_id, user.id, body.text],
       );
       publish({

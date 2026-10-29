@@ -245,10 +245,9 @@ export const HANDLERS: Record<JobType, JobHandler> = {
           WHERE ct.contact_id = ? AND t.namespace = 'intent' AND t.value = 'hot'`,
         [contactId],
       );
-      await execute(`INSERT INTO tags (id, namespace, value, label) VALUES (gen_random_uuid()::text, 'intent', 'hot', 'Hot lead')
-         ON CONFLICT DO NOTHING`);
+      await execute(`INSERT IGNORE INTO tags (id, namespace, value, label) VALUES (UUID(), 'intent', 'hot', 'Hot lead')`);
       const tag = await queryOne<{ id: string }>(`SELECT id FROM tags WHERE namespace = 'intent' AND value = 'hot'`);
-      if (tag) await execute('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [contactId, tag.id]);
+      if (tag) await execute('INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)', [contactId, tag.id]);
 
       if (Number(wasHot?.n ?? 0) === 0) {
         await pushToManagers({
@@ -345,7 +344,7 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     const attempts = await purgeOldLoginAttempts();
     const reclaimed = await reclaimStaleJobs();
     const events = await execute(
-      `DELETE FROM inbound_events WHERE status = 'processed' AND received_at < ((now()) - make_interval(days => 90))`,
+      `DELETE FROM inbound_events WHERE status = 'processed' AND received_at < DATE_SUB(NOW(3), INTERVAL 90 DAY)`,
     );
     const cronKeys = await pruneCronKeys();
     const uploads = await purgeExpiredUploads();

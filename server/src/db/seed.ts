@@ -11,10 +11,10 @@ import { isEntrypoint } from '../lib/entrypoint.js';
 /** Idempotent seed: safe to re-run against an existing database. */
 
 async function seedPipeline(): Promise<void> {
-  const existing = await queryOne<{ id: string }>('SELECT id FROM pipelines WHERE "key" = ?', [DEFAULT_PIPELINE_KEY]);
+  const existing = await queryOne<{ id: string }>('SELECT id FROM pipelines WHERE `key` = ?', [DEFAULT_PIPELINE_KEY]);
   const pipelineId = existing?.id ?? newId();
   if (!existing) {
-    await execute('INSERT INTO pipelines (id, "key", name, is_default) VALUES (?, ?, ?, 1)', [
+    await execute('INSERT INTO pipelines (id, `key`, name, is_default) VALUES (?, ?, ?, 1)', [
       pipelineId,
       DEFAULT_PIPELINE_KEY,
       'Off-plan Sales',
@@ -22,11 +22,11 @@ async function seedPipeline(): Promise<void> {
   }
   for (const stage of STAGE_DEFINITIONS) {
     await execute(
-      `INSERT INTO pipeline_stages (id, pipeline_id, "key", name, position, is_won, is_lost, sub_statuses)
+      `INSERT INTO pipeline_stages (id, pipeline_id, \`key\`, name, position, is_won, is_lost, sub_statuses)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT ON CONSTRAINT uq_stage_pipeline_key DO UPDATE SET name = EXCLUDED.name, position = EXCLUDED.position,
-                               is_won = EXCLUDED.is_won, is_lost = EXCLUDED.is_lost,
-                               sub_statuses = EXCLUDED.sub_statuses`,
+       ON DUPLICATE KEY UPDATE name = VALUES(name), position = VALUES(position),
+                               is_won = VALUES(is_won), is_lost = VALUES(is_lost),
+                               sub_statuses = VALUES(sub_statuses)`,
       [
         newId(),
         pipelineId,
@@ -47,7 +47,7 @@ async function seedTemplates(): Promise<void> {
     await execute(
       `INSERT INTO wa_templates (id, name, language, category, status, components)
        VALUES (?, ?, ?, ?, 'DRAFT', ?)
-       ON CONFLICT ON CONSTRAINT uq_template_name_lang DO UPDATE SET components = EXCLUDED.components, category = EXCLUDED.category`,
+       ON DUPLICATE KEY UPDATE components = VALUES(components), category = VALUES(category)`,
       [newId(), template.name, template.language, template.category, JSON.stringify(template.components)],
     );
   }
@@ -62,7 +62,7 @@ async function seedWorkflows(): Promise<void> {
   ];
   for (const wf of workflows) {
     await execute(
-      'INSERT INTO workflows (id, "key", name, description, is_active) VALUES (?, ?, ?, ?, 1) ON CONFLICT ON CONSTRAINT uq_workflow_key DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description',
+      'INSERT INTO workflows (id, `key`, name, description, is_active) VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)',
       [newId(), wf.key, wf.name, wf.description],
     );
   }
@@ -89,7 +89,7 @@ async function seedTags(): Promise<void> {
   ];
   for (const [namespace, value, label] of tags) {
     await execute(
-      'INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON CONFLICT ON CONSTRAINT uq_tag DO UPDATE SET label = EXCLUDED.label',
+      'INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE label = VALUES(label)',
       [newId(), namespace, value, label],
     );
   }
@@ -121,7 +121,7 @@ async function seedFormFieldMap(): Promise<void> {
     await execute(
       `INSERT INTO form_field_map (id, source, form_id, external_field, crm_field)
        VALUES (?, ?, NULL, ?, ?)
-       ON CONFLICT ON CONSTRAINT uq_form_field DO UPDATE SET crm_field = EXCLUDED.crm_field`,
+       ON DUPLICATE KEY UPDATE crm_field = VALUES(crm_field)`,
       [newId(), source, externalField, crmField],
     );
   }
@@ -155,7 +155,7 @@ async function seedOwner(): Promise<void> {
 
 async function seedAssignmentState(): Promise<void> {
   await execute(
-    'INSERT INTO assignment_state (id, cursor_user_id, counters) VALUES (?, NULL, ?) ON CONFLICT ON CONSTRAINT assignment_state_pkey DO UPDATE SET id = id',
+    'INSERT INTO assignment_state (id, cursor_user_id, counters) VALUES (?, NULL, ?) ON DUPLICATE KEY UPDATE id = id',
     ['round_robin', JSON.stringify({})],
   );
 }

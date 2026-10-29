@@ -13,7 +13,7 @@ The four priorities, in order: **never lose or duplicate a lead**,
 ## Requirements
 
 - Node.js 20.11+ (22 recommended)
-- PostgreSQL 16+ — Neon, or one you run yourself
+- MySQL 8 — MariaDB 10.6+ also works
 
 ## Getting started
 
@@ -63,10 +63,8 @@ in either theme. It is served in development only and is not in the production
 build.
 
 The database-backed test suites skip themselves when no server is reachable, so
-`npm test` is green on a machine without Postgres. Point them at one with
-`TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` and `TEST_DB_PASSWORD`. They
-create and migrate their own database (`emir_crm_test` by default), so point
-them at a server you are happy for them to write to — never at production.
+`npm test` is green on a machine without MySQL. Point them at one with
+`TEST_DB_HOST`, `TEST_DB_USER` and `TEST_DB_PASSWORD`.
 
 ## Documentation
 
@@ -79,7 +77,6 @@ them at a server you are happy for them to write to — never at production.
 | [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | Six steps to put the CRM live on Hostinger Cloud, with every value filled in |
 | [`docs/HOSTING-CHECK.md`](docs/HOSTING-CHECK.md) | What to confirm about the hosting plan before deploying, and what each answer changes |
 | [`docs/DOMAIN-MOVE.md`](docs/DOMAIN-MOVE.md) | Moving the CRM to `crm.homes.me`: DNS, the certificate, and the five systems that hold our address |
-| [`docs/POSTGRES-PORT.md`](docs/POSTGRES-PORT.md) | The move from MySQL to PostgreSQL on Neon, what differed, and the cutover runbook |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | The design system: where it lives, how to port a screen, the theme |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | What shipped in each phase, and the bugs found along the way |
 | [`CLAUDE.md`](CLAUDE.md) | The product specification this is built against |
@@ -87,7 +84,7 @@ them at a server you are happy for them to write to — never at production.
 ## How it is put together
 
 ```
-server/   Express + TypeScript API, background worker, Postgres migrations
+server/   Express + TypeScript API, background worker, MySQL migrations
 web/      React + Vite PWA, served from the same origin as the API
 design/   The approved design file — the visual source of truth
 fixtures/ Real webhook payloads, replayed by the test suite
@@ -169,7 +166,7 @@ database layer around them is thin on purpose.
 ## Security notes
 
 - Email and password only. No public sign-up, no OTP, no third-party login.
-- Sessions live server-side in Postgres; the cookie carries a random token and the
+- Sessions live server-side in MySQL; the cookie carries a random token and the
   table stores only its SHA-256.
 - Passwords are argon2id, with a bcrypt(12) fallback where the native module
   cannot build. Five failures lock an account for 15 minutes; IPs are

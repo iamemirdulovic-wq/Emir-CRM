@@ -299,7 +299,7 @@ async function handleCallMe(input: WorkflowCInput, context: RoutingContext): Pro
   if (context.ownerUserId) {
     await execute(
       `INSERT INTO tasks (id, contact_id, opportunity_id, assigned_user_id, type, title, priority, due_at)
-       VALUES (?, ?, ?, ?, 'call', ?, 'urgent', ((now()) + make_interval(mins => 5)))`,
+       VALUES (?, ?, ?, ?, 'call', ?, 'urgent', DATE_ADD(NOW(3), INTERVAL 5 MINUTE))`,
       [newId(), input.contactId, input.opportunityId, context.ownerUserId, 'Call back — the lead asked to be called'],
     );
     const contact = await queryOne<{ phone_e164: string | null; full_name: string | null }>(
@@ -396,8 +396,8 @@ async function handleUnknown(input: WorkflowCInput, context: RoutingContext): Pr
   const alreadyAcknowledged = await queryOne<{ n: number }>(
     `SELECT COUNT(*) AS n FROM messages
       WHERE contact_id = ? AND direction = 'outbound' AND is_automated = 1
-        AND payload @> '{"afterHoursAck": true}'::jsonb
-        AND created_at > ((now()) - make_interval(hours => 12))`,
+        AND JSON_EXTRACT(payload, '$.afterHoursAck') = true
+        AND created_at > DATE_SUB(NOW(3), INTERVAL 12 HOUR)`,
     [input.contactId],
   );
   if (Number(alreadyAcknowledged?.n ?? 0) > 0) return 'left_for_human';
@@ -456,8 +456,8 @@ async function escalateToAgent(input: WorkflowCInput, context: RoutingContext, r
 
 async function tag(contactId: string, namespace: string, value: string): Promise<void> {
   await withRetryingTransaction(async (tx) => {
-    await execute('INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', [newId(), namespace, value, value], tx);
+    await execute('INSERT IGNORE INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?)', [newId(), namespace, value, value], tx);
     const row = await queryOne<{ id: string }>('SELECT id FROM tags WHERE namespace = ? AND value = ?', [namespace, value], tx);
-    if (row) await execute('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [contactId, row.id], tx);
+    if (row) await execute('INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)', [contactId, row.id], tx);
   });
 }

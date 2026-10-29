@@ -33,7 +33,7 @@ const SCHEDULES: Schedule[] = [
          UNION
          SELECT DISTINCT form_id FROM opportunities
           WHERE source = 'meta_lead_ads' AND form_id IS NOT NULL
-            AND created_at > ((now()) - make_interval(days => 30))`,
+            AND created_at > DATE_SUB(NOW(3), INTERVAL 30 DAY)`,
       );
       return forms.map((f) => ({ formId: f.form_id, sinceMinutes: 60 }));
     },
@@ -98,7 +98,7 @@ export async function runDueCrons(now: Date = new Date()): Promise<number> {
 export async function pruneCronKeys(): Promise<number> {
   const result = await execute(
     `DELETE FROM jobs WHERE dedupe_key LIKE 'cron:%' AND status IN ('done','cancelled')
-       AND finished_at < ((now()) - make_interval(days => 2))`,
+       AND finished_at < DATE_SUB(NOW(3), INTERVAL 2 DAY)`,
   );
   return result.affectedRows;
 }

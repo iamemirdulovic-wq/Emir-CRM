@@ -133,7 +133,7 @@ campaignsRouter.post(
     if (!campaign) throw badRequest('That campaign does not exist');
 
     await execute(
-      "UPDATE campaigns SET status = 'running', paused_reason = NULL, started_at = COALESCE(started_at, now()) WHERE id = ?",
+      "UPDATE campaigns SET status = 'running', paused_reason = NULL, started_at = COALESCE(started_at, NOW(3)) WHERE id = ?",
       [id],
     );
 

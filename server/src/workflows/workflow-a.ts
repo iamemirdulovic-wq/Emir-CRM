@@ -1,4 +1,5 @@
-import { execute, queryOne, query, withRetryingTransaction, type Tx } from '../db/client.js';
+import type { PoolConnection } from 'mysql2/promise';
+import { execute, queryOne, query, withRetryingTransaction } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger, errorContext } from '../lib/logger.js';
 import { dubaiParts } from '../lib/time.js';
@@ -154,7 +155,7 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
       await execute(
         `INSERT INTO unassigned_queue (id, opportunity_id, contact_id, reason)
          VALUES (?, ?, ?, ?)
-         ON CONFLICT ON CONSTRAINT uq_unassigned_opportunity DO UPDATE SET reason = EXCLUDED.reason, resolved_at = NULL`,
+         ON DUPLICATE KEY UPDATE reason = VALUES(reason), resolved_at = NULL`,
         [newId(), opportunityId, contactId, choice.reason],
         tx,
       );
@@ -189,10 +190,10 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
 }
 
 async function applyAssignment(
-  tx: Tx,
+  tx: PoolConnection,
   input: { opportunityId: string; contactId: string; userId: string; reason: string },
 ): Promise<void> {
-  await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = now() WHERE id = ?', [
+  await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
     input.userId,
     input.opportunityId,
   ], tx);
@@ -205,7 +206,7 @@ async function applyAssignment(
     input.userId,
     input.contactId,
   ], tx);
-  await execute('UPDATE unassigned_queue SET resolved_at = now() WHERE opportunity_id = ? AND resolved_at IS NULL', [
+  await execute('UPDATE unassigned_queue SET resolved_at = NOW(3) WHERE opportunity_id = ? AND resolved_at IS NULL', [
     input.opportunityId,
   ], tx);
 
@@ -228,7 +229,7 @@ async function applyAssignment(
   );
 }
 
-async function loadCandidates(tx: Tx): Promise<Candidate[]> {
+async function loadCandidates(tx: PoolConnection): Promise<Candidate[]> {
   const rows = await query<{
     id: string;
     name: string;
@@ -244,7 +245,7 @@ async function loadCandidates(tx: Tx): Promise<Candidate[]> {
     `SELECT u.id, u.name, u.is_active, u.availability, u.shift_start, u.shift_end,
             u.languages, u.projects_covered, u.routing_weight,
             (SELECT COUNT(*) FROM opportunities o
-              WHERE o.owner_user_id = u.id AND o.assigned_at > ((now()) - make_interval(days => 7))) AS assigned_count
+              WHERE o.owner_user_id = u.id AND o.assigned_at > DATE_SUB(NOW(3), INTERVAL 7 DAY)) AS assigned_count
        FROM users u
       WHERE u.role = 'agent' AND u.is_active = 1`,
     [],
@@ -494,7 +495,7 @@ export async function runSlaCheck(input: { opportunityId: string; contactId: str
     });
 
     if (choice.assigned) {
-      await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = now() WHERE id = ?', [
+      await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
         choice.userId,
         input.opportunityId,
       ], tx);
@@ -541,8 +542,8 @@ export async function runSlaCheck(input: { opportunityId: string; contactId: str
   return { breached: true, reassignedTo };
 }
 
-async function tagOps(tx: Tx, contactId: string, value: string): Promise<void> {
-  await execute('INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', [newId(), 'ops', value, value], tx);
+async function tagOps(tx: PoolConnection, contactId: string, value: string): Promise<void> {
+  await execute('INSERT IGNORE INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?)', [newId(), 'ops', value, value], tx);
   const tag = await queryOne<{ id: string }>('SELECT id FROM tags WHERE namespace = ? AND value = ?', ['ops', value], tx);
-  if (tag) await execute('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [contactId, tag.id], tx);
+  if (tag) await execute('INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)', [contactId, tag.id], tx);
 }

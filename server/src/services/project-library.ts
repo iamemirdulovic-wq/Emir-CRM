@@ -79,7 +79,7 @@ export async function listLibrary(filters: LibraryFilters = {}, exec: Executor =
   if (filters.starred) where.push('p.starred = 1');
   if (filters.search?.trim()) {
     // Name, developer or community — the three things an agent actually types.
-    where.push('(p.name ILIKE ? OR p.developer ILIKE ? OR p.community ILIKE ?)');
+    where.push('(p.name LIKE ? OR p.developer LIKE ? OR p.community LIKE ?)');
     const needle = `%${filters.search.trim()}%`;
     params.push(needle, needle, needle);
   }
@@ -91,7 +91,7 @@ export async function listLibrary(filters: LibraryFilters = {}, exec: Executor =
        FROM projects p
        LEFT JOIN (
          SELECT project_id,
-                COUNT(*) FILTER (WHERE status = 'available') AS available,
+                SUM(status = 'available') AS available,
                 COUNT(*)                  AS total
            FROM units GROUP BY project_id
        ) u ON u.project_id = p.id
@@ -165,7 +165,7 @@ export async function findSimilarProjects(name: string, exec: Executor = getPool
   if (needle.length < 3) return [];
   return query<LibraryCard>(
     `SELECT ${CARD_COLUMNS}, 0 AS units_available, 0 AS units_total
-       FROM projects p WHERE p.name ILIKE ? LIMIT 10`,
+       FROM projects p WHERE p.name LIKE ? LIMIT 10`,
     [`%${needle}%`],
     exec,
   );
@@ -485,13 +485,13 @@ export async function importUnits(
                             internal_area_sqft, balcony_sqft, view_text, parking, price_aed,
                             price_per_sqft_aed, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT ON CONSTRAINT uq_unit DO UPDATE SET
-           price_version_id = EXCLUDED.price_version_id,
-           unit_type = EXCLUDED.unit_type, bedrooms = EXCLUDED.bedrooms, floor = EXCLUDED.floor,
-           internal_area_sqft = EXCLUDED.internal_area_sqft, balcony_sqft = EXCLUDED.balcony_sqft,
-           view_text = EXCLUDED.view_text, parking = EXCLUDED.parking,
-           price_aed = EXCLUDED.price_aed, price_per_sqft_aed = EXCLUDED.price_per_sqft_aed,
-           status = EXCLUDED.status`,
+         ON DUPLICATE KEY UPDATE
+           price_version_id = VALUES(price_version_id),
+           unit_type = VALUES(unit_type), bedrooms = VALUES(bedrooms), floor = VALUES(floor),
+           internal_area_sqft = VALUES(internal_area_sqft), balcony_sqft = VALUES(balcony_sqft),
+           view_text = VALUES(view_text), parking = VALUES(parking),
+           price_aed = VALUES(price_aed), price_per_sqft_aed = VALUES(price_per_sqft_aed),
+           status = VALUES(status)`,
         [
           newId(), projectId, versionId, unitNo, unit.unitType ?? null, unit.bedrooms ?? null,
           unit.floor ?? null, unit.internalAreaSqft ?? null, unit.balconySqft ?? null,
@@ -663,23 +663,22 @@ export type LibraryStats = {
  * like a fact.
  *
  * The aggregates are repeated in HAVING and ORDER BY rather than referenced by
- * their aliases, which Postgres does not allow there. The ratios are cast to
- * numeric before dividing: COUNT returns an integer, and integer division
- * truncates, so "best converting" would rank every project at 0 unless it had
- * converted every single lead.
+ * their aliases. MySQL allows the alias; MariaDB rejects it with "reference to
+ * group function", and the live database is MariaDB — which is exactly how
+ * this endpoint first went out returning a 500.
  */
 export async function libraryStats(exec: Executor = getPool()): Promise<LibraryStats> {
-  const WEEK = '((now()) - make_interval(days => 7))';
-  const FORTNIGHT = '((now()) - make_interval(days => 14))';
-  const THIS_WEEK = `COUNT(*) FILTER (WHERE created_at >= ${WEEK})`;
-  const LAST_WEEK = `COUNT(*) FILTER (WHERE created_at < ${WEEK} AND created_at >= ${FORTNIGHT})`;
+  const WEEK = 'DATE_SUB(NOW(), INTERVAL 7 DAY)';
+  const FORTNIGHT = 'DATE_SUB(NOW(), INTERVAL 14 DAY)';
+  const THIS_WEEK = `SUM(created_at >= ${WEEK})`;
+  const LAST_WEEK = `SUM(created_at < ${WEEK} AND created_at >= ${FORTNIGHT})`;
 
   const [leaders, trending, converting, inventory, topStock] = await Promise.all([
     query<{ project_name: string; leads: number }>(
       `SELECT project_name, COUNT(*) AS leads
          FROM opportunities
         WHERE project_name IS NOT NULL AND project_name <> ''
-          AND created_at >= ((now()) - make_interval(days => 30))
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         GROUP BY project_name ORDER BY COUNT(*) DESC LIMIT 1`,
       [],
       exec,
@@ -691,17 +690,17 @@ export async function libraryStats(exec: Executor = getPool()): Promise<LibraryS
           AND created_at >= ${FORTNIGHT}
         GROUP BY project_name
        HAVING ${LAST_WEEK} > 0 AND ${THIS_WEEK} > ${LAST_WEEK}
-        ORDER BY (${THIS_WEEK} - ${LAST_WEEK})::numeric / ${LAST_WEEK} DESC LIMIT 1`,
+        ORDER BY (${THIS_WEEK} - ${LAST_WEEK}) / ${LAST_WEEK} DESC LIMIT 1`,
       [],
       exec,
     ),
     query<{ project_name: string; leads: number; won: number }>(
-      `SELECT project_name, COUNT(*) AS leads, COUNT(*) FILTER (WHERE stage_key = 'won') AS won
+      `SELECT project_name, COUNT(*) AS leads, SUM(stage_key = 'won') AS won
          FROM opportunities
         WHERE project_name IS NOT NULL AND project_name <> ''
         GROUP BY project_name
-       HAVING COUNT(*) >= 5 AND COUNT(*) FILTER (WHERE stage_key = 'won') > 0
-        ORDER BY COUNT(*) FILTER (WHERE stage_key = 'won')::numeric / COUNT(*) DESC LIMIT 1`,
+       HAVING COUNT(*) >= 5 AND SUM(stage_key = 'won') > 0
+        ORDER BY SUM(stage_key = 'won') / COUNT(*) DESC LIMIT 1`,
       [],
       exec,
     ),

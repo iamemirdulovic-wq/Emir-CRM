@@ -304,8 +304,8 @@ usersRouter.post(
     const body = pushTokenSchema.parse(req.body);
     await execute(
       `INSERT INTO push_tokens (id, user_id, token, platform, last_used_at)
-       VALUES (?, ?, ?, ?, now())
-       ON CONFLICT ON CONSTRAINT uq_push_token DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_used_at = now()`,
+       VALUES (?, ?, ?, ?, NOW(3))
+       ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), platform = VALUES(platform), last_used_at = NOW(3)`,
       [newId(), user.id, body.token, body.platform],
     );
     res.status(201).json({ ok: true });

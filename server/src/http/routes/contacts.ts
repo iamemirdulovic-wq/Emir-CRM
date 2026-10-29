@@ -49,7 +49,7 @@ contactsRouter.get(
     const args: Array<string | number> = [...scope.params];
 
     if (params.search) {
-      where.push('(c.full_name ILIKE ? OR c.phone_e164 ILIKE ? OR c.email ILIKE ? OR c.wa_id ILIKE ?)');
+      where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ? OR c.wa_id LIKE ?)');
       const like = `%${params.search}%`;
       args.push(like, like, like, like);
     }

@@ -444,7 +444,7 @@ describeWithDb('undoing an import', () => {
       "SELECT contact_id FROM import_rows WHERE reason IS NULL AND status = 'created' ORDER BY line_number LIMIT 1",
     );
     await execute(
-      `INSERT INTO tasks (id, contact_id, type, title, due_at) VALUES (?, ?, 'call', 'Call back', now())`,
+      `INSERT INTO tasks (id, contact_id, type, title, due_at) VALUES (?, ?, 'call', 'Call back', NOW(3))`,
       [newId(), worked[0]?.contact_id],
     );
 
@@ -478,7 +478,7 @@ describeWithDb('undoing an import', () => {
     const { importId } = await createImport(['Full Name,Mobile No.', 'One,0501111111'].join('\n'));
     await runToCompletion(importId);
 
-    await execute('UPDATE imports SET undo_deadline_at = ((now()) - make_interval(hours => 1)) WHERE id = ?', [importId]);
+    await execute('UPDATE imports SET undo_deadline_at = DATE_SUB(NOW(3), INTERVAL 1 HOUR) WHERE id = ?', [importId]);
 
     expect(await previewUndo(importId)).toMatchObject({ expired: true });
     await expect(undoImport(SYSTEM_ACTOR, importId)).rejects.toThrow(/24 hours/);

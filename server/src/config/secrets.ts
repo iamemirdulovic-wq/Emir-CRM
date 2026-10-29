@@ -137,7 +137,7 @@ export async function saveSecret(
   const enc = encryptSecret(trimmed);
   await execute(
     `INSERT INTO app_secrets (name, value_enc, hint, updated_by_user_id) VALUES (?, ?, ?, ?)
-     ON CONFLICT ON CONSTRAINT app_secrets_pkey DO UPDATE SET value_enc = EXCLUDED.value_enc, hint = EXCLUDED.hint, updated_by_user_id = EXCLUDED.updated_by_user_id`,
+     ON DUPLICATE KEY UPDATE value_enc = VALUES(value_enc), hint = VALUES(hint), updated_by_user_id = VALUES(updated_by_user_id)`,
     [name, enc, trimmed.slice(-4), actor.userId],
     exec,
   );
@@ -164,7 +164,7 @@ export async function saveSetting(
 ): Promise<void> {
   await execute(
     `INSERT INTO app_settings (name, value, updated_by_user_id) VALUES (?, ?, ?)
-     ON CONFLICT ON CONSTRAINT app_settings_pkey DO UPDATE SET value = EXCLUDED.value, updated_by_user_id = EXCLUDED.updated_by_user_id`,
+     ON DUPLICATE KEY UPDATE value = VALUES(value), updated_by_user_id = VALUES(updated_by_user_id)`,
     [name, value, actor.userId],
     exec,
   );

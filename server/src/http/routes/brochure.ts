@@ -49,7 +49,7 @@ brochureRouter.get(
     if (agentUserId && contactId) {
       const recent = await queryOne<{ n: number }>(
         `SELECT COUNT(*) AS n FROM brochure_views
-          WHERE contact_id = ? AND project_slug = ? AND viewed_at > ((now()) - make_interval(hours => 1))`,
+          WHERE contact_id = ? AND project_slug = ? AND viewed_at > DATE_SUB(NOW(3), INTERVAL 1 HOUR)`,
         [contactId, slug],
       );
       if (Number(recent?.n ?? 0) <= 1) {

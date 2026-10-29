@@ -212,7 +212,7 @@ describeWithDb('the project library', () => {
     await createProject(owner(user.id), { name: 'Unverified Heights', developer: 'Emaar', emirate: 'dubai' });
     expect(await findVerifiedProject('Unverified Heights')).toBeNull();
 
-    await execute("UPDATE projects SET verified_at = now() WHERE name = 'Unverified Heights'");
+    await execute("UPDATE projects SET verified_at = NOW(3) WHERE name = 'Unverified Heights'");
     expect(await findVerifiedProject('Unverified Heights')).not.toBeNull();
   });
 
@@ -258,9 +258,8 @@ describeWithDb('the project library', () => {
   });
   /*
    * These four queries went out returning a 500: they referenced an aggregate
-   * by its alias in HAVING, which the live database does not allow. Running
-   * them for real is the only way that shows up — and it caught a second one
-   * on Postgres, where dividing two COUNTs truncates to zero.
+   * by its alias in HAVING, which MySQL allows and MariaDB — the live database
+   * — does not. Running them for real is the only way that shows up.
    */
   it('computes the KPI cards without falling over on an empty library', async () => {
     const stats = await libraryStats();
@@ -294,7 +293,7 @@ describeWithDb('the project library', () => {
     // A real pipeline stage, because opportunities.stage_id is a foreign key —
     // the seeded stages survive resetTables.
     const stage = await query<{ id: string; pipeline_id: string }>(
-      `SELECT id, pipeline_id FROM pipeline_stages WHERE "key" = 'new_lead' LIMIT 1`,
+      "SELECT id, pipeline_id FROM pipeline_stages WHERE `key` = 'new_lead' LIMIT 1",
     );
     const { id: stageId, pipeline_id: pipelineId } = stage[0]!;
 
