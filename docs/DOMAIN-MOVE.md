@@ -37,14 +37,37 @@ A     crm   <the Hostinger server IP>
 
 Give it a few minutes. `dig crm.homes.me` should return that IP before you go on.
 
-### 2. Add the domain in Hostinger, and get a certificate
+### 2. Attach the domain to the CRM app — not to a new website
 
-hPanel → your Node.js app → **Domains**. Add `crm.homes.me` and issue the free
-SSL certificate for it.
+This is the step that catches people, and it already caught us once.
 
-**Do not skip the certificate.** Meta refuses to deliver webhooks to a domain
-whose certificate is invalid, and it does not tell you — leads simply stop
-arriving.
+Adding `crm.homes.me` in Hostinger creates an **empty website** by default. It
+answers, it has a certificate, and it shows Hostinger's parking page: a dotted
+world map and "قريبًا". That looks like it is nearly working. It is not
+connected to the CRM at all.
+
+What you want instead is for `crm.homes.me` to be **another address for the
+website that already runs the CRM** — the one `mycrm.emirdulovic.com` points
+at. In hPanel that is usually under the CRM website's own settings, as a
+*domain alias*, *parked domain* or *additional domain*, depending on which
+wording your panel uses. The test is simple: you are looking for a place that
+adds a domain **to the existing site**, not one that offers to create a new
+site.
+
+If a blank website for `crm.homes.me` has already been created, remove that
+website first — check it is empty before you do — then add the domain to the
+CRM site as above.
+
+An alias rather than a rename, so that `mycrm.emirdulovic.com` keeps working
+too. Step 5 explains why that matters.
+
+**Then issue the SSL certificate for the new address.** The parking page had
+its own; the CRM site needs one of its own for this domain. Meta refuses to
+deliver webhooks to a domain whose certificate is invalid, and it does not tell
+you — leads simply stop arriving.
+
+You will know this step is done when `https://crm.homes.me` shows the CRM
+sign-in screen instead of the world map.
 
 ### 3. Change one environment variable
 
