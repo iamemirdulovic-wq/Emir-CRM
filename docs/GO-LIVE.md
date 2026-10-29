@@ -10,7 +10,7 @@ Your details, already confirmed:
 
 | | |
 |---|---|
-| Address | `mycrm.emirdulovic.com` |
+| Address | `crm.homes.me` (moved from `mycrm.emirdulovic.com` — see `DOMAIN-MOVE.md`) |
 | Database name | `u942058886_emircrm2` |
 | Database user | `u942058886_emircrm2` |
 | Database host | `localhost` |
@@ -62,7 +62,7 @@ exactly; the one marked **← you** is yours to fill in.
 
 ```
 NODE_ENV=production
-APP_URL=https://mycrm.emirdulovic.com
+APP_URL=https://crm.homes.me
 COOKIE_SECURE=true
 TRUST_PROXY=true
 
@@ -134,7 +134,7 @@ Press **Deploy**.
 It takes a few minutes: it installs, builds, creates all 42 database tables, and
 starts. Then open:
 
-**https://mycrm.emirdulovic.com/health**
+**https://crm.homes.me/health**
 
 You want to see:
 
@@ -147,7 +147,7 @@ You want to see:
 
 ### Then make your account
 
-Open **https://mycrm.emirdulovic.com**. Because nobody has an account yet, it
+Open **https://crm.homes.me**. Because nobody has an account yet, it
 shows a setup screen rather than a login you could not pass. Fill in your name,
 email and a password, press the button, and you are inside.
 
@@ -176,7 +176,7 @@ application sends no follow-ups, so this is part of the deployment, not an extra
 - **Command:**
 
 ```
-curl -fsS https://mycrm.emirdulovic.com/health > /dev/null
+curl -fsS https://crm.homes.me/health > /dev/null
 ```
 
 ---

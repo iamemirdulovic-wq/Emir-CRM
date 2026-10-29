@@ -17,7 +17,7 @@ put the matchmaker answers, the viewed projects or the site's own score.
 Also answers on `/webhooks/property-investment`; either address is fine.
 
 ```
-POST https://mycrm.emirdulovic.com/api/webhooks/property-investment
+POST https://crm.homes.me/api/webhooks/property-investment
 Content-Type: application/json
 X-Signature: <hex HMAC-SHA256 of the exact raw request body>
 ```
@@ -116,7 +116,7 @@ overwrites it. The stage is what the agent has actually done.
 ## The prompt to paste into Claude Code on the website repository
 
 > Our CRM accepts leads at
-> `https://mycrm.emirdulovic.com/api/webhooks/property-investment`. Send every
+> `https://crm.homes.me/api/webhooks/property-investment`. Send every
 > lead there, **in addition to** what we already do — do not change or remove
 > the existing handling, the admin panel must keep working exactly as it does.
 >

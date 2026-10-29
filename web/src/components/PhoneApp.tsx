@@ -30,39 +30,55 @@ function installed(): boolean {
     || (window.navigator as { standalone?: boolean }).standalone === true;
 }
 
-const STEPS: Record<Platform, { icon: 'share-2' | 'menu' | 'monitor'; lines: string[] }> = {
-  ios: {
-    icon: 'share-2',
-    lines: [
-      'Open mycrm.emirdulovic.com in Safari — it has to be Safari, not Chrome.',
-      'Tap the Share button at the bottom.',
-      'Scroll down and tap "Add to Home Screen".',
-      'Open it from the home screen icon from now on.',
-    ],
-  },
-  android: {
-    icon: 'menu',
-    lines: [
-      'Open mycrm.emirdulovic.com in Chrome.',
-      'Tap the ⋮ menu, top right.',
-      'Tap "Install app", or "Add to Home screen".',
-    ],
-  },
-  desktop: {
-    icon: 'monitor',
-    lines: [
-      'On a phone, open mycrm.emirdulovic.com in the browser.',
-      'iPhone: Share → Add to Home Screen. It must be Safari.',
-      'Android: ⋮ menu → Install app.',
-    ],
-  },
-};
+/**
+ * The address to type into the phone's browser.
+ *
+ * Taken from the page the agent is already looking at, not written down. These
+ * instructions are read on a desktop and followed on a phone, so the address
+ * has to be stated in words — and a hardcoded one goes stale the day the CRM
+ * moves domain, telling every agent to install the wrong site.
+ */
+function thisSite(): string {
+  if (typeof window === 'undefined') return 'the CRM';
+  return window.location.host;
+}
+
+function steps(host: string): Record<Platform, { icon: 'share-2' | 'menu' | 'monitor'; lines: string[] }> {
+  return {
+    ios: {
+      icon: 'share-2',
+      lines: [
+        `Open ${host} in Safari — it has to be Safari, not Chrome.`,
+        'Tap the Share button at the bottom.',
+        'Scroll down and tap "Add to Home Screen".',
+        'Open it from the home screen icon from now on.',
+      ],
+    },
+    android: {
+      icon: 'menu',
+      lines: [
+        `Open ${host} in Chrome.`,
+        'Tap the ⋮ menu, top right.',
+        'Tap "Install app", or "Add to Home screen".',
+      ],
+    },
+    desktop: {
+      icon: 'monitor',
+      lines: [
+        `On a phone, open ${host} in the browser.`,
+        'iPhone: Share → Add to Home Screen. It must be Safari.',
+        'Android: ⋮ menu → Install app.',
+      ],
+    },
+  };
+}
 
 export function PhoneAppPanel({ index = 0 }: { index?: number }) {
   const toast = useToast();
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const here = platform();
+  const install = steps(thisSite())[here];
   const isInstalled = installed();
   const needsInstallFirst = iosNeedsInstall();
 
@@ -148,13 +164,13 @@ export function PhoneAppPanel({ index = 0 }: { index?: number }) {
       {!isInstalled && (
         <>
           <h3 style={{ marginTop: 18 }}>
-            <Icon name={STEPS[here].icon} />
+            <Icon name={install.icon} />
             {here === 'desktop' ? 'Put it on your team’s phones' : 'Put it on your home screen'}
           </h3>
           <ol className="prose" style={{ margin: 0, paddingInlineStart: 20, fontSize: 13.5, lineHeight: 1.7 }}>
             {/* English steps inside an Arabic page: without dir="auto" the
                 browser moves the full stop to the front of each line. */}
-            {STEPS[here].lines.map((line) => <li key={line} dir="auto">{line}</li>)}
+            {install.lines.map((line) => <li key={line} dir="auto">{line}</li>)}
           </ol>
         </>
       )}

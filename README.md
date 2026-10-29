@@ -78,6 +78,8 @@ them at a server you are happy for them to write to — never at production.
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosting requirements, integration setup, what needs owner action |
 | [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | Six steps to put the CRM live on Hostinger Cloud, with every value filled in |
 | [`docs/HOSTING-CHECK.md`](docs/HOSTING-CHECK.md) | What to confirm about the hosting plan before deploying, and what each answer changes |
+| [`docs/DOMAIN-MOVE.md`](docs/DOMAIN-MOVE.md) | Moving the CRM to `crm.homes.me`: DNS, the certificate, and the five systems that hold our address |
+| [`docs/POSTGRES-PORT.md`](docs/POSTGRES-PORT.md) | The move from MySQL to PostgreSQL on Neon, what differed, and the cutover runbook |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | The design system: where it lives, how to port a screen, the theme |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | What shipped in each phase, and the bugs found along the way |
 | [`CLAUDE.md`](CLAUDE.md) | The product specification this is built against |
