@@ -11,6 +11,7 @@ import { templateNameFor } from '../messaging/templates/library.js';
 import { findVerifiedProject, formatAed } from '../services/projects.js';
 import { moveStage } from '../services/opportunities.js';
 import { cancelRuns, findRunningRun, startRun, setStep, completeRun } from './runs.js';
+import { COMPANY_NAME } from '../config/constants.js';
 
 /**
  * Workflow B — no-response follow-up.
@@ -251,7 +252,7 @@ async function step3d(contactId: string, opportunityId: string): Promise<Workflo
       `Hello ${ctx.leadName},\n\n` +
       `I have not managed to reach you about ${projectLabel}, and I do not want to keep messaging if the timing is not right.\n\n` +
       `Just reply "yes" and I will keep your file open, or "no" and I will close it and stop following up.\n\n` +
-      `${ctx.agentName}\nEmir Real Estate`,
+      `${ctx.agentName}\n${COMPANY_NAME}`,
   });
 
   return handleSendResult('followup_3d', result, contactId, opportunityId, 'followup_3d');
@@ -304,7 +305,7 @@ function buildProjectEmail(ctx: LeadContext, project: Awaited<ReturnType<typeof 
   } else {
     lines.push('I would be glad to send you the current availability and payment plans.');
   }
-  lines.push('', 'Reply here or on WhatsApp and I will take it from there.', '', ctx.agentName, 'Emir Real Estate');
+  lines.push('', 'Reply here or on WhatsApp and I will take it from there.', '', ctx.agentName, COMPANY_NAME);
   return lines.join('\n');
 }
 
@@ -346,7 +347,7 @@ async function handleSendResult(
     text:
       `Hello ${ctx.leadName},\n\n` +
       `I tried to reach you on WhatsApp about ${ctx.projectName ?? 'your enquiry'}. ` +
-      `Reply here and I will send the details straight away.\n\n${ctx.agentName}\nEmir Real Estate`,
+      `Reply here and I will send the details straight away.\n\n${ctx.agentName}\n${COMPANY_NAME}`,
   });
   return { step, action: 'sent', reason: 'whatsapp_failed_email_fallback' };
 }

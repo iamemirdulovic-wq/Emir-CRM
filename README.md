@@ -1,4 +1,4 @@
-# Emir CRM
+# homes.me CRM
 
 A unified lead management system for a Dubai and Abu Dhabi off-plan real estate
 brokerage. It ingests leads from Meta Lead Ads, click-to-WhatsApp ads, website

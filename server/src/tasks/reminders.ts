@@ -16,6 +16,7 @@ import { execute, getPool, query, type Executor } from '../db/client.js';
 import { logger } from '../lib/logger.js';
 import { formatInDubai } from '../lib/time.js';
 import { sendInternalEmail } from '../messaging/email/internal.js';
+import { PRODUCT_NAME } from '../config/constants.js';
 
 type DueTask = {
   id: string;
@@ -120,7 +121,7 @@ export function buildReminder(task: DueTask, now: Date): { to: string; subject: 
     '',
     `Open it here: ${env().APP_URL}/tasks`,
     '',
-    'Emir CRM',
+    PRODUCT_NAME,
   );
 
   return {

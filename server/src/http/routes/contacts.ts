@@ -326,7 +326,7 @@ contactsRouter.get(
     const csv = [headers.join(','), ...rows.map((row) => headers.map((h) => escape(row[h])).join(','))].join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="emir-crm-contacts-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="homes-me-contacts-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(csv);
   }),
 );

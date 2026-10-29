@@ -39,53 +39,40 @@ try {
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'public');
 
-const svg = readFileSync(join(PUBLIC_DIR, 'icon.svg'), 'utf8');
-
 /*
- * The icon's own background colour, so the maskable version can bleed to the
- * edges in the same colour and show no seam. Falls back to the theme colour if
- * the SVG is ever redrawn without a fill on its first shape.
- */
-const brandColour = /fill="(#[0-9a-f]{3,8})"/i.exec(svg)?.[1] ?? '#1f47d6';
-
-/*
- * Two shapes, because the manifest asks two different questions.
+ * Raster copies of the brand's own icons, for the places that will not take an
+ * SVG: Android's launcher, and iOS, which ignores an `apple-touch-icon` that
+ * is not a PNG and falls back to a screenshot of the page.
  *
- * `any` is the icon shown as drawn — a browser tab, a bookmark, a desktop
- * shortcut — so it keeps its own rounded square and transparent corners.
- *
- * `maskable` is cropped by the launcher to whatever shape that phone uses: a
- * circle, a squircle, a rounded square. A transparent corner there becomes a
- * visible notch, so this one fills the frame edge to edge and holds the logo
- * inside the middle 80%, which is the area every mask is guaranteed to keep.
+ * The manifest declares the 512 as both `any` and `maskable`, which is only
+ * honest because the brand's icon is a full-bleed square: a launcher may crop
+ * it to a circle or a squircle and will never cut into the mark, which sits
+ * well inside the middle 80%. An icon with transparent corners could not claim
+ * both — the corners would show as notches once cropped.
  */
 const OUTPUTS = [
-  { file: 'icon-192.png', size: 192, bleed: false },
-  { file: 'icon-512.png', size: 512, bleed: false },
-  { file: 'icon-maskable-512.png', size: 512, bleed: true },
+  { from: 'icon.svg', file: 'icon-192.png', size: 192 },
+  { from: 'icon.svg', file: 'icon-512.png', size: 512 },
+  // 180 is the size Apple asks for; anything else is resampled by the phone.
+  { from: 'apple-touch-icon.svg', file: 'apple-touch-icon.png', size: 180 },
 ];
 
-const SAFE_ZONE = 0.8;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 
-for (const { file, size, bleed } of OUTPUTS) {
+for (const { from, file, size } of OUTPUTS) {
+  const svg = readFileSync(join(PUBLIC_DIR, from), 'utf8');
   const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 });
-  const inner = bleed ? Math.round(size * SAFE_ZONE) : size;
   await page.setContent(
     `<!doctype html><meta charset="utf-8">
-     <style>
-       html,body{margin:0;padding:0;width:${size}px;height:${size}px;
-                 background:${bleed ? brandColour : 'transparent'};
-                 display:flex;align-items:center;justify-content:center}
-       svg{display:block;width:${inner}px;height:${inner}px}
-     </style>
+     <style>html,body{margin:0;padding:0;background:transparent}
+            svg{display:block;width:${size}px;height:${size}px}</style>
      ${svg}`,
     { waitUntil: 'load' },
   );
-  const png = await page.screenshot({ omitBackground: !bleed });
+  const png = await page.screenshot({ omitBackground: true });
   writeFileSync(join(PUBLIC_DIR, file), png);
   await page.close();
-  console.log(`wrote ${file} (${png.length} bytes)`);
+  console.log(`wrote ${file} (${png.length} bytes) from ${from}`);
 }
 
 await browser.close();

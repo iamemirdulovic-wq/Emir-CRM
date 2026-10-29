@@ -91,7 +91,7 @@ Work down this list; it is roughly in order of likelihood.
 | *Not set up yet* | The Firebase keys are missing or incomplete. Owner's job. |
 | *Add to your home screen first* | An iPhone in Safari. Install it. |
 | *Off — you will miss new leads* | Nobody pressed the button on this device. |
-| *Blocked in your phone settings* | They pressed No once. The CRM cannot ask again — iPhone: Settings → Notifications → Emir CRM. Android: hold the icon → App info → Notifications. |
+| *Blocked in your phone settings* | They pressed No once. The CRM cannot ask again — iPhone: Settings → Notifications → homes.me. Android: hold the icon → App info → Notifications. |
 | *Not possible in this browser* | An old browser, or a private window. |
 
 A token is per device. An agent with a phone and a tablet turns it on twice,

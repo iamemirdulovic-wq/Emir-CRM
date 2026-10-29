@@ -1,3 +1,34 @@
+/**
+ * What the product calls itself in anything an agent reads — an email
+ * signature, the name on an export. The web app has its own copy in
+ * `web/src/brand.tsx`; the two have to agree, and there is no sensible way to
+ * share one file across the two builds.
+ *
+ * This is the product's name, not the company's. The company's name is a
+ * business detail that reaches clients, and it lives in Settings.
+ */
+export const PRODUCT_NAME = 'homes.me';
+
+/**
+ * The company, as it introduces itself to a lead.
+ *
+ * It was written out in six places that send to clients — the WhatsApp welcome
+ * template, three follow-up emails, two template footers — so a rename reached
+ * some of them and not others, and a lead could be welcomed by one company and
+ * followed up by another.
+ *
+ * `COMPANY_LOCALITY_AR` exists because the legal name is registered in Latin
+ * script and is not ours to translate. The Arabic footer carries the name as
+ * registered and says where we are in Arabic, which is what UAE brokerages
+ * normally do.
+ *
+ * These belong in Settings eventually, beside the TRN and the ORN. Until then
+ * they are here, where there is one of each.
+ */
+export const COMPANY_NAME = 'Emigeo Homes Real Estate LLC';
+export const COMPANY_LOCALITY_EN = 'Dubai & Abu Dhabi';
+export const COMPANY_LOCALITY_AR = 'دبي وأبوظبي';
+
 /** Business constants that the workflows and guards depend on. */
 
 export const TIMEZONE = 'Asia/Dubai';

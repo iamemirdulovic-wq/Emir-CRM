@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Emir CRM">
-  <rect width="512" height="512" rx="112" fill="#1f47d6"/>
-  <path d="M256 104 138 196v212h72V276h92v132h72V196z" fill="#ffffff" opacity=".95"/>
-  <circle cx="256" cy="196" r="26" fill="#8eb6ff"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" rx="0" fill="#FF4000"/><g transform="translate(81.92 87.14) scale(3.4816)"><path d="M14 43L50 11L86 43" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 67Q50 97 76 67" fill="none" stroke="#1A1A1A" stroke-width="20" stroke-linecap="round"/></g></svg>

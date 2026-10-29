@@ -234,8 +234,8 @@ const ROUTES: Route[] = [
       tags: lead.tags,
       tagDetails: lead.tags.map((t) => ({ namespace: t.split(':')[0], value: t.split(':')[1], label: null })),
       consents: [
-        { channel: 'whatsapp', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emir Real Estate by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) },
-        ...(lead.email ? [{ channel: 'email', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emir Real Estate by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) }] : []),
+        { channel: 'whatsapp', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emigeo Homes Real Estate LLC by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) },
+        ...(lead.email ? [{ channel: 'email', granted: 1, source: lead.source, consent_text: 'I agree to be contacted by Emigeo Homes Real Estate LLC by phone, WhatsApp and email about property offers.', created_at: ago(lead.createdMinutesAgo) }] : []),
       ],
       identities: [],
       aiSuggestions: lead.unitType

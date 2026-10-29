@@ -162,7 +162,7 @@ leads.
   "message": "Looking for a 3 bedroom in Dubai Creek Harbour",
   "project": "Dubai Creek Harbour",
   "consent": true,
-  "consent_text": "I agree to be contacted by Emir Real Estate…",
+  "consent_text": "I agree to be contacted by Emigeo Homes Real Estate LLC…",
   "page_url": "https://…?utm_source=google&utm_campaign=creek-harbour-2026",
   "utm_source": "google",
   "gclid": "Cj0KCQiA…",

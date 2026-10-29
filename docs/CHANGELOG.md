@@ -1,6 +1,67 @@
 # Changelog
 
-All notable changes to the Emir CRM, newest first. One entry per build phase.
+All notable changes to the homes.me CRM, newest first. One entry per build phase.
+
+## homes.me branding, and the new address
+
+The CRM is now homes.me, on `crm.homes.me`.
+
+**What was built**
+- The brand kit's own icons, unchanged: the app icon, the favicon (which
+  already adapts to dark mode by itself) and the apple-touch icon. PNG copies
+  are generated from them by `scripts/make-icons.mjs`, because Android's
+  launcher will not take an SVG and iOS ignores an `apple-touch-icon` that is
+  not a PNG — it puts a screenshot of the page on the home screen instead.
+- `web/src/brand.tsx` — the name and the mark, drawn inline so the logo is
+  there on first paint rather than popping in a moment late.
+- `server/src/config/constants.ts` — `PRODUCT_NAME` and `COMPANY_NAME`.
+
+**A bug this uncovered**
+
+The manifest had been asking for `icon-192.png` and `icon-512.png` since the
+phone-app work shipped, and **neither file existed**. Both 404'd, so the icon
+on an agent's home screen was whatever the phone could guess — on the one
+feature whose entire point is an icon they tap every morning.
+
+**The company name was in six places that send to clients**
+
+The WhatsApp welcome template, three follow-up emails and two template footers
+each spelled it out. A rename would have reached some and not others, so a lead
+could be welcomed by one company and followed up by another. It is one constant
+now. The name itself you gave me: **Emigeo Homes Real Estate LLC**.
+
+**Decisions worth stating**
+
+*The teal stays.* You asked for logo and name only, so the only colour that
+moved is the brand tile in the sidebar and on the sign-in card, which is now
+the homes.me icon and brings its own orange. Buttons, stages, charts — all
+untouched.
+
+*Emir AI keeps its name*, as you asked. It is internal and never seen by a
+client.
+
+*The Arabic footer carries the legal name in Latin script.* It is registered
+that way and is not mine to translate; the footer says where we are in Arabic,
+which is what UAE brokerages normally do. If there is a registered Arabic name,
+tell me and I will use it.
+
+*The install instructions read the address off the page.* They used to spell
+out the old domain, which is how a rebrand leaves agents installing the wrong
+site.
+
+**What this costs you**
+
+The two WhatsApp template footers changed, and a footer is fixed text inside a
+Meta-approved template. The 16 templates waiting on Meta will need
+re-submitting with the new footer. Doing it now is the cheapest moment —
+they have not been approved yet, so nothing in use is being thrown away.
+
+**Where it stands**
+
+957 server tests and 102 web tests pass, the build is clean, and the sign-in
+screen and sidebar are screenshotted in both themes.
+
+Is this right, or do you want changes?
 
 ## The CRM runs on PostgreSQL
 

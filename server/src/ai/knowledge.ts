@@ -50,7 +50,7 @@ export const SECTIONS: SectionDef[] = [
     key: 'company',
     label: 'About us',
     help: 'Who the company is. Stops the AI inventing details about you.',
-    placeholder: 'Emir Real Estate LLC, Dubai. ORN 12345, TRN 100123456700003.\nOffice in Business Bay. Trading since 2019. Eight agents.',
+    placeholder: 'Emigeo Homes Real Estate LLC, Dubai. ORN 12345, TRN 100123456700003.\nOffice in Business Bay. Trading since 2019. Eight agents.',
     uses: ['ask', 'draft'],
     bilingual: false,
     softLimit: 800,

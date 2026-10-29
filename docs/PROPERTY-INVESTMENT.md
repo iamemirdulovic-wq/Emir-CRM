@@ -1,4 +1,4 @@
-# property-investment.ae ↔ Emir CRM
+# property-investment.ae ↔ homes.me CRM
 
 The connection between the website and the CRM. Hand the prompt below to
 whoever maintains the site.

@@ -210,7 +210,7 @@ export const THREADS: Record<string, Thread> = {
     id: 'cv-1',
     contactId: 'c-1',
     messages: [
-      msg({ direction: 'outbound', is_automated: 1, template_name: 'lead_welcome_en', status: 'read', created_at: ago(46), body: 'Hello Sara, thank you for your interest in Emaar Beachfront. My name is Layla Hassan from Emir Real Estate and I will be looking after your enquiry personally.\n\nI have attached the project brochure above. How would you like to continue?' }),
+      msg({ direction: 'outbound', is_automated: 1, template_name: 'lead_welcome_en', status: 'read', created_at: ago(46), body: 'Hello Sara, thank you for your interest in Emaar Beachfront. My name is Layla Hassan from Emigeo Homes Real Estate LLC and I will be looking after your enquiry personally.\n\nI have attached the project brochure above. How would you like to continue?' }),
       msg({ created_at: ago(38), body: 'What is the price for a 2 bedroom?' }),
       msg({ direction: 'outbound', is_automated: 1, status: 'delivered', created_at: ago(38), body: 'Emaar Beachfront — Emaar\nPrices start from AED 1,850,000.\nPayment plan: 80/20 until handover\nHandover: Q4 2027\nEligible for the Golden Visa.' }),
       msg({ created_at: ago(22), body: 'Can I see the floor plans for the 2 bed?' }),
@@ -226,7 +226,7 @@ export const THREADS: Record<string, Thread> = {
     id: 'cv-3',
     contactId: 'c-3',
     messages: [
-      msg({ direction: 'outbound', is_automated: 1, template_name: 'lead_welcome_en', status: 'read', created_at: ago(1319), body: 'Hello David, thank you for your interest in Emaar Beachfront. My name is Layla Hassan from Emir Real Estate and I will be looking after your enquiry personally.' }),
+      msg({ direction: 'outbound', is_automated: 1, template_name: 'lead_welcome_en', status: 'read', created_at: ago(1319), body: 'Hello David, thank you for your interest in Emaar Beachfront. My name is Layla Hassan from Emigeo Homes Real Estate LLC and I will be looking after your enquiry personally.' }),
       msg({ created_at: ago(1300), body: 'Call me please' }),
       msg({ direction: 'outbound', is_automated: 1, status: 'read', created_at: ago(1300), body: 'Of course David, your advisor will call you within a few minutes.' }),
       msg({ direction: 'outbound', is_automated: 0, user_id: 'u-layla', user_name: 'Layla Hassan', channel: 'note', status: 'sent', created_at: ago(1280), body: 'Spoke for 20 minutes. Cash buyer, wants a penthouse with a full sea view. Sending the EOI today.' }),

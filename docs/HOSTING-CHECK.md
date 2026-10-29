@@ -5,7 +5,7 @@ anything that depends on it. This is that check.
 
 The whole deploy hangs on **question 1**. If the plan cannot keep a Node.js
 process running, nothing else on this page matters and the hosting has to change
-first — Emir CRM is a Node server, not a PHP site.
+first — the CRM is a Node server, not a PHP site.
 
 ## The fast way: one command
 

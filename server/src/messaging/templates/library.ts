@@ -1,4 +1,5 @@
 import type { TemplateDefinition } from './types.js';
+import { COMPANY_NAME, COMPANY_LOCALITY_EN, COMPANY_LOCALITY_AR } from '../../config/constants.js';
 
 /**
  * The day-one template library. Every template exists in English and Arabic.
@@ -9,8 +10,8 @@ import type { TemplateDefinition } from './types.js';
  * variables next to each other, and always ship examples.
  */
 
-const FOOTER_EN = 'Emir Real Estate — Dubai & Abu Dhabi';
-const FOOTER_AR = 'إمير العقارية — دبي وأبوظبي';
+const FOOTER_EN = `${COMPANY_NAME} — ${COMPANY_LOCALITY_EN}`;
+const FOOTER_AR = `${COMPANY_NAME} — ${COMPANY_LOCALITY_AR}`;
 
 export const TEMPLATE_LIBRARY: TemplateDefinition[] = [
   // --- lead_welcome --------------------------------------------------------
@@ -25,7 +26,7 @@ export const TEMPLATE_LIBRARY: TemplateDefinition[] = [
         text:
           'Hello {{1}}, thank you for your interest in {{2}}. My name is {{3}} from {{4}} and I will be looking after your enquiry personally. ' +
           'I have attached the project brochure above. How would you like to continue?',
-        example: { body_text: [['Sara', 'Emaar Beachfront', 'Layla Hassan', 'Emir Real Estate']] },
+        example: { body_text: [['Sara', 'Emaar Beachfront', 'Layla Hassan', COMPANY_NAME]] },
       },
       { type: 'FOOTER', text: FOOTER_EN },
       {
@@ -49,7 +50,7 @@ export const TEMPLATE_LIBRARY: TemplateDefinition[] = [
         text:
           'مرحباً {{1}}، شكراً لاهتمامك بمشروع {{2}}. اسمي {{3}} من {{4}} وسأتابع طلبك شخصياً. ' +
           'لقد أرفقت كتيب المشروع أعلاه. كيف تحب أن نكمل؟',
-        example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'ليلى حسن', 'إمير العقارية']] },
+        example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'ليلى حسن', COMPANY_NAME]] },
       },
       { type: 'FOOTER', text: FOOTER_AR },
       {
