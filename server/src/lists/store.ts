@@ -188,8 +188,9 @@ export async function addToList(
       exec,
     );
     const result = await execute(
-      `INSERT IGNORE INTO list_members (list_id, contact_id, opportunity_id, added_by_user_id)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO list_members (list_id, contact_id, opportunity_id, added_by_user_id)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT DO NOTHING`,
       [listId, contactId, opportunity?.id ?? null, actor.userId],
       exec,
     );
@@ -296,8 +297,9 @@ export async function runBulkAction(
     case 'remove_tag': {
       const [namespace, value] = action.tag.includes(':') ? action.tag.split(/:(.+)/) : ['ops', action.tag];
       const result = await execute(
-        `DELETE ct FROM contact_tags ct JOIN tags t ON t.id = ct.tag_id
-          WHERE ct.contact_id IN (${contactIds.map(() => '?').join(',')})
+        `DELETE FROM contact_tags ct USING tags t
+          WHERE t.id = ct.tag_id
+            AND ct.contact_id IN (${contactIds.map(() => '?').join(',')})
             AND t.namespace = ? AND t.value = ?`,
         [...contactIds, namespace, value],
         exec,
@@ -342,7 +344,7 @@ export async function recycleList(listId: string, exec: Executor = getPool()): P
       WHERE lm.list_id = ?
         AND o.owner_user_id IS NOT NULL
         AND o.first_touch_at IS NULL
-        AND o.assigned_at < DATE_SUB(NOW(3), INTERVAL ? DAY)
+        AND o.assigned_at < ((now()) - make_interval(days => ?))
         AND NOT EXISTS (
           SELECT 1 FROM messages m JOIN conversations cv ON cv.id = m.conversation_id
            WHERE cv.contact_id = c.id AND m.direction = 'outbound'

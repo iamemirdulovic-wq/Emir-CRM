@@ -89,6 +89,10 @@ FCM_WEB_APP_ID=                    ← you ⎪
 FCM_MESSAGING_SENDER_ID=           ← you ⎪
 FCM_VAPID_KEY=                     ← you ⎭
 ```
+> **After the move to Neon**, these five database lines are replaced by one
+> `DATABASE_URL`, and the port is no longer 3306. The step-by-step is in
+> `POSTGRES-PORT.md`; until you follow it, the lines above are correct.
+
 
 Without the `FCM_` lines the CRM runs normally and **no agent is ever notified
 about a lead** — which is most of the value of having it on a phone. They are

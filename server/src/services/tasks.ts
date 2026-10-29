@@ -18,7 +18,7 @@ import { TIMEZONE_UTC_OFFSET_HOURS } from '../config/constants.js';
  * "Today" means today in Dubai, not today in UTC.
  *
  * Timestamps are stored and read as UTC (the pool is opened with
- * `timezone: 'Z'`), so a bare `DATE(due_at) = CURDATE()` asks a UTC question.
+ * UTC), so a bare `due_at::date = current_date` asks a UTC question.
  * Between 20:00 and midnight UTC — which is the small hours of the next morning
  * in Dubai — that answer is a day behind: an agent opening "Today" at 1am would
  * be shown yesterday afternoon's tasks and none of the ones actually due when
@@ -26,8 +26,8 @@ import { TIMEZONE_UTC_OFFSET_HOURS } from '../config/constants.js';
  * in the timezone everyone here actually works in, and matches how the
  * dashboard already buckets its daily counts.
  */
-const DUBAI_DAY = `DATE(DATE_ADD(t.due_at, INTERVAL ${TIMEZONE_UTC_OFFSET_HOURS} HOUR))`;
-const DUBAI_TODAY = `DATE(DATE_ADD(NOW(3), INTERVAL ${TIMEZONE_UTC_OFFSET_HOURS} HOUR))`;
+const DUBAI_DAY = `(((t.due_at) + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})))::date`;
+const DUBAI_TODAY = `(((now()) + make_interval(hours => ${TIMEZONE_UTC_OFFSET_HOURS})))::date`;
 
 export type TaskScope = 'mine' | 'team' | 'all';
 export type TaskFilter = 'open' | 'overdue' | 'today' | 'done';
@@ -74,7 +74,7 @@ export async function listTasks(
 
   const WHERE: Record<TaskFilter, string> = {
     open: 't.completed_at IS NULL',
-    overdue: 't.completed_at IS NULL AND t.due_at < NOW(3)',
+    overdue: 't.completed_at IS NULL AND t.due_at < now()',
     today: `t.completed_at IS NULL AND ${DUBAI_DAY} = ${DUBAI_TODAY}`,
     done: 't.completed_at IS NOT NULL',
   };
@@ -100,7 +100,7 @@ export async function listTasks(
 
   const counts = await queryOne<TaskCounts>(
     `SELECT
-       SUM(CASE WHEN t.completed_at IS NULL AND t.due_at < NOW(3) THEN 1 ELSE 0 END) AS overdue,
+       SUM(CASE WHEN t.completed_at IS NULL AND t.due_at < now() THEN 1 ELSE 0 END) AS overdue,
        SUM(CASE WHEN t.completed_at IS NULL AND ${DUBAI_DAY} = ${DUBAI_TODAY} THEN 1 ELSE 0 END) AS today,
        SUM(CASE WHEN t.completed_at IS NULL THEN 1 ELSE 0 END) AS open,
        SUM(CASE WHEN t.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS done
@@ -158,7 +158,7 @@ export async function completeTask(
   // The IS NULL guard makes a double-tap on a phone a no-op rather than a
   // second audit entry with a different closer.
   await execute(
-    'UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ? WHERE id = ? AND completed_at IS NULL',
+    'UPDATE tasks SET completed_at = now(), completed_by_user_id = ? WHERE id = ? AND completed_at IS NULL',
     [actor.userId, taskId],
     exec,
   );

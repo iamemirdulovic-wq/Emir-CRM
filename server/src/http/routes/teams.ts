@@ -59,7 +59,7 @@ teamsRouter.post(
       id, body.name, body.description ?? null, body.managerUserId ?? null,
     ]);
     for (const userId of body.memberIds ?? []) {
-      await execute('INSERT IGNORE INTO team_members (team_id, user_id) VALUES (?, ?)', [id, userId]);
+      await execute('INSERT INTO team_members (team_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [id, userId]);
     }
     await writeAudit({ actor: actorFrom(req), action: 'team.created', entityType: 'team', entityId: id, after: { name: body.name, members: body.memberIds?.length ?? 0 } });
     res.status(201).json({ id });
@@ -87,7 +87,7 @@ teamsRouter.patch(
       // in the UI actually means when it saves.
       await execute('DELETE FROM team_members WHERE team_id = ?', [id]);
       for (const userId of body.memberIds) {
-        await execute('INSERT IGNORE INTO team_members (team_id, user_id) VALUES (?, ?)', [id, userId]);
+        await execute('INSERT INTO team_members (team_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [id, userId]);
       }
     }
 

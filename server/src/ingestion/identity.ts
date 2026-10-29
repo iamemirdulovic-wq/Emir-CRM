@@ -1,5 +1,4 @@
-import type { PoolConnection } from 'mysql2/promise';
-import { execute, isDuplicateKeyError, queryOne, query } from '../db/client.js';
+import { execute, isDuplicateKeyError, queryOne, query, withSavepoint, type Tx } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { assignmentList } from '../lib/sql.js';
@@ -74,7 +73,7 @@ function parseLockedFields(raw: unknown): string[] {
 }
 
 /** Snapshot read: cheap, and good enough to find an existing contact. */
-async function findCandidate(tx: PoolConnection, lead: LeadDTO): Promise<{ id: string; matchedBy: MatchKind } | null> {
+async function findCandidate(tx: Tx, lead: LeadDTO): Promise<{ id: string; matchedBy: MatchKind } | null> {
   // Match on phone → wa_id → email, in that order.
   if (lead.person.phoneE164) {
     const row = await queryOne<{ id: string }>('SELECT id FROM contacts WHERE phone_e164 = ?', [lead.person.phoneE164], tx);
@@ -98,7 +97,7 @@ async function findCandidate(tx: PoolConnection, lead: LeadDTO): Promise<{ id: s
 }
 
 /** Current read with a row lock. Locks an existing row only — never a gap. */
-async function lockContact(tx: PoolConnection, id: string): Promise<ContactRow | null> {
+async function lockContact(tx: Tx, id: string): Promise<ContactRow | null> {
   return queryOne<ContactRow>(`SELECT ${CONTACT_COLUMNS} FROM contacts WHERE id = ? FOR UPDATE`, [id], tx);
 }
 
@@ -106,7 +105,7 @@ async function lockContact(tx: PoolConnection, id: string): Promise<ContactRow |
  * After a duplicate-key collision the winning row is committed, so a locking
  * read by unique key finds it without taking a gap lock.
  */
-async function lockContactByUniqueKey(tx: PoolConnection, lead: LeadDTO): Promise<{ row: ContactRow; matchedBy: MatchKind } | null> {
+async function lockContactByUniqueKey(tx: Tx, lead: LeadDTO): Promise<{ row: ContactRow; matchedBy: MatchKind } | null> {
   if (lead.person.phoneE164) {
     const row = await queryOne<ContactRow>(
       `SELECT ${CONTACT_COLUMNS} FROM contacts WHERE phone_e164 = ? FOR UPDATE`,
@@ -135,7 +134,7 @@ async function lockContactByUniqueKey(tx: PoolConnection, lead: LeadDTO): Promis
  * under a row lock. The initial lookup is deliberately a snapshot read so that
  * a miss does not take a gap lock and deadlock the other writers.
  */
-export async function resolveContact(tx: PoolConnection, lead: LeadDTO): Promise<ResolvedContact> {
+export async function resolveContact(tx: Tx, lead: LeadDTO): Promise<ResolvedContact> {
   const candidate = await findCandidate(tx, lead);
 
   if (candidate) {
@@ -162,17 +161,24 @@ export async function resolveContact(tx: PoolConnection, lead: LeadDTO): Promise
  * claimed the same phone or wa_id first.
  */
 async function createContact(
-  tx: PoolConnection,
+  tx: Tx,
   lead: LeadDTO,
   opts: { possibleDuplicateOf?: string },
 ): Promise<ResolvedContact> {
   const contactId = newId();
-  try {
-    await execute(
-      `INSERT INTO contacts
+  /*
+   * DO NOTHING with no target, so a clash on either identifier — phone or
+   * wa_id — is reported as "nothing written" instead of raising. Twenty
+   * copies of one lead arrive in parallel and nineteen of them land here;
+   * in Postgres a raised error would abort the whole ingestion transaction,
+   * losing the lead rather than merging it into the winner.
+   */
+  const written = await execute(
+    `INSERT INTO contacts
          (id, full_name, first_name, last_name, phone_e164, wa_id, email, language, country, city,
           first_source, first_touch_at, last_source, possible_duplicate_of)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT DO NOTHING`,
       [
         contactId,
         lead.person.fullName,
@@ -190,7 +196,9 @@ async function createContact(
         opts.possibleDuplicateOf ?? null,
       ],
       tx,
-    );
+  );
+
+  if (written.affectedRows > 0) {
     await recordIdentities(tx, contactId, lead);
     return {
       contactId,
@@ -200,22 +208,21 @@ async function createContact(
       ownerUserId: null,
       appliedPatch: {},
     };
-  } catch (err) {
-    if (!isDuplicateKeyError(err)) throw err;
-
-    // Someone else created this contact while we were working. Take their row.
-    const locked = await lockContactByUniqueKey(tx, lead);
-    if (!locked) {
-      // The collision was on some other unique key we do not own; surface it.
-      throw err;
-    }
-    logger.debug('contact insert lost a race, merging into the winner', { contactId: locked.row.id });
-    return updateExisting(tx, locked.row, lead, locked.matchedBy);
   }
+
+  // Someone else created this contact while we were working. Take their row.
+  const locked = await lockContactByUniqueKey(tx, lead);
+  if (!locked) {
+    // Nothing was written and no row of ours matches — the clash was on a key
+    // we do not own, which is a bug rather than a race, so say so loudly.
+    throw new Error('the contact insert was skipped but no existing contact matches its identifiers');
+  }
+  logger.debug('contact insert lost a race, merging into the winner', { contactId: locked.row.id });
+  return updateExisting(tx, locked.row, lead, locked.matchedBy);
 }
 
 async function updateExisting(
-  tx: PoolConnection,
+  tx: Tx,
   row: ContactRow,
   lead: LeadDTO,
   matchedBy: MatchKind,
@@ -239,16 +246,18 @@ async function updateExisting(
  * contact, drop those columns and keep the rest — losing one field is better
  * than losing the lead.
  */
-async function applyPatch(tx: PoolConnection, contactId: string, patch: ContactPatch): Promise<ContactPatch> {
+async function applyPatch(tx: Tx, contactId: string, patch: ContactPatch): Promise<ContactPatch> {
   const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (entries.length === 0) return {};
 
   try {
-    await execute(
+    // A savepoint, because this is an UPDATE: there is no ON CONFLICT form for
+    // one, and a unique clash here must not abort the whole transaction.
+    await withSavepoint(tx, () => execute(
       `UPDATE contacts SET ${assignmentList(entries.map(([k]) => k))} WHERE id = ?`,
       [...entries.map(([, v]) => v as never), contactId],
       tx,
-    );
+    ));
     return Object.fromEntries(entries) as ContactPatch;
   } catch (err) {
     if (!isDuplicateKeyError(err)) throw err;
@@ -265,7 +274,7 @@ async function applyPatch(tx: PoolConnection, contactId: string, patch: ContactP
 }
 
 /** Every identifier we have seen for this person, so future leads match faster. */
-async function recordIdentities(tx: PoolConnection, contactId: string, lead: LeadDTO): Promise<void> {
+async function recordIdentities(tx: Tx, contactId: string, lead: LeadDTO): Promise<void> {
   const identities: Array<[string, string | null]> = [
     ['phone', lead.person.phoneE164],
     ['wa_id', lead.person.waId],
@@ -279,9 +288,10 @@ async function recordIdentities(tx: PoolConnection, contactId: string, lead: Lea
 
   for (const [kind, value] of identities) {
     if (!value) continue;
-    // INSERT IGNORE: a repeat of a known identifier is expected, not an error.
+    // ON CONFLICT DO NOTHING: a repeat of a known identifier is expected, not an error.
     await execute(
-      'INSERT IGNORE INTO contact_identities (id, contact_id, kind, value, source) VALUES (?, ?, ?, ?, ?)',
+      `INSERT INTO contact_identities (id, contact_id, kind, value, source) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT DO NOTHING`,
       [newId(), contactId, kind, value, lead.source],
       tx,
     );
@@ -289,7 +299,7 @@ async function recordIdentities(tx: PoolConnection, contactId: string, lead: Lea
 }
 
 /** Open opportunities for a contact, used by the re-inquiry rule. */
-export async function loadOpenOpportunities(tx: PoolConnection, contactId: string) {
+export async function loadOpenOpportunities(tx: Tx, contactId: string) {
   return query<{ id: string; project_name: string | null; stage_key: string; status: 'open' | 'won' | 'lost'; created_at: Date }>(
     `SELECT id, project_name, stage_key, status, created_at
        FROM opportunities WHERE contact_id = ? ORDER BY created_at DESC LIMIT 50`,

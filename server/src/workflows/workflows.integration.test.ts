@@ -45,7 +45,7 @@ async function approveTemplates(): Promise<void> {
             (?, 'followup_2h_en', 'en', 'MARKETING', 'APPROVED', '[]'),
             (?, 'followup_24h_en', 'en', 'MARKETING', 'APPROVED', '[]'),
             (?, 'followup_3d_en', 'en', 'MARKETING', 'APPROVED', '[]')
-     ON DUPLICATE KEY UPDATE status = 'APPROVED'`,
+     ON CONFLICT ON CONSTRAINT uq_template_name_lang DO UPDATE SET status = 'APPROVED'`,
     [newId(), newId(), newId(), newId(), newId()],
   );
 }
@@ -58,7 +58,7 @@ async function seedVerifiedProject(): Promise<string> {
                            location_label, is_active, verified_at)
      VALUES (?, 'emaar-beachfront', 'Emaar Beachfront', 'Emaar', 'dubai', 'Dubai Harbour', 1850000,
              '80/20 until handover', 'Q4 2027', 1, 'https://cdn.example.ae/emaar-beachfront.pdf',
-             25.0940000, 55.1440000, 'Dubai Harbour, Dubai', 1, NOW(3))`,
+             25.0940000, 55.1440000, 'Dubai Harbour, Dubai', 1, now())`,
     [id],
   );
   return id;
@@ -233,7 +233,7 @@ describeWithDb('workflows (integration)', () => {
     const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
     const ingested = await arriveLead();
-    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = now() WHERE id = ?', [
       first.id,
       ingested.opportunityId,
     ]);
@@ -403,7 +403,7 @@ describeWithDb('workflows (integration)', () => {
     const ingested = await arriveLead();
     expect((await shouldContinue(ingested.contactId, ingested.opportunityId)).ok).toBe(true);
 
-    await execute('UPDATE contacts SET last_inbound_at = NOW(3) WHERE id = ?', [ingested.contactId]);
+    await execute('UPDATE contacts SET last_inbound_at = now() WHERE id = ?', [ingested.contactId]);
     const check = await shouldContinue(ingested.contactId, ingested.opportunityId);
     expect(check.ok).toBe(false);
     expect(check.reason).toBe('lead_replied');
@@ -446,10 +446,10 @@ describeWithDb('workflows (integration)', () => {
       [messageId, conversationId, contactId, `wamid.${messageId}`, over.text ?? null],
     );
     // An inbound message opens the WhatsApp window.
-    await execute('UPDATE conversations SET wa_window_expires_at = DATE_ADD(NOW(3), INTERVAL 24 HOUR) WHERE id = ?', [
+    await execute('UPDATE conversations SET wa_window_expires_at = ((now()) + make_interval(hours => 24)) WHERE id = ?', [
       conversationId,
     ]);
-    await execute('UPDATE contacts SET last_inbound_at = NOW(3) WHERE id = ?', [contactId]);
+    await execute('UPDATE contacts SET last_inbound_at = now() WHERE id = ?', [contactId]);
 
     return runWorkflowC({
       contactId,
@@ -752,7 +752,7 @@ describeWithDb('workflow idempotency (integration)', () => {
        VALUES (?, ?, ?, 'whatsapp', 'inbound', 'whatsapp_cloud', ?, 'Call me please', 'received')`,
       [messageId, ingested.conversationId, ingested.contactId, `wamid.${messageId}`],
     );
-    await execute('UPDATE conversations SET wa_window_expires_at = DATE_ADD(NOW(3), INTERVAL 24 HOUR) WHERE id = ?', [
+    await execute('UPDATE conversations SET wa_window_expires_at = ((now()) + make_interval(hours => 24)) WHERE id = ?', [
       ingested.conversationId,
     ]);
 

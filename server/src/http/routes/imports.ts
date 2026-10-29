@@ -399,7 +399,7 @@ importsRouter.post(
     const id = newId();
     await execute(
       `INSERT INTO import_mappings (id, name, mapping, created_by_user_id) VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE mapping = VALUES(mapping)`,
+       ON CONFLICT ON CONSTRAINT uq_import_mapping_name DO UPDATE SET mapping = EXCLUDED.mapping`,
       [id, body.name, JSON.stringify(body.mapping), currentUser(req).id],
     );
     res.status(201).json({ id });

@@ -18,7 +18,7 @@ async function createImport(path: string, status: string, agedHours: number): Pr
   const id = newId();
   await execute(
     `INSERT INTO imports (id, filename, file_path, file_kind, byte_size, status, created_at, finished_at)
-     VALUES (?, 'test.csv', ?, 'csv', 10, ?, DATE_SUB(NOW(3), INTERVAL ? HOUR), DATE_SUB(NOW(3), INTERVAL ? HOUR))`,
+     VALUES (?, 'test.csv', ?, 'csv', 10, ?, ((now()) - make_interval(hours => ?)), ((now()) - make_interval(hours => ?)))`,
     [id, path, status, agedHours, agedHours],
   );
   return id;

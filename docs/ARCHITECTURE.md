@@ -60,13 +60,13 @@ Four independent guards, because any one of them can be bypassed by a race:
    opportunity and Workflow C once per inbound message, so a retried job cannot
    send a lead a second welcome.
 
-### READ COMMITTED, not MySQL's default
-Under REPEATABLE READ a transaction keeps the snapshot from its first read. A
-webhook that lost the race to create a contact therefore could not see the
-winner's opportunity, and opened a second one for the same inquiry. Gap locking
-also deadlocked concurrent inserts against the same unique key. Nothing here
-depends on repeating a read inside a transaction: correctness comes from unique
-keys and `SELECT … FOR UPDATE`.
+### READ COMMITTED, stated rather than inherited
+It is Postgres's default, and it is written out in `withTransaction` anyway so
+the requirement is visible. Under a stricter level a transaction keeps the
+snapshot from its first read, so a webhook that lost the race to create a
+contact could not see the winner's opportunity and would open a second one for
+the same inquiry. Nothing here depends on repeating a read inside a
+transaction: correctness comes from unique keys and `SELECT … FOR UPDATE`.
 
 ### Locks are always taken in the same order
 Contact first, then conversation. Inserting a message takes a shared foreign-key
@@ -203,8 +203,8 @@ alone, in SQL, from the session.
 
 ## What is deliberately not here
 
-- **No message queue.** A MySQL table with `FOR UPDATE SKIP LOCKED` is enough at
-  this volume and removes an entire component from the deployment.
+- **No message queue.** A Postgres table with `FOR UPDATE SKIP LOCKED` is enough
+  at this volume and removes an entire component from the deployment.
 - **No WebSockets.** SSE survives shared-hosting proxies, and the client falls
   back to 4-second polling on its own.
 - **No ORM-generated schema.** Migrations are hand-written SQL so the indexes

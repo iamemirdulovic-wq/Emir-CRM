@@ -49,6 +49,12 @@ If SSH is switched off or absent, automatic deploy is off the table and we do it
 through the file manager instead. Slower, but it works.
 
 ### 3. MySQL
+
+> **Superseded.** The database has moved to PostgreSQL on Neon, so Hostinger's
+> MySQL version no longer gates anything. See `POSTGRES-PORT.md`. The rest of
+> this section is kept because the live MySQL is still there until the copy is
+> done.
+
 **Where:** hPanel → Databases → MySQL Databases.
 
 Tell me the **version** shown. We need **MySQL 8.0+** or **MariaDB 10.5+** — the

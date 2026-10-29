@@ -18,11 +18,11 @@ async function createPooledLead(name: string): Promise<{ contactId: string; oppo
     [contactId, name, `+9715${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`],
   );
   const stage = await query<{ id: string; pipeline_id: string }>(
-    "SELECT s.id, s.pipeline_id FROM pipeline_stages s WHERE s.`key` = 'new_lead' LIMIT 1",
+    `SELECT s.id, s.pipeline_id FROM pipeline_stages s WHERE s."key" = 'new_lead' LIMIT 1`,
   );
   await execute(
     `INSERT INTO opportunities (id, contact_id, pipeline_id, stage_id, stage_key, status, title, source, created_at, stage_changed_at)
-     VALUES (?, ?, ?, ?, 'new_lead', 'open', ?, 'csv_import', NOW(3), NOW(3))`,
+     VALUES (?, ?, ?, ?, 'new_lead', 'open', ?, 'csv_import', now(), now())`,
     [opportunityId, contactId, stage[0]?.pipeline_id, stage[0]?.id, name],
   );
   return { contactId, opportunityId };
@@ -127,7 +127,7 @@ describeWithDb('the shared lead pool', () => {
     await createPooledLead('Forgotten');
     await claimNextLead(actor(agent.id), agent.id);
 
-    await execute('UPDATE lead_pool_claims SET claimed_at = DATE_SUB(NOW(3), INTERVAL 10 DAY)');
+    await execute('UPDATE lead_pool_claims SET claimed_at = ((now()) - make_interval(days => 10))');
 
     expect(await recycleStaleClaims(3)).toBe(1);
     const owners = await query<{ owner_user_id: string | null }>('SELECT owner_user_id FROM opportunities');
@@ -139,9 +139,9 @@ describeWithDb('the shared lead pool', () => {
     await createPooledLead('Being Worked');
     const claimed = await claimNextLead(actor(agent.id), agent.id);
 
-    await execute('UPDATE lead_pool_claims SET claimed_at = DATE_SUB(NOW(3), INTERVAL 10 DAY)');
+    await execute('UPDATE lead_pool_claims SET claimed_at = ((now()) - make_interval(days => 10))');
     // First touch is the same standard the speed-to-lead SLA uses.
-    await execute('UPDATE opportunities SET first_touch_at = NOW(3) WHERE id = ?', [claimed?.opportunityId]);
+    await execute('UPDATE opportunities SET first_touch_at = now() WHERE id = ?', [claimed?.opportunityId]);
 
     expect(await recycleStaleClaims(3)).toBe(0);
     const owners = await query<{ owner_user_id: string | null }>('SELECT owner_user_id FROM opportunities');

@@ -77,7 +77,7 @@ export async function sweepTaskReminders(
      * is how people learn to ignore them.
      */
     const claim = await execute(
-      'UPDATE tasks SET reminder_sent_at = NOW(3) WHERE id = ? AND reminder_sent_at IS NULL',
+      'UPDATE tasks SET reminder_sent_at = now() WHERE id = ? AND reminder_sent_at IS NULL',
       [task.id],
       exec,
     );

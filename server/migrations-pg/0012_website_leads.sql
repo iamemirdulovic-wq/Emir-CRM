@@ -83,5 +83,3 @@ CREATE INDEX idx_website_lead_opportunity ON website_leads (opportunity_id);
 CREATE INDEX idx_website_lead_ref ON website_leads (public_ref);
 
 -- MySQL refreshes updated_at by itself; Postgres needs to be asked.
-CREATE TRIGGER website_leads_set_updated_at BEFORE UPDATE ON website_leads
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();

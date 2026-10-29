@@ -13,7 +13,7 @@ The four priorities, in order: **never lose or duplicate a lead**,
 ## Requirements
 
 - Node.js 20.11+ (22 recommended)
-- MySQL 8 — MariaDB 10.6+ also works
+- PostgreSQL 16+ — Neon, or one you run yourself
 
 ## Getting started
 
@@ -63,8 +63,10 @@ in either theme. It is served in development only and is not in the production
 build.
 
 The database-backed test suites skip themselves when no server is reachable, so
-`npm test` is green on a machine without MySQL. Point them at one with
-`TEST_DB_HOST`, `TEST_DB_USER` and `TEST_DB_PASSWORD`.
+`npm test` is green on a machine without Postgres. Point them at one with
+`TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` and `TEST_DB_PASSWORD`. They
+create and migrate their own database (`emir_crm_test` by default), so point
+them at a server you are happy for them to write to — never at production.
 
 ## Documentation
 
@@ -83,7 +85,7 @@ The database-backed test suites skip themselves when no server is reachable, so
 ## How it is put together
 
 ```
-server/   Express + TypeScript API, background worker, MySQL migrations
+server/   Express + TypeScript API, background worker, Postgres migrations
 web/      React + Vite PWA, served from the same origin as the API
 design/   The approved design file — the visual source of truth
 fixtures/ Real webhook payloads, replayed by the test suite
@@ -165,7 +167,7 @@ database layer around them is thin on purpose.
 ## Security notes
 
 - Email and password only. No public sign-up, no OTP, no third-party login.
-- Sessions live server-side in MySQL; the cookie carries a random token and the
+- Sessions live server-side in Postgres; the cookie carries a random token and the
   table stores only its SHA-256.
 - Passwords are argon2id, with a bcrypt(12) fallback where the native module
   cannot build. Five failures lock an account for 15 minutes; IPs are

@@ -117,7 +117,7 @@ export function createApp(): Express {
   /*
    * Rate limits on the unauthenticated surface. Login also has a per-account
    * lockout and a per-IP failure budget in the database; this is the cheap
-   * outer layer that sheds a flood before it reaches MySQL.
+   * outer layer that sheds a flood before it reaches the database.
    */
   app.use('/api/auth/login', rateLimit({ max: 20, windowMs: 5 * 60 * 1000, message: 'Too many sign-in attempts. Please wait a few minutes.' }));
   // Meta bursts hard on retry; generous, but bounded.

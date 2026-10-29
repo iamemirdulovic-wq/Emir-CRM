@@ -84,7 +84,7 @@ export async function monthSpend(exec: Executor = getPool()): Promise<MonthSpend
   const row = await queryOne<{ micros: string | null; calls: number }>(
     `SELECT COALESCE(SUM(cost_micros), 0) AS micros, COUNT(*) AS calls
        FROM ai_usage
-      WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')`,
+      WHERE created_at >= date_trunc('month', NOW())`,
     [],
     exec,
   );

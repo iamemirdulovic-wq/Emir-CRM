@@ -295,7 +295,7 @@ export async function summarizeContact(contactId: string): Promise<{ summary: st
   if (!parsed?.summary) return null;
 
   const summary = parsed.summary.split('\n').slice(0, 3).join('\n').slice(0, 1000);
-  await execute('UPDATE contacts SET ai_summary = ?, ai_summary_at = NOW(3) WHERE id = ?', [summary, contactId]);
+  await execute('UPDATE contacts SET ai_summary = ?, ai_summary_at = now() WHERE id = ?', [summary, contactId]);
 
   logger.debug('generated an AI summary', { contactId });
   return {

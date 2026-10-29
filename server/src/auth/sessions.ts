@@ -20,7 +20,7 @@ export type SessionUser = {
 export type CreatedSession = { token: string; expiresAt: Date };
 
 /**
- * Sessions live server-side in MySQL. The cookie carries a random token; the
+ * Sessions live server-side in the database. The cookie carries a random token; the
  * table stores only its SHA-256, so a database leak does not yield live
  * sessions.
  */
@@ -67,7 +67,7 @@ export async function resolveSession(
             u.id, u.name, u.email, u.role, u.is_active, u.must_change_password, u.manager_id, u.locale, u.availability
        FROM sessions s
        JOIN users u ON u.id = s.user_id
-      WHERE s.id = ? AND s.expires_at > NOW(3)`,
+      WHERE s.id = ? AND s.expires_at > now()`,
     [id],
     exec,
   );
@@ -75,7 +75,7 @@ export async function resolveSession(
   // again here so a race can never leave a disabled account signed in.
   if (!row || row.is_active !== 1) return null;
 
-  await execute('UPDATE sessions SET last_seen_at = NOW(3) WHERE id = ?', [id], exec);
+  await execute('UPDATE sessions SET last_seen_at = now() WHERE id = ?', [id], exec);
   return {
     sessionId: row.session_id,
     expiresAt: row.expires_at,
@@ -106,14 +106,14 @@ export async function destroyAllSessionsForUser(userId: string, exec: Executor =
 }
 
 export async function purgeExpiredSessions(exec: Executor = getPool()): Promise<number> {
-  const result = await execute('DELETE FROM sessions WHERE expires_at <= NOW(3)', [], exec);
+  const result = await execute('DELETE FROM sessions WHERE expires_at <= now()', [], exec);
   return result.affectedRows;
 }
 
 export async function listSessionsForUser(userId: string, exec: Executor = getPool()) {
   return query<{ id: string; ip: string | null; user_agent: string | null; created_at: Date; last_seen_at: Date; expires_at: Date }>(
     `SELECT id, ip, user_agent, created_at, last_seen_at, expires_at
-       FROM sessions WHERE user_id = ? AND expires_at > NOW(3) ORDER BY last_seen_at DESC`,
+       FROM sessions WHERE user_id = ? AND expires_at > now() ORDER BY last_seen_at DESC`,
     [userId],
     exec,
   );

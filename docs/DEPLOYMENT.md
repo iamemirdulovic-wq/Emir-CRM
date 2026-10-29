@@ -10,7 +10,7 @@ says what breaks if the answer is no.
 |---|---|---|
 | **Node.js 20.11+ long-running process** | The API is a persistent server, not PHP-style per-request execution | Blocking. Hostinger's Cloud plans support Node via the hPanel Node.js app manager or SSH + PM2; shared hosting generally does not |
 | **A second long-running process** (the worker) | Workflows, follow-ups and the Meta backfill run outside the request cycle | Run the worker on any small VPS against the same database; it needs no inbound ports |
-| **MySQL 8** (MariaDB 10.6+ works) | `FOR UPDATE SKIP LOCKED`, `DATETIME(3)`, JSON columns | Blocking below these versions |
+| **PostgreSQL 16+** | `FOR UPDATE SKIP LOCKED`, `ON CONFLICT`, `timestamptz(3)`, `jsonb` | Blocking below 14. Neon is the hosted option in use; a Postgres you run yourself works the same |
 | **Inbound HTTPS with a valid certificate** | Meta refuses to deliver webhooks to a self-signed or invalid certificate | Blocking |
 | **Outbound HTTPS** | Graph API, Conversions API, Google Ads, FCM | Blocking |
 | **Cron at 5-minute granularity or finer** | Only needed as a safety net — the worker schedules its own recurring jobs | Not blocking if the worker stays up |
@@ -260,9 +260,10 @@ git pull && npm ci && npm run migrate && npm run build
 pm2 restart emir-api emir-worker
 ```
 
-Migrations are forward-only and recorded in `schema_migrations`. DDL is not
-transactional in MySQL, so a failed migration leaves the file unrecorded and is
-fixed forward, not rolled back.
+Migrations are forward-only and recorded in `schema_migrations`. Each file runs
+inside a transaction, so one that fails halfway leaves nothing behind — the
+database is exactly as it was and the file stays unrecorded. Fix it forward and
+run again.
 
 ## Backups
 
@@ -272,8 +273,18 @@ holds the raw payload of every lead ever received, so a restore can replay
 history if it ever comes to that.
 
 ```bash
-mysqldump --single-transaction --routines emir_crm | gzip > emir-$(date +%F).sql.gz
+pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip > emir-$(date +%F).sql.gz
 ```
+
+On Neon this is belt and braces: Neon keeps its own continuous history and can
+restore the database to any moment inside the retention window of your plan. A
+dump you hold yourself is still worth having, because it survives losing the
+Neon account as well as losing the data.
+
+**A database dump alone does not restore this CRM.** The API keys and tokens in
+`app_secrets` are encrypted with the key in `KEY_FILE`, which is deliberately
+not in the database. Back that file up separately and somewhere else, or a
+restore comes back with every integration dead.
 
 ## Bulk import file storage
 
@@ -284,8 +295,8 @@ which is why local disk was chosen over an object store for files we delete
 within days.
 
 - `UPLOAD_DIR` — create it and make it writable by the app user. Exclude it from
-  backups if you like; the rows are already in MySQL by the time an import
-  finishes.
+  backups if you like; the rows are already in the database by the time an
+  import finishes.
 - `MAX_UPLOAD_MB` — default 64, which is roughly half a million rows of CSV.
   Raise it only with the reverse proxy's own body limit raised to match, or the
   upload is cut off before the app ever sees it.

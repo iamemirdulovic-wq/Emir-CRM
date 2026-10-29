@@ -4,8 +4,7 @@
  * The rules that decide who may be messaged are in guard.ts and are pure; this
  * is the part that talks to the database and to Meta.
  */
-import type { PoolConnection } from 'mysql2/promise';
-import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor, type SqlParam } from '../db/client.js';
+import { execute, getPool, query, queryOne, withRetryingTransaction, type Executor, type SqlParam, type Tx } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { badRequest } from '../lib/errors.js';
@@ -86,7 +85,7 @@ export async function buildMembers(
     await execute(
       `INSERT INTO campaign_members (id, campaign_id, contact_id, opportunity_id, assigned_user_id, sort_order)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order)`,
+       ON CONFLICT ON CONSTRAINT uq_campaign_member DO UPDATE SET sort_order = EXCLUDED.sort_order`,
       [newId(), campaignId, contactId, row?.opportunity_id ?? null, row?.owner_user_id ?? null, position++],
       exec,
     );
@@ -96,7 +95,7 @@ export async function buildMembers(
     await execute(
       `INSERT INTO campaign_members (id, campaign_id, contact_id, opportunity_id, status, skip_reason, sort_order)
        VALUES (?, ?, ?, ?, 'skipped', ?, ?)
-       ON DUPLICATE KEY UPDATE status = 'skipped', skip_reason = VALUES(skip_reason)`,
+       ON CONFLICT ON CONSTRAINT uq_campaign_member DO UPDATE SET status = 'skipped', skip_reason = EXCLUDED.skip_reason`,
       [newId(), campaignId, entry.contactId, row?.opportunity_id ?? null, entry.reason, position++],
       exec,
     );
@@ -166,7 +165,7 @@ export async function nextForAgent(
    */
   options: { includeOthers?: boolean } = {},
 ): Promise<DiallerCard | null> {
-  return withRetryingTransaction(async (tx: PoolConnection) => {
+  return withRetryingTransaction(async (tx: Tx) => {
     /*
      * Two plain LIMIT 1 queries, not one clever query.
      *
@@ -203,7 +202,7 @@ export async function nextForAgent(
 
     await execute(
       `UPDATE campaign_members
-          SET status = 'in_progress', assigned_user_id = ?, attempts = attempts + 1, last_attempt_at = NOW(3)
+          SET status = 'in_progress', assigned_user_id = ?, attempts = attempts + 1, last_attempt_at = now()
         WHERE id = ?`,
       [userId, member.id],
       tx,
@@ -296,14 +295,14 @@ export async function logOutcome(
   }
 
   await execute(
-    "UPDATE campaign_members SET status = 'done', outcome = ?, notes = ?, completed_at = NOW(3) WHERE id = ?",
+    "UPDATE campaign_members SET status = 'done', outcome = ?, notes = ?, completed_at = now() WHERE id = ?",
     [outcome, notes, memberId],
     exec,
   );
 
   await execute(
     `INSERT INTO activities (id, contact_id, opportunity_id, user_id, type, title, body, created_at)
-     VALUES (?, ?, ?, ?, 'call.logged', ?, ?, NOW(3))`,
+     VALUES (?, ?, ?, ?, 'call.logged', ?, ?, now())`,
     [
       newId(),
       member.contact_id,
@@ -337,7 +336,7 @@ export async function logOutcome(
   if (outcome === 'wrong_number') {
     await execute(
       `INSERT INTO activities (id, contact_id, type, title, created_at)
-       VALUES (?, ?, 'contact.flagged', 'Wrong number reported on a campaign call', NOW(3))`,
+       VALUES (?, ?, 'contact.flagged', 'Wrong number reported on a campaign call', now())`,
       [newId(), member.contact_id],
       exec,
     );
@@ -374,7 +373,7 @@ export async function releaseMember(
     params.push(scope.campaignId);
   }
   if (scope.canWorkOthers === false) {
-    where.push('assigned_user_id <=> ?');
+    where.push('assigned_user_id IS NOT DISTINCT FROM ?');
     params.push(scope.userId ?? null);
   }
   await execute(`UPDATE campaign_members SET status = 'pending' WHERE ${where.join(' AND ')}`, params, exec);
@@ -501,19 +500,19 @@ export async function sendBatch(campaignId: string, exec: Executor = getPool()):
     });
 
     if (outcome.sent) {
-      await execute("UPDATE campaign_members SET status = 'sent', last_attempt_at = NOW(3), attempts = attempts + 1 WHERE id = ?", [member.id], exec);
+      await execute("UPDATE campaign_members SET status = 'sent', last_attempt_at = now(), attempts = attempts + 1 WHERE id = ?", [member.id], exec);
       sent += 1;
     } else if ('blocked' in outcome) {
       // A guard refused it — quiet hours, the daily cap, consent withdrawn
       // since the campaign was built. Recorded, not counted as a failure,
       // because nothing went wrong with the number.
       await execute(
-        "UPDATE campaign_members SET status = 'skipped', skip_reason = ?, last_attempt_at = NOW(3) WHERE id = ?",
+        "UPDATE campaign_members SET status = 'skipped', skip_reason = ?, last_attempt_at = now() WHERE id = ?",
         [outcome.blocked.message.slice(0, 150), member.id],
         exec,
       );
     } else {
-      await execute("UPDATE campaign_members SET status = 'failed', last_attempt_at = NOW(3), attempts = attempts + 1 WHERE id = ?", [member.id], exec);
+      await execute("UPDATE campaign_members SET status = 'failed', last_attempt_at = now(), attempts = attempts + 1 WHERE id = ?", [member.id], exec);
       failed += 1;
     }
   }
@@ -533,7 +532,7 @@ export async function sendBatch(campaignId: string, exec: Executor = getPool()):
       { runAt: new Date(Date.now() + 60_000), dedupeKey: `campaign-batch:${campaignId}:${Date.now()}` },
     );
   } else {
-    await execute("UPDATE campaigns SET status = 'completed', finished_at = NOW(3) WHERE id = ?", [campaignId], exec);
+    await execute("UPDATE campaigns SET status = 'completed', finished_at = now() WHERE id = ?", [campaignId], exec);
   }
 
   return { sent, failed, remaining: left, paused: false };

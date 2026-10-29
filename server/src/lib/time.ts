@@ -66,8 +66,12 @@ export function days(n: number): number {
   return n * 24 * 60 * 60 * 1000;
 }
 
-/** MySQL DATETIME(3) literal in UTC. */
-export function toMysqlDateTime(date: Date): string {
+/**
+ * A timestamp as a SQL literal in UTC, for the rare query that interpolates
+ * one rather than binding it. Postgres reads this form as a timestamp without
+ * guessing: "2026-10-29 12:34:56".
+ */
+export function toSqlDateTime(date: Date): string {
   return date.toISOString().slice(0, 19).replace('T', ' ');
 }
 

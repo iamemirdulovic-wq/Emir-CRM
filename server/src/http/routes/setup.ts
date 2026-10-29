@@ -30,6 +30,13 @@ import { logger } from '../../lib/logger.js';
  * site as soon as it deploys; a CRM left un-set-up on a public address for a
  * week is one someone else can claim.
  */
+/*
+ * The key for the first-run advisory lock. Postgres advisory locks are
+ * numbered, not named, so the number is written down here with the name it
+ * stands for. Nothing else in this codebase takes an advisory lock.
+ */
+const SETUP_LOCK_KEY = 8_164_201; // "emir_crm_setup"
+
 export const setupRouter = Router();
 
 // Generous enough for a mistyped password, mean enough that the window is not
@@ -89,29 +96,32 @@ setupRouter.post(
     await withTransaction(async (tx) => {
       /*
        * Two people opening the page at once must not both become the owner.
-       * A named lock rather than a row lock, because there is no row to lock:
-       * the check is "the table is empty", and an empty table has nothing to
-       * take a lock on.
+       * An advisory lock rather than a row lock, because there is no row to
+       * lock: the check is "the table is empty", and an empty table has
+       * nothing to take a lock on. The _xact_ form is released when this
+       * transaction ends, however it ends, so a crash here cannot leave the
+       * lock held and the setup page wedged for everyone.
        */
-      const lock = await queryOne<{ got: number }>("SELECT GET_LOCK('emir_crm_setup', 10) AS got", [], tx);
-      if (Number(lock?.got ?? 0) !== 1) {
+      const lock = await queryOne<{ got: boolean }>(
+        `SELECT pg_try_advisory_xact_lock(${SETUP_LOCK_KEY}) AS got`,
+        [],
+        tx,
+      );
+      if (lock?.got !== true) {
         throw conflict('Another setup is in progress. Please try again in a moment.');
       }
-      try {
-        if (await ownerExists(tx)) {
-          throw conflict('This CRM has already been set up. Sign in instead.');
-        }
 
-        await execute(
-          `INSERT INTO users (id, name, email, role, password_hash, password_algo, must_change_password, is_active,
-                              routing_weight, locale)
-           VALUES (?, ?, ?, 'owner', ?, ?, 0, 1, 10, 'en')`,
-          [id, body.name, email, hash, algo],
-          tx,
-        );
-      } finally {
-        await queryOne("SELECT RELEASE_LOCK('emir_crm_setup')", [], tx);
+      if (await ownerExists(tx)) {
+        throw conflict('This CRM has already been set up. Sign in instead.');
       }
+
+      await execute(
+        `INSERT INTO users (id, name, email, role, password_hash, password_algo, must_change_password, is_active,
+                            routing_weight, locale)
+         VALUES (?, ?, ?, 'owner', ?, ?, 0, 1, 10, 'en')`,
+        [id, body.name, email, hash, algo],
+        tx,
+      );
     });
 
     // must_change_password is 0 above: they chose this password themselves a

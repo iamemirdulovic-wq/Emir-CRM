@@ -103,8 +103,8 @@ async function ensureProjects(): Promise<void> {
       `INSERT INTO projects (id, slug, name, developer, emirate, area, starting_price_aed, payment_plan,
                              handover_date, golden_visa_eligible, brochure_url, location_lat, location_lng,
                              location_label, is_active, verified_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(3))
-       ON DUPLICATE KEY UPDATE verified_at = NOW(3)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, now())
+       ON CONFLICT ON CONSTRAINT uq_project_slug DO UPDATE SET verified_at = now()`,
       [
         newId(),
         project.slug,

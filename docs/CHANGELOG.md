@@ -2,6 +2,95 @@
 
 All notable changes to the Emir CRM, newest first. One entry per build phase.
 
+## The CRM runs on PostgreSQL
+
+You asked for Neon, so the database had to change from MySQL to PostgreSQL —
+which is a port, not a setting. The code side is finished and tested. The two
+steps that need your server (copying the live data, and the switch) are written
+up as a runbook in `docs/POSTGRES-PORT.md`.
+
+**What was built**
+- `server/src/db/client.ts` — the one file every query in the system goes
+  through, now speaking Postgres. `?` becomes `$1` in `db/sql-dialect.ts`, a
+  small parser with 11 tests of its own, rather than in 939 hand edits.
+- `server/src/db/migrate.ts` — applies `migrations-pg/`, each file inside a
+  transaction. MySQL could not do that: a migration that failed halfway left
+  half a table behind.
+- The dialect itself: 26 upserts, 13 `INSERT IGNORE`s, 116 `NOW(3)`s, 46
+  intervals, `DATE_FORMAT`, `TIMESTAMPDIFF`, `DAYOFWEEK`, `GET_LOCK`, `<=>`,
+  `JSON_EXTRACT`, a multi-table `DELETE`, and the backtick-quoted `key` column.
+- The test harness runs against a real Postgres, with **a database per test
+  worker**.
+
+**Things this caught that would have reached you as bugs**
+
+*The schema could not be applied at all.* 32 triggers called a function the
+migrations never created. The ordering test had been creating it by hand, which
+hid it. A test now checks every trigger has a column to write to — because the
+second instance of this, on `website_leads`, did not announce itself as a
+schema fault: every update to a website lead simply failed, and the test said
+"the lead never landed".
+
+*Search would have stopped finding people.* MySQL's collation makes `LIKE`
+case-insensitive, so an agent typing "ahmed" found "Ahmed Khan". Postgres is
+case-sensitive. Nothing would have crashed — the box would just have come back
+empty. 29 searches are now `ILIKE`.
+
+*Two KPI cards would have been quietly meaningless.* "Best converting" and
+"Trending now" rank by one count divided by another. Integer division truncates
+in Postgres, so every project would have scored 0.
+
+*A lead could have been lost rather than merged.* In MySQL a transaction
+carried on after a failed statement, so identity resolution could try an
+insert, catch the duplicate and take the other path. In Postgres the first
+error aborts the whole transaction. That is the exact path nineteen of twenty
+simultaneous copies of one lead take. Those inserts now use
+`ON CONFLICT DO NOTHING`, which raises nothing at all.
+
+*A phone number could have been logged in clear.* The log redactor knew
+MySQL's wording for a duplicate-key error. Postgres writes
+`Key (wa_id)=(971501234567)`, and a `wa_id` has no `+` to recognise it by.
+
+**Decisions worth stating**
+
+*The conflict target is named, not guessed.* Every upsert says
+`ON CONFLICT ON CONSTRAINT uq_…`, read out of the schema rather than inferred.
+If a constraint is ever renamed the upsert breaks loudly, instead of quietly
+conflicting on the wrong key — which on a contacts table means merging two
+different people.
+
+*One database per test worker.* Sharing one was the first thing Postgres
+objected to: a worker's reset truncates every table, which deadlocks against
+another worker's inserts. The silent version of that bug is worse — one test
+file emptying another's rows.
+
+*`make_interval(days => ?)` rather than `INTERVAL '? days'`.* Postgres cannot
+bind a parameter inside an interval literal, and the quotes a literal needs
+collided with the quotes of the TypeScript strings the SQL lives in.
+
+*The MySQL migrations are kept, not deleted.* They are the record of what the
+live database looks like until the copy is done.
+
+**Where it stands**
+- 957 server tests and 102 web tests, all green against a real PostgreSQL 16 —
+  including the duplicate-storm tests that fire twenty identical leads at once
+  and insist on exactly one contact. Before this, 268 of those tests had never
+  run on this machine at all.
+- No TypeScript errors. The schema applies cleanly: 68 tables, 781 columns, 236
+  indexes — the same counts as the live MySQL.
+
+**What I need from you**
+1. A Neon project, and the pooled connection string.
+2. Then follow the runbook in `docs/POSTGRES-PORT.md` — about twenty minutes,
+   with the CRM down for five of them. Do the trial copy onto a Neon branch
+   first; real data usually has a surprise in it.
+3. Back up `KEY_FILE` somewhere separate. A database restore without it comes
+   back with every integration dead.
+4. Decide about Neon's scale-to-zero: a lead at 3am would wait for the database
+   to wake, which eats into the 30-second reply.
+
+Is this right, or do you want changes?
+
 ## Lead notifications actually reach a phone
 
 **They never had.** The server half was built in Phase 5 and has been sending

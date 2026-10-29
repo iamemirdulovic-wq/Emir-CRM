@@ -30,11 +30,11 @@ async function createContact(
   }
 
   const stage = await query<{ id: string; pipeline_id: string }>(
-    "SELECT s.id, s.pipeline_id FROM pipeline_stages s WHERE s.`key` = 'new_lead' LIMIT 1",
+    `SELECT s.id, s.pipeline_id FROM pipeline_stages s WHERE s."key" = 'new_lead' LIMIT 1`,
   );
   await execute(
     `INSERT INTO opportunities (id, contact_id, pipeline_id, stage_id, stage_key, status, title, source, created_at, stage_changed_at)
-     VALUES (?, ?, ?, ?, 'new_lead', 'open', ?, 'csv_import', NOW(3), NOW(3))`,
+     VALUES (?, ?, ?, ?, 'new_lead', 'open', ?, 'csv_import', now(), now())`,
     [opportunityId, contactId, stage[0]?.pipeline_id, stage[0]?.id, name],
   );
   return { contactId, opportunityId };

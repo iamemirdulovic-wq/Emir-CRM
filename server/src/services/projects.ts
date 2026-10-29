@@ -52,7 +52,7 @@ export async function findVerifiedProject(name: string | null | undefined): Prom
   // is exactly what the hard rule forbids.
   return queryOne<VerifiedProject>(
     `SELECT ${VERIFIED_COLUMNS} FROM projects
-      WHERE is_active = 1 AND verified_at IS NOT NULL AND ? LIKE CONCAT(name, '%')
+      WHERE is_active = 1 AND verified_at IS NOT NULL AND ? ILIKE CONCAT(name, '%')
       ORDER BY CHAR_LENGTH(name) DESC
       LIMIT 1`,
     [needle],

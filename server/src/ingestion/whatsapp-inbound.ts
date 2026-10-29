@@ -1,4 +1,4 @@
-import { execute, isDuplicateKeyError, queryOne, withRetryingTransaction } from '../db/client.js';
+import { execute, queryOne, withRetryingTransaction } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { WA_WINDOW_MS } from '../config/constants.js';
@@ -59,33 +59,38 @@ export async function handleInboundMessage(message: ParsedInboundMessage): Promi
 
     const messageId = newId();
 
-    try {
-      await execute(
-        `INSERT INTO messages
+    /*
+     * Meta redelivers a message until it is acknowledged, so a repeat is
+     * routine. DO NOTHING keeps the transaction alive where a caught
+     * unique-violation would abort it.
+     */
+    const written = await execute(
+      `INSERT INTO messages
            (id, conversation_id, contact_id, channel, direction, provider, provider_message_id,
             body, media, payload, status, sent_at)
-         VALUES (?, ?, ?, 'whatsapp', 'inbound', 'whatsapp_cloud', ?, ?, ?, ?, 'received', ?)`,
-        [
-          messageId,
-          conversationId,
-          ingested.contactId,
-          message.providerMessageId,
-          message.text,
-          message.media ? JSON.stringify(message.media) : null,
-          JSON.stringify({
-            type: message.type,
-            buttonPayload: message.buttonPayload,
-            buttonText: message.buttonText,
-            location: message.location,
-            referral: message.referral,
-            contextMessageId: message.contextMessageId,
-          }),
-          message.sentAt,
-        ],
-        tx,
-      );
-    } catch (err) {
-      if (!isDuplicateKeyError(err)) throw err;
+         VALUES (?, ?, ?, 'whatsapp', 'inbound', 'whatsapp_cloud', ?, ?, ?, ?, 'received', ?)
+         ON CONFLICT ON CONSTRAINT uq_message_provider DO NOTHING`,
+      [
+        messageId,
+        conversationId,
+        ingested.contactId,
+        message.providerMessageId,
+        message.text,
+        message.media ? JSON.stringify(message.media) : null,
+        JSON.stringify({
+          type: message.type,
+          buttonPayload: message.buttonPayload,
+          buttonText: message.buttonText,
+          location: message.location,
+          referral: message.referral,
+          contextMessageId: message.contextMessageId,
+        }),
+        message.sentAt,
+      ],
+      tx,
+    );
+
+    if (written.affectedRows === 0) {
       const existing = await queryOne<{ id: string }>(
         'SELECT id FROM messages WHERE provider = ? AND provider_message_id = ?',
         ['whatsapp_cloud', message.providerMessageId],

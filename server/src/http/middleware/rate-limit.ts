@@ -7,7 +7,7 @@ import { clientIp } from './auth.js';
  * In-memory fixed-window rate limiting.
  *
  * Deliberately not backed by the database: the point is to shed load cheaply
- * before it reaches MySQL. With several API processes each keeps its own
+ * before it reaches the database. With several API processes each keeps its own
  * counters, so the effective limit is per process — which is fine, because this
  * is a blunt safety net against a runaway loop or a scraper, not a billing
  * control. The real idempotency guarantees live in the unique keys.

@@ -269,14 +269,14 @@ async function closeUnresponsive(contactId: string, opportunityId: string): Prom
   });
 
   await withRetryingTransaction(async (tx) => {
-    await execute('INSERT IGNORE INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?)', [
+    await execute('INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', [
       newId(),
       'ops',
       'nurture',
       'Long-term nurture',
     ], tx);
     const tag = await queryOne<{ id: string }>('SELECT id FROM tags WHERE namespace = ? AND value = ?', ['ops', 'nurture'], tx);
-    if (tag) await execute('INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)', [contactId, tag.id], tx);
+    if (tag) await execute('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [contactId, tag.id], tx);
 
     await addActivity(tx, {
       contactId,
@@ -361,7 +361,7 @@ async function createCallTask(
   if (!assignedUserId) return;
   await execute(
     `INSERT INTO tasks (id, contact_id, opportunity_id, assigned_user_id, type, title, priority, due_at)
-     VALUES (?, ?, ?, ?, 'call', ?, ?, NOW(3))`,
+     VALUES (?, ?, ?, ?, 'call', ?, ?, now())`,
     [newId(), contactId, opportunityId, assignedUserId, title, priority],
   );
 }

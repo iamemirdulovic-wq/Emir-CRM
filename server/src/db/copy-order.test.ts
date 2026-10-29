@@ -79,6 +79,34 @@ describe('copying the live data in a safe order', () => {
   });
 
   /*
+   * Every `set_updated_at` trigger needs an `updated_at` column to write to.
+   * One table was given the trigger without the column, and the failure is
+   * not a missing value — it is every UPDATE on that table raising, which
+   * read as "the lead never landed" rather than as a schema fault. Checked
+   * here because this suite already has the real schema loaded.
+   */
+  it('gives every updated_at trigger a column to write to, and vice versa', async () => {
+    const { rows: orphanTriggers } = await db.query(
+      `SELECT c.relname AS table_name
+         FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+        WHERE NOT t.tgisinternal
+          AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                           WHERE table_schema = 'public' AND table_name = c.relname
+                             AND column_name = 'updated_at')`,
+    );
+    expect(orphanTriggers).toEqual([]);
+
+    const { rows: orphanColumns } = await db.query(
+      `SELECT col.table_name
+         FROM information_schema.columns col
+        WHERE col.table_schema = 'public' AND col.column_name = 'updated_at'
+          AND NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+                           WHERE NOT t.tgisinternal AND c.relname = col.table_name)`,
+    );
+    expect(orphanColumns).toEqual([]);
+  });
+
+  /*
    * login_attempts has the schema's only auto-numbered id. Copying explicit
    * values into it needs OVERRIDING SYSTEM VALUE, and the sequence has to be
    * moved past them afterwards or the next sign-in collides.

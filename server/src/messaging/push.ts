@@ -106,7 +106,7 @@ export async function pushToUser(userId: string, message: PushMessage): Promise<
 
       if (response.ok) {
         delivered += 1;
-        await execute('UPDATE push_tokens SET last_used_at = NOW(3) WHERE id = ?', [row.id]);
+        await execute('UPDATE push_tokens SET last_used_at = now() WHERE id = ?', [row.id]);
         continue;
       }
       const json = (await response.json()) as { error?: { status?: string } };

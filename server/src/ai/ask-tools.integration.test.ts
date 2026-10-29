@@ -20,7 +20,7 @@ describeWithDb('what Emir AI is allowed to look at', () => {
   /** The seeded first stage, with the pipeline it belongs to. */
   async function firstStage(): Promise<{ id: string; pipeline_id: string; key: string }> {
     const row = await queryOne<{ id: string; pipeline_id: string; key: string }>(
-      'SELECT id, pipeline_id, `key` FROM pipeline_stages ORDER BY position LIMIT 1', [],
+      'SELECT id, pipeline_id, "key" FROM pipeline_stages ORDER BY position LIMIT 1', [],
     );
     if (!row) throw new Error('no seeded pipeline stages');
     return row;

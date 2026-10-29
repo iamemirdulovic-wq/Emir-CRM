@@ -44,12 +44,12 @@ export async function syncTemplates(): Promise<SyncResult> {
     await execute(
       `INSERT INTO wa_templates (id, name, language, category, status, provider_template_id, components,
                                  quality_score, rejected_reason, last_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
-       ON DUPLICATE KEY UPDATE
-         category = VALUES(category), status = VALUES(status),
-         provider_template_id = VALUES(provider_template_id), components = VALUES(components),
-         quality_score = VALUES(quality_score), rejected_reason = VALUES(rejected_reason),
-         last_synced_at = NOW(3)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+       ON CONFLICT ON CONSTRAINT uq_template_name_lang DO UPDATE SET
+         category = EXCLUDED.category, status = EXCLUDED.status,
+         provider_template_id = EXCLUDED.provider_template_id, components = EXCLUDED.components,
+         quality_score = EXCLUDED.quality_score, rejected_reason = EXCLUDED.rejected_reason,
+         last_synced_at = now()`,
       [
         newId(),
         template.name,
@@ -128,7 +128,7 @@ export async function seedLocalTemplates(): Promise<{ inserted: number; invalid:
     await execute(
       `INSERT INTO wa_templates (id, name, language, category, status, components)
        VALUES (?, ?, ?, ?, 'DRAFT', ?)
-       ON DUPLICATE KEY UPDATE components = VALUES(components)`,
+       ON CONFLICT ON CONSTRAINT uq_template_name_lang DO UPDATE SET components = EXCLUDED.components`,
       [newId(), template.name, template.language, template.category, JSON.stringify(template.components)],
     );
     inserted += 1;

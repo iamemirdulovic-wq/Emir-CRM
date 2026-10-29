@@ -1,5 +1,4 @@
-import type { PoolConnection } from 'mysql2/promise';
-import { execute, queryOne, withRetryingTransaction, type Executor } from '../db/client.js';
+import { execute, queryOne, withRetryingTransaction, type Executor, type Tx } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { writeAudit, SYSTEM_ACTOR } from '../audit/audit.js';
@@ -189,7 +188,7 @@ export async function ingestLead(lead: LeadDTO, opts: IngestOptions = {}): Promi
 }
 
 async function createOpportunity(
-  tx: PoolConnection,
+  tx: Tx,
   contactId: string,
   ownerUserId: string | null,
   lead: LeadDTO,
@@ -199,7 +198,7 @@ async function createOpportunity(
     `SELECT s.id, s.pipeline_id
        FROM pipeline_stages s
        JOIN pipelines p ON p.id = s.pipeline_id
-      WHERE p.\`key\` = ? AND s.\`key\` = 'new_lead'`,
+      WHERE p."key" = ? AND s."key" = 'new_lead'`,
     [DEFAULT_PIPELINE_KEY],
     tx,
   );
@@ -280,7 +279,7 @@ async function createOpportunity(
 }
 
 /** A re-inquiry may carry details the original card was missing. Fill only gaps. */
-async function enrichOpportunity(tx: PoolConnection, opportunityId: string, lead: LeadDTO): Promise<void> {
+async function enrichOpportunity(tx: Tx, opportunityId: string, lead: LeadDTO): Promise<void> {
   const fields: Array<[string, unknown]> = [
     ['project_name', lead.realEstate.projectName],
     ['developer', lead.realEstate.developer],
@@ -313,7 +312,7 @@ async function enrichOpportunity(tx: PoolConnection, opportunityId: string, lead
 }
 
 export async function ensureConversation(
-  tx: PoolConnection,
+  tx: Tx,
   contactId: string,
   assignedUserId: string | null,
 ): Promise<string> {
@@ -332,7 +331,7 @@ export async function ensureConversation(
   }
 }
 
-async function recordConsents(tx: PoolConnection, contactId: string, lead: LeadDTO): Promise<void> {
+async function recordConsents(tx: Tx, contactId: string, lead: LeadDTO): Promise<void> {
   const channels: Array<['whatsapp' | 'email' | 'sms', boolean]> = [
     ['whatsapp', lead.consent.whatsapp],
     ['email', lead.consent.email],
@@ -349,7 +348,7 @@ async function recordConsents(tx: PoolConnection, contactId: string, lead: LeadD
   }
 }
 
-async function applyTags(tx: PoolConnection, contactId: string, lead: LeadDTO): Promise<void> {
+async function applyTags(tx: Tx, contactId: string, lead: LeadDTO): Promise<void> {
   await tagContact(tx, contactId, 'src', lead.source);
   if (lead.person.language) await tagContact(tx, contactId, 'lang', lead.person.language);
   if (lead.realEstate.projectName) {
@@ -367,10 +366,10 @@ export async function tagContact(
   const cleanValue = slug(value);
   if (!cleanValue) return;
 
-  await execute('INSERT IGNORE INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?)', [newId(), namespace, cleanValue, value], tx);
+  await execute('INSERT INTO tags (id, namespace, value, label) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', [newId(), namespace, cleanValue, value], tx);
   const tag = await queryOne<{ id: string }>('SELECT id FROM tags WHERE namespace = ? AND value = ?', [namespace, cleanValue], tx);
   if (!tag) return;
-  await execute('INSERT IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)', [contactId, tag.id], tx);
+  await execute('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [contactId, tag.id], tx);
 }
 
 function slug(value: string): string {
@@ -383,7 +382,7 @@ function slug(value: string): string {
 }
 
 export async function addActivity(
-  tx: PoolConnection,
+  tx: Tx,
   input: {
     contactId: string | null;
     opportunityId?: string | null;

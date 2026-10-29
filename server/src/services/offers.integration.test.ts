@@ -167,7 +167,7 @@ describeWithDb('the sales offers library', () => {
     const recent = await createOffer(actorFor(sara), { title: 'Yesterday' });
     await trashOffer(actorFor(sara), old.id);
     await trashOffer(actorFor(sara), recent.id);
-    await run('UPDATE offers SET deleted_at = DATE_SUB(NOW(), INTERVAL 31 DAY) WHERE id = ?', [old.id]);
+    await run('UPDATE offers SET deleted_at = ((NOW()) - make_interval(days => 31)) WHERE id = ?', [old.id]);
 
     expect(await purgeStaleTrash()).toBe(1);
 
@@ -230,13 +230,13 @@ describeWithDb('the sales offers library', () => {
 
     expect((await mine()).state).toBe('draft');
 
-    await run("UPDATE offers SET status = 'sent', sent_at = NOW(3) WHERE id = ?", [offer.id]);
+    await run("UPDATE offers SET status = 'sent', sent_at = now() WHERE id = ?", [offer.id]);
     expect((await mine()).state).toBe('sent');
 
     // Opened ten minutes ago: read, but nobody is on it now.
     await run(
       `INSERT INTO offer_views (id, offer_id, opened_at, last_seen_at, duration_secs)
-       VALUES (?, ?, DATE_SUB(NOW(3), INTERVAL 10 MINUTE), DATE_SUB(NOW(3), INTERVAL 10 MINUTE), 252)`,
+       VALUES (?, ?, ((now()) - make_interval(mins => 10)), ((now()) - make_interval(mins => 10)), 252)`,
       [newId(), offer.id],
     );
     const opened = await mine();

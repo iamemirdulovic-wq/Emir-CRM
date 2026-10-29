@@ -250,7 +250,7 @@ export async function mergeContacts(input: {
     }
     // A DNC on either record applies to the merged person.
     if (loser.dnc === 1) {
-      await execute('UPDATE contacts SET dnc = 1, dnc_reason = COALESCE(dnc_reason, ?), dnc_at = COALESCE(dnc_at, NOW(3)) WHERE id = ?', [
+      await execute('UPDATE contacts SET dnc = 1, dnc_reason = COALESCE(dnc_reason, ?), dnc_at = COALESCE(dnc_at, now()) WHERE id = ?', [
         (loser.dnc_reason as string) ?? 'merged from duplicate',
         input.winnerId,
       ], tx);
@@ -305,7 +305,7 @@ export async function setDnc(input: {
     );
     if (!contact) throw notFound('Contact not found');
 
-    await execute('UPDATE contacts SET dnc = 1, dnc_reason = ?, dnc_at = NOW(3) WHERE id = ?', [
+    await execute('UPDATE contacts SET dnc = 1, dnc_reason = ?, dnc_at = now() WHERE id = ?', [
       input.reason.slice(0, 160),
       input.contactId,
     ], tx);
@@ -320,7 +320,8 @@ export async function setDnc(input: {
     for (const [kind, value] of identifiers) {
       if (!value) continue;
       await execute(
-        'INSERT IGNORE INTO suppressions (id, kind, value, reason, created_by_user_id) VALUES (?, ?, ?, ?, ?)',
+        `INSERT INTO suppressions (id, kind, value, reason, created_by_user_id) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT DO NOTHING`,
         [newId(), kind, value, input.reason.slice(0, 160), input.actor.userId],
         tx,
       );

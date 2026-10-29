@@ -25,7 +25,7 @@ const envSchema = z.object({
   // --- Database -----------------------------------------------------------
   DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().default('127.0.0.1'),
-  DB_PORT: z.coerce.number().int().positive().default(3306),
+  DB_PORT: z.coerce.number().int().positive().default(5432),
   DB_USER: z.string().default('root'),
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('emir_crm'),

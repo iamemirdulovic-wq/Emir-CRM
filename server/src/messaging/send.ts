@@ -78,7 +78,7 @@ export async function loadGuardContext(contactId: string, channel: Channel, now 
     `SELECT COUNT(*) AS n FROM messages
       WHERE contact_id = ? AND direction = 'outbound' AND is_automated = 1
         AND status <> 'failed'
-        AND created_at > DATE_SUB(NOW(3), INTERVAL 24 HOUR)`,
+        AND created_at > ((now()) - make_interval(hours => 24))`,
     [contactId],
   );
 

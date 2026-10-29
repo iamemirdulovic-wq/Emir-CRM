@@ -156,8 +156,8 @@ templatesRouter.post(
     await execute(
       `INSERT INTO form_field_map (id, source, form_id, external_field, crm_field, transform, value_map, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE crm_field = VALUES(crm_field), transform = VALUES(transform),
-                               value_map = VALUES(value_map), notes = VALUES(notes)`,
+       ON CONFLICT ON CONSTRAINT uq_form_field DO UPDATE SET crm_field = EXCLUDED.crm_field, transform = EXCLUDED.transform,
+                               value_map = EXCLUDED.value_map, notes = EXCLUDED.notes`,
       [
         id,
         body.source,
