@@ -75,6 +75,18 @@ export function ContactDetail() {
     }
   }
 
+  /*
+   * Above the early returns, and it has to stay there. A hook called after
+   * `return <Spinner/>` runs on the second render but not the first, which
+   * changes the hook count and makes React throw the whole page away the
+   * moment the data arrives.
+   *
+   * Reloads the whole 360 view: an action changes the stage, the timeline,
+   * the next step and the tasks at once, and a partial refresh would leave
+   * one of them stale on screen.
+   */
+  const actions = useLeadActions(detail.data?.opportunities[0]?.id ?? '', detail.reload);
+
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
   if (!detail.data) return <Spinner />;
 
@@ -83,10 +95,6 @@ export function ContactDetail() {
   const style = stageStyle(opportunity?.stage_key);
   const source = sourceStyle((contact.first_source as string) ?? null);
   const openTasks = tasks.filter((task) => !task.completed_at);
-  /* Reloads the whole 360 view: an action changes the stage, the timeline,
-     the next step and the tasks at once, and a partial refresh would leave
-     one of them stale on screen. */
-  const actions = useLeadActions(opportunity?.id ?? '', detail.reload);
 
   return (
     <>
