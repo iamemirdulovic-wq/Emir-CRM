@@ -2,6 +2,72 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Incoming, and a lead that comes back if nobody works it
+
+From your masterplan, with one deliberate change.
+
+**What the plan asked for:** every lead lands with the owner, who hands it out.
+
+**What I built instead:** a lead is still assigned the instant it arrives and
+the client still gets a WhatsApp inside thirty seconds — at 2am, on a Friday,
+whether or not anyone is awake. On top of that sits the accountability you
+were actually after: the agent has five minutes to accept it, then five more
+to do something, and if they do neither it comes back to you.
+
+Routing every lead through a person first would have meant one arriving at 2am
+waits until morning. There is a switch in Settings to have it exactly as the
+plan describes, if you decide I am wrong.
+
+**What was built**
+- **Incoming** — a new screen, first in the sidebar, with a live count. The
+  leads nobody is working: nobody was on shift, nobody spoke the language, an
+  agent let the clock run out, or a batch was imported to place by hand.
+  Tick several and send them to one agent; each agent's open-lead count is on
+  the button, so nobody gets buried without it being visible.
+- **Accept** — the agent says a lead is theirs, which starts a second clock
+  for actually doing something. Accepting and then sitting on it is the
+  behaviour this exists to catch.
+- **Bounce** — the clock runs out and the lead returns to Incoming tagged with
+  who let it go, you get a push, and it counts against them. The contact's
+  sticky owner comes back too, or the next lead from that person would land
+  straight back on the same desk.
+- **`lead_assignments`** — every hand-over, with how long the agent took.
+  `opportunities` only ever holds the current owner, so without this the
+  history vanishes the moment a lead moves. The agent speed figures the owners
+  want all come from here.
+- **Lead routing settings** (owner only): how long the clock runs, when to
+  nudge, whether to assign automatically, whether a bounce comes to you.
+
+**Decisions worth stating**
+
+*Doing the work counts even without pressing Accept.* An agent who saw the
+push, rang the client and booked a viewing has not failed anything by skipping
+a button.
+
+*Two clocks, two separate timers.* Accepting at minute one leaves the full
+window to act. A single timer would have bounced someone who was well inside
+their time.
+
+*The bounce decision is a pure function with its own tests.* Getting it wrong
+is silent and expensive in both directions — bounce too eagerly and you pull a
+lead off an agent mid-call; too late and it goes cold while looking handled.
+Neither shows up as an error.
+
+**What is not done yet**
+
+The rest of Phase 1: the Add Lead popup, My Leads replacing Contacts, the
+notes panel, and the full-screen countdown card. This is the piece that pays
+first.
+
+**Where it stands**
+
+692 server tests and 102 web tests pass; the build is clean; the screen is
+checked on desktop and phone, light and dark, with no console errors. The 268
+database tests still skip on a machine without MySQL — the bounce decision is
+unit-tested here, the database path around it runs on yours.
+
+Is this right, or do you want changes?
+
 ## Back on MySQL — the Neon move is shelved, not lost
 
 You decided against Neon. Your MySQL database was working fine and Neon was an

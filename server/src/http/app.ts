@@ -27,6 +27,7 @@ import { automationsRouter } from './routes/automations.js';
 import { importsRouter } from './routes/imports.js';
 import { listsRouter } from './routes/lists.js';
 import { campaignsRouter } from './routes/campaigns.js';
+import { incomingRouter } from './routes/incoming.js';
 import { teamsRouter } from './routes/teams.js';
 import { brochureRouter } from './routes/brochure.js';
 import { offersRouter } from './routes/offers.js';
@@ -150,6 +151,7 @@ export function createApp(): Express {
   app.use('/api/imports', importsRouter);
   app.use('/api/lists', listsRouter);
   app.use('/api/campaigns', campaignsRouter);
+  app.use('/api/incoming', incomingRouter);
   app.use('/api/teams', teamsRouter);
   app.use('/api/offers', offersRouter);
   app.use('/api/integrations', integrationsRouter);

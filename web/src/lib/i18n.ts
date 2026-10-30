@@ -23,6 +23,7 @@ const STRINGS = {
     lists: 'Lists',
     campaigns: 'Campaigns',
     pool: 'Lead pool',
+    incoming: 'Incoming',
     search: 'Search',
     mine: 'Mine',
     unassigned: 'Unassigned',
@@ -126,6 +127,7 @@ const STRINGS = {
     lists: 'القوائم',
     campaigns: 'الحملات',
     pool: 'مجموعة العملاء',
+    incoming: 'الواردة',
   },
 } as const;
 

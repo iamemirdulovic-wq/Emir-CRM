@@ -110,6 +110,9 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       opportunityId: str(payload, 'opportunityId'),
       contactId: str(payload, 'contactId'),
       assignedUserId: str(payload, 'assignedUserId'),
+      // Absent on jobs queued before the accept step existed: those are the
+      // accept clock, which is what they always were.
+      ...(payload.phase === 'action' ? { phase: 'action' as const } : {}),
     }),
 
   'workflow.b.step': async (payload) => {

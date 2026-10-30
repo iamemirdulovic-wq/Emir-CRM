@@ -19,6 +19,7 @@ import { Settings } from './pages/Settings.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
 import { ListDetail, Lists } from './pages/Lists.js';
 import { CampaignDetailScreen, Campaigns, Dialler } from './pages/Campaigns.js';
+import { Incoming } from './pages/Incoming.js';
 import { Pool } from './pages/Pool.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
@@ -78,6 +79,7 @@ export function App() {
           <Route path="/imports" element={<Imports />} />
           <Route path="/imports/new" element={<ImportWizard />} />
           <Route path="/imports/:id" element={<ImportDetailScreen />} />
+          <Route path="/incoming" element={<Incoming />} />
           <Route path="/pool" element={<Pool />} />
           <Route path="/automations" element={<Automations />} />
           <Route path="/settings" element={<Settings />} />

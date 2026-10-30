@@ -161,6 +161,44 @@ const ROUTES: Route[] = [
     })),
   }) },
 
+  // --- incoming -----------------------------------------------------------
+  /*
+   * The exception queue. In the preview the unowned leads stand in for it,
+   * with a couple marked as bounced so the screen shows both kinds: one
+   * nobody could be given, and one an agent let go.
+   */
+  { method: 'GET', pattern: /^\/api\/incoming$/, handler: () => ({
+    items: LEADS.filter((l) => !l.owner).map((l, index) => ({
+      id: l.id,
+      contactId: l.contactId,
+      name: l.name,
+      phone: l.phone,
+      language: l.language,
+      project: l.project,
+      budgetMaxAed: l.budgetMax,
+      source: l.source,
+      score: l.score,
+      bounceCount: index === 0 ? 1 : 0,
+      reason: index === 0 ? 'Bounced from Omar Farouk' : 'No agent available',
+      arrivedAt: ago(l.createdMinutesAgo),
+    })),
+  }) },
+  { method: 'GET', pattern: /^\/api\/incoming\/count$/, handler: () => ({
+    count: LEADS.filter((l) => !l.owner).length,
+  }) },
+  { method: 'POST', pattern: /^\/api\/incoming\/assign$/, handler: ({ body }) => {
+    const ids = new Set((body as { opportunityIds?: string[] }).opportunityIds ?? []);
+    const agent = (body as { agentUserId?: string }).agentUserId ?? null;
+    for (const lead of LEADS) if (ids.has(lead.id)) lead.owner = agent;
+    return { assigned: ids.size, skipped: 0 };
+  } },
+  { method: 'POST', pattern: /^\/api\/incoming\/([^/]+)\/accept$/, handler: () => ({
+    acceptedAt: new Date().toISOString(), actionDueInMinutes: 5,
+  }) },
+  { method: 'GET', pattern: /^\/api\/incoming\/settings$/, handler: () => ({
+    slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
+  }) },
+
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },
   { method: 'PATCH', pattern: /^\/api\/users\/([^/]+)$/, handler: ({ params, body }) => {

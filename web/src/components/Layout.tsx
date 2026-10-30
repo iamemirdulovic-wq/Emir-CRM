@@ -39,6 +39,19 @@ interface Entry {
 }
 
 const ENTRIES: Entry[] = [
+  /*
+   * First in the list, and only for the people who can act on it: a lead
+   * sitting here has nobody working it, which beats everything else on the
+   * screen for urgency.
+   */
+  {
+    to: '/incoming',
+    label: t('incoming'),
+    icon: 'inbox',
+    title: t('incoming'),
+    roles: ['owner', 'admin', 'manager'],
+    phone: true,
+  },
   { to: '/dashboard', label: t('dashboard'), icon: 'layout-dashboard', title: t('dashboard'), phone: true },
   { to: '/pipeline', label: t('pipeline'), icon: 'kanban', title: t('pipeline'), phone: true },
   { to: '/inbox', label: t('inbox'), icon: 'message-circle', title: t('inbox'), phone: true },
@@ -102,6 +115,12 @@ function Chrome() {
     [location.pathname, isManager],
   );
   const tasks = useAsync<TasksResponse>(() => api.get('/api/tasks?filter=overdue&limit=1'), [location.pathname]);
+  /*
+   * Its own endpoint rather than counting the list: this runs on every page
+   * for everyone who can see it, and the list behind it is four joins. The
+   * server answers 0 for an agent, so no role check is needed here.
+   */
+  const incoming = useAsync<{ count: number }>(() => api.get('/api/incoming/count'), [location.pathname]);
 
   const unread = (conversations.data?.items ?? []).reduce(
     (sum, conversation) => sum + Number(conversation.unread_count ?? 0),
@@ -114,7 +133,14 @@ function Chrome() {
     [user],
   );
 
-  const badge = (to: string) => (to === '/inbox' ? unread : to === '/tasks' ? overdue : undefined);
+  const waiting = incoming.data?.count ?? 0;
+
+  const badge = (to: string) => {
+    if (to === '/inbox') return unread;
+    if (to === '/tasks') return overdue;
+    if (to === '/incoming') return waiting;
+    return undefined;
+  };
 
   const nav: NavItem[] = visible.map((entry) => ({
     to: entry.to,

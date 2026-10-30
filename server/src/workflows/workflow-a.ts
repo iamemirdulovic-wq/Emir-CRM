@@ -3,10 +3,13 @@ import { execute, queryOne, query, withRetryingTransaction } from '../db/client.
 import { newId } from '../lib/ids.js';
 import { logger, errorContext } from '../lib/logger.js';
 import { dubaiParts } from '../lib/time.js';
-import { SLA_FIRST_TOUCH_MS } from '../config/constants.js';
 import { SYSTEM_ACTOR, writeAudit } from '../audit/audit.js';
 import { addActivity } from '../ingestion/ingest.js';
 import { enqueue } from '../jobs/queue.js';
+import { routingSettings } from '../routing/settings.js';
+import {
+  bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
+} from '../routing/assignments.js';
 import { pushToManagers, pushToUser } from '../messaging/push.js';
 import { sendWhatsApp } from '../messaging/send.js';
 import { sendEmail } from '../messaging/email/send.js';
@@ -191,12 +194,24 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
 
 async function applyAssignment(
   tx: PoolConnection,
-  input: { opportunityId: string; contactId: string; userId: string; reason: string },
+  input: { opportunityId: string; contactId: string; userId: string; reason: string; assignedByUserId?: string | null },
 ): Promise<void> {
-  await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
-    input.userId,
-    input.opportunityId,
-  ], tx);
+  /*
+   * accepted_at is cleared along with the new owner: a lead handed to someone
+   * else has not been accepted by them, and leaving the old agent's tick there
+   * would stop the new agent's clock before it started.
+   */
+  await execute(
+    'UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NULL WHERE id = ?',
+    [input.userId, input.opportunityId],
+    tx,
+  );
+  await recordAssignment(tx, {
+    opportunityId: input.opportunityId,
+    contactId: input.contactId,
+    agentUserId: input.userId,
+    assignedByUserId: input.assignedByUserId ?? null,
+  });
   // The sticky owner is set once; later inquiries return to the same agent.
   await execute('UPDATE contacts SET owner_user_id = COALESCE(owner_user_id, ?) WHERE id = ?', [
     input.userId,
@@ -425,62 +440,155 @@ async function scheduleAsyncWork(input: WorkflowAInput, assignedUserId: string |
     },
   );
 
-  // The 5-minute SLA check.
+  // The clock on accepting it. Its length is a setting the owner controls.
   if (assignedUserId) {
-    await enqueue(
-      'workflow.a.sla_check',
-      { opportunityId: input.opportunityId, contactId: input.contactId, assignedUserId },
-      {
-        priority: 2,
-        runAt: new Date(Date.now() + SLA_FIRST_TOUCH_MS),
-        dedupeKey: `sla:${input.opportunityId}`,
-        contactId: input.contactId,
-      },
-    );
+    await armSlaTimer({
+      opportunityId: input.opportunityId,
+      contactId: input.contactId,
+      assignedUserId,
+      phase: 'accept',
+    });
   }
 }
 
+export type SlaPhase = 'accept' | 'action';
+
 /**
- * The 5-minute SLA check: if the agent has not touched the lead, reassign it,
- * alert the manager and tag the card.
+ * Start the clock on an agent.
+ *
+ * Two phases, two separate jobs, because they have separate deadlines: a lead
+ * accepted at minute one still has the full window to be acted on, and a
+ * single timer would bounce it at minute five while the agent was within
+ * their time. The dedupe keys differ for the same reason — one must not
+ * swallow the other.
  */
-export async function runSlaCheck(input: { opportunityId: string; contactId: string; assignedUserId: string }): Promise<
-  { breached: boolean; reassignedTo?: string | null }
-> {
+export async function armSlaTimer(input: {
+  opportunityId: string;
+  contactId: string;
+  assignedUserId: string;
+  phase: SlaPhase;
+}): Promise<void> {
+  const { slaMinutes } = await routingSettings();
+  await enqueue(
+    'workflow.a.sla_check',
+    {
+      opportunityId: input.opportunityId,
+      contactId: input.contactId,
+      assignedUserId: input.assignedUserId,
+      phase: input.phase,
+    },
+    {
+      priority: 2,
+      runAt: new Date(Date.now() + slaMinutes * 60 * 1000),
+      dedupeKey: `sla:${input.opportunityId}:${input.phase}`,
+      contactId: input.contactId,
+    },
+  );
+}
+
+/**
+ * The SLA check: if the agent has not picked the lead up, hand it back.
+ *
+ * Where it used to pass the lead quietly to the next agent, it now returns it
+ * to Incoming for an owner to place — unless the owner has turned that off.
+ * A lead passed round four people in twenty minutes looks like it is being
+ * worked and is nobody's responsibility.
+ */
+export async function runSlaCheck(input: {
+  opportunityId: string;
+  contactId: string;
+  assignedUserId: string;
+  /** Older queued jobs carry no phase; they are the accept clock. */
+  phase?: SlaPhase;
+}): Promise<{ breached: boolean; reassignedTo?: string | null; bounced?: boolean }> {
+  const phase: SlaPhase = input.phase ?? 'accept';
   const opportunity = await queryOne<{
     id: string;
     owner_user_id: string | null;
     first_touch_at: Date | null;
+    accepted_at: Date | null;
     stage_key: string;
     status: string;
     assigned_at: Date | null;
     title: string | null;
   }>(
-    'SELECT id, owner_user_id, first_touch_at, stage_key, status, assigned_at, title FROM opportunities WHERE id = ?',
+    `SELECT id, owner_user_id, first_touch_at, accepted_at, stage_key, status, assigned_at, title
+       FROM opportunities WHERE id = ?`,
     [input.opportunityId],
   );
-  if (!opportunity || opportunity.status !== 'open') return { breached: false };
+  if (!opportunity) return { breached: false };
 
-  // "Touched" means the agent did something: moved the card, messaged, or the
-  // lead replied to them.
-  const touched = await queryOne<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM activities
-      WHERE opportunity_id = ? AND user_id IS NOT NULL
-        AND type IN ('stage.changed','message.outbound','note','contact.updated','task.completed')`,
-    [input.opportunityId],
-  );
-  const replied = await queryOne<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM messages WHERE contact_id = ? AND direction = 'inbound'`,
-    [input.contactId],
-  );
+  const acted = await hasActed({
+    opportunityId: input.opportunityId,
+    contactId: input.contactId,
+    since: phase === 'action' ? opportunity.accepted_at : null,
+  });
 
-  if (Number(touched?.n ?? 0) > 0 || Number(replied?.n ?? 0) > 0 || opportunity.first_touch_at) {
+  // The decision itself lives in routing/assignments.ts, where every case is
+  // written down in a test. This function does the reading and the writing.
+  const verdict = decideSla({
+    phase,
+    open: opportunity.status === 'open',
+    ownedByTimerAgent: opportunity.owner_user_id === input.assignedUserId,
+    acceptedAt: opportunity.accepted_at,
+    acted: acted.acted,
+    firstTouchAt: opportunity.first_touch_at,
+  });
+
+  if (verdict.act === 'ignore') return { breached: false };
+  if (verdict.act === 'record') {
+    if (acted.at) {
+      await recordFirstAction({
+        opportunityId: input.opportunityId,
+        agentUserId: input.assignedUserId,
+        at: acted.at,
+        assignedAt: opportunity.assigned_at,
+      }).catch((err: unknown) => logger.warn('could not record the first action time', errorContext(err)));
+    }
     return { breached: false };
   }
-  // The owner changed since the timer was armed — someone already intervened.
-  if (opportunity.owner_user_id !== input.assignedUserId) return { breached: false };
 
-  logger.warn('speed-to-lead SLA breached', { opportunityId: input.opportunityId, agentUserId: input.assignedUserId });
+  logger.warn('speed-to-lead SLA breached', {
+    opportunityId: input.opportunityId,
+    agentUserId: input.assignedUserId,
+    phase,
+    why: verdict.why,
+  });
+
+  const { bounceToOwner } = await routingSettings();
+  if (bounceToOwner) {
+    const agent = await queryOne<{ name: string }>('SELECT name FROM users WHERE id = ?', [input.assignedUserId]);
+    await withRetryingTransaction(async (tx) => {
+      await bounceLead(tx, {
+        opportunityId: input.opportunityId,
+        contactId: input.contactId,
+        agentUserId: input.assignedUserId,
+        agentName: agent?.name ?? null,
+      });
+      await clearStickyOwner(tx, input.contactId, input.assignedUserId);
+      await writeAudit(
+        {
+          actor: SYSTEM_ACTOR,
+          action: 'lead.bounced',
+          entityType: 'opportunity',
+          entityId: input.opportunityId,
+          before: { ownerUserId: input.assignedUserId },
+          after: { ownerUserId: null, phase },
+        },
+        tx,
+      );
+      await tagOps(tx, input.contactId, 'sla-breach');
+    });
+
+    await pushToManagers({
+      title: 'Lead bounced — needs reassigning',
+      body: `${opportunity.title ?? 'A lead'} came back from ${agent?.name ?? 'an agent'}. It is waiting in Incoming.`,
+      link: '/incoming',
+      priority: 'high',
+    }).catch((err) => logger.warn('bounce push failed', errorContext(err)));
+
+    return { breached: true, bounced: true, reassignedTo: null };
+  }
 
   const reassignedTo = await withRetryingTransaction(async (tx) => {
     await execute('UPDATE opportunities SET sla_breached = 1 WHERE id = ?', [input.opportunityId], tx);
