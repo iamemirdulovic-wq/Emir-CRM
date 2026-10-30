@@ -237,3 +237,24 @@ never allowed notifications, and the lead still bounces five minutes later
 off somebody who was never told. Settings → Health now names who has no
 device registered. Two push stacks would have added a second way to go
 missing without closing that.
+
+2026-10-30 — leads — My Leads is a list, not a second board — The spec asks
+for a List/Board switch on this screen. The CRM already has a kanban at
+/pipeline, built on the same opportunities, with drag between stages. A second
+board inside My Leads would be two screens to keep in step and two places to
+fix a stage bug. The tabs answer a different question from the board — "what
+do I owe today" rather than "where is everything" — which is why this screen
+exists at all.
+
+2026-10-30 — leads — Only "no answer" gets an automatic next step — The right
+answer there is obvious and waiting for someone to type it loses it: try again
+in two hours, backing off to four and then a day, and switching to WhatsApp
+after three unanswered calls, because ringing the same number every two hours
+is how a brokerage's number gets blocked. Every other action deliberately
+leaves the lead in "No next step", where it is visible. Inventing a promise
+nobody made is worse than admitting none exists.
+
+2026-10-30 — leads — `/contacts` redirects rather than 301s — React Router
+cannot issue a real 301; the server serves one SPA for every path. The route
+resolves and replaces the history entry, which is what a bookmark, an old push
+notification and an already-sent email all need.

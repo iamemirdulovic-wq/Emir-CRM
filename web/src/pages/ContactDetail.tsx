@@ -12,6 +12,7 @@ import {
   ago, Avatar, budgetLabel, Empty, ErrorNote, Field, Panel, Score, Select, Spinner, StagePill, Tag,
   TextArea, Toolbar, useToast,
 } from '../design/ui.js';
+import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
 
 const TASK_TYPES = ['call', 'whatsapp', 'email', 'meeting', 'other'] as const;
 
@@ -82,30 +83,41 @@ export function ContactDetail() {
   const style = stageStyle(opportunity?.stage_key);
   const source = sourceStyle((contact.first_source as string) ?? null);
   const openTasks = tasks.filter((task) => !task.completed_at);
+  /* Reloads the whole 360 view: an action changes the stage, the timeline,
+     the next step and the tasks at once, and a partial refresh would leave
+     one of them stale on screen. */
+  const actions = useLeadActions(opportunity?.id ?? '', detail.reload);
 
   return (
     <>
       <Toolbar
         right={
-          <>
-            {contact.phone_e164 && (
-              <a className="btn" href={`tel:${contact.phone_e164}`}>
-                <Icon name="phone" />
-                <span>Call</span>
-              </a>
-            )}
-            <Link className="btn btn-wa" to={`/inbox?contact=${contact.id}`}>
-              <Icon name="message-circle" />
-              <span>WhatsApp</span>
-            </Link>
-          </>
+          opportunity ? (
+            /*
+             * The nine buttons, on the lead itself. They were two links
+             * here — Call and WhatsApp — neither of which recorded that
+             * anything happened, so the timeline stayed empty while the
+             * agent worked and the lead looked untouched.
+             */
+            <LeadActionBar
+              lead={{
+                id: opportunity.id,
+                contact_id: contact.id,
+                phone_e164: contact.phone_e164 ?? null,
+                full_name: contact.full_name ?? null,
+                project_name: (opportunity.project_name as string | null) ?? null,
+              }}
+              state={actions}
+            />
+          ) : null
         }
       >
-        <Link className="chip" to="/contacts">
+        <Link className="chip" to="/leads">
           <Icon name="arrow-left" />
-          All contacts
+          My Leads
         </Link>
       </Toolbar>
+      {opportunity && <LeadActionSheets state={actions} />}
 
       <div className="dash">
         <Panel span={4} index={1}>

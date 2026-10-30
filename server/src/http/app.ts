@@ -17,6 +17,7 @@ import { setupRouter } from './routes/setup.js';
 import { publicLeadsRouter } from './routes/public-leads.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { addLeadRouter } from './routes/add-lead.js';
+import { myLeadsRouter } from './routes/my-leads.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
 import { pipelineRouter } from './routes/pipeline.js';
@@ -198,6 +199,7 @@ export function createApp(): Express {
   app.use('/api/lists', listsRouter);
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/leads', addLeadRouter);
+  app.use('/api/my-leads', myLeadsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/incoming', incomingRouter);
   app.use('/api/teams', teamsRouter);

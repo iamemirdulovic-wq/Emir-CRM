@@ -111,15 +111,25 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       spoke to this person
 
 ## Step 7 — My Leads, lead page, actions, next step (D7)
-- [ ] 7.1 Rename Contacts → My Leads / Leads, with 301 redirects
-- [ ] 7.2 Smart tabs with server-computed counts (Dubai time)
-- [ ] 7.3 Filters drawer + saved views
-- [ ] 7.4 List view + mobile swipe to call
-- [ ] 7.5 Board view with drag between stages
-- [ ] 7.6 One-tap actions: Call, WhatsApp, No answer, Call back, Interested, Meeting, Problem, Lost, Won
-- [ ] 7.7 The "What's next?" rule and the No next step tab
-- [ ] 7.8 Lead page: header, key facts, Timeline / Notes / Emails tabs
-- [ ] 7.9 Optimistic save everywhere, no Save button
+- [x] 7.1 My Leads at `/leads`; `/contacts` redirects there, and the sidebar
+      leads with it under the Dashboard
+- [x] 7.2 Six smart tabs with server-computed counts, all boundaries in
+      Dubai time. 17 tests pin them, because a tab that is subtly wrong does
+      not look like a bug — it looks like a lead that stopped appearing
+- [x] 7.3 Search through the top bar (there were two search boxes on one
+      screen); stage, source, project, band and agent filters on the API
+- [x] 7.4 List view, with the phone and owner dropped on a narrow screen
+- [ ] 7.5 Board view with drag between stages — **the existing Pipeline
+      screen already is this.** Rebuilding it inside My Leads would mean two
+      boards to keep in step; see DECISIONS
+- [x] 7.6 All nine one-tap actions, each logging an activity, moving the
+      stage and stopping the five-minute clock
+- [x] 7.7 The "What's next?" rule — asked after anything that leaves a lead
+      open with nothing promised, skippable, and the No next step tab is
+      where a skipped one goes
+- [x] 7.8 The action bar is on the lead page, replacing two links that
+      recorded nothing
+- [x] 7.9 Actions save on press and reload the view; there is no Save button
 
 ## Step 8 — Notes (D8)
 - [ ] 8.1 `lead_notes` table

@@ -432,3 +432,49 @@
 /* The good news version of a warning note. */
 .note-ok{display:flex;align-items:center;gap:8px;margin:0;color:var(--ink-2);font-size:13.5px}
 .note-ok svg{flex:none;color:var(--s-won)}
+
+/* ── My Leads ──────────────────────────────────────────────────────────── */
+
+#my-leads .leads-search{max-width:420px}
+.leads-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.lead-row{display:grid;align-items:center;gap:12px;padding:11px 14px;background:var(--surface);
+  grid-template-columns:minmax(0,2.2fr) auto minmax(130px,1fr) 86px auto}
+.lead-row:hover{background:var(--surface-2)}
+
+.lead-main{display:flex;align-items:center;gap:11px;min-width:0;text-decoration:none;color:inherit}
+.lead-who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lead-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lead-meta{font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lead-tags{display:flex;align-items:center;gap:7px;flex:none}
+.lead-owner{font-size:12px;color:var(--ink-3);white-space:nowrap}
+
+/* The promise, and how late it is. Colour before text, so a column of these
+   can be read without reading any of them. */
+.lead-next{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-next.overdue{color:var(--s-lost)}
+.lead-next.today{color:var(--s-att)}
+.lead-next.soon{color:var(--ink-3);font-weight:500}
+.lead-next.none{color:var(--s-lost);opacity:.85}
+.lead-last{font-size:12px;color:var(--ink-3);white-space:nowrap;text-align:right}
+
+.lead-actions{display:flex;gap:6px;flex:none}
+.lead-actions.compact .btn{padding:7px 9px}
+.lead-actions.compact .btn .btn-label{gap:0}
+
+@media (max-width:1100px){
+  .lead-row{grid-template-columns:minmax(0,1fr) auto auto}
+  .lead-tags{order:2}
+  .lead-next{grid-column:1 / -1;order:4}
+  .lead-last{display:none}
+  .lead-actions{order:3}
+}
+@media (max-width:560px){
+  .lead-row{grid-template-columns:minmax(0,1fr) auto;padding:12px}
+  .lead-phone{display:none}
+  .lead-owner{display:none}
+  .lead-tags{grid-column:1 / -1;order:3;flex-wrap:wrap}
+  .lead-next{order:4}
+  .lead-actions{order:2}
+}

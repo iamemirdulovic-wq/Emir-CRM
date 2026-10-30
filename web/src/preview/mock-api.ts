@@ -88,6 +88,35 @@ const NOTIFICATIONS: Array<{
   },
 ];
 
+/** The mock leads as My Leads wants them, with a spread of next-step states. */
+function myLeadRows() {
+  const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+  return LEADS.slice(0, 8).map((lead, index) => ({
+    id: `opp-${index}`,
+    contact_id: lead.contactId,
+    stage_key: index % 4 === 0 ? 'new_lead' : index % 3 === 0 ? 'appointment_scheduled' : 'engaged_qualified',
+    status: 'open',
+    project_name: lead.project,
+    source: lead.source,
+    budget_max_aed: lead.budgetMax,
+    lead_score: lead.score,
+    score_band: lead.score >= 70 ? 'hot' : lead.score >= 40 ? 'warm' : 'cold',
+    score_reason: 'Budget AED 2M · ready now · asked for a call',
+    next_step_type: index % 5 === 4 ? null : 'call',
+    /* One overdue, one due today, one later, one with nothing promised —
+       so every state on the row has something to show. */
+    next_step_at: index % 5 === 4 ? null : at([-3, 4, 30, 54][index % 4] as number),
+    next_step_note: null,
+    last_contact_at: index % 6 === 5 ? null : at(-index * 9 - 2),
+    no_answer_count: index % 3,
+    created_at: at(-index * 24 - 6),
+    full_name: lead.name,
+    phone_e164: lead.phone,
+    email: null,
+    owner_name: lead.owner ? 'Layla Hassan' : null,
+  }));
+}
+
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */
 let pendingAccepted = false;
 
@@ -302,6 +331,45 @@ const ROUTES: Route[] = [
   }) },
   { method: 'POST', pattern: /^\/api\/leads$/, handler: () => ({
     contactId: 'c-1', opportunityId: 'opp-new', isNewContact: true, assignedTo: null,
+  }) },
+
+  /* My Leads. The mock leads are reshaped into the row the screen expects,
+     with a spread of next-step states so every colour can be seen. */
+  { method: 'GET', pattern: /^\/api\/my-leads$/, handler: ({ query }) => {
+    const tab = query.get('tab') ?? 'today';
+    const items = myLeadRows().filter((row) => {
+      if (tab === 'new') return row.stage_key === 'new_lead';
+      if (tab === 'hot') return row.score_band === 'hot';
+      if (tab === 'no_next_step') return row.next_step_at === null;
+      if (tab === 'overdue') return row.last_contact_at === null;
+      if (tab === 'all') return true;
+      return row.next_step_at !== null;
+    });
+    return {
+      tab, items, total: items.length, page: 1, pageSize: 30,
+      empty: { title: 'Nothing here', hint: 'Try another tab.' },
+    };
+  } },
+  { method: 'GET', pattern: /^\/api\/my-leads\/counts$/, handler: () => {
+    const rows = myLeadRows();
+    return {
+      today: rows.filter((r) => r.next_step_at !== null).length,
+      new: rows.filter((r) => r.stage_key === 'new_lead').length,
+      hot: rows.filter((r) => r.score_band === 'hot').length,
+      overdue: rows.filter((r) => r.last_contact_at === null).length,
+      no_next_step: rows.filter((r) => r.next_step_at === null).length,
+      all: rows.length,
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body }) => ({
+    stageKey: 'engaged_qualified', status: 'open', nextStepAt: null,
+    needsNextStep: (body as { action?: string }).action !== 'won',
+    said: 'Logged',
+  }) },
+  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/next-step$/, handler: () => ({
+    stageKey: 'attempted_contact', status: 'open',
+    nextStepAt: new Date(Date.now() + 86_400_000).toISOString(),
+    needsNextStep: false, said: 'Next step set',
   }) },
 
   // --- users --------------------------------------------------------------

@@ -17,6 +17,7 @@ import { Offers } from './pages/Offers.js';
 import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
 import { Components } from './pages/Components.js';
+import { MyLeads } from './pages/MyLeads.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
 import { ListDetail, Lists } from './pages/Lists.js';
 import { CampaignDetailScreen, Campaigns, Dialler } from './pages/Campaigns.js';
@@ -67,7 +68,13 @@ export function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/inbox" element={<Inbox />} />
-          <Route path="/contacts" element={<Contacts />} />
+          {/*
+            * My Leads replaces Contacts as the list an agent works from.
+            * /contacts still resolves — it is in bookmarks, in old push
+            * notifications and in emails already sent — and lands here.
+            */}
+          <Route path="/leads" element={<MyLeads />} />
+          <Route path="/contacts" element={<Navigate to="/leads" replace />} />
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/projects" element={<Library />} />

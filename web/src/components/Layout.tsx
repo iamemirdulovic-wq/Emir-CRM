@@ -58,9 +58,16 @@ const ENTRIES: Entry[] = [
     phone: true,
   },
   { to: '/dashboard', label: t('dashboard'), icon: 'layout-dashboard', title: t('dashboard'), phone: true },
+  /*
+   * My Leads sits directly under the Dashboard, because it is the screen an
+   * agent opens next and the one they come back to all day. Owners and
+   * admins see everyone's, so it is simply "Leads" for them.
+   */
+  { to: '/leads', label: t('myLeads'), icon: 'users', title: t('myLeads'), phone: true },
+  /* The same screen, opened on the tab that is the agent's whole morning. */
+  { to: '/leads?tab=today', label: t('followUps'), icon: 'calendar-check', title: t('followUps') },
   { to: '/pipeline', label: t('pipeline'), icon: 'kanban', title: t('pipeline'), phone: true },
   { to: '/inbox', label: t('inbox'), icon: 'message-circle', title: t('inbox'), phone: true },
-  { to: '/contacts', label: t('contacts'), icon: 'users', title: t('contacts') },
   { to: '/tasks', label: t('tasks'), icon: 'check-square', title: t('tasks'), phone: true },
   { to: '/lists', label: t('lists'), icon: 'list', title: t('lists') },
   { to: '/campaigns', label: t('campaigns'), icon: 'megaphone', title: t('campaigns') },
@@ -79,7 +86,8 @@ const ENTRIES: Entry[] = [
 
 /** The heading for a path, including the detail routes that are not in the nav. */
 function titleFor(pathname: string): string {
-  if (pathname.startsWith('/contacts/')) return 'Contact';
+  if (pathname.startsWith('/contacts/')) return 'Lead';
+  if (pathname.startsWith('/leads')) return 'My Leads';
   if (pathname.startsWith('/imports')) return 'Import';
   if (pathname.endsWith('/dial')) return 'Calling';
   const entry = ENTRIES.find((item) => pathname.startsWith(item.to));
