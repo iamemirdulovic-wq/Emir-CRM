@@ -139,6 +139,29 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().optional(),
   MAIL_REPLY_DOMAIN: z.string().optional(),
+
+  /*
+   * Client email is off until it is deliberately switched on.
+   *
+   * Everything upstream still runs with this false — templates merge,
+   * messages are recorded, campaigns report — and nothing leaves the
+   * building. That is the right state for a CRM being built against a live
+   * database full of real clients.
+   */
+  FEATURE_EMAIL_SENDING: boolish.default(false),
+  EMAIL_PROVIDER: z.enum(['smtp', 'brevo', 'resend', 'none']).default('smtp'),
+  BREVO_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  /** Secret the provider signs its tracking webhooks with. */
+  EMAIL_WEBHOOK_SECRET: z.string().optional(),
+
+  /*
+   * Test mode sends every client email to one address instead, with the real
+   * recipient in the subject — so the whole path can be exercised against a
+   * real provider without a client ever seeing it.
+   */
+  EMAIL_TEST_MODE: boolish.default(false),
+  EMAIL_TEST_REDIRECT: z.string().optional(),
   IMAP_HOST: z.string().optional(),
   IMAP_PORT: z.coerce.number().int().positive().default(993),
   IMAP_SECURE: boolish.default(true),

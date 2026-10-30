@@ -23,6 +23,7 @@ import { ListDetail, Lists } from './pages/Lists.js';
 import { CampaignDetailScreen, Campaigns, Dialler } from './pages/Campaigns.js';
 import { Incoming } from './pages/Incoming.js';
 import { Pool } from './pages/Pool.js';
+import { EmailCampaigns } from './pages/EmailCampaigns.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -84,6 +85,7 @@ export function App() {
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/:id" element={<CampaignDetailScreen />} />
           <Route path="/campaigns/:id/dial" element={<Dialler />} />
+          <Route path="/email-campaigns" element={<EmailCampaigns />} />
           <Route path="/imports" element={<Imports />} />
           <Route path="/imports/new" element={<ImportWizard />} />
           <Route path="/imports/:id" element={<ImportDetailScreen />} />

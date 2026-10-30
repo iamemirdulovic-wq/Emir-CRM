@@ -416,7 +416,12 @@ function slug(value: string): string {
 }
 
 export async function addActivity(
-  tx: PoolConnection,
+  /*
+   * An Executor, not a PoolConnection: inside ingestion this is always the
+   * transaction, but an activity recorded from a webhook or a public route
+   * has no transaction to join and does not need one.
+   */
+  tx: Executor,
   input: {
     contactId: string | null;
     opportunityId?: string | null;

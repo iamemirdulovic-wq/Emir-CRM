@@ -2,6 +2,53 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Email to clients, properly
+
+**Write an email from the lead page.** Pick one of six templates, change any
+word of it, and see exactly what the client will see before you send — the real
+branded email, not a description of it. Fields like the client's first name and
+the project they asked about fill themselves in, and if one is missing the
+email reads "Hi there" rather than "Hi {{first_name}}", which is the thing that
+tells a client they are a row in a database.
+
+**Six templates written to be sent**, not placeholders: first reply, after a
+call they did not answer, sending project details, confirming a viewing, after
+a viewing, and checking in on a quiet lead. None of them quotes a price, a
+handover date or a payment plan — those come from the project library and
+belong in an offer, where they are kept up to date. None of them invents
+"only 2 units left".
+
+**Every email carries your name, your mobile and your BRN**, an unsubscribe
+link, and the company's legal footer. Gmail and Outlook get the one-click
+unsubscribe button, which is the difference between a client pressing that and
+pressing "report spam" — the second one damages every email the company sends.
+
+**WhatsApp openers.** Four messages, filled in with the right project, one tap
+to open WhatsApp with it typed out. You still press send.
+
+**Email campaigns.** One email to a saved list, sent slowly. Before it starts
+it tells you how many people will get it, how many will be skipped and
+exactly why, and how long it will take. It pauses itself if too many bounce.
+
+**Nothing is sent until you switch it on.** Email sending is off by default, and
+having a provider key in the settings does not turn it on. There is a test mode
+that sends everything to one address of your choosing with the real recipient in
+the subject line, so the whole thing can be tried without a client ever seeing
+it.
+
+**One bug caught before it shipped**
+
+A query asked the database for a column that does not exist. It would have
+signed every email with the company name instead of the agent's — silently,
+for as long as nobody noticed. There is now a check that reads every database
+query in the CRM against the real database shape and fails the build if one is
+wrong.
+
+**Where it stands**
+
+1,554 server tests and 228 web tests pass; 269 database tests run on the build
+server. Checked in light, dark and on a phone.
+
 ## Finding one batch again, and letting a small list ring
 
 **Each upload gets a tag of its own.** Imported contacts already carried a

@@ -73,6 +73,19 @@ function keyBuffer(): Buffer {
   return keyFromFile();
 }
 
+/**
+ * A key for one specific purpose, derived from the master key.
+ *
+ * So that signing an unsubscribe link and encrypting a stored API token never
+ * use the same bytes: a signature forged from one must not be usable against
+ * the other, and a leak of a derived key tells an attacker nothing about the
+ * master. The label is the whole difference, so it must be a constant in the
+ * code, never anything a caller could be talked into choosing.
+ */
+export function derivedKey(label: string): Buffer {
+  return createHmac('sha256', keyBuffer()).update(`emir-crm:${label}`).digest();
+}
+
 /** Test helper: forget the cached file key so a suite can point at another. */
 export function resetKeyFileCache(): void {
   fileKey = null;

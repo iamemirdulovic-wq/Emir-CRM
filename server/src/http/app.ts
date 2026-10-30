@@ -40,6 +40,8 @@ import { brochureRouter } from './routes/brochure.js';
 import { offersRouter } from './routes/offers.js';
 import { integrationsRouter } from './routes/integrations.js';
 import { startHeartbeat } from '../realtime/hub.js';
+import { emailRouter } from './routes/email.js';
+import { emailPublicRouter } from './routes/email-public.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -201,6 +203,10 @@ export function createApp(): Express {
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/leads', addLeadRouter);
   app.use('/api/my-leads', myLeadsRouter);
+  app.use('/api/email', emailRouter);
+  /* No login on these two: a client clicks the unsubscribe link and a
+     provider posts the webhook. Both prove themselves by signature. */
+  app.use('/', emailPublicRouter);
   app.use('/api/notes', notesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/incoming', incomingRouter);

@@ -14,6 +14,8 @@ import {
 } from '../design/ui.js';
 import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
 import { LeadNotes } from '../components/LeadNotes.js';
+import { EmailComposer } from '../components/EmailComposer.js';
+import { WhatsAppOpenings } from '../components/WhatsAppOpenings.js';
 
 const TASK_TYPES = ['call', 'whatsapp', 'email', 'meeting', 'other'] as const;
 
@@ -71,6 +73,8 @@ export function ContactDetail() {
    * one of them stale on screen.
    */
   const actions = useLeadActions(detail.data?.opportunities[0]?.id ?? '', detail.reload);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [waOpen, setWaOpen] = useState(false);
 
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
   if (!detail.data) return <Spinner />;
@@ -111,6 +115,21 @@ export function ContactDetail() {
         </Link>
       </Toolbar>
       {opportunity && <LeadActionSheets state={actions} />}
+
+      <EmailComposer
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        contactId={contact.id}
+        opportunityId={opportunity?.id ?? null}
+        contactName={contact.full_name}
+        onSent={detail.reload}
+      />
+      <WhatsAppOpenings
+        open={waOpen}
+        onClose={() => setWaOpen(false)}
+        contactId={contact.id}
+        onPicked={detail.reload}
+      />
 
       <div className="dash">
         <Panel span={4} index={1}>
@@ -216,6 +235,18 @@ export function ContactDetail() {
         </Panel>
 
         <Panel span={8} index={2} icon="sticky-note" title="Notes">
+          <div className="lead-reach">
+            <button type="button" className="btn" onClick={() => setEmailOpen(true)}>
+              <Icon name="mail" />
+              Write an email
+            </button>
+            <button type="button" className="btn btn-wa" onClick={() => setWaOpen(true)}>
+              <Icon name="message-circle" />
+              WhatsApp opener
+            </button>
+          </div>
+
+
           <LeadNotes
             contactId={contact.id}
             opportunityId={opportunity?.id ?? null}

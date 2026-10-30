@@ -171,16 +171,35 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       upload calls had no mock, so the whole wizard was undemonstrable
 
 ## Step 10 — Client email, templates, WhatsApp, campaigns (D10)
-- [ ] 10.1 `email_templates`, `email_messages`, `email_campaigns`
-- [ ] 10.2 Composer drawer with preview and merge fields
-- [ ] 10.3 Branded layout + agent signature + unsubscribe
-- [ ] 10.4 Provider adapter (brevo/resend/ses) behind `FEATURE_EMAIL_SENDING`
-- [ ] 10.5 Test mode redirect
-- [ ] 10.6 Tracking webhook → timeline activities
-- [ ] 10.7 Opt-out blocks sending
-- [ ] 10.8 Six system templates, written
-- [ ] 10.9 WhatsApp click-to-chat with four greetings
-- [ ] 10.10 Email campaigns: audience, content, schedule, report
+- [x] 10.1 `email_templates`, `email_campaigns`, `email_campaign_members`,
+      `email_events`. Deliberately NO `email_messages`: a sent email is a row
+      in `messages` beside the WhatsApp, because the unified inbox is one
+      thread per contact and two tables would drift.
+- [x] 10.2 Composer drawer — templates, merge-field chips inserted at the
+      cursor, and a live preview rendered by the server through the same code
+      that sends it
+- [x] 10.3 Branded layout, agent signature with BRN, unsubscribe link, and a
+      plain-text alternative. Tables and inline styles, because that is what
+      email clients agree on.
+- [x] 10.4 Provider adapter — SMTP, Brevo, Resend — behind
+      `FEATURE_EMAIL_SENDING`, which is off by default and stays off even
+      when an API key is present
+- [x] 10.5 Test mode: every message to one address, the real recipient in the
+      subject. Half-configured test mode refuses to send rather than falling
+      through to the client.
+- [x] 10.6 Tracking webhook → `email_events` → timeline activities, signed and
+      refused when unsigned
+- [x] 10.7 Opt-out blocks sending — consent row, suppression on the address
+      itself, and the campaign counter, all three
+- [x] 10.8 Six system templates, written to be sent and tested for it: no
+      prices, no dates, no invented scarcity, one clear ask
+- [x] 10.9 WhatsApp click-to-chat with four openings, filled in from the
+      project the lead actually asked about
+- [x] 10.10 Email campaigns: audience with who is skipped and why, throttle,
+      self-pausing on bounces, and a report
+- [x] 10.11 A check that reads every SQL statement in the server against the
+      schema the migrations describe — written because a query in this step
+      asked `users` for a column that does not exist
 
 ## Step 11 — Dashboards and activity (D11)
 - [ ] 11.1 Agent dashboard: greeting, today strip, "Do this now", my week, my rank

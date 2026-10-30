@@ -351,3 +351,69 @@ wizard could be opened and never used. Anyone reviewing the CRM through the
 preview would have found the import simply dead. Mocked now, including the
 row count coming from what was actually pasted, so the row-limit rule can be
 seen working rather than described.
+
+2026-10-30 — email — A sent email is a message, not an `email_message` — The
+spec listed an `email_messages` table. The unified inbox is one thread per
+contact mixing WhatsApp, email and notes, so a sent email goes in `messages`
+beside the rest. Two tables would mean the inbox reading both and drifting
+the first time one gained a column. `email_events` holds what happened after
+it left — opened, clicked, bounced — as a row per event rather than a flag,
+because "opened four times over two days" is a different lead from "opened
+once".
+
+2026-10-30 — email — Sending is off by default, and a key is not consent —
+`FEATURE_EMAIL_SENDING` is false unless deliberately set. With it off every
+template merges, every message is recorded and every campaign reports, and
+nothing leaves the building. A Brevo key sitting in `.env` does not turn it
+on: a deployment that has not flipped the switch is telling us it is not
+ready. Test mode redirects every message to one address with the real
+recipient in the subject, and a test mode with nowhere to redirect to refuses
+to send rather than falling through to the client.
+
+2026-10-30 — email — The unsubscribe link is signed, not stored — An HMAC of
+the contact id rather than a random token in a table. Nothing to create
+before the first email, nothing to look up on the click, nothing to expire —
+three fewer things to go wrong in the path whose failure is "we kept emailing
+someone who asked us to stop". It never expires on purpose: a client who
+finds a two-year-old email and presses unsubscribe means it.
+
+2026-10-30 — email — One click unsubscribes, with no confirmation step — A
+"are you sure?" page is one more thing between somebody asking to be left
+alone and it happening, and the people clicking it are already annoyed. A
+mail client prefetching the link could unsubscribe someone by accident; that
+risk is real and far smaller than ignoring a request to stop.
+
+2026-10-30 — email — The preview comes from the server — The composer shows
+the real HTML, rendered by the same function that sends it, in a sandboxed
+iframe. A preview assembled in the browser is a preview that stops matching
+the moment the branding changes, and the first person to notice would be a
+client.
+
+2026-10-30 — email — The six system templates quote no numbers — No price, no
+handover date, no payment plan, no percentage. Those come from the projects
+table and belong in an offer, where they are versioned. A number typed into a
+template is a number nobody updates and a promise the brokerage has to keep.
+There is a test for it.
+
+2026-10-30 — email — A campaign claims each recipient before sending — The
+member row is marked sent and only then is the email sent, so a retried job
+finds it taken. With a unique key on (campaign, contact) behind it, that is
+what stands between a worker restart and a client receiving the same email
+twice. The campaign also pauses itself at a 5% bounce rate, because carrying
+on past that damages the sending domain for every other email the brokerage
+sends — including the one-to-one replies that actually matter.
+
+2026-10-30 — schema — Every SQL statement is checked against the migrations —
+A query in this step asked `users` for `phone`, where the column is
+`phone_e164`. It type-checked, and the `catch` around it would have signed
+every client email with the company name instead of the agent's, silently,
+for as long as nobody looked. There is now a check that reads the schema out
+of the migrations and every simple statement out of the source, and fails
+when one names a column the other does not have. Joins, aliases and
+subqueries are skipped rather than guessed at — a check that cries wolf gets
+switched off.
+
+2026-10-30 — users — `job_title`, `brn` and `photo_url` added now — The email
+signature needs them today and the business card in Step 12 needs them next.
+A UAE broker must show their BRN on client-facing material, so it is a field
+rather than a line someone remembers to type.

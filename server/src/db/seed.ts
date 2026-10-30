@@ -7,6 +7,7 @@ import { DEFAULT_PIPELINE_KEY, STAGE_DEFINITIONS } from '../pipeline/stages.js';
 import { TEMPLATE_LIBRARY } from '../messaging/templates/library.js';
 import { ensureDatabase, runMigrations } from './migrate.js';
 import { isEntrypoint } from '../lib/entrypoint.js';
+import { seedSystemTemplates } from '../email/templates.js';
 
 /** Idempotent seed: safe to re-run against an existing database. */
 
@@ -180,6 +181,8 @@ export async function seedReferenceData(): Promise<void> {
   await seedTags();
   await seedFormFieldMap();
   await seedAssignmentState();
+  /* Only inserts what is missing, so an owner's rewording survives a deploy. */
+  await seedSystemTemplates();
 }
 
 export async function seed(): Promise<void> {

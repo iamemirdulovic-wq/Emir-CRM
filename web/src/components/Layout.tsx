@@ -71,6 +71,13 @@ const ENTRIES: Entry[] = [
   { to: '/tasks', label: t('tasks'), icon: 'check-square', title: t('tasks'), phone: true },
   { to: '/lists', label: t('lists'), icon: 'list', title: t('lists') },
   { to: '/campaigns', label: t('campaigns'), icon: 'megaphone', title: t('campaigns') },
+  {
+    to: '/email-campaigns',
+    label: t('emailCampaigns'),
+    icon: 'mail',
+    title: t('emailCampaigns'),
+    roles: ['owner', 'admin', 'manager'],
+  },
   { to: '/pool', label: t('pool'), icon: 'inbox', title: t('pool'), roles: ['agent'] },
   { to: '/projects', label: t('projects'), icon: 'building-2', title: t('projects') },
   { to: '/offers', label: t('offers'), icon: 'sparkles', title: t('offers') },

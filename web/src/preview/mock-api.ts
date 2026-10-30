@@ -247,6 +247,79 @@ function findPreviewNote(noteId: string): PreviewNote | undefined {
   return undefined;
 }
 
+/* ── Client email ─────────────────────────────────────────────────────── */
+
+const EMAIL_TEMPLATES = [
+  {
+    id: 'tpl-first', template_key: 'first_reply', name: 'First reply', category: 'first_reply',
+    subject: 'About {{project}} — {{agent_first_name}} from {{company}}',
+    body: 'Hi {{first_name}},\n\nThanks for your enquiry about {{project}}. I\u2019m {{agent_name}}, and I look after buyers for this one.\n\nI\u2019d rather send you something useful than a generic brochure, so one quick question: are you buying to live in it or to invest?\n\nTell me that and I\u2019ll come back with the layouts and the current availability that actually fit.',
+    preview_text: 'Thanks for your enquiry. A quick question so I send the right thing.',
+    is_system: 1, enabled: 1,
+  },
+  {
+    id: 'tpl-noanswer', template_key: 'after_no_answer', name: 'After a call they did not answer',
+    category: 'follow_up', subject: 'Tried to reach you about {{project}}',
+    body: 'Hi {{first_name}},\n\nI tried to call you earlier about {{project}} — I know the timing might not have suited.\n\nNothing urgent, and no pressure. If you\u2019d still like the details, just tell me a time that works and I\u2019ll call then. Evenings are fine.',
+    preview_text: 'Happy to work around you — what time suits?', is_system: 1, enabled: 1,
+  },
+  {
+    id: 'tpl-details', template_key: 'project_details', name: 'Sending project details',
+    category: 'project', subject: '{{project}} — the details you asked for',
+    body: 'Hi {{first_name}},\n\nHere are the details for {{project}}, as promised.\n\nI\u2019ve attached the brochure and the floor plans. Have a look and tell me which layout you prefer.',
+    preview_text: 'Layouts, the payment plan and what is available right now.', is_system: 1, enabled: 1,
+  },
+  {
+    id: 'tpl-quiet', template_key: 'quiet_lead', name: 'Checking in on a quiet lead',
+    category: 'nurture', subject: 'Still looking in {{emirate}}?',
+    body: 'Hi {{first_name}},\n\nIt\u2019s been a while since we spoke about {{project}}, so I thought I\u2019d check in rather than keep guessing.\n\nAre you still looking, or has this gone on the back burner for now?',
+    preview_text: 'One line back is all I need.', is_system: 1, enabled: 1,
+  },
+];
+
+interface PreviewCampaign {
+  id: string; name: string; status: 'draft' | 'scheduled' | 'sending' | 'paused' | 'sent' | 'cancelled';
+  subject: string; list_name: string | null; created_by: string | null; throttle_per_hour: number;
+  total_members: number; sent_count: number; opened_count: number; clicked_count: number;
+  bounced_count: number; unsubscribed_count: number; failed_count: number; created_at: string;
+}
+
+const EMAIL_CAMPAIGNS: PreviewCampaign[] = [
+  {
+    id: 'ec-1', name: 'October — Beachfront launch', status: 'sent',
+    subject: 'Emaar Beachfront — the new tower is open', list_name: 'Beachfront enquiries',
+    created_by: 'Emir Dulovic', throttle_per_hour: 200, total_members: 412, sent_count: 412,
+    opened_count: 173, clicked_count: 48, bounced_count: 6, unsubscribed_count: 4, failed_count: 0,
+    created_at: ago(60 * 24 * 6),
+  },
+  {
+    id: 'ec-2', name: 'Quiet leads — September', status: 'sending',
+    subject: 'Still looking in Dubai?', list_name: 'No contact in 30 days',
+    created_by: 'Emir Dulovic', throttle_per_hour: 200, total_members: 318, sent_count: 96,
+    opened_count: 31, clicked_count: 7, bounced_count: 1, unsubscribed_count: 2, failed_count: 0,
+    created_at: ago(190),
+  },
+];
+
+/** The branded wrapper, close enough for the preview to look like the real one. */
+function previewEmailHtml(subject: string, body: string, values: Record<string, string>): string {
+  const paragraphs = body.split(/\n{2,}/).filter(Boolean)
+    .map((block) => `<p style="margin:0 0 14px">${block.replace(/\n/g, '<br>')}</p>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${subject}</title></head>
+<body style="margin:0;background:#EAF3F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden">
+<tr><td style="background:#0AA3BA;padding:18px 24px;color:#fff;font-size:18px;font-weight:700">Emigeo Homes</td></tr>
+<tr><td style="padding:26px 24px 8px;color:#0E1B2C;font-size:15px;line-height:1.65">${paragraphs}</td></tr>
+<tr><td style="padding:14px 24px 24px"><div style="border-top:1px solid #E3ECF3;padding-top:16px">
+<div style="font-weight:700;font-size:15px;color:#0E1B2C">${values.agent_name}</div>
+<div style="font-size:13px;color:#4A5B70;line-height:1.6">Property Consultant<br>${values.agent_phone}<br>${values.agent_email}<br>BRN 48219</div>
+</div></td></tr>
+<tr><td style="background:#F4F9FC;padding:16px 24px;color:#7E8DA0;font-size:11.5px;line-height:1.6">
+Emigeo Homes Real Estate LLC · Dubai, UAE · Licence 1120345</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -480,6 +553,122 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/notes\/item\/([^/]+)\/restore$/, handler: ({ params }) => {
     const note = findPreviewNote(params[0] ?? '');
     if (note) note.deleted = false;
+    return { ok: true };
+  } },
+
+  // --- client email -------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/email\/templates$/, handler: () => ({
+    items: EMAIL_TEMPLATES,
+    mergeFields: [
+      { key: 'first_name', label: 'Their first name' },
+      { key: 'full_name', label: 'Their full name' },
+      { key: 'project', label: 'The project they asked about' },
+      { key: 'budget', label: 'Their budget' },
+      { key: 'unit_type', label: 'The unit type they want' },
+      { key: 'emirate', label: 'Dubai or Abu Dhabi' },
+      { key: 'agent_name', label: 'Your full name' },
+      { key: 'agent_first_name', label: 'Your first name' },
+      { key: 'agent_phone', label: 'Your phone number' },
+      { key: 'agent_email', label: 'Your email' },
+      { key: 'company', label: 'The company name' },
+    ],
+  }) },
+  { method: 'POST', pattern: /^\/api\/email\/preview$/, handler: ({ body }) => {
+    const lead = LEADS.find((l) => l.contactId === String(body.contactId)) ?? LEADS[0]!;
+    const values: Record<string, string> = {
+      first_name: lead.name.split(' ')[0] ?? 'there',
+      full_name: lead.name,
+      project: lead.project ?? 'the project',
+      budget: lead.budgetMax ? `AED ${lead.budgetMax.toLocaleString()}` : 'your budget',
+      unit_type: lead.unitType ?? 'the unit',
+      emirate: 'Dubai',
+      agent_name: OWNER.name,
+      agent_first_name: OWNER.name.split(' ')[0] ?? OWNER.name,
+      agent_phone: '+971 50 123 4567',
+      agent_email: OWNER.email,
+      company: 'Emigeo Homes',
+    };
+    const known = new Set(Object.keys(values));
+    const fill = (text: string) =>
+      text.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (whole, key: string) =>
+        values[key.toLowerCase()] ?? whole);
+    const used = (text: string) =>
+      [...text.matchAll(/\{\{\s*([a-z_]+)\s*\}\}/gi)].map((m) => (m[1] ?? '').toLowerCase());
+
+    const subject = String(body.subject ?? '');
+    const text = String(body.body ?? '');
+    const unknown = [...new Set([...used(subject), ...used(text)])].filter((k) => !known.has(k));
+
+    return {
+      subject: fill(subject),
+      html: previewEmailHtml(fill(subject), fill(text), values),
+      text: fill(text),
+      unknown,
+      usedFallback: [],
+      to: lead.email,
+      readiness: {
+        sendingOn: false, provider: 'smtp', configured: false,
+        testMode: false, testRedirect: null,
+        problems: ['Email sending has not been switched on yet.'],
+      },
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/email\/send$/, handler: () => ({
+    sent: false, reason: 'Email sending is switched off, so nothing was delivered.',
+  }) },
+  { method: 'GET', pattern: /^\/api\/email\/readiness$/, handler: () => ({
+    sendingOn: false, provider: 'smtp', configured: false, testMode: false,
+    testRedirect: null, problems: ['Email sending has not been switched on yet.'],
+  }) },
+  { method: 'GET', pattern: /^\/api\/email\/events\/([^/]+)$/, handler: () => ({ items: [] }) },
+  { method: 'GET', pattern: /^\/api\/email\/whatsapp-openings\/([^/]+)$/, handler: ({ params }) => {
+    const lead = LEADS.find((l) => l.contactId === params[0]) ?? LEADS[0]!;
+    const first = lead.name.split(' ')[0] ?? 'there';
+    const project = lead.project ?? 'the project';
+    const openings = [
+      { key: 'first_touch', label: 'First message', text: `Hi ${first}, this is ${OWNER.name} from Emigeo Homes. Thanks for your interest in ${project}. Is now a good time for a quick call?` },
+      { key: 'missed_call', label: 'After a missed call', text: `Hi ${first}, I just tried to call you about ${project}. No rush — tell me a time that suits you and I will call then.` },
+      { key: 'send_details', label: 'Sending details', text: `Hi ${first}, here are the details for ${project} as promised. Have a look and tell me which layout you prefer.` },
+      { key: 'check_in', label: 'Checking in', text: `Hi ${first}, just checking in about ${project}. Are you still looking, or shall I leave it for now?` },
+    ];
+    return {
+      phone: lead.phone,
+      openings: openings.map((o) => ({
+        ...o,
+        url: `https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(o.text)}`,
+      })),
+    };
+  } },
+  { method: 'GET', pattern: /^\/api\/email\/campaigns$/, handler: () => ({ items: EMAIL_CAMPAIGNS }) },
+  { method: 'POST', pattern: /^\/api\/email\/campaigns$/, handler: ({ body }) => {
+    const id = `ec-${Date.now()}`;
+    EMAIL_CAMPAIGNS.unshift({
+      id, name: String(body.name ?? 'Untitled'), status: 'draft',
+      subject: String(body.subject ?? ''), list_name: 'Beachfront enquiries',
+      created_by: OWNER.name, throttle_per_hour: Number(body.throttlePerHour ?? 200),
+      total_members: 0, sent_count: 0, opened_count: 0, clicked_count: 0,
+      bounced_count: 0, unsubscribed_count: 0, failed_count: 0,
+      created_at: new Date().toISOString(),
+    });
+    return { id };
+  } },
+  { method: 'GET', pattern: /^\/api\/email\/campaigns\/([^/]+)\/audience$/, handler: () => ({
+    willReceive: 318,
+    skipped: [
+      { reason: 'Never agreed to be emailed', count: 94 },
+      { reason: 'No email address', count: 37 },
+      { reason: 'Unsubscribed', count: 11 },
+    ],
+    minutes: 96,
+  }) },
+  { method: 'POST', pattern: /^\/api\/email\/campaigns\/([^/]+)\/start$/, handler: ({ params }) => {
+    const campaign = EMAIL_CAMPAIGNS.find((c) => c.id === params[0]);
+    if (campaign) { campaign.status = 'sending'; campaign.total_members = 318; }
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/email\/campaigns\/([^/]+)\/pause$/, handler: ({ params }) => {
+    const campaign = EMAIL_CAMPAIGNS.find((c) => c.id === params[0]);
+    if (campaign) campaign.status = 'paused';
     return { ok: true };
   } },
 

@@ -23,6 +23,8 @@ export const JOB_TYPES = [
   'list.recycle',
   'task.reminder_sweep',
   'maintenance.cleanup',
+  /** One batch of an email campaign; it schedules the next one itself. */
+  'email.campaign_batch',
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];

@@ -31,6 +31,7 @@ import { sendBatch } from '../campaigns/run.js';
 import { recycleList } from '../lists/store.js';
 import { recycleStaleClaims } from '../assignment/apply.js';
 import type { JobType } from './types.js';
+import { runCampaignBatch } from '../email/campaigns.js';
 
 export type JobHandler = (payload: Record<string, unknown>) => Promise<unknown>;
 
@@ -361,6 +362,12 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   },
 
   'task.reminder_sweep': async () => sweepTaskReminders(),
+
+  'email.campaign_batch': async (payload: Record<string, unknown>) => {
+    const campaignId = String(payload.campaignId ?? '');
+    if (!campaignId) return { sent: 0, done: true };
+    return runCampaignBatch(campaignId);
+  },
 
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();
