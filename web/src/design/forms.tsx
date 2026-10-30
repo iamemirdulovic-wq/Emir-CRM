@@ -67,10 +67,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 });
 
 export function IconButton({
-  icon, label, variant = 'secondary', ...rest
+  icon, label, variant = 'secondary', className, ...rest
 }: Omit<ButtonProps, 'icon' | 'children'> & { icon: IconName; label: string }) {
   return (
-    <Button variant={variant} className="icon-btn" aria-label={label} title={label} {...rest}>
+    <Button
+      variant={variant}
+      /* Merged, not replaced: spreading a className over this used to drop
+         `icon-btn` itself and leave the button unstyled. */
+      className={className ? `icon-btn ${className}` : 'icon-btn'}
+      aria-label={label}
+      title={label}
+      {...rest}
+    >
       <Icon name={icon} />
     </Button>
   );

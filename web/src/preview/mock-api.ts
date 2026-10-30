@@ -173,6 +173,77 @@ function threadFor(conversationId: string) {
   return { lead, thread: THREADS[conversationId]! };
 }
 
+/**
+ * Notes, per contact, held in memory so pin, edit, delete and undo all behave
+ * in the preview the way they do in the real app.
+ */
+interface PreviewNote {
+  id: string; author_id: string | null; author_name: string | null;
+  type: string; body: string; pinned: number;
+  edited_at: string | null; created_at: string; deleted: boolean;
+}
+
+const NOTE_STORE: Record<string, PreviewNote[]> = {};
+
+function previewNotes(contactId: string): PreviewNote[] {
+  if (!NOTE_STORE[contactId]) {
+    const lead = LEADS.find((l) => l.contactId === contactId);
+    const author = USERS.find((u) => u.id === lead?.owner) ?? OWNER;
+    NOTE_STORE[contactId] = lead && lead.score >= 70
+      ? [
+        {
+          id: `${contactId}-n1`, author_id: author.id, author_name: author.name,
+          type: 'budget', body: 'Said 1.9M is the real ceiling, not the 2.5M on the form.',
+          pinned: 1, edited_at: null, created_at: ago(180), deleted: false,
+        },
+        {
+          id: `${contactId}-n2`, author_id: author.id, author_name: author.name,
+          type: 'objection', body: 'Worried about the 2027 handover slipping. Wants the DLD escrow number before he signs anything.',
+          pinned: 1, edited_at: null, created_at: ago(160), deleted: false,
+        },
+        {
+          id: `${contactId}-n3`, author_id: author.id, author_name: author.name,
+          type: 'call_summary', body: 'Spoke 11 minutes. Walked through the payment plan. Sending the floor plans for the 2 BR type B tonight.',
+          pinned: 0, edited_at: ago(140), created_at: ago(150), deleted: false,
+        },
+      ]
+      : [];
+    if (NOTE_STORE[contactId]!.length > 0) seedNoteFiles(contactId);
+  }
+  return NOTE_STORE[contactId]!;
+}
+
+interface PreviewNoteFile {
+  id: string; note_id: string; kind: 'file' | 'voice'; filename: string;
+  content_type: string; byte_size: number; duration_s: number | null; created_at: string;
+}
+
+/** One voice note and one document, so the preview shows both shapes. */
+const NOTE_FILES: PreviewNoteFile[] = [];
+
+function seedNoteFiles(contactId: string): void {
+  NOTE_FILES.push(
+    {
+      id: `${contactId}-vf1`, note_id: `${contactId}-n3`, kind: 'voice',
+      filename: 'voice-note-2026-10-30-11-14.webm', content_type: 'audio/webm',
+      byte_size: 184_320, duration_s: 47, created_at: ago(150),
+    },
+    {
+      id: `${contactId}-vf2`, note_id: `${contactId}-n3`, kind: 'file',
+      filename: 'emaar-beachfront-2br-type-b.pdf', content_type: 'application/pdf',
+      byte_size: 1_245_184, duration_s: null, created_at: ago(149),
+    },
+  );
+}
+
+function findPreviewNote(noteId: string): PreviewNote | undefined {
+  for (const list of Object.values(NOTE_STORE)) {
+    const found = list.find((n) => n.id === noteId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -372,6 +443,43 @@ const ROUTES: Route[] = [
     needsNextStep: false, said: 'Next step set',
   }) },
 
+  // --- notes --------------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/notes\/([^/]+)$/, handler: ({ params }) => {
+    const items = previewNotes(params[0] ?? '').filter((n) => !n.deleted);
+    return { items, files: items.flatMap((n) => NOTE_FILES.filter((f) => f.note_id === n.id)) };
+  } },
+  { method: 'POST', pattern: /^\/api\/notes\/([^/]+)$/, handler: ({ params, body }) => {
+    const id = `note-${Date.now()}`;
+    previewNotes(params[0] ?? '').unshift({
+      id, author_id: OWNER.id, author_name: OWNER.name,
+      type: String(body.type ?? 'general'), body: String(body.body ?? ''),
+      pinned: 0, edited_at: null, created_at: new Date().toISOString(), deleted: false,
+    });
+    return { id, mentions: [] };
+  } },
+  { method: 'POST', pattern: /^\/api\/notes\/item\/([^/]+)\/files$/, handler: ({ params }) => {
+    const id = `nf-${Date.now()}`;
+    NOTE_FILES.push({
+      id, note_id: params[0] ?? '', kind: 'file', filename: 'uploaded',
+      content_type: 'image/png', byte_size: 1024, duration_s: null,
+      created_at: new Date().toISOString(),
+    });
+    return { id };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/notes\/item\/([^/]+)$/, handler: ({ params, body }) => {
+    const note = findPreviewNote(params[0] ?? '');
+    if (!note) throw { status: 404, code: 'not_found', message: 'Note not found' };
+    if (body.pinned !== undefined) note.pinned = body.pinned ? 1 : 0;
+    if (body.body !== undefined) { note.body = String(body.body); note.edited_at = new Date().toISOString(); }
+    if (body.deleted) note.deleted = true;
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/notes\/item\/([^/]+)\/restore$/, handler: ({ params }) => {
+    const note = findPreviewNote(params[0] ?? '');
+    if (note) note.deleted = false;
+    return { ok: true };
+  } },
+
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },
   { method: 'PATCH', pattern: /^\/api\/users\/([^/]+)$/, handler: ({ params, body }) => {
@@ -420,7 +528,10 @@ const ROUTES: Route[] = [
         phone_e164: lead.phone, wa_id: lead.phone.replace('+', ''), email: lead.email,
         language: lead.language, lead_score: lead.score, dnc: lead.dnc,
         owner_name: userName(lead.owner), owner_email: USERS.find((u) => u.id === lead.owner)?.email ?? null,
-        first_source: lead.source, created_at: ago(lead.createdMinutesAgo), notes: null,
+        first_source: lead.source, created_at: ago(lead.createdMinutesAgo),
+        notes: lead.score >= 70
+          ? 'Looking for a 2 bedroom with a sea view, handover 2027 or sooner. Budget is flexible for the right unit. Please call after 6pm, I am at work during the day.'
+          : null,
         ai_summary: lead.score >= 70
           ? `Ready buyer for ${lead.project ?? 'off-plan'} with a stated budget of ${lead.budgetMax ? `AED ${lead.budgetMax.toLocaleString()}` : 'unspecified'}.\nAsked about pricing and floor plans; replies within minutes on WhatsApp.\nNext step: confirm the viewing and send the payment plan.`
           : null,
@@ -944,8 +1055,78 @@ function resolve(method: string, path: string): { route: Route; params: string[]
   return null;
 }
 
+
+/**
+ * Media the mock cannot serve.
+ *
+ * `window.fetch` is patched, but an `<audio src>` or `<img src>` is loaded by
+ * the browser itself and never goes through it, so a voice note in the preview
+ * asked the dev server for `/api/notes/files/…` and got a 500. Rather than put
+ * a preview check inside the component, the element's own `src` setter is
+ * redirected here — this file is dropped from a production build.
+ */
+function installMediaMock(): void {
+  /* A second of silence, built rather than fetched, so the player has a real
+     duration and the controls behave. */
+  const silentWav = (): string => {
+    const rate = 8000;
+    const samples = rate * 2;
+    const buffer = new ArrayBuffer(44 + samples);
+    const view = new DataView(buffer);
+    const ascii = (offset: number, text: string) => {
+      for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+    };
+    ascii(0, 'RIFF');
+    view.setUint32(4, 36 + samples, true);
+    ascii(8, 'WAVEfmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate, true);
+    view.setUint16(32, 1, true);
+    view.setUint16(34, 8, true);
+    ascii(36, 'data');
+    view.setUint32(40, samples, true);
+    for (let i = 0; i < samples; i += 1) view.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+  };
+
+  const audio = silentWav();
+  /* A 1×1 teal pixel, stretched by the thumbnail's object-fit. */
+  const image = 'data:image/gif;base64,R0lGODlhAQABAPAAAAqjugAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+  const redirect = (value: string, fallback: string): string =>
+    (value.includes('/api/notes/files/') || value.includes('/api/tasks/attachments/')) ? fallback : value;
+
+  for (const [element, fallback] of [
+    [HTMLAudioElement, audio],
+    [HTMLImageElement, image],
+  ] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(element.prototype, 'src');
+    if (descriptor?.set && descriptor.get) {
+      Object.defineProperty(element.prototype, 'src', {
+        ...descriptor,
+        set(this: HTMLElement, value: string) {
+          descriptor.set!.call(this, redirect(String(value), fallback));
+        },
+      });
+    }
+
+    /* React writes `src` on a media or image element with setAttribute rather
+       than the property, so the setter above never sees it. */
+    const setAttribute = element.prototype.setAttribute;
+    element.prototype.setAttribute = function patched(
+      this: HTMLElement, name: string, value: string,
+    ): void {
+      setAttribute.call(this, name, name === 'src' ? redirect(String(value), fallback) : value);
+    };
+  }
+}
+
 /** Replace window.fetch for /api/* only; everything else passes through. */
 export function installMockApi(): void {
+  installMediaMock();
   const realFetch = window.fetch.bind(window);
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {

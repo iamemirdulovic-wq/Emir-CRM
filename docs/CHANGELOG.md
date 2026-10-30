@@ -2,6 +2,51 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Notes that belong to somebody
+
+An internal note used to land on the activity timeline with nobody's name on
+it. You could not tell who wrote it, you could not fix a typo in it, and the
+one line that actually mattered — the real budget, the objection — scrolled
+out of sight under three months of "called, no answer".
+
+**What changed**
+- **Every note has an author, a type and a time.** Note, Call, Viewing,
+  Budget, Objection, Next step. The type is one tap and it colours the row.
+- **Pin the ones that matter.** A pinned note stays at the top of the lead for
+  good, with a teal edge so it is obvious which ones the team agreed on.
+- **Six quick phrases** — "Client wants 2 BR", "Call after 6pm", "Cash buyer"
+  — because those get typed ten times a day. Enter saves, Shift+Enter is a new
+  line, the way every chat box works.
+- **Voice notes.** Press the microphone, talk, press Stop. There is a timer
+  while it records so you know it started, and the note plays back on the lead
+  with one tap. A recording on its own is a whole note; no typing needed.
+- **Photos and PDFs** attach to a note the same way.
+- **@name someone** and they get a notification with the note in it.
+- **"Remind me"** on a note sets the lead's next step, so a note saying "call
+  him Thursday" actually puts Thursday somewhere.
+- **Delete gives you an Undo** rather than an "Are you sure?" — nothing is
+  really deleted, and the Undo sits in the toast for seven seconds.
+
+**The thing that was already there and nobody could see**
+
+Every lead from a Meta form arrives with whatever the client typed into it —
+"2 bedroom, sea view, handover 2027 or sooner, please call after 6pm". The CRM
+has been storing that since the first lead and showing it on no screen. It now
+sits at the top of the notes, in their words, marked as theirs.
+
+**One bug, and it was live**
+
+The lead page went blank the moment it finished loading — a mistake in the
+last push, on the screen agents use most. It is fixed and pushed. There is now
+a check that reads the code for the same mistake, and it uses the real broken
+page as its test case, so the check is known to catch the actual thing.
+
+**Where it stands**
+
+1,165 server tests and 225 web tests pass; 269 database tests run on the build
+server. The build is clean. Checked in light, dark and on a phone, and the
+recorder was driven end to end in a real browser.
+
 ## The agent sees the lead land
 
 The piece that makes the timer fair. The bounce was built last time: an agent

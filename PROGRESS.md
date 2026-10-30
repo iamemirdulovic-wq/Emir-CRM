@@ -26,7 +26,9 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 1.2 Button, IconButton, Badge, StatCard, Skeleton, SkeletonRows
 - [x] 1.3 Combobox, WhenField, PhoneInput, CurrencyInput, BudgetRange
 - [x] 1.4 BottomSheet, Tabs, ConfirmDialog, TimelineItem, CountdownRing
-- [x] 1.5 Toast with Undo — `useToast` already had it
+- [x] 1.5 Toast with Undo — built in Step 8. This box was ticked in Step 1
+      on the belief that `useToast` already supported an action; it did not,
+      it took a message and nothing else. Corrected rather than left standing.
 - [x] 1.6 EmptyState — `Empty` already had it
 - [x] 1.7a Mobile bottom nav with the centre ＋ button
 - [ ] 1.7b Sidebar order per C4 — **waits on Steps 7, 11 and 13**: My Leads,
@@ -132,12 +134,21 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 7.9 Actions save on press and reload the view; there is no Save button
 
 ## Step 8 — Notes (D8)
-- [ ] 8.1 `lead_notes` table
-- [ ] 8.2 Composer: types, quick text, Enter to save
-- [ ] 8.3 Attachments and voice notes
-- [ ] 8.4 @mentions + notification
-- [ ] 8.5 Pin, edit, soft delete with undo
-- [ ] 8.6 "Remind me" sets the lead's next step
+- [x] 8.1 `lead_notes` table — one row per note, with an author, a type and a
+      pin. The old `note` activities stay in the timeline untouched.
+- [x] 8.2 Composer: six types, six quick phrases, Enter saves and
+      Shift+Enter is a new line
+- [x] 8.3 Attachments and voice notes — photos and PDF, plus a recorder that
+      works on a phone in a car park. `note_files` table, streamed to disk,
+      served only through a permission check.
+- [x] 8.4 @mentions + notification — matched longest name first, and it
+      refuses to guess between two people who share a first name
+- [x] 8.5 Pin, edit, soft delete with undo — the undo is a real toast action,
+      which the toast did not have until now
+- [x] 8.6 "Remind me" sets the lead's next step, so a note saying "call him
+      Thursday" puts Thursday somewhere
+- [x] 8.7 The client's own words from the ad form are shown above the notes.
+      They arrived with every lead and had never been displayed anywhere.
 
 ## Step 9 — Bulk import (D9)
 - [ ] 9.1 Batch tag, `undo_until` on the existing `imports` table

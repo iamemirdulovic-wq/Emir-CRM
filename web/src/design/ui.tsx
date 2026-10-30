@@ -4,7 +4,7 @@
  * design/emir-crm-design.html.
  */
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  createContext, forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -186,22 +186,39 @@ export function Note({ children }: { children: ReactNode }) {
 
 /* ── Toast ────────────────────────────────────────────────────────────── */
 
-const ToastContext = createContext<(message: string) => void>(() => undefined);
+export interface ToastOptions {
+  /**
+   * The way back. Offered instead of a confirmation dialog wherever the
+   * action can be undone — a dialog in front of every delete trains people
+   * to click through dialogs, which is how the one that mattered gets
+   * clicked through too.
+   */
+  action?: { label: string; onClick: () => void };
+}
 
-export function useToast(): (message: string) => void {
+type ShowToast = (message: string, options?: ToastOptions) => void;
+
+const ToastContext = createContext<ShowToast>(() => undefined);
+
+export function useToast(): ShowToast {
   return useContext(ToastContext);
 }
 
 const TOAST_MS = 2600;
+/** Longer when there is something to press: 2.6s is not enough to read, decide and reach. */
+const TOAST_WITH_ACTION_MS = 7000;
 
 export function ToastHost({ children }: { children: ReactNode }) {
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; action?: ToastOptions['action'] } | null>(null);
   const timer = useRef<number>();
 
-  const show = useCallback((text: string) => {
-    setMessage(text);
+  const show = useCallback<ShowToast>((text, options) => {
+    setToast({ message: text, ...(options?.action ? { action: options.action } : {}) });
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setMessage(null), TOAST_MS);
+    timer.current = window.setTimeout(
+      () => setToast(null),
+      options?.action ? TOAST_WITH_ACTION_MS : TOAST_MS,
+    );
   }, []);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -211,11 +228,26 @@ export function ToastHost({ children }: { children: ReactNode }) {
       {children}
       {/* role=status rather than alert: a confirmation should not interrupt
           whatever the screen reader is already saying. */}
-      <div className={message ? 'toast show' : 'toast'} role="status" aria-live="polite">
-        {message && (
+      <div className={toast ? 'toast show' : 'toast'} role="status" aria-live="polite">
+        {toast && (
           <>
             <Icon name="check-circle-2" />
-            <span>{message}</span>
+            <span>{toast.message}</span>
+            {toast.action && (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  /* Dismiss first: pressing Undo and watching the toast sit
+                     there for another five seconds reads as nothing happened. */
+                  window.clearTimeout(timer.current);
+                  setToast(null);
+                  toast.action?.onClick();
+                }}
+              >
+                {toast.action.label}
+              </button>
+            )}
           </>
         )}
       </div>
@@ -377,9 +409,17 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={props.className ? `input ${props.className}` : 'input'} />;
 }
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={props.className ? `input ${props.className}` : 'input'} />;
-}
+export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function TextArea(props, ref) {
+    return (
+      <textarea
+        {...props}
+        ref={ref}
+        className={props.className ? `input ${props.className}` : 'input'}
+      />
+    );
+  },
+);
 
 /* ── Money and time ───────────────────────────────────────────────────── */
 

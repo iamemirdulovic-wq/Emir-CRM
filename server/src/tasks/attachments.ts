@@ -2,45 +2,26 @@
  * Files attached to a task: property photos, a floor plan, a screenshot of a
  * portal listing.
  *
- * Two rules shape everything here, and both are about serving a file back that
- * a user uploaded.
- *
- * **What may be stored.** An allow-list of types, not a block-list. SVG is
- * excluded although it is an image, because an SVG is a document that can carry
- * script, and serving one from the CRM's own origin would run that script with
- * the session cookie in scope. HTML is excluded for the same reason.
- *
- * **Where it may live.** The file on disk is named after its row id, never
- * after anything the uploader typed, and every read or delete checks the
- * resolved path is inside `UPLOAD_DIR` before touching it.
+ * The two rules that shape this — what may be stored, and where it may live —
+ * are in `lib/uploads.ts`, shared with note attachments and tested there.
  */
 import { createReadStream } from 'node:fs';
 import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { env } from '../config/env.js';
+import { IMAGE_TYPES, extensionFor, insideUploadDir, isInlineSafe as inlineSafe, uploadDir } from '../lib/uploads.js';
 import { execute, getPool, query, queryOne, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 
-/**
- * What a task may carry. Photos, because that is the point, and PDF because a
- * floor plan or a reservation form usually is one.
- */
-const ALLOWED: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
-  'application/pdf': '.pdf',
-};
-
-export const ALLOWED_TYPES = Object.keys(ALLOWED);
+/** Photos, because that is the point, and PDF for a floor plan. */
+export const ALLOWED_TYPES = Object.keys(IMAGE_TYPES);
 
 /** Is this something a browser can be trusted to render inline? */
 export function isInlineSafe(contentType: string): boolean {
-  return contentType.startsWith('image/') && contentType in ALLOWED;
+  return inlineSafe(contentType, IMAGE_TYPES);
 }
 
 export type Attachment = {
@@ -53,14 +34,7 @@ export type Attachment = {
 };
 
 function attachmentsDir(): string {
-  return path.join(path.resolve(env().UPLOAD_DIR), 'tasks');
-}
-
-/** Only ever touch a file that resolves inside the upload directory. */
-function insideUploadDir(filePath: string): boolean {
-  const root = path.resolve(env().UPLOAD_DIR);
-  const resolved = path.resolve(filePath);
-  return resolved !== root && resolved.startsWith(root + path.sep);
+  return uploadDir('tasks');
 }
 
 export type SaveInput = {
@@ -72,7 +46,7 @@ export type SaveInput = {
 };
 
 export async function saveAttachment(input: SaveInput, exec: Executor = getPool()): Promise<Attachment> {
-  const extension = ALLOWED[input.contentType];
+  const extension = extensionFor(input.contentType, IMAGE_TYPES);
   if (!extension) {
     throw badRequest(
       `${input.contentType} cannot be attached. Images (JPEG, PNG, WebP, GIF) and PDF only.`,

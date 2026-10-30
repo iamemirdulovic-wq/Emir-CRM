@@ -478,3 +478,158 @@
   .lead-next{order:4}
   .lead-actions{order:2}
 }
+
+/* ---------------------------------------------------------------------------
+   Toast with a way back
+   --------------------------------------------------------------------------- */
+
+/* The hidden toast sits over the bottom-centre of every screen, which on a
+   phone is where the tab bar is. Without this it swallows those taps. */
+.toast{pointer-events:none}
+.toast.show{pointer-events:auto}
+
+.toast-action{
+  margin-left:4px;background:rgba(255,255,255,.16);color:#fff;border:0;
+  border-radius:99px;padding:5px 13px;font:inherit;font-weight:700;cursor:pointer;
+  transition:background .15s}
+.toast-action:hover{background:rgba(255,255,255,.28)}
+.toast-action:focus-visible{outline:2px solid #5BE3F0;outline-offset:2px}
+
+/* On a phone the toast clears the bottom bar rather than covering it.
+   760px is where .bottom-nav appears; the bar is ~54px tall and sits 10px up. */
+@media (max-width:760px){
+  .toast{bottom:80px;max-width:calc(100vw - 32px)}
+}
+
+/* ---------------------------------------------------------------------------
+   Lead notes
+   --------------------------------------------------------------------------- */
+
+.notes{display:flex;flex-direction:column;gap:14px}
+
+.note-enquiry{
+  padding:11px 13px;border-radius:var(--r-m);
+  border:1px solid var(--primary-soft);background:var(--primary-soft)}
+.note-enquiry-head{
+  display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--primary)}
+.note-enquiry p{
+  margin:6px 0 0;white-space:pre-wrap;word-break:break-word;line-height:1.5;
+  font-style:italic;color:var(--ink)}
+
+.note-compose{
+  display:flex;flex-direction:column;gap:9px;padding:13px;border-radius:var(--r-m);
+  border:1px solid var(--line);
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg)}
+.note-compose textarea{resize:vertical;min-height:56px}
+
+.note-types,.note-quick{display:flex;flex-wrap:wrap;gap:6px}
+
+/* Deliberately quieter than the type chips: these are a shortcut, not a
+   decision the agent has to make before writing. */
+.note-quick-btn{
+  background:transparent;border:1px dashed var(--line);color:var(--ink-2);
+  border-radius:99px;padding:4px 11px;font-size:12px;cursor:pointer;
+  transition:border-color .15s,color .15s}
+.note-quick-btn:hover{border-color:var(--primary);border-style:solid;color:var(--primary)}
+
+.note-remind{display:flex;flex-direction:column;gap:5px}
+.note-remind small{color:var(--ink-2);font-size:11.5px}
+
+.note-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.note-actions .btn{flex:none}
+/* A label that breaks across two lines makes the whole row taller on a phone;
+   the row is allowed to wrap instead. */
+.note-actions .chip{white-space:nowrap}
+
+.note-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+
+/* `.lead-note`, not `.note`: components.css already owns `.note` for the
+   small grey hint line, and that one is display:flex. */
+.lead-note{
+  padding:11px 13px;border-radius:var(--r-m);border:1px solid var(--line);
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg);
+  position:relative}
+/* A pinned note is the one that matters on this lead, so it is allowed to
+   look different rather than just sit higher up. */
+.lead-note.pinned{border-color:var(--primary)}
+.lead-note.pinned::before{
+  content:'';position:absolute;inset:0 auto 0 0;width:3px;border-radius:3px 0 0 3px;
+  background:var(--primary)}
+
+.note-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12.5px}
+.note-head b{font-size:13px}
+.note-head svg{color:var(--primary)}
+.note-head time{color:var(--ink-2);margin-left:auto;font-variant-numeric:tabular-nums}
+.note-head .muted{color:var(--ink-2);font-size:11px;font-style:italic}
+
+.note-tag{
+  font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;
+  background:var(--primary-soft);color:var(--ink-2)}
+.note-tag.t-budget{background:rgba(52,199,89,.14);color:#2f9e4f}
+.note-tag.t-objection{background:rgba(255,149,0,.16);color:#b86b00}
+.note-tag.t-next_step{background:rgba(0,175,200,.14);color:var(--primary)}
+
+.note-body{margin:7px 0 0;white-space:pre-wrap;word-break:break-word;line-height:1.5}
+
+.note-row-actions{display:flex;gap:10px;margin-top:8px}
+.note-row-actions button{
+  background:none;border:0;padding:0;font:inherit;font-size:12px;cursor:pointer;
+  color:var(--ink-2);text-decoration:underline;text-underline-offset:2px}
+.note-row-actions button:hover{color:var(--ink)}
+.note-row-actions button.danger:hover{color:var(--s-lost)}
+
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme='light']) .note-tag.t-budget{color:#6ddc8c}
+  :root:not([data-theme='light']) .note-tag.t-objection{color:#ffb84d}
+}
+:root[data-theme='dark'] .note-tag.t-budget{color:#6ddc8c}
+:root[data-theme='dark'] .note-tag.t-objection{color:#ffb84d}
+
+/* ---------------------------------------------------------------------------
+   Note files and voice notes
+   --------------------------------------------------------------------------- */
+
+.note-staged{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.note-staged li{
+  display:flex;align-items:center;gap:7px;font-size:12.5px;
+  padding:5px 9px;border-radius:9px;background:var(--surface-2)}
+.note-staged-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-staged small{color:var(--ink-3);margin-left:auto;font-variant-numeric:tabular-nums}
+.note-staged button{
+  background:none;border:0;padding:2px;cursor:pointer;color:var(--ink-3);
+  display:flex;border-radius:6px}
+.note-staged button:hover{color:var(--s-lost);background:var(--surface-2)}
+
+.note-recording{
+  display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;
+  padding:8px 11px;border-radius:var(--r-m);
+  background:rgba(217,138,138,.14);color:var(--s-lost)}
+.note-recording .btn{margin-left:auto}
+.note-rec-dot{
+  width:9px;height:9px;border-radius:50%;background:var(--s-lost);flex:none;
+  animation:note-rec 1.2s var(--ease) infinite}
+@keyframes note-rec{0%,100%{opacity:1}50%{opacity:.25}}
+/* A blinking dot is exactly what the reduce-motion setting is for. */
+@media (prefers-reduced-motion:reduce){.note-rec-dot{animation:none}}
+
+.note-actions .icon-btn.on{color:var(--s-lost);background:rgba(217,138,138,.14)}
+
+.note-files{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;align-items:center}
+
+.note-voice{
+  display:flex;align-items:center;gap:8px;flex:1 1 260px;
+  padding:6px 10px;border-radius:99px;background:var(--surface-2)}
+.note-voice svg{color:var(--primary);flex:none}
+.note-voice audio{flex:1;min-width:0;height:32px}
+.note-voice small{color:var(--ink-3);font-variant-numeric:tabular-nums;flex:none}
+
+.note-thumb{display:block;border-radius:10px;overflow:hidden;line-height:0;border:1px solid var(--line)}
+.note-thumb img{width:74px;height:74px;object-fit:cover;display:block}
+.note-thumb:hover{border-color:var(--primary)}
+
+.note-file{
+  display:flex;align-items:center;gap:7px;font-size:12.5px;text-decoration:none;color:var(--ink);
+  padding:6px 11px;border-radius:99px;background:var(--surface-2)}
+.note-file:hover{background:var(--primary-soft);color:var(--primary)}
+.note-file small{color:var(--ink-3);font-variant-numeric:tabular-nums}

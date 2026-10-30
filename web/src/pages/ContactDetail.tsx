@@ -10,9 +10,10 @@ import { Icon } from '../design/index.js';
 import { sourceStyle, stageStyle } from '../design/stages.js';
 import {
   ago, Avatar, budgetLabel, Empty, ErrorNote, Field, Panel, Score, Select, Spinner, StagePill, Tag,
-  TextArea, Toolbar, useToast,
+  Toolbar, useToast,
 } from '../design/ui.js';
 import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
+import { LeadNotes } from '../components/LeadNotes.js';
 
 const TASK_TYPES = ['call', 'whatsapp', 'email', 'meeting', 'other'] as const;
 
@@ -34,23 +35,7 @@ export function ContactDetail() {
   const { user } = useAuth();
   const toast = useToast();
   const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${id}`), [id]);
-  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-
-  async function addNote() {
-    if (!note.trim()) return;
-    setBusy(true);
-    try {
-      await api.post(`/api/contacts/${id}/notes`, { body: note });
-      setNote('');
-      toast('Note added');
-      detail.reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not add the note');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function setDnc(dnc: boolean) {
     setBusy(true);
@@ -230,7 +215,15 @@ export function ContactDetail() {
           </div>
         </Panel>
 
-        <Panel span={8} index={2} icon="activity" title="Activity">
+        <Panel span={8} index={2} icon="sticky-note" title="Notes">
+          <LeadNotes
+            contactId={contact.id}
+            opportunityId={opportunity?.id ?? null}
+            enquiryNote={contact.notes}
+          />
+        </Panel>
+
+        <Panel span={8} index={3} icon="activity" title="Activity">
           {activities.length === 0 ? (
             <Empty icon="activity" title="Nothing recorded yet" />
           ) : (
@@ -249,28 +242,9 @@ export function ContactDetail() {
               ))}
             </div>
           )}
-
-          <div className="sec-t">Add an internal note</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <TextArea
-              rows={2}
-              placeholder="Visible to your team only"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              disabled={busy}
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void addNote()}
-              disabled={busy || !note.trim()}
-            >
-              <Icon name="send" />
-            </button>
-          </div>
         </Panel>
 
-        <Panel span={6} index={3} icon="check-square" title={`Tasks (${openTasks.length} open)`}>
+        <Panel span={6} index={4} icon="check-square" title={`Tasks (${openTasks.length} open)`}>
           {tasks.length === 0 && <Empty icon="check-circle-2" title="No tasks" />}
           {tasks.map((task) => (
             <div className="task" key={task.id}>
@@ -290,7 +264,7 @@ export function ContactDetail() {
           <NewTask contactId={contact.id} opportunityId={opportunity?.id ?? null} onCreated={detail.reload} />
         </Panel>
 
-        <Panel span={6} index={4} icon="layers" title="Inquiries">
+        <Panel span={6} index={5} icon="layers" title="Inquiries">
           {opportunities.length === 0 && <Empty icon="kanban" title="No opportunities" />}
           {opportunities.map((item) => (
             <div className="kv" key={item.id}>

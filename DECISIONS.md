@@ -258,3 +258,54 @@ nobody made is worse than admitting none exists.
 cannot issue a real 301; the server serves one SPA for every path. The route
 resolves and replaces the history entry, which is what a bookmark, an old push
 notification and an already-sent email all need.
+
+2026-10-30 — notes — Notes become their own table, and nothing is moved —
+Until now an internal note was a `note` row on the activity timeline: no
+author beside it, no way to correct a typo, no way to pin the one line that
+mattered. `lead_notes` fixes all three for anything written from now on. The
+old rows stay exactly where they are and still show in the timeline, because
+they hold real words agents wrote and a migration that rewrites those is a
+migration that can lose them.
+
+2026-10-30 — notes — The client's own words were in the database and on no
+screen — `contacts.notes` is not team notes at all; it is whatever the client
+typed into the ad form, written by ingestion and never displayed. It is the
+only thing on the record in their own words, so it now sits above the notes,
+labelled as theirs and styled so it cannot be mistaken for something an agent
+wrote.
+
+2026-10-30 — notes — A voice note is the whole note, no typing required —
+An agent has most to say in the two minutes after a viewing, which is exactly
+when they are walking to a car with a phone in one hand. Save is enabled with
+a recording and no text; the body is filled in as "🎤 Voice note" so the row
+still reads as something. Requiring words as well would mean typing, which is
+the thing the recording exists to avoid.
+
+2026-10-30 — notes — Files upload after the note is saved, not before —
+A file has nothing to attach to until the note exists, and uploading as soon
+as it is picked would leave an orphan on disk behind every abandoned draft.
+They are staged in the composer, shown with a name and a size, removable, and
+sent one at a time once the note has an id — one at a time because these are
+phone uploads on a car's signal, and ten parallel requests is how all ten
+fail.
+
+2026-10-30 — notes — Undo instead of "Are you sure?" — Deleting a note is a
+soft delete with an Undo in the toast, held for seven seconds rather than the
+usual 2.6, because 2.6 is not long enough to read, decide and reach. A
+confirmation dialog in front of every delete teaches people to click through
+dialogs, which is how the one that mattered gets clicked through too.
+
+2026-10-30 — uploads — One place decides what may be stored and where —
+The allow-list and the "is this path inside UPLOAD_DIR" check were inside the
+task attachment module. Notes needed both, and copying them is how one copy
+quietly drifts. They are now in `lib/uploads.ts`, unit-tested without a
+database — including the SVG and HTML exclusions, the `../../etc/passwd`
+climb, and the `uploads-old` sibling directory that merely starts with the
+same characters.
+
+2026-10-30 — notes — A note id is not authority to touch the note — The
+patch and restore routes checked who wrote a note but never that the caller
+could see the lead, so an agent knowing an id could pin or restore a note on a
+colleague's client. Both now resolve the note to its contact and run the same
+check the lead page runs. Found while adding the file routes, fixed before
+they were written.
