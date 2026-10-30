@@ -40,6 +40,26 @@ if (!existsSync(serverEntry) || !existsSync(webIndex)) {
   }
 }
 
+/*
+ * A dump before the schema is touched. It runs here because this is the only
+ * place with a route to the database — it listens on localhost, so no machine
+ * but this one can take it.
+ *
+ * A failed backup does not stop the server. Seven agents losing the CRM
+ * because a dump tool is missing is a worse outcome than a start without a
+ * fresh dump, and migrations are additive-only by policy — enforced by
+ * `migrations.safety.test.ts`, which fails the build on destructive DDL. The
+ * warning is loud so it is noticed and fixed.
+ */
+const { backup } = await import(pathToFileURL(join(root, 'scripts', 'backup-db.mjs')).href);
+const dump = await backup().catch((err) => ({ ok: false, reason: err?.message ?? String(err) }));
+if (dump.ok) {
+  console.log(`[start] backup ${dump.file} (${(dump.bytes / 1024 / 1024).toFixed(1)} MB)`);
+} else {
+  console.warn(`[start] ⚠ NO BACKUP TAKEN — ${dump.reason}`);
+  console.warn('[start] ⚠ see SETUP_NEEDED.md, "Make sure backups are running".');
+}
+
 // Schema first: a server must never serve against a database it has not migrated.
 console.log('[start] applying migrations');
 const migrated = run(process.execPath, [join('dist', 'db', 'migrate.js')], { cwd: join(root, 'server') });
