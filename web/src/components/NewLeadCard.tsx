@@ -4,6 +4,7 @@ import { api, ApiError } from '../lib/api.js';
 import { formatAedShort, humanize } from '../lib/format.js';
 import { Icon } from '../design/index.js';
 import { useToast } from '../design/ui.js';
+import { play } from '../lib/sound.js';
 
 /**
  * The new-lead alert from the approved design, wired to a real lead.
@@ -48,7 +49,12 @@ export function NewLeadCard() {
     try {
       const { items } = await api.get<{ items: PendingLead[] }>('/api/incoming/pending');
       const next = items.find((item) => !handled.current.has(item.id)) ?? null;
-      setLead(next);
+      setLead((shown) => {
+        /* Only when a different lead arrives — a poll every ten seconds that
+           chimed each time would be unbearable by lunchtime. */
+        if (next && next.id !== shown?.id) play('new-lead');
+        return next;
+      });
       if (next) setSeconds(next.secondsLeft);
     } catch {
       /* Offline, or the session ended. The next poll settles it either way,

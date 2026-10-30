@@ -15,7 +15,7 @@ to be wrong, correct it here first, then carry on.
 | Database | **MySQL 8 / MariaDB** via `mysql2` | hand-written SQL; no ORM |
 | Migrations | hand-written `.sql` in `server/migrations/`, tracked in `schema_migrations` | applied by `scripts/start.mjs` on every boot |
 | Validation | **Zod** on every endpoint | |
-| Web | React 18 + Vite 6, React Router (**hash router**) | `web/src`, built to `web/dist` |
+| Web | React 18 + Vite 6, React Router | `web/src`, built to `web/dist` |
 | Styling | plain CSS with custom properties in `web/src/styles/` | no Tailwind; do not add one |
 | Icons | `lucide-react`, wrapped by `web/src/design/Icon.tsx` | only names in `ICON_NAMES` exist |
 | Tests | **Vitest** both sides; Playwright for the browser smoke test (`e2e/ui.mjs`) | |
@@ -177,8 +177,12 @@ Dashboard, Pipeline (kanban), Inbox, Contacts + ContactDetail, Tasks, Library
 (projects), Offers, Lists, Campaigns + Dialler, Imports + wizard, Incoming,
 Pool, Automations, Settings, Login, Setup, ChangePassword.
 
-Routing is a **hash router** (`#/contacts/c-1`) — anything reading
-`location.pathname` to decide a route is wrong.
+Routing: the real app uses `BrowserRouter` with ordinary paths
+(`/contacts/c-1`). **The preview build uses `HashRouter`** so it can be served
+from any static host with no rewrite rule — so a preview URL is
+`http://localhost:5182/#/contacts/c-1`, and a Playwright script driving the
+preview must include the `#`. Reading `location.pathname` to decide a route is
+therefore right in production and wrong against the preview.
 
 ### Realtime
 

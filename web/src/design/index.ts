@@ -39,3 +39,20 @@ export { Spark } from './charts/Spark.js';
 export type { SparkProps } from './charts/Spark.js';
 export { smooth } from './charts/geometry.js';
 export type { Point } from './charts/geometry.js';
+
+/* The input family: everything an agent types into on a phone. */
+export {
+  Button, IconButton, PhoneInput, CurrencyInput, Combobox, WhenField, BudgetRange,
+  budgetStepLabel, localInputValue, quickTimes,
+} from './forms.js';
+export type { ButtonProps, ComboOption, PhoneInputProps } from './forms.js';
+export {
+  COUNTRIES, DEFAULT_COUNTRY, countryOfE164, flagOf, readPhone,
+} from './phone.js';
+export type { Country, PhoneValue } from './phone.js';
+
+/* Telling the agent what is happening. */
+export {
+  Badge, BottomSheet, ConfirmDialog, CountdownRing, Skeleton, SkeletonRows, StatCard, Tabs, TimelineItem,
+} from './feedback.js';
+export type { TabItem } from './feedback.js';

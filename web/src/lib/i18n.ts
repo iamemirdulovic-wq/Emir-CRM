@@ -147,7 +147,14 @@ export function setLocale(next: Locale): void {
 
 /** Arabic mirrors the entire layout through the document direction. */
 export function applyDirection(): void {
-  document.documentElement.lang = current;
+  /*
+   * The region matters, not just the language. Browsers format their own
+   * controls — the date and time pickers above all — from this tag, and a
+   * bare "en" gets an agent in Dubai a US calendar: month first, and 2 PM
+   * where the rest of the CRM says 14:00. "en-AE" is day first and
+   * 24-hour, which is what every other date in the app already shows.
+   */
+  document.documentElement.lang = current === 'ar' ? 'ar-AE' : 'en-AE';
   document.documentElement.dir = current === 'ar' ? 'rtl' : 'ltr';
 }
 

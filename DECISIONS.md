@@ -49,3 +49,33 @@ changing it would repaint every screen the team already knows.
 `web/src/design/` system, matching its naming — There is already a working
 design system ported from the approved file. A second component library beside
 it would mean two buttons that look slightly different.
+
+2026-10-30 — web — No phone-number library in the browser. The country list,
+grouping and length check are hand-written — The server already runs every
+number through libphonenumber before storing it, and a browser can never be
+the authority on whether a number is real. Adding ~145KB to a bundle an agent
+loads on mobile data, to duplicate a check that is made again server-side, is
+not worth it. The browser's job is to make the number readable and catch the
+obvious slip; the server rules.
+
+2026-10-30 — web — Sounds are synthesised with the Web Audio API, not shipped
+as mp3 files — Nothing to download on a phone in a lift, no licence to get
+wrong, and the tone is tuned by changing a number rather than finding another
+recording.
+
+2026-10-30 — web — Set `<html lang>` to `en-AE` (and `ar-AE`), and echo every
+chosen callback time back in the CRM's own format — Browsers format their own
+date controls from the *browser's* language, which we do not control. An agent
+whose phone is set to US English sees month-first, and 10/11 means two
+different days to two people in the same office. The echo under the field
+removes the ambiguity whatever the browser does.
+
+2026-10-30 — web — The PWA keeps the name "homes.me" under the icon but
+"Emigeo Homes CRM" in the install dialog — The spec asks for the company name;
+the approved design and the logo on screen say homes.me. This gives the
+company name where it identifies the app and the brand where people look at it.
+
+2026-10-30 — docs — Corrected `AUDIT.md`: the app uses `BrowserRouter` with
+ordinary paths. Only the **preview** build uses `HashRouter` — My first reading
+of it was wrong, and it would have misled every later step that reads
+`location.pathname`.

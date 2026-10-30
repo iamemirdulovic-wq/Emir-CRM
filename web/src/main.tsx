@@ -4,6 +4,7 @@ import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { App } from './App.js';
 import { applyDirection } from './lib/i18n.js';
 import { initTheme } from './design/theme.js';
+import { armSound } from './lib/sound.js';
 import './styles/index.css';
 
 /**
@@ -22,6 +23,9 @@ async function start(): Promise<void> {
 
   applyDirection();
   initTheme();
+  /* Browsers will not make a sound before someone has touched the page, so
+     this only starts listening for that first touch. */
+  armSound();
 
   const container = document.getElementById('root');
   if (!container) throw new Error('Root element is missing from index.html');

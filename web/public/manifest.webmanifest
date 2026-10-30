@@ -1,16 +1,31 @@
 {
-  "name": "homes.me CRM",
+  "name": "Emigeo Homes CRM",
   "short_name": "homes.me",
-  "description": "Lead management for Dubai and Abu Dhabi off-plan property",
-  "start_url": "/",
+  "description": "Lead management for Emigeo Homes Real Estate — Dubai and Abu Dhabi off-plan",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#faf8f5",
   "theme_color": "#EAF3F8",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }

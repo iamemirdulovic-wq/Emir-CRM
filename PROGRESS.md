@@ -20,16 +20,22 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 0.5 `PROGRESS.md`, `DECISIONS.md`, `SETUP_NEEDED.md`
 
 ## Step 1 — Foundations (C2, C3, C4, C5, C8)
-- [ ] 1.1 Design tokens audited against Part C2; add what is missing
-- [ ] 1.2 Button, IconButton, Badge, StatCard, Skeleton
-- [ ] 1.3 Combobox, DatePicker, DateTimePicker, PhoneInput, CurrencyInput, Slider
-- [ ] 1.4 BottomSheet, Tabs, ConfirmDialog, TimelineItem, CountdownRing
-- [ ] 1.5 Toast with Undo
-- [ ] 1.6 EmptyState (icon, title, line, one button)
-- [ ] 1.7 Layout: sidebar order per C4, top bar, mobile bottom nav with centre ＋
-- [ ] 1.8 Sounds (new-lead, won, notify) + per-user mute
-- [ ] 1.9 PWA: manifest, service worker, offline screen, install prompt
-- [ ] 1.10 `/dev/components` showcase, owner only, both themes
+- [x] 1.1 Design tokens audited against Part C2 — kept the approved teal
+      `#00AFC8`; set the document language to `en-AE` so browsers stop
+      formatting dates month-first
+- [x] 1.2 Button, IconButton, Badge, StatCard, Skeleton, SkeletonRows
+- [x] 1.3 Combobox, WhenField, PhoneInput, CurrencyInput, BudgetRange
+- [x] 1.4 BottomSheet, Tabs, ConfirmDialog, TimelineItem, CountdownRing
+- [x] 1.5 Toast with Undo — `useToast` already had it
+- [x] 1.6 EmptyState — `Empty` already had it
+- [x] 1.7a Mobile bottom nav with the centre ＋ button
+- [ ] 1.7b Sidebar order per C4 — **waits on Steps 7, 11 and 13**: My Leads,
+      Follow-ups, Team Wall and Team Activity do not exist yet, so the order
+      is set as each page lands rather than linking to nothing
+- [x] 1.8 Sounds (new-lead, won, notify), synthesised, with a mute switch
+- [x] 1.9 PWA — manifest, service worker and offline shell already existed;
+      added the install prompt (asked once, on the second visit)
+- [x] 1.10 `/dev/components` showcase, owner only, both themes
 
 ## Step 2 — Roles, permissions, data protection, audit (D1)
 - [ ] 2.1 Export, bulk delete and audit read become **owner only**

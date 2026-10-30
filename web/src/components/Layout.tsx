@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AskEmirAi } from './AskEmirAi.js';
 import { NewLeadCard } from './NewLeadCard.js';
+import { InstallPrompt } from './InstallPrompt.js';
+import { play, setSoundEnabled, soundEnabled } from '../lib/sound.js';
 import { api, qs } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { t } from '../lib/i18n.js';
@@ -96,6 +98,7 @@ function Chrome() {
   const location = useLocation();
   const toast = useToast();
   const [search, setSearch] = useState('');
+  const [soundOn, setSoundOn] = useState(soundEnabled);
 
   const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
 
@@ -198,6 +201,16 @@ function Chrome() {
       }}
       search={{ value: search, onChange: setSearch }}
       availability={availability}
+      sound={{
+        on: soundOn,
+        onChange: (on) => {
+          setSoundEnabled(on);
+          setSoundOn(on);
+          /* Play it when switching on, so the agent hears what they agreed to. */
+          if (on) play('notify');
+        },
+      }}
+      mobileAction={{ label: t('addLead'), icon: 'plus', onClick: () => navigate('/contacts?new=1') }}
       notifications={{ unread, onOpen: () => navigate('/inbox') }}
       action={
         <button type="button" className="btn btn-primary" onClick={() => navigate('/contacts?new=1')}>
@@ -215,6 +228,8 @@ function Chrome() {
           * never holds one there is nothing to show and no role check here.
           */}
         <NewLeadCard />
+        {/* Asked once, on the second visit. */}
+        <InstallPrompt />
         {/* On every CRM screen, as the design has it. */}
         <AskEmirAi />
       </SearchContext.Provider>

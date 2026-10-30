@@ -5,4 +5,6 @@
 @import './tokens.css';
 @import './base.css';
 @import './components.css';
+/* The master-build kit: extends components.css, so it comes after it. */
+@import './kit.css';
 @import './animations.css';

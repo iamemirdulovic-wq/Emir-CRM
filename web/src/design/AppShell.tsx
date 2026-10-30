@@ -7,7 +7,7 @@
  *  - The CRM | Books switcher is not built yet. Its footprint is reserved by
  *    .app-switch-slot so the sidebar already has its final proportions.
  */
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
@@ -55,6 +55,14 @@ export interface AppShellProps {
   };
   /** The top bar's primary action, e.g. the Add lead button. */
   action?: ReactNode;
+  /**
+   * The big round button in the middle of the phone bar. On a phone the
+   * primary action in the top bar is a cramped icon; down here it is under
+   * the thumb, which is where an agent adding a lead in a car park needs it.
+   */
+  mobileAction?: { label: string; icon: IconName; onClick: () => void };
+  /** The sound switch in the avatar menu. Omitted means no switch. */
+  sound?: { on: boolean; onChange: (on: boolean) => void };
   children: ReactNode;
 }
 
@@ -79,6 +87,8 @@ export function AppShell({
   title,
   nav,
   mobileNav,
+  mobileAction,
+  sound,
   user,
   onSignOut,
   search,
@@ -89,6 +99,9 @@ export function AppShell({
 }: AppShellProps) {
   const { appearance, cycle } = useAppearance();
   const phoneNav = mobileNav ?? nav.slice(0, 5);
+  /* With a centre button the bar holds four links around it, not five. */
+  const barItems = mobileAction ? phoneNav.slice(0, 4) : phoneNav;
+  const middle = Math.ceil(barItems.length / 2);
 
   return (
     <div id="app">
@@ -120,6 +133,20 @@ export function AppShell({
               aria-checked={availability.available}
               aria-labelledby="availLabel"
               onClick={() => availability.onChange(!availability.available)}
+            />
+          </div>
+        )}
+
+        {sound && (
+          <div className="avail">
+            <span id="soundLabel">Sound for new leads</span>
+            <button
+              type="button"
+              className={sound.on ? 'switch' : 'switch off'}
+              role="switch"
+              aria-checked={sound.on}
+              aria-labelledby="soundLabel"
+              onClick={() => sound.onChange(!sound.on)}
             />
           </div>
         )}
@@ -192,16 +219,25 @@ export function AppShell({
       </main>
 
       <nav className="bottom-nav" aria-label="Primary mobile">
-        {phoneNav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
-          >
-            <Icon name={item.icon} />
-            {item.label}
-          </NavLink>
+        {barItems.map((item, index) => (
+          <Fragment key={item.to}>
+            {/* The centre button sits in the middle of the row, so the items
+                split around it rather than being pushed to one side. */}
+            {mobileAction && index === middle && (
+              <button type="button" className="bottom-add" onClick={mobileAction.onClick}>
+                <span className="bottom-add-dot"><Icon name={mobileAction.icon} /></span>
+                <span className="sr-only">{mobileAction.label}</span>
+              </button>
+            )}
+            <NavLink
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => (isActive ? 'active' : undefined)}
+            >
+              <Icon name={item.icon} />
+              {item.label}
+            </NavLink>
+          </Fragment>
         ))}
       </nav>
     </div>

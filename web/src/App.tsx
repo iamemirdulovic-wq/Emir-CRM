@@ -16,6 +16,7 @@ import { Library } from './pages/Library.js';
 import { Offers } from './pages/Offers.js';
 import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
+import { Components } from './pages/Components.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
 import { ListDetail, Lists } from './pages/Lists.js';
 import { CampaignDetailScreen, Campaigns, Dialler } from './pages/Campaigns.js';
@@ -83,6 +84,8 @@ export function App() {
           <Route path="/pool" element={<Pool />} />
           <Route path="/automations" element={<Automations />} />
           <Route path="/settings" element={<Settings />} />
+          {/* The design-system workbench. Owner only, deliberately not in the nav. */}
+          <Route path="/dev/components" element={<Components />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
