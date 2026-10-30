@@ -18,6 +18,8 @@ import { writeAudit, SYSTEM_ACTOR, type AuditActor } from '../audit/audit.js';
 import { ingestLead } from '../ingestion/ingest.js';
 import { tagContact } from '../ingestion/ingest.js';
 import { assign } from '../assignment/apply.js';
+import { armSlaTimer, notifyAgent } from '../workflows/workflow-a.js';
+import { decideTreatAsNew } from './treat-as-new.js';
 import type { AssignmentMethod, AssignmentRuleClause, SplitShare } from '../assignment/distribute.js';
 import { readRows, type FileKind } from './rows.js';
 import { mapRow, rowToLead, type ImportSettings } from './normalize.js';
@@ -339,6 +341,9 @@ async function applyRowTags(
   rowTags: string | null,
 ): Promise<void> {
   const tags = [...settings.tags, `import:${settings.sourceLabel}`];
+  /* The tag that names this upload alone, so one batch can still be found
+     when two imports share a label. */
+  if (settings.batchTag) tags.push(`batch:${settings.batchTag}`);
   if (rowTags) tags.push(...rowTags.split(/[,;|]/).map((tag) => tag.trim()).filter(Boolean));
   for (const tag of tags) {
     // "proj:beachfront" keeps its namespace; a bare tag lands under src:,
@@ -378,6 +383,9 @@ async function finish(importId: string, exec: Executor): Promise<void> {
     }
   }
 
+  const settings = asJson<ImportSettings | null>(record.settings, null);
+  if (settings?.treatAsNew) await startTheClock(importId, record.total_rows, exec);
+
   await execute(
     `UPDATE imports
         SET status = 'completed', finished_at = NOW(3),
@@ -387,6 +395,58 @@ async function finish(importId: string, exec: Executor): Promise<void> {
     exec,
   );
   logger.info('import completed', { importId });
+}
+
+/**
+ * Treat this import's leads as leads that just arrived.
+ *
+ * Only what Workflow A does to the CRM's own people: the agent is told and the
+ * five-minute clock starts. Deliberately *not* the WhatsApp welcome — an
+ * imported list has no fresh consent and no open 24-hour window, so a template
+ * to all of them is exactly the send that gets a number banned.
+ *
+ * The row cap is re-checked here and not only in the wizard. The settings are
+ * JSON on a row that the API could be made to write directly, and "the UI
+ * disabled the button" is not a rule the server has enforced.
+ */
+async function startTheClock(importId: string, totalRows: number, exec: Executor): Promise<void> {
+  const decision = decideTreatAsNew(true, totalRows);
+  if (!decision.allowed) {
+    logger.warn('import asked to start the clock on too many rows; refused', { importId, totalRows });
+    return;
+  }
+
+  const leads = await query<{ opportunity_id: string; contact_id: string; owner_user_id: string | null }>(
+    `SELECT o.id AS opportunity_id, o.contact_id, o.owner_user_id
+       FROM import_rows ir
+       JOIN opportunities o ON o.id = ir.opportunity_id
+      WHERE ir.import_id = ? AND ir.status = 'created' AND o.owner_user_id IS NOT NULL`,
+    [importId],
+    exec,
+  );
+
+  for (const lead of leads) {
+    /* One lead failing to arm must not stop the rest: the import is finished
+       either way, and a half-alerted batch is better than a crashed job that
+       leaves the import stuck in 'importing'. */
+    try {
+      await notifyAgent(lead.owner_user_id as string, lead.contact_id, lead.opportunity_id);
+      await armSlaTimer({
+        opportunityId: lead.opportunity_id,
+        contactId: lead.contact_id,
+        assignedUserId: lead.owner_user_id as string,
+        phase: 'accept',
+      });
+    } catch (err) {
+      logger.warn('could not start the clock on an imported lead', {
+        importId,
+        opportunityId: lead.opportunity_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  logger.info('import started the five-minute clock', { importId, leads: leads.length });
 }
 
 /** Kicks off the chunk loop. */

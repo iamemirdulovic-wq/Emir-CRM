@@ -21,6 +21,9 @@ import { suggestMappingWithAi } from '../../imports/mapping.js';
 import { columnsFromRows, inferMappingFromValues, preferNamed } from '../../imports/infer.js';
 import { defaultSettings } from '../../imports/normalize.js';
 import { previewUndo, stageRows, startImport, undoImport, UNDO_WINDOW_HOURS } from '../../imports/run.js';
+import { batchTagFor } from '../../imports/batch.js';
+import { decideTreatAsNew, TREAT_AS_NEW_MAX_ROWS } from '../../imports/treat-as-new.js';
+import type { ImportSettings } from '../../imports/normalize.js';
 import { loadCandidates, loadAssignable, previewPlan } from '../../assignment/apply.js';
 import { distribute } from '../../assignment/distribute.js';
 
@@ -198,6 +201,9 @@ const configureSchema = z.object({
       consent: z.enum(['opted_in', 'unknown', 'none']),
       duplicateStrategy: z.enum(['skip', 'fill_empty', 'create_anyway']),
       phoneRegion: z.string().length(2),
+      /* The batch tag is generated, never sent: accepting one from the client
+         would let two imports claim the same batch. */
+      treatAsNew: z.boolean().optional(),
     })
     .optional(),
   assignment: z
@@ -256,7 +262,9 @@ importsRouter.post(
   asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
     const total = await stageRows(id);
-    res.json({ total });
+    /* The row limit comes back with the count so the wizard shows the same
+       rule the server enforces, rather than a second copy of the number. */
+    res.json({ total, treatAsNewMaxRows: TREAT_AS_NEW_MAX_ROWS });
   }),
 );
 
@@ -265,17 +273,42 @@ importsRouter.post(
   '/:id/start',
   asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
-    const record = await queryOne<{ status: string; settings: unknown }>(
-      'SELECT status, settings FROM imports WHERE id = ?',
+    const record = await queryOne<{ status: string; settings: unknown; total_rows: number }>(
+      'SELECT status, settings, total_rows FROM imports WHERE id = ?',
       [id],
     );
     if (!record) throw badRequest('That import does not exist');
     if (!record.settings) throw badRequest('Choose the import settings first');
     if (record.status === 'importing') return void res.json({ ok: true, alreadyRunning: true });
 
+    /*
+     * The batch tag is minted here rather than in the wizard: it has to name
+     * the upload that actually ran, and the only moment that is certain is
+     * now. Generated, never accepted from the client — a tag the caller could
+     * choose is a tag two imports could share, which is the whole thing it
+     * exists to prevent.
+     */
+    const settings = (typeof record.settings === 'string'
+      ? JSON.parse(record.settings)
+      : record.settings) as ImportSettings;
+    settings.batchTag = batchTagFor(settings.sourceLabel, id);
+
+    /* Re-checked on the server. The wizard disables the switch above the row
+       limit, but a disabled button is not a rule. */
+    const decision = decideTreatAsNew(Boolean(settings.treatAsNew), record.total_rows);
+    settings.treatAsNew = decision.allowed;
+
+    await execute('UPDATE imports SET settings = ? WHERE id = ?', [JSON.stringify(settings), id]);
+
     await startImport(id);
-    await writeAudit({ actor: actorFrom(req), action: 'import.started', entityType: 'import', entityId: id });
-    res.json({ ok: true });
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'import.started',
+      entityType: 'import',
+      entityId: id,
+      after: { batchTag: settings.batchTag, treatAsNew: settings.treatAsNew, rows: record.total_rows },
+    });
+    res.json({ ok: true, batchTag: settings.batchTag, treatAsNew: settings.treatAsNew });
   }),
 );
 

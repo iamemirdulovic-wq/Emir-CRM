@@ -221,6 +221,9 @@ interface PreviewNoteFile {
 /** One voice note and one document, so the preview shows both shapes. */
 const NOTE_FILES: PreviewNoteFile[] = [];
 
+/** How many rows the last paste carried; 0 means "an uploaded file", not a paste. */
+let pastedRows = 0;
+
 function seedNoteFiles(contactId: string): void {
   NOTE_FILES.push(
     {
@@ -902,6 +905,46 @@ const ROUTES: Route[] = [
       created_at: ago(row.createdMinutesAgo),
     })),
   }) },
+  /*
+   * The wizard's first step. Without this the preview could show the import
+   * list but never the wizard itself, because nothing answered the upload.
+   */
+  { method: 'POST', pattern: /^\/api\/imports\/paste$/, handler: ({ body }) => {
+    const text = String(body.text ?? '');
+    const rows = text.split(/\r?\n/).filter((line) => line.trim() !== '').map((line) => line.split(','));
+    const headers = (rows[0] ?? ['Column 1']).map((cell) => cell.trim());
+    /* Remembered so the validate step reports what was actually pasted, which
+       is what decides whether the five-minute switch is available. */
+    pastedRows = Math.max(0, rows.length - 1);
+    return {
+      id: 'imp-preview',
+      filename: String(body.filename ?? 'Pasted rows'),
+      kind: 'paste',
+      headers,
+      preview: rows.slice(1, 21),
+      suggestedMapping: Object.fromEntries(headers.map((header) => {
+        const key = header.toLowerCase();
+        if (key.includes('name')) return [header, 'fullName'];
+        if (key.includes('mobile') || key.includes('phone')) return [header, 'phone'];
+        if (key.includes('mail')) return [header, 'email'];
+        if (key.includes('project')) return [header, 'projectName'];
+        if (key.includes('budget')) return [header, 'budgetBand'];
+        return [header, null];
+      })),
+      defaults: {
+        sourceLabel: 'Import', source: 'csv_import', tags: [], projectName: null,
+        pipelineKey: 'sales', stageKey: 'new_lead', consent: 'unknown',
+        duplicateStrategy: 'fill_empty', phoneRegion: 'AE', treatAsNew: false,
+      },
+    };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/imports\/([^/]+)$/, handler: () => ({ ok: true }) },
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/start$/, handler: () => ({
+    ok: true, batchTag: 'pasted-rows-30oct-impp', treatAsNew: false,
+  }) },
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/duplicates$/, handler: () => ({
+    exact: 0, possible: 0, sample: [],
+  }) },
   { method: 'GET', pattern: /^\/api\/imports\/mappings\/all$/, handler: () => ({ items: [] }) },
   { method: 'GET', pattern: /^\/api\/imports\/([^/]+)\/undo$/, handler: () => ({
     deletable: 248, keptBecauseWorkedOn: 2, expired: false,
@@ -912,7 +955,10 @@ const ROUTES: Route[] = [
       import: {
         ...record,
         headers: ['Full Name', 'Mobile No.', 'Email Address', 'Interested Project', 'Budget AED'],
-        mapping: null, settings: null, assignment: null, error_message: null,
+        mapping: null,
+        settings: { batchTag: 'expo-2026-30oct-a3f2', treatAsNew: false },
+        assignment: null,
+        error_message: null,
         started_at: ago(record.createdMinutesAgo), finished_at: ago(record.createdMinutesAgo - 3),
         undo_deadline_at: ago(-600), undone_at: null, created_at: ago(record.createdMinutesAgo),
       },
@@ -923,6 +969,9 @@ const ROUTES: Route[] = [
       undoWindowHours: 24,
     };
   } },
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/validate$/, handler: () => ({
+    total: pastedRows || 250, treatAsNewMaxRows: 200,
+  }) },
   { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/assignment-preview$/, handler: ({ body }) => {
     const method = String(body.method ?? 'pool');
     if (method === 'pool') return { leads: 250, plan: { method, counts: [] }, pooled: 250, unmatched: 0, warnings: [] };

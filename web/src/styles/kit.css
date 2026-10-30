@@ -633,3 +633,43 @@
   padding:6px 11px;border-radius:99px;background:var(--surface-2)}
 .note-file:hover{background:var(--primary-soft);color:var(--primary)}
 .note-file small{color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------------------
+   Imports: the batch tag and the five-minute switch
+   --------------------------------------------------------------------------- */
+
+.batch-tag{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
+  padding:11px 13px;border-radius:var(--r-m);background:var(--primary-soft)}
+.batch-tag small{display:block;color:var(--ink-2);font-size:11.5px}
+.batch-tag code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+  font-weight:700;color:var(--primary)}
+.batch-tag .btn{margin-left:auto}
+
+.treat-new{
+  margin-top:14px;padding:12px 13px;border-radius:var(--r-m);
+  border:1px solid var(--line);background:var(--surface-2)}
+/* Not greyed out and silent: it says why it cannot be used. */
+.treat-new.blocked{border-color:var(--s-att);background:rgba(196,161,114,.10)}
+
+.treat-new-row{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.treat-new.blocked .treat-new-row{cursor:not-allowed}
+.treat-new-row input{margin-top:3px;flex:none;width:17px;height:17px;accent-color:var(--primary)}
+.treat-new-row b{display:block;font-size:14px}
+.treat-new-row small{display:block;color:var(--ink-2);font-size:12.5px;line-height:1.45;margin-top:2px}
+
+.treat-new-why{margin:9px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.treat-new-why.on{color:var(--primary);font-weight:600}
+
+/* The batch filter banner on My Leads. */
+.lead-filter{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
+  padding:9px 13px;border-radius:99px;background:var(--primary-soft);
+  color:var(--ink);font-size:13px}
+.lead-filter svg{color:var(--primary)}
+.lead-filter b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.lead-filter button{
+  margin-left:auto;display:flex;align-items:center;gap:4px;background:none;border:0;
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--primary);cursor:pointer}
+.lead-filter button:hover{text-decoration:underline}

@@ -32,6 +32,9 @@ const listSchema = z.object({
   source: z.string().max(48).optional(),
   project: z.string().max(160).optional(),
   band: z.enum(['hot', 'warm', 'cold']).optional(),
+  /* `namespace:value`, e.g. `batch:expo-2026-30oct-a3f2` — how one upload is
+     found again after the fact. */
+  tag: z.string().max(160).optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(30),
 });
@@ -73,6 +76,22 @@ function buildFilters(params: z.infer<typeof listSchema>, visible: string[] | nu
   if (params.band) {
     where.push('o.score_band = ?');
     args.push(params.band);
+  }
+  /*
+   * EXISTS rather than a join: a contact can carry a dozen tags, and joining
+   * would multiply every lead by its tag count before the DISTINCT that would
+   * then be needed to undo it.
+   */
+  if (params.tag) {
+    const [namespace, ...rest] = params.tag.split(':');
+    const value = rest.join(':');
+    if (namespace && value) {
+      where.push(
+        'EXISTS (SELECT 1 FROM contact_tags ct JOIN tags t ON t.id = ct.tag_id'
+        + ' WHERE ct.contact_id = c.id AND t.namespace = ? AND t.value = ?)',
+      );
+      args.push(namespace, value);
+    }
   }
   return { where, args };
 }

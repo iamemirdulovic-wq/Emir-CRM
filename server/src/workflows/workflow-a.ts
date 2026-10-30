@@ -408,7 +408,7 @@ async function sendWelcomeEmail(
 // Step 3 — notify the agent
 // ---------------------------------------------------------------------------
 
-async function notifyAgent(agentUserId: string, contactId: string, opportunityId: string): Promise<number> {
+export async function notifyAgent(agentUserId: string, contactId: string, opportunityId: string): Promise<number> {
   const contact = await queryOne<{ full_name: string | null; phone_e164: string | null; language: string }>(
     'SELECT full_name, phone_e164, language FROM contacts WHERE id = ?',
     [contactId],

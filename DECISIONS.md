@@ -309,3 +309,45 @@ could see the lead, so an agent knowing an id could pin or restore a note on a
 colleague's client. Both now resolve the note to its contact and run the same
 check the lead page runs. Found while adding the file routes, fixed before
 they were written.
+
+2026-10-30 — imports — Most of Step 9 was already built, and saying so is
+the point — Column synonyms, split-even assignment, undo within 24 hours
+skipping worked-on leads, and the import history page all existed from the
+original build and work. They were checked rather than rebuilt. Rewriting
+working code to make a checklist feel earned is how a working import breaks.
+
+2026-10-30 — imports — Each upload gets a tag of its own — Every imported
+contact already carried `src:import-<label>`, which is provenance, not
+identity: run the Expo list twice in a week and both uploads answer to the
+same tag, so "the ones from Tuesday" can no longer be told from "the ones
+from Friday" — which is exactly the question asked when a batch turns out to
+be bad. Each upload now also gets `batch:expo-2026-30oct-a3f2`: the label,
+the day in Dubai time, and four characters of the id. Generated on the
+server when the import starts, never accepted from the client, because a tag
+the caller picks is a tag two imports can share.
+
+2026-10-30 — imports — The five-minute timer is available, and capped at 200
+rows — The default stays off and that default is load-bearing: forty
+thousand old leads through Workflow A would wake every agent's phone forty
+thousand times and bounce most of them before anyone could answer. But the
+opposite case is just as real — twenty names off a stand at Cityscape,
+uploaded that evening, which are new leads in every sense. Above 200 rows
+the switch is unavailable rather than merely warned about, and it says why
+instead of sitting there greyed out. The limit is re-checked when the import
+runs, because settings are JSON on a row and "the wizard disabled the
+button" is not a rule the server has enforced. Turning it on never sends a
+WhatsApp or an email: an imported list has no fresh consent and no open
+24-hour window, so a template to all of them is the send that gets a number
+banned.
+
+2026-10-30 — imports — My Leads can filter by tag — A batch tag that nothing
+can filter by is not a way of finding anything. `/leads?tag=batch:…` now
+filters, names the filter on screen and offers to clear it, so the link from
+an import lands somewhere that shows the batch rather than everything.
+
+2026-10-30 — preview — The import wizard had no mock at all — Pasting rows
+or dropping a file called endpoints the preview did not answer, so the
+wizard could be opened and never used. Anyone reviewing the CRM through the
+preview would have found the import simply dead. Mocked now, including the
+row count coming from what was actually pasted, so the row-limit rule can be
+seen working rather than described.

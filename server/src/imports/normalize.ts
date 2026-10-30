@@ -32,6 +32,17 @@ export interface ImportSettings {
   duplicateStrategy: DuplicateStrategy;
   /** Default region for phone parsing. UAE unless the file says otherwise. */
   phoneRegion: string;
+  /**
+   * A tag naming this upload alone, so one batch can be found again when two
+   * imports share a label. Set when the import starts; never typed.
+   */
+  batchTag?: string;
+  /**
+   * Treat these as leads that just arrived: the agent gets the new-lead alert
+   * and the five-minute timer starts. Off unless asked for, and refused above
+   * `TREAT_AS_NEW_MAX_ROWS` rows — see treat-as-new.ts.
+   */
+  treatAsNew?: boolean;
 }
 
 export function defaultSettings(): ImportSettings {

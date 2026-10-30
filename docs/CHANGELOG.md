@@ -2,6 +2,40 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Finding one batch again, and letting a small list ring
+
+**Each upload gets a tag of its own.** Imported contacts already carried a
+tag saying where they came from, but it was the same tag every time you ran
+the same list. Now each upload also gets something like
+`batch:expo-2026-30oct-a3f2`, shown on the import with a button that takes you
+straight to exactly those leads. When a list turns out to be rubbish, you can
+find it.
+
+**A list can now ring, if it is small enough.** Imports have never started the
+five-minute timer, for good reason — forty thousand old leads would set off
+every agent's phone forty thousand times. But twenty names from a stand at
+Cityscape really are new leads. There is now a switch for that, off by
+default, and it stops working above 200 rows: above that it tells you why
+instead of just being grey. Turning it on never sends a WhatsApp or an email.
+
+**What was already there.** Four of the things on the list for this phase were
+already built and working — the clever column matching that recognises
+"Mobile No." and the Arabic headers, splitting a list evenly across chosen
+agents, undo within 24 hours that skips any lead someone has already worked,
+and the import history page. Those were checked rather than rebuilt.
+
+**One thing that was quietly broken**
+
+The import wizard did not work in the preview at all — pasting rows or
+dropping a file did nothing, so anyone looking at the CRM through the preview
+link would have found the import dead. That was only the demo copy, never the
+live CRM, and it works now.
+
+**Where it stands**
+
+1,184 server tests and 225 web tests pass; 269 database tests run on the build
+server. Checked in light, dark and on a phone.
+
 ## Notes that belong to somebody
 
 An internal note used to land on the activity timeline with nobody's name on

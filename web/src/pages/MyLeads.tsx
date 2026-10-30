@@ -76,18 +76,26 @@ export function MyLeads() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  /* Arrives from an import's "see these leads" link. Kept in the URL so the
+     filtered view can be sent to somebody. */
+  const tag = params.get('tag');
+
   const qs = useMemo(() => {
     const next = new URLSearchParams();
     next.set('tab', tab);
     if (debounced) next.set('search', debounced);
+    if (tag) next.set('tag', tag);
     return next.toString();
-  }, [tab, debounced]);
+  }, [tab, debounced, tag]);
 
   const leads = useAsync<ListResponse>(() => api.get(`/api/my-leads?${qs}`), [qs, reloadKey]);
-  const counts = useAsync<Record<Tab, number>>(
-    () => api.get(`/api/my-leads/counts${debounced ? `?search=${encodeURIComponent(debounced)}` : ''}`),
-    [debounced, reloadKey],
-  );
+  const counts = useAsync<Record<Tab, number>>(() => {
+    const next = new URLSearchParams();
+    if (debounced) next.set('search', debounced);
+    if (tag) next.set('tag', tag);
+    const query = next.toString();
+    return api.get(`/api/my-leads/counts${query ? `?${query}` : ''}`);
+  }, [debounced, tag, reloadKey]);
 
   const refresh = useCallback(() => setReloadKey((n) => n + 1), []);
 
@@ -102,6 +110,26 @@ export function MyLeads() {
 
   return (
     <section id="my-leads">
+      {tag && (
+        /* Named, not just applied: a filter you cannot see is a list that
+           looks wrong for no reason. */
+        <div className="lead-filter">
+          <Icon name="target" size={14} />
+          Showing one batch · <b>{tag.replace(/^batch:/, '')}</b>
+          <button
+            type="button"
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.delete('tag');
+              setParams(next, { replace: true });
+            }}
+          >
+            <Icon name="x" size={13} />
+            Clear
+          </button>
+        </div>
+      )}
+
       <Tabs
         label="Lead views"
         value={tab}

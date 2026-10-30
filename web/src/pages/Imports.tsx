@@ -136,6 +136,9 @@ export function ImportWizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [upload, setUpload] = useState<UploadResponse | null>(null);
+  /* The server's own limit, sent back with the row count so there is not a
+     second copy of the number drifting in the browser. */
+  const [treatAsNewMax, setTreatAsNewMax] = useState(0);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [settings, setSettings] = useState<ImportSettings | null>(null);
   const [assignment, setAssignment] = useState<AssignmentChoice>({ method: 'pool' });
@@ -196,8 +199,11 @@ export function ImportWizard() {
     setBusy(true);
     try {
       await save({ mapping });
-      const result = await api.post<{ total: number }>(`/api/imports/${upload.id}/validate`);
+      const result = await api.post<{ total: number; treatAsNewMaxRows: number }>(
+        `/api/imports/${upload.id}/validate`,
+      );
       setStaged(result.total);
+      setTreatAsNewMax(result.treatAsNewMaxRows);
       setStep(3);
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'Could not read the file');
@@ -428,6 +434,13 @@ export function ImportWizard() {
               </Note>
             )}
 
+            <TreatAsNewSwitch
+              rows={staged}
+              max={treatAsNewMax}
+              on={Boolean(settings.treatAsNew)}
+              onChange={(value) => setSettings({ ...settings, treatAsNew: value })}
+            />
+
             <button type="button" className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setStep(5)}>
               Continue
             </button>
@@ -443,9 +456,9 @@ export function ImportWizard() {
               previewUrl={`/api/imports/${upload.id}/assignment-preview`}
             />
             <Note>
-              Imported leads never trigger the instant WhatsApp welcome. A file of forty thousand old
-              leads would otherwise send forty thousand messages — work them through a list or a
-              campaign instead.
+              However these are assigned, no WhatsApp or email goes out automatically. A file of
+              forty thousand old leads would otherwise send forty thousand messages — work them
+              through a list or a campaign instead.
             </Note>
             <button type="button" className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setStep(6)}>
               Continue
@@ -637,6 +650,8 @@ export function ImportDetailScreen() {
             </>
           )}
 
+          <BatchTag settings={record.settings} created={record.created_count} />
+
           <div className="vat-big" style={{ marginTop: 14 }}>
             <div>
               <small>Created</small>
@@ -725,5 +740,90 @@ export function ImportDetailScreen() {
         </Panel>
       </div>
     </>
+  );
+}
+
+/**
+ * The five-minute timer, for an import.
+ *
+ * Off by default and it has to stay that way: running a forty-thousand-row
+ * file through Workflow A would wake every agent's phone forty thousand times
+ * and bounce most of the leads before anyone could answer. The switch exists
+ * for the other case, which is just as real — twenty names off a stand at
+ * Cityscape, uploaded that evening, which are new leads in every sense.
+ *
+ * Above the limit the switch is not merely warned about, it is unavailable,
+ * and it says why rather than sitting there greyed out.
+ */
+function TreatAsNewSwitch({
+  rows, max, on, onChange,
+}: { rows: number | null; max: number; on: boolean; onChange: (value: boolean) => void }) {
+  const count = rows ?? 0;
+  const tooMany = max > 0 && count > max;
+
+  return (
+    <div className={tooMany ? 'treat-new blocked' : 'treat-new'}>
+      <label className="treat-new-row">
+        <input
+          type="checkbox"
+          checked={on && !tooMany}
+          disabled={tooMany}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span>
+          <b>Treat these as brand-new leads</b>
+          <small>
+            The agent gets the new-lead alert and the five-minute timer starts, exactly as if the
+            lead had just come in from an ad. Still no WhatsApp or email.
+          </small>
+        </span>
+      </label>
+
+      {tooMany ? (
+        <p className="treat-new-why">
+          Not available for this file. It has {count.toLocaleString()} rows, and the timer only goes
+          up to {max.toLocaleString()}. A list this size would alert every agent
+          hundreds of times and bounce most of the leads before anyone could answer. Import it
+          without the timer and work it through a list or a call campaign.
+        </p>
+      ) : on ? (
+        <p className="treat-new-why on">
+          {count.toLocaleString()} {count === 1 ? 'lead' : 'leads'} will be handed out and timed.
+          Make sure the agents are expecting them.
+        </p>
+      ) : (
+        <p className="treat-new-why">
+          Left off, these leads simply land in the agents&rsquo; lists with no alert and no clock —
+          which is what you want for an old database or a bought list.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The tag that names this upload, and the way back to its leads.
+ *
+ * Without this the tag exists in the database and nowhere a person can see,
+ * which makes it useless for the thing it is for: "the list we loaded on
+ * Tuesday turned out to be rubbish — show me those and only those".
+ */
+function BatchTag({ settings, created }: { settings: unknown; created: number }) {
+  const tag = (settings as { batchTag?: string } | null)?.batchTag;
+  if (!tag) return null;
+
+  return (
+    <div className="batch-tag">
+      <div>
+        <small>This batch is tagged</small>
+        <code>batch:{tag}</code>
+      </div>
+      {created > 0 && (
+        <Link className="btn" to={`/leads?tab=all&tag=${encodeURIComponent(`batch:${tag}`)}`}>
+          <Icon name="users-round" />
+          See these {created.toLocaleString()} leads
+        </Link>
+      )}
+    </div>
   );
 }

@@ -151,12 +151,24 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       They arrived with every lead and had never been displayed anywhere.
 
 ## Step 9 — Bulk import (D9)
-- [ ] 9.1 Batch tag, `undo_until` on the existing `imports` table
-- [ ] 9.2 Column synonyms in auto-matching
-- [ ] 9.3 Split evenly across chosen agents
-- [ ] 9.4 "Start the 5-minute timer" toggle, default off
-- [ ] 9.5 Undo within 24 h, skipping leads that have activity
-- [ ] 9.6 Import history page
+- [x] 9.1 Batch tag — `batch:expo-2026-30oct-a3f2`, unique per upload, shown
+      on the import with a link to exactly those leads. `undo_deadline_at`
+      was already on the table from the original build.
+- [x] 9.2 Column synonyms — already built: an alias table covering "Mobile
+      No.", "mobile_no", "MOBILE NO" and the Arabic headers, scored so
+      "budgetmin" is not swallowed by "budget". Checked, not rebuilt.
+- [x] 9.3 Split evenly across chosen agents — already built as the
+      `split_even` method in the assignment picker. Checked, not rebuilt.
+- [x] 9.4 "Start the 5-minute timer" toggle, default off — and capped at 200
+      rows, refused rather than warned about, re-checked on the server
+- [x] 9.5 Undo within 24 h skipping leads with activity — already built,
+      and it is a soft delete. Checked, not rebuilt.
+- [x] 9.6 Import history page — already built at /imports. Checked, not
+      rebuilt; the batch tag panel is new.
+- [x] 9.7 A tag filter on My Leads, because a batch tag nothing can filter by
+      is not a way of finding anything
+- [x] 9.8 The import wizard works in the preview at all — the paste and
+      upload calls had no mock, so the whole wizard was undemonstrable
 
 ## Step 10 — Client email, templates, WhatsApp, campaigns (D10)
 - [ ] 10.1 `email_templates`, `email_messages`, `email_campaigns`
