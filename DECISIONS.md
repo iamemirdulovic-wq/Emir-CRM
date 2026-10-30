@@ -229,3 +229,11 @@ handing one to somebody else is an ordinary hand-over and does get a clock.
 — Fifteen kilobytes downloaded on mobile data for something that lasts a
 second and a half is not a trade worth making. It does nothing at all under
 reduce-motion.
+
+2026-10-30 — notifications — Rather than add VAPID beside FCM, the silent
+failure was made visible — The real risk was never which transport: it was
+that push dies quietly in two ways, with no credentials or with an agent who
+never allowed notifications, and the lead still bounces five minutes later
+off somebody who was never told. Settings → Health now names who has no
+device registered. Two push stacks would have added a second way to go
+missing without closing that.

@@ -621,6 +621,12 @@ type Health = {
   unverifiedActiveProjects: number;
   crons: { name: string; lastRunAt: string | null }[];
   realtimeClients: number;
+  push: {
+    configured: boolean;
+    agentsWithoutDevice: number;
+    agentsTotal: number;
+    missing: string[];
+  };
   website: {
     site: string;
     secretConfigured: boolean;
@@ -643,6 +649,52 @@ type Health = {
     contact_id: string;
   }[];
 };
+
+/**
+ * Can a new lead actually reach anybody?
+ *
+ * Push fails silently in two ways — the server has no credentials, or an
+ * agent never allowed notifications on their phone — and neither announces
+ * itself. The lead still bounces five minutes later; it just bounces off
+ * somebody who was never told. This is the only place that is visible.
+ */
+function PushPanel({ push }: { push: Health['push'] }) {
+  if (push.configured && push.agentsWithoutDevice === 0) {
+    return (
+      <Panel span={12} index={0} icon="bell-ring" title="Alerts">
+        <p className="note-ok">
+          <Icon name="check-circle-2" />
+          Push is on, and all {push.agentsTotal} people have a device registered.
+        </p>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel span={12} index={0} icon="bell" title="Alerts need attention">
+      {!push.configured && (
+        <Note>
+          Push is not switched on, so nobody gets a phone alert when a lead
+          arrives — they only see it when the CRM is open. See step 8 in
+          SETUP_NEEDED.md.
+        </Note>
+      )}
+      {push.agentsWithoutDevice > 0 && (
+        <>
+          <div className="kv">
+            <span>People with no device registered</span>
+            <b className="pill due">{push.agentsWithoutDevice} of {push.agentsTotal}</b>
+          </div>
+          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5 }}>
+            {push.missing.join(', ')}
+            {push.agentsWithoutDevice > push.missing.length ? ' and others' : ''}
+            {' — '}they need to open the CRM on their phone and allow notifications.
+          </p>
+        </>
+      )}
+    </Panel>
+  );
+}
 
 function HealthTab() {
   const health = useAsync<Health>(() => api.get('/api/reports/health'), []);
@@ -670,6 +722,7 @@ function HealthTab() {
 
   return (
     <div className="dash">
+      <PushPanel push={data.push} />
       <WebsiteConnectionPanel health={data} onSaved={health.reload} />
 
       <Panel span={6} index={0} icon="activity" title="Needs attention">

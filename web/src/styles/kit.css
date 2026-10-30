@@ -429,3 +429,6 @@
 .add-mine{display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;border-radius:12px;
   background:var(--primary-soft);color:var(--ink-2);font-size:13.5px}
 .add-mine svg{flex:none;color:var(--primary)}
+/* The good news version of a warning note. */
+.note-ok{display:flex;align-items:center;gap:8px;margin:0;color:var(--ink-2);font-size:13.5px}
+.note-ok svg{flex:none;color:var(--s-won)}

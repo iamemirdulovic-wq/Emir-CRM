@@ -92,3 +92,50 @@ export async function recentWebsiteLeads(
     exec,
   );
 }
+
+export type PushReadiness = {
+  /** Whether the server can send a push at all. */
+  configured: boolean;
+  /** Agents who could be given a lead but have no device registered. */
+  agentsWithoutDevice: number;
+  agentsTotal: number;
+  /** Names, so the owner knows who to go and ask. Never device tokens. */
+  missing: string[];
+};
+
+/**
+ * Can the five-minute rule actually reach anybody?
+ *
+ * Push is the thing that puts a new lead in front of an agent who is not
+ * looking at the CRM. It fails silently in two ways — the server has no
+ * credentials, or an agent never allowed notifications on their phone — and
+ * neither announces itself. The lead still bounces five minutes later; it just
+ * bounces off somebody who was never told.
+ *
+ * So the owner gets to see it. Names, never tokens: the point is knowing whose
+ * phone to pick up and fix.
+ */
+export async function pushReadiness(exec: Executor = getPool()): Promise<PushReadiness> {
+  const cfg = env();
+  const configured = Boolean(cfg.FCM_PROJECT_ID && cfg.FCM_CLIENT_EMAIL && cfg.FCM_PRIVATE_KEY);
+
+  const rows = await query<{ name: string; devices: number }>(
+    `SELECT u.name,
+            (SELECT COUNT(*) FROM push_tokens t WHERE t.user_id = u.id) AS devices
+       FROM users u
+      WHERE u.is_active = 1 AND u.role IN ('owner','admin','manager','agent')
+      ORDER BY u.name`,
+    [],
+    exec,
+  );
+
+  const missing = rows.filter((row) => Number(row.devices) === 0).map((row) => row.name);
+  return {
+    configured,
+    agentsWithoutDevice: missing.length,
+    agentsTotal: rows.length,
+    /* Capped: a list of forty names is not a thing anyone reads, and the
+       count beside it already says how bad it is. */
+    missing: missing.slice(0, 10),
+  };
+}

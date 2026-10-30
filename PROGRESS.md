@@ -87,9 +87,13 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       day, unread tinted, mark-one and mark-all. Recorded *then* pushed, so a
       face-down phone is no longer the reason an agent never learns
 - [x] 5.2 New-lead alert card — built in an earlier step, with the countdown
-- [ ] 5.3 Web Push (VAPID) — **not done**: FCM is already wired and working,
-      and running both would mean two subscriptions per device. Noted in
-      DECISIONS; the generator script is there if Emir wants to switch
+- [x] 5.3 Push — **resolved, and not with VAPID.** FCM is already wired and
+      is a Web Push transport underneath; a second stack would mean two
+      subscriptions per device and two ways for an alert to go missing. What
+      was actually missing was that push fails *silently* — no credentials,
+      or an agent who never allowed notifications — and the lead bounces off
+      somebody who was never told. Settings → Health now shows whether push
+      is on and who has no device registered
 - [x] 5.4 Assignment, reminder and bounce now all write a notification
 - [x] 5.5 The types are defined; the ones with no source yet (deal_won,
       mention, followup_due) light up as Steps 7, 8 and 13 land

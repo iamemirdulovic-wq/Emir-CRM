@@ -7,7 +7,7 @@ import { visibleUserIds } from '../../auth/scope.js';
 import { cronHealth } from '../../jobs/cron.js';
 import { DASHBOARD_RANGES, loadDashboard, type DashboardRange } from '../../reports/dashboard.js';
 import { clientCount } from '../../realtime/hub.js';
-import { recentWebsiteLeads, websiteConnection } from '../../services/integration-status.js';
+import { recentWebsiteLeads, pushReadiness, websiteConnection } from '../../services/integration-status.js';
 
 export const reportsRouter = Router();
 reportsRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -254,6 +254,8 @@ reportsRouter.get(
       realtimeClients: clientCount(),
       // Whether the website connection is wired up, and whether leads are
       // actually arriving. Never carries the secret itself.
+      /* Whether the five-minute rule can actually reach anybody. */
+      push: await pushReadiness(),
       website: await websiteConnection(),
       recentWebsiteLeads: await recentWebsiteLeads(),
     });
