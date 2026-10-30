@@ -339,3 +339,65 @@
 @media (max-width:560px){
   #settings .routing-switch + .routing-grid{margin-left:0}
 }
+
+/* ── The bell ──────────────────────────────────────────────────────────── */
+
+.bell-wrap{position:relative;flex:none}
+.bell-btn{position:relative}
+/* A count, not a plain dot: "3 waiting" is worth a glance, "something
+   happened" is not. */
+.bell-dot{position:absolute;top:-2px;right:-2px;min-width:17px;height:17px;padding:0 4px;
+  display:grid;place-items:center;border-radius:999px;background:var(--hot);color:#fff;
+  font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  border:2px solid var(--glass-strong)}
+
+.bell-panel{position:absolute;z-index:56;top:calc(100% + 8px);right:0;width:min(380px,calc(100vw - 28px));
+  border-radius:18px;background:var(--glass-strong);border:1px solid var(--glass-line);
+  box-shadow:0 20px 48px rgba(15,50,90,.2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  overflow:hidden;animation:kit-pop .2s cubic-bezier(.2,.8,.2,1)}
+.bell-panel header{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:13px 16px 9px}
+.bell-panel header b{font-size:15.5px}
+.bell-clear{background:none;border:0;padding:0;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer}
+.bell-list{max-height:min(60vh,460px);overflow:auto;padding:0 8px 8px}
+.bell-list h4{margin:8px 8px 4px;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+.bell-item{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 8px;border:0;
+  border-radius:12px;background:none;text-align:left;color:var(--ink)}
+.bell-item:hover{background:var(--surface-2)}
+/* Unread carries a tint and a weight, so the eye finds them without a legend. */
+.bell-item.unread{background:var(--primary-soft)}
+.bell-item.unread .bell-text b{font-weight:700}
+.bell-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;flex:none;
+  background:var(--surface-2);color:var(--ink-2)}
+.bell-icon.high{background:color-mix(in srgb,var(--hot) 15%,transparent);color:var(--hot)}
+.bell-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.bell-text b{font-size:14px;font-weight:600;line-height:1.35}
+.bell-text small{color:var(--ink-2);font-size:12.5px;line-height:1.45}
+.bell-item time{flex:none;font-size:11.5px;color:var(--ink-3);white-space:nowrap;padding-top:2px}
+
+/*
+ * Opaque, then glassy.
+ *
+ * The blur behind these panels is an enhancement, not the thing that makes
+ * them readable: it is off on older devices, off under the "reduce glass"
+ * setting, and off in headless rendering. Compositing the glass tint over the
+ * app's own background colour gives a surface that is solid either way, and
+ * still looks like the rest of the design when the blur is there.
+ */
+.bell-panel,.combo-list,.country-picker{
+  background:linear-gradient(var(--glass-strong),var(--glass-strong)),var(--bg)}
+
+@media (max-width:760px){
+  /*
+   * Full width on a phone: a 380px panel hanging off the right edge of a
+   * 390px screen is a panel with its left half cut off. Bounded top and
+   * bottom so it ends on a whole row rather than slicing one in half, with
+   * room left for the bottom bar underneath.
+   */
+  .bell-panel{position:fixed;top:68px;bottom:88px;left:10px;right:10px;width:auto;
+    display:flex;flex-direction:column}
+  .bell-panel .bell-list{max-height:none;flex:1}
+}
+@media (prefers-reduced-motion:reduce){.bell-panel{animation:none}}

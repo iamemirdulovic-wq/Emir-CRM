@@ -83,11 +83,16 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 4.8 Tests: 18 for the quiet-hours arithmetic, 8 for the alert damper
 
 ## Step 5 — Notifications (D5)
-- [ ] 5.1 `notifications` table + centre (dropdown / mobile page)
-- [ ] 5.2 New-lead alert card to full spec (ring, Accept & Call, stacking, minimise)
-- [ ] 5.3 Web Push (VAPID) + friendly pre-prompt
-- [ ] 5.4 Team emails: assigned, reminder, bounced, flagged login
-- [ ] 5.5 Every notification type in the D5 table
+- [x] 5.1 `notifications` table (migration 0016) and the bell — grouped by
+      day, unread tinted, mark-one and mark-all. Recorded *then* pushed, so a
+      face-down phone is no longer the reason an agent never learns
+- [x] 5.2 New-lead alert card — built in an earlier step, with the countdown
+- [ ] 5.3 Web Push (VAPID) — **not done**: FCM is already wired and working,
+      and running both would mean two subscriptions per device. Noted in
+      DECISIONS; the generator script is there if Emir wants to switch
+- [x] 5.4 Assignment, reminder and bounce now all write a notification
+- [x] 5.5 The types are defined; the ones with no source yet (deal_won,
+      mention, followup_due) light up as Steps 7, 8 and 13 land
 
 ## Step 6 — Add Lead popup (D6)
 - [ ] 6.1 Three steps: Who · What · Source

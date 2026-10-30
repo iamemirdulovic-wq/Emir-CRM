@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AskEmirAi } from './AskEmirAi.js';
 import { NewLeadCard } from './NewLeadCard.js';
 import { InstallPrompt } from './InstallPrompt.js';
+import { Bell } from './Bell.js';
 import { play, setSoundEnabled, soundEnabled } from '../lib/sound.js';
 import { api, qs } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -211,7 +212,7 @@ function Chrome() {
         },
       }}
       mobileAction={{ label: t('addLead'), icon: 'plus', onClick: () => navigate('/contacts?new=1') }}
-      notifications={{ unread, onOpen: () => navigate('/inbox') }}
+      bell={<Bell />}
       action={
         <button type="button" className="btn btn-primary" onClick={() => navigate('/contacts?new=1')}>
           <Icon name="plus" />

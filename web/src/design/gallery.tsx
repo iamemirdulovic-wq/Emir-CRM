@@ -88,7 +88,14 @@ function Gallery() {
       onSignOut={() => undefined}
       search={{ value: query, onChange: setQuery }}
       availability={{ available, onChange: setAvailable }}
-      notifications={{ unread: 3, onOpen: () => undefined }}
+      bell={
+        /* The gallery has no router or API, so this stands in for the real
+           bell rather than mounting it. */
+        <button type="button" className="icon-btn" aria-label="Notifications, 3 unread">
+          <Icon name="bell-ring" />
+          <span className="bell-dot">3</span>
+        </button>
+      }
       action={
         <button className="btn btn-primary" type="button">
           <Icon name="plus" />

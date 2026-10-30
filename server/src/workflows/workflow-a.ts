@@ -8,6 +8,7 @@ import { addActivity } from '../ingestion/ingest.js';
 import { enqueue } from '../jobs/queue.js';
 import { routingSettings } from '../routing/settings.js';
 import { parseClock, slaDeadline } from '../routing/hours.js';
+import { notify, notifyManagers } from '../messaging/notify.js';
 import { recordBounceForAlerting } from '../routing/storm.js';
 import { emailOwnersAboutLead } from '../routing/new-lead-email.js';
 import {
@@ -591,10 +592,14 @@ export async function runSlaReminder(input: {
   if (acted.acted) return { sent: false, why: 'acted' };
 
   const { reminderMinutes } = await routingSettings();
-  await pushToUser(input.assignedUserId, {
+  await notify({
+    userId: input.assignedUserId,
+    type: 'sla_reminder',
     title: `${reminderMinutes} minute${reminderMinutes === 1 ? '' : 's'} left`,
     body: `${opportunity.title ?? 'Your new lead'} goes back to the owner if you do not call.`,
     link: `/contacts/${input.contactId}`,
+    contactId: input.contactId,
+    opportunityId: input.opportunityId,
     priority: 'high',
   }).catch((err: unknown) => logger.warn('could not send the SLA reminder', errorContext(err)));
 
@@ -703,19 +708,23 @@ export async function runSlaCheck(input: {
      */
     const alert = recordBounceForAlerting();
     if (alert.tell === 'each') {
-      await pushToManagers({
+      await notifyManagers({
+        type: 'lead_bounced',
         title: 'Lead bounced — needs reassigning',
         body: `${opportunity.title ?? 'A lead'} came back from ${agent?.name ?? 'an agent'}. It is waiting in Incoming.`,
         link: '/incoming',
+        contactId: input.contactId,
+        opportunityId: input.opportunityId,
         priority: 'high',
-      }).catch((err) => logger.warn('bounce push failed', errorContext(err)));
+      }).catch((err) => logger.warn('bounce notification failed', errorContext(err)));
     } else if (alert.tell === 'summary') {
-      await pushToManagers({
+      await notifyManagers({
+        type: 'lead_bounced',
         title: `${alert.count} leads came back at once`,
         body: 'They are waiting in Incoming. This usually means the CRM was offline for a while.',
         link: '/incoming',
         priority: 'high',
-      }).catch((err) => logger.warn('bounce summary push failed', errorContext(err)));
+      }).catch((err) => logger.warn('bounce summary notification failed', errorContext(err)));
     }
 
     return { breached: true, bounced: true, reassignedTo: null };

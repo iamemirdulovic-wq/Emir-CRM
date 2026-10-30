@@ -49,10 +49,12 @@ export interface AppShellProps {
     available: boolean;
     onChange: (available: boolean) => void;
   };
-  notifications?: {
-    unread: number;
-    onOpen: () => void;
-  };
+  /**
+   * The bell. Passed in rather than built here: it owns its own list, its own
+   * polling and its own panel, and the shell's job is to give it a place to
+   * stand in the top bar.
+   */
+  bell?: ReactNode;
   /** The top bar's primary action, e.g. the Add lead button. */
   action?: ReactNode;
   /**
@@ -93,7 +95,7 @@ export function AppShell({
   onSignOut,
   search,
   availability,
-  notifications,
+  bell,
   action,
   children,
 }: AppShellProps) {
@@ -195,22 +197,7 @@ export function AppShell({
             <Icon name={THEME_ICON[appearance]} />
           </button>
 
-          {notifications && (
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={notifications.onOpen}
-              title="Notifications"
-              aria-label={
-                notifications.unread
-                  ? `Notifications, ${notifications.unread} unread`
-                  : 'Notifications'
-              }
-            >
-              <Icon name="bell" />
-              {notifications.unread > 0 && <span className="dot" />}
-            </button>
-          )}
+          {bell}
 
           {action}
         </header>

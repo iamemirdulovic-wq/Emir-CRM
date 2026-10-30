@@ -15,6 +15,7 @@ import { cspForIndex } from './csp.js';
 import { authRouter } from './routes/auth.js';
 import { setupRouter } from './routes/setup.js';
 import { publicLeadsRouter } from './routes/public-leads.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
 import { pipelineRouter } from './routes/pipeline.js';
@@ -195,6 +196,7 @@ export function createApp(): Express {
   app.use('/api/imports', importsRouter);
   app.use('/api/lists', listsRouter);
   app.use('/api/campaigns', campaignsRouter);
+  app.use('/api/notifications', notificationsRouter);
   app.use('/api/incoming', incomingRouter);
   app.use('/api/teams', teamsRouter);
   app.use('/api/offers', offersRouter);

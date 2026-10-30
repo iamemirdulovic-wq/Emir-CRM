@@ -189,3 +189,23 @@ worker coming back from an outage runs a queue of expired timers in seconds,
 and each is a real bounce wanting to tell somebody. Seven buzzes in four
 seconds gets the phone silenced, and the next one — on a normal Tuesday, about
 a lead that matters — is silenced with it.
+
+2026-10-30 — notifications — Everything is written down before it is pushed —
+Push was fire-and-forget: it reached the phone or it did not, and either way
+nothing survived. An agent whose phone was face-down, or who never allowed
+notifications, had no way to discover that a lead was given to them at 11:40.
+The record is what the bell reads, and it is what turns a failed push from a
+lost lead into a nuisance.
+
+2026-10-30 — notifications — Web Push with VAPID is **not** added; FCM stays —
+The spec asks for VAPID, but Firebase Cloud Messaging is already wired,
+working and configured, and it is a Web Push transport underneath. Running
+both would mean two subscriptions per device and two ways for a notification
+to go missing. `scripts/make-vapid-keys.mjs` is there if the owner ever wants
+to drop Firebase.
+
+2026-10-30 — css — Dropdown panels composite their glass over the app's own
+background colour rather than relying on `backdrop-filter` — The blur is off on
+older devices, off under the "reduce glass" setting, and off in headless
+rendering. A dense list of text has to be legible either way; the blur is an
+enhancement, not the thing holding it up.

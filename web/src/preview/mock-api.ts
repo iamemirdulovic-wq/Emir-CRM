@@ -49,6 +49,45 @@ const routing = {
   emailOwnerOnNewLead: true, quietHours: true, quietStart: '22:00', quietEnd: '08:00',
 };
 
+const NOTIFICATIONS: Array<{
+  id: string; type: string; title: string; body: string | null; link: string | null;
+  contact_id: string | null; priority: 'normal' | 'high'; read_at: string | null; created_at: string;
+}> = [
+  {
+    id: 'n1', type: 'lead_assigned', title: 'New lead for you',
+    body: 'Sara Al Mansoori · Emaar Beachfront · AED 2M',
+    link: '/contacts/c-1', contact_id: 'c-1', priority: 'high', read_at: null,
+    created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'n2', type: 'sla_reminder', title: '2 minutes left',
+    body: 'Khalid Mansour goes back to the owner if you do not call.',
+    link: '/contacts/c-2', contact_id: 'c-2', priority: 'high', read_at: null,
+    created_at: new Date(Date.now() - 46 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'n3', type: 'lead_bounced', title: 'Lead bounced — needs reassigning',
+    body: 'Yas Riva Reserve came back from Omar Farouk. It is waiting in Incoming.',
+    link: '/incoming', contact_id: null, priority: 'high',
+    read_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'n4', type: 'deal_won', title: '🏆 Sara just closed a deal',
+    body: 'Sobha Hartland II — congratulations!',
+    link: '/pipeline', contact_id: null, priority: 'normal',
+    read_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'n5', type: 'enquiry_again', title: '🔁 Ahmed Khan enquired again',
+    body: 'Came back after being marked Lost — via Meta ad.',
+    link: '/contacts/c-3', contact_id: 'c-3', priority: 'normal',
+    read_at: new Date(Date.now() - 70 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */
 let pendingAccepted = false;
 
@@ -230,6 +269,22 @@ const ROUTES: Route[] = [
   /* Push is a real browser capability the preview has no server for; saying
      "not configured" is what the screen expects when it is switched off. */
   { method: 'GET', pattern: /^\/api\/users\/me\/push-config$/, handler: () => ({ configured: false }) },
+
+  /* The bell. A couple of each kind so the grouping and the unread tint can
+     both be seen in the preview. */
+  { method: 'GET', pattern: /^\/api\/notifications$/, handler: () => ({
+    items: NOTIFICATIONS, unread: NOTIFICATIONS.filter((n) => !n.read_at).length,
+  }) },
+  { method: 'GET', pattern: /^\/api\/notifications\/count$/, handler: () => ({
+    unread: NOTIFICATIONS.filter((n) => !n.read_at).length,
+  }) },
+  { method: 'POST', pattern: /^\/api\/notifications\/read$/, handler: ({ body }) => {
+    const id = (body as { id?: string }).id;
+    for (const item of NOTIFICATIONS) {
+      if (!id || item.id === id) item.read_at = new Date().toISOString();
+    }
+    return { marked: 1 };
+  } },
 
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },

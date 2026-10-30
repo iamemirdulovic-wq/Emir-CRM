@@ -10,7 +10,7 @@ import { writeAudit } from '../../audit/audit.js';
 import { acceptLead, recordAssignment } from '../../routing/assignments.js';
 import { armSlaTimer } from '../../workflows/workflow-a.js';
 import { routingSettings, saveRoutingSettings } from '../../routing/settings.js';
-import { pushToUser } from '../../messaging/push.js';
+import { notify } from '../../messaging/notify.js';
 import { logger, errorContext } from '../../lib/logger.js';
 
 /**
@@ -249,12 +249,18 @@ incomingRouter.post(
         // The clock only starts once the lead is really theirs.
         await armSlaTimer({ opportunityId, contactId: done, assignedUserId: agentUserId, phase: 'accept' })
           .catch((err: unknown) => logger.warn('could not arm the accept timer', errorContext(err)));
-        await pushToUser(agentUserId, {
+        /* Recorded, then pushed. A phone that was face-down must not be the
+           reason an agent never learns a lead is theirs. */
+        await notify({
+          userId: agentUserId,
+          type: 'lead_assigned',
           title: 'New lead for you',
-          body: 'Open it and press Accept — you have a few minutes.',
+          body: 'Open it and call — you have a few minutes before it goes back.',
           link: `/contacts/${done}`,
+          contactId: done,
+          opportunityId,
           priority: 'high',
-        }).catch(() => 0);
+        }).catch(() => undefined);
       }
     }
 
