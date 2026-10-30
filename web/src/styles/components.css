@@ -1012,3 +1012,6 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
   .incoming-tags{flex-wrap:wrap;justify-content:flex-end}
   .incoming-row{align-items:flex-start}
 }
+/* The owner row doubles as the hand-over control, so it sits on the row
+   rather than filling the panel like a form field would. */
+.assign-select{padding:4px 26px 4px 9px;font-size:13px;max-width:100%;height:auto;min-height:0}

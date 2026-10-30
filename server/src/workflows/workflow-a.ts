@@ -7,6 +7,7 @@ import { SYSTEM_ACTOR, writeAudit } from '../audit/audit.js';
 import { addActivity } from '../ingestion/ingest.js';
 import { enqueue } from '../jobs/queue.js';
 import { routingSettings } from '../routing/settings.js';
+import { emailOwnersAboutLead } from '../routing/new-lead-email.js';
 import {
   bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
 } from '../routing/assignments.js';
@@ -89,6 +90,19 @@ export async function runWorkflowA(input: WorkflowAInput): Promise<WorkflowAResu
 
     await setStep(runId, 'push');
     const pushed = assignment.userId ? await notifyAgent(assignment.userId, input.contactId, input.opportunityId) : 0;
+
+    /*
+     * The owners hear about it by email, because they are in a meeting or in
+     * the car, not in the CRM. Never allowed to fail the workflow: a lead that
+     * arrived and was answered is a success whatever the mail server did.
+     */
+    void emailOwnersAboutLead({
+      contactId: input.contactId,
+      opportunityId: input.opportunityId,
+      assignedToName: assignment.userId
+        ? (await queryOne<{ name: string }>('SELECT name FROM users WHERE id = ?', [assignment.userId]))?.name ?? null
+        : null,
+    }).catch((err: unknown) => logger.warn('new-lead email failed', errorContext(err)));
 
     await setStep(runId, 'async');
     await scheduleAsyncWork(input, assignment.userId);

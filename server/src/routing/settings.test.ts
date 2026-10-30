@@ -15,7 +15,9 @@ describe('reading the lead routing settings', () => {
   it('reads the values an owner saved', () => {
     expect(parseRoutingSettings({
       slaMinutes: '3', reminderMinutes: '1', autoAssign: '0', bounceToOwner: '1',
-    })).toEqual({ slaMinutes: 3, reminderMinutes: 1, autoAssign: false, bounceToOwner: true });
+    })).toEqual({
+      slaMinutes: 3, reminderMinutes: 1, autoAssign: false, bounceToOwner: true, emailOwnerOnNewLead: true,
+    });
   });
 
   /* An empty field in a form posts as "", which is not a decision to change anything. */
@@ -67,6 +69,15 @@ describe('reading the lead routing settings', () => {
     for (const no of ['0', 'false', 'no', 'off', 'anything else']) {
       expect(parseRoutingSettings({ autoAssign: no }).autoAssign).toBe(false);
     }
+  });
+
+  /*
+   * An owner who is not in the CRM finds out by email, so this stays on until
+   * someone decides the volume is too much and turns it off.
+   */
+  it('emails the owner about new leads unless that was turned off', () => {
+    expect(parseRoutingSettings({}).emailOwnerOnNewLead).toBe(true);
+    expect(parseRoutingSettings({ emailOwnerOnNewLead: '0' }).emailOwnerOnNewLead).toBe(false);
   });
 
   /*

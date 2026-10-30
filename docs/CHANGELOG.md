@@ -2,6 +2,33 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Assign from the lead itself, and an email when one arrives
+
+You described the flow you actually want: a lead arrives, you get an email,
+you open the lead, and there is a button on it to give the lead to an agent.
+You were right that I had put that button in the wrong place.
+
+**What changed**
+- **The owner row on a lead is now the hand-over control.** Open any lead,
+  change who it belongs to, done. It was only on the Incoming screen before,
+  which meant deciding who should have a lead and being able to act on that
+  were two different places.
+- **An email to the owners when a lead arrives** — name, project, budget,
+  phone, score, where it went, and a link straight to it. An owner is in a
+  meeting or in the car, not in the CRM, and email is what reaches them there.
+  It can be switched off when the volume climbs; fifty leads is fifty emails.
+
+**Who sees it**
+
+Agents see who owns a lead and nothing more — handing leads around is a
+manager's call. The server enforces that, not the screen.
+
+**Where it stands**
+
+693 server tests and 102 web tests pass; the build is clean.
+
+Is this right, or do you want changes?
+
 ## Incoming, and a lead that comes back if nobody works it
 
 From your masterplan, with one deliberate change.

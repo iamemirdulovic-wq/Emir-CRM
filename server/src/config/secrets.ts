@@ -32,7 +32,8 @@ export type SettingName =
   | 'ROUTING_SLA_MINUTES'
   | 'ROUTING_REMINDER_MINUTES'
   | 'ROUTING_AUTO_ASSIGN'
-  | 'ROUTING_BOUNCE_TO_OWNER';
+  | 'ROUTING_BOUNCE_TO_OWNER'
+  | 'ROUTING_EMAIL_OWNER_NEW_LEAD';
 
 /*
  * Cached, because this is read on the path of every AI call and a database

@@ -34,6 +34,14 @@ export interface RoutingSettings {
    * to look at (on), or straight to the next available agent (off).
    */
   bounceToOwner: boolean;
+  /**
+   * Email the owners whenever a lead arrives.
+   *
+   * On, because an owner is not sitting in the CRM all day and email is what
+   * actually reaches them. Off is a reasonable choice once the volume climbs
+   * — fifty leads is fifty emails — so it is a switch rather than a rule.
+   */
+  emailOwnerOnNewLead: boolean;
 }
 
 export const ROUTING_DEFAULTS: RoutingSettings = {
@@ -43,6 +51,7 @@ export const ROUTING_DEFAULTS: RoutingSettings = {
   reminderMinutes: 3,
   autoAssign: true,
   bounceToOwner: true,
+  emailOwnerOnNewLead: true,
 };
 
 /** Bounds, so a typo cannot switch the timer off or make it meaningless. */
@@ -68,6 +77,7 @@ export function parseRoutingSettings(raw: Partial<Record<keyof RoutingSettings, 
     reminderMinutes,
     autoAssign: bool(raw.autoAssign, ROUTING_DEFAULTS.autoAssign),
     bounceToOwner: bool(raw.bounceToOwner, ROUTING_DEFAULTS.bounceToOwner),
+    emailOwnerOnNewLead: bool(raw.emailOwnerOnNewLead, ROUTING_DEFAULTS.emailOwnerOnNewLead),
   };
 }
 
@@ -87,13 +97,14 @@ function clamp(value: number, low: number, high: number): number {
 }
 
 export async function routingSettings(exec: Executor = getPool()): Promise<RoutingSettings> {
-  const [slaMinutes, reminderMinutes, autoAssign, bounceToOwner] = await Promise.all([
+  const [slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead] = await Promise.all([
     setting('ROUTING_SLA_MINUTES', exec),
     setting('ROUTING_REMINDER_MINUTES', exec),
     setting('ROUTING_AUTO_ASSIGN', exec),
     setting('ROUTING_BOUNCE_TO_OWNER', exec),
+    setting('ROUTING_EMAIL_OWNER_NEW_LEAD', exec),
   ]);
-  return parseRoutingSettings({ slaMinutes, reminderMinutes, autoAssign, bounceToOwner });
+  return parseRoutingSettings({ slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead });
 }
 
 /** Save a change, and hand back what the settings now are. */
@@ -114,6 +125,7 @@ export async function saveRoutingSettings(
     reminderMinutes: String(patch.reminderMinutes ?? current.reminderMinutes),
     autoAssign: String(patch.autoAssign ?? current.autoAssign),
     bounceToOwner: String(patch.bounceToOwner ?? current.bounceToOwner),
+    emailOwnerOnNewLead: String(patch.emailOwnerOnNewLead ?? current.emailOwnerOnNewLead),
   });
 
   // Only what actually moved, so the audit log reads as a list of decisions
@@ -129,6 +141,9 @@ export async function saveRoutingSettings(
   }
   if (next.bounceToOwner !== current.bounceToOwner) {
     await saveSetting(actor, 'ROUTING_BOUNCE_TO_OWNER', next.bounceToOwner ? '1' : '0', exec);
+  }
+  if (next.emailOwnerOnNewLead !== current.emailOwnerOnNewLead) {
+    await saveSetting(actor, 'ROUTING_EMAIL_OWNER_NEW_LEAD', next.emailOwnerOnNewLead ? '1' : '0', exec);
   }
   return next;
 }

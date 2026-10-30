@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
+import { AssignLead } from '../components/AssignLead.js';
 import { formatDateTime, humanize } from '../lib/format.js';
 import type { Contact360 } from '../lib/types.js';
 import { Icon } from '../design/index.js';
@@ -148,7 +149,17 @@ export function ContactDetail() {
             <dt>Language</dt>
             <dd>{contact.language.toUpperCase()}</dd>
             <dt>Owner</dt>
-            <dd>{contact.owner_name ?? 'Unassigned'}</dd>
+            <dd>
+              {opportunity ? (
+                <AssignLead
+                  opportunityId={opportunity.id}
+                  ownerName={contact.owner_name ?? null}
+                  onAssigned={detail.reload}
+                />
+              ) : (
+                contact.owner_name ?? 'Unassigned'
+              )}
+            </dd>
             <dt>Campaign</dt>
             <dd>{(opportunity?.campaign_name as string) ?? '—'}</dd>
           </dl>
