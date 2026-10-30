@@ -79,6 +79,13 @@ deployment, not a nicety.
 
 ## Automatic deploy from GitHub
 
+> **It has never run.** As of 30 Oct 2026 this repository has no `main` branch
+> — the work is on `claude/new-session-krd7bx` — so the `workflow_run` trigger
+> below has matched nothing and the Deploy workflow has zero runs against 87
+> green CI runs. Either rename the working branch to `main`, or dispatch Deploy
+> by hand from the Actions tab, which works on any branch. `SETUP_NEEDED.md`
+> §0 has the click-by-click version.
+
 The repository deploys itself. `\.github/workflows/deploy.yml` runs after CI
 passes on `main`, or on demand from the Actions tab, and does the whole thing:
 build, upload, install, migrate, switch, restart, health check, and roll back if

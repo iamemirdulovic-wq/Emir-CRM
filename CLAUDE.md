@@ -776,3 +776,86 @@ Salaries are visible only to the owner and the accountant.
 5. **Keep docs current:** `/docs/ARCHITECTURE.md`, `/docs/WEBHOOKS.md` (with sample payloads), `/docs/WORKFLOWS.md`.
 6. **Report after each phase, in plain English:** what was built, a preview link or screenshots so I can see it, what still needs me (Meta app review, template approval, DNS/SMTP, keys, decisions), and any risks you found. End every report with: **"Is this right, or do you want changes?"** and wait.
 7. **Never say a phase is done** until I have seen it and said OK.
+
+---
+
+# WHERE THE BUILD IS
+
+*This section is written and kept current by Claude. Everything above it is
+Emir's own brief and is never edited by Claude. If the two ever disagree, the
+brief above is what we are aiming at and this is where we actually got to.*
+
+**Read these four files at the start of every session, in this order:**
+
+| File | What it is for |
+|---|---|
+| `PROGRESS.md` | Every box, ticked or not. A box is ticked only when the thing is built, tested and seen on screen |
+| `DECISIONS.md` | Every judgement call, dated, with the reason. Read it before re-deciding something |
+| `SETUP_NEEDED.md` | What only Emir can do — keys, accounts, passwords. Written for a non-programmer |
+| `FINAL_REPORT.md` | What was built, in plain English, and what it cost |
+
+Then `docs/CHANGELOG.md` for the detail of a particular day.
+
+## What is actually running
+
+- **Name and address.** The company is **Emigeo Homes Real Estate**, the brand
+  is **homes.me**, and the CRM runs at **crm.homes.me**, used daily by about
+  ten people. There is no staging.
+- **The deploy has never run.** `deploy.yml` fires after CI passes on `main`,
+  and this repository has no `main` — 87 green CI runs, zero deploys. So the
+  live site is *not* what is in this branch. Check which it is before debugging
+  anything the owner reports. `SETUP_NEEDED.md` §0 is the fix, and it is the
+  owner's to make: pointing an auto-deploy at a working branch is not a
+  decision to take quietly on a site ten people use.
+- **Shape.** An npm-workspaces monorepo: `server/` (Express + TypeScript, ESM,
+  `mysql2`, Zod on every endpoint) and `web/` (React + Vite). 24 migrations,
+  86 tables, 36 route files, 26 screens.
+- **The worker runs inside the API process.** There is no cron job to install:
+  the 5-minute SLA timer, the reminders, the follow-ups and the imports are all
+  jobs in the `jobs` table, polled in-process. That is a deliberate choice for
+  managed hosting — see `DECISIONS.md`.
+- **Nothing reaches a real client until a key is set.** WhatsApp, email, push,
+  Meta and Google each stay off and silent without their credentials, and a
+  WhatsApp message that could not be sent is recorded as *not sent* rather than
+  shown as sent. `SETUP_NEEDED.md` §11 lists which variable turns on what.
+
+## What is built, and what is not
+
+Built: login and roles, lead capture and dedupe, the 5-minute rule, the
+pipeline, My Leads, Contact 360, notes, bulk import, client email and
+campaigns, dashboards and reports, agent profiles, the Team Wall, the command
+palette and tour, owner settings, the project library and sales offers.
+
+**Not built: Emir Books.** It was taken out of scope for this build and no part
+of it is wired up — there is no CRM | Books switcher, and `web/src/styles/books.css`
+exists but is deliberately **not imported**. Do not treat it as half-finished;
+treat it as not started.
+
+## Things that will trip you up
+
+- **The preview build uses `HashRouter`, production uses `BrowserRouter`.** In
+  the preview every path is `#/leads`, so a CSS selector for a nav link has to
+  match on the end of the href (`a[href$="/leads"]`), never the whole thing.
+- **The 269 server integration tests skip unless a MySQL is reachable.** A
+  green run that says "skipped" has not tested the database. Set
+  `TEST_DB_HOST` / `TEST_DB_USER` / `TEST_DB_PASSWORD` to run them for real.
+- **Dubai is UTC+4 with no daylight saving.** Business-hours arithmetic uses a
+  fixed offset on purpose. Do not "fix" it into a timezone library.
+- **Four checks read the source rather than trusting it**, and they exist
+  because each of them caught something real: `hook-order.test.ts`,
+  `schema-map.test.ts`, `settings-audit.test.ts`, `css-collisions.test.ts`, and
+  `config/env-docs.test.ts`. If one fails, it has found a bug, not a nuisance.
+- **Class names are checked for collisions.** Two stylesheets quietly defining
+  the same bare class is what broke the pipeline board once. Add a modifier
+  (`.thread-unread`, not `.unread`).
+- **`npm run polish`** drives a real browser over 27 routes × 2 screen sizes ×
+  2 themes and fails on anything overflowing, clipped or undersized. Run it
+  after touching layout. The preview server must be started from inside `web/`.
+
+## Secrets, permanently
+
+- The Gemini key `AQ.Ab8RN6…`, the database password and the SSH details were
+  all shown in screenshots and must be treated as public. They are in
+  `SETUP_NEEDED.md` as things to rotate. **Never use them.**
+- Emir supplies the website HMAC secret himself, from a file. **Never print it,
+  never echo it, and never loosen the signature check to make a test pass.**

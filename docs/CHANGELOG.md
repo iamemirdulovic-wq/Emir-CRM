@@ -2,6 +2,60 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Handover — and the deploy that never ran
+
+**Found**
+- **`deploy.yml` has never run once.** It fires on `workflow_run` of CI with
+  `branches: [main]`, and this repository has no `main` — the work is on
+  `claude/new-session-krd7bx`. 87 pushes, 87 green CI runs, zero deploys: so
+  nothing from Steps 0–17 has reached crm.homes.me. A workflow that never
+  triggers reports nothing, which is the worst shape a deployment bug can take.
+  Left unfixed deliberately — a rename or a dispatch both put new code on a
+  server ten people use — and written up as `SETUP_NEEDED.md` §0 with both
+  routes, click by click. The `main` filter stays as it is, because `main` is
+  the right answer once one exists.
+- **Nine settings in the handover file do not exist.** `SETUP_NEEDED.md` told
+  the owner to paste `EMAIL_API_KEY` (the code reads `BREVO_API_KEY`),
+  `EMAIL_TEST_INBOX` (`EMAIL_TEST_REDIRECT`), `MAXMIND_LICENSE_KEY` and
+  `FEATURE_GEOIP` (one `MAXMIND_DB_PATH` and a downloaded database), three
+  `VAPID_*` keys (push is Firebase: seven `FCM_*` values) and four `FEATURE_*`
+  switches that were never built, because each feature turns itself on from its
+  own credentials. Every one was written before the feature was finished. The
+  cost is specific: the owner is not a programmer, he pastes what he is told,
+  presses Restart, sees the feature still off, and cannot tell a wrong
+  instruction from his own typing.
+- **15 settings the server reads were missing from `.env.example`**, `HOST`
+  among them — the bind address a managed host needs to see the app as up.
+
+**Added**
+- `config/env-docs.test.ts`, which reads the Zod schema and fails the build
+  when `.env.example`, `SETUP_NEEDED.md`, `README.md`, `docs/DEPLOYMENT.md` or
+  `docs/NOTIFICATIONS.md` names a setting the server does not read, when
+  `.env.example` invents one, or when it leaves one out. Verified by breaking
+  it. This is the fifth check that reads the source rather than trusting it,
+  and like the other four it exists because it caught something real.
+- `FINAL_REPORT.md` — the whole build in plain English: what it does, what I
+  found that was not asked for, what I deliberately did not do, what needs the
+  owner, and what I would do next.
+- A "where the build is" section at the foot of `CLAUDE.md`, below the owner's
+  brief, which is left exactly as he wrote it. It points at the four tracking
+  files and lists what trips a new session up: the preview's HashRouter, the
+  269 tests that skip without MySQL, the fixed Dubai offset, the source-reading
+  checks, and the fact that the live site is not this branch.
+
+**Changed**
+- `SETUP_NEEDED.md` §8 (push) and §9 (GeoIP) rewritten against what the code
+  reads, §11 replaced with what actually turns each integration on, and §0
+  added at the top. `docs/DEPLOYMENT.md` now opens the deploy section by saying
+  it has never run.
+- `PROGRESS.md`: the last two open boxes closed rather than left hanging — the
+  sidebar order (1.7b), which was waiting on four screens that now exist, and
+  the board view (7.5), which the Pipeline screen already is.
+
+**Verified**
+- Typecheck clean. 2,051 server tests pass, 269 skip for want of a database.
+  367 web tests pass. Production build clean. Every box in `PROGRESS.md` ticked.
+
 ## The polish pass
 
 Every screen, on a laptop and on a phone, in light and in dark — 27 screens,

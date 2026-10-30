@@ -10,6 +10,11 @@ Last updated: 30 Oct 2026
 
 A box is ticked only when the item is **built, tested and screenshotted**.
 
+**All seventeen steps are closed.** Read `FINAL_REPORT.md`, then
+`SETUP_NEEDED.md` — starting with §0, because none of this has reached
+crm.homes.me yet: the deploy only runs on a `main` branch and this repository
+has none.
+
 ---
 
 ## Step 0 — Audit, backup, tracking
@@ -31,9 +36,12 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       it took a message and nothing else. Corrected rather than left standing.
 - [x] 1.6 EmptyState — `Empty` already had it
 - [x] 1.7a Mobile bottom nav with the centre ＋ button
-- [ ] 1.7b Sidebar order per C4 — **waits on Steps 7, 11 and 13**: My Leads,
-      Follow-ups, Team Wall and Team Activity do not exist yet, so the order
-      is set as each page lands rather than linking to nothing
+- [x] 1.7b Sidebar order per C4 — closed in Step 17, once the four screens it
+      was waiting on existed. Incoming first and only for those who can act on
+      it, then Dashboard, My Leads, Follow-ups, Pipeline, Inbox, Tasks, and the
+      manager and owner items last. The reasoning is in the comments in
+      `Layout.tsx`, beside the list, where the next person changing the order
+      will read it
 - [x] 1.8 Sounds (new-lead, won, notify), synthesised, with a mute switch
 - [x] 1.9 PWA — manifest, service worker and offline shell already existed;
       added the install prompt (asked once, on the second visit)
@@ -121,9 +129,11 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 7.3 Search through the top bar (there were two search boxes on one
       screen); stage, source, project, band and agent filters on the API
 - [x] 7.4 List view, with the phone and owner dropped on a narrow screen
-- [ ] 7.5 Board view with drag between stages — **the existing Pipeline
-      screen already is this.** Rebuilding it inside My Leads would mean two
-      boards to keep in step; see DECISIONS
+- [x] 7.5 Board view with drag between stages — **delivered by the Pipeline
+      screen**, which is exactly this and is in the sidebar above My Leads.
+      Rebuilding it inside My Leads would mean two boards to keep in step; see
+      DECISIONS. Closed in Step 17 as answered rather than left open, since the
+      capability exists, is tested and is on screen
 - [x] 7.6 All nine one-tap actions, each logging an activity, moving the
       stage and stopping the five-minute clock
 - [x] 7.7 The "What's next?" rule — asked after anything that leaves a lead
@@ -385,7 +395,25 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       are checkboxes at their native size and links inside sentences
 
 ## Step 17 — Final
-- [ ] 17.1 Full test run green
-- [ ] 17.2 `FINAL_REPORT.md`
-- [ ] 17.3 `SETUP_NEEDED.md` complete
-- [ ] 17.4 `CLAUDE.md` and `.env.example` updated
+- [x] 17.1 Full test run green — typecheck clean, 2,051 server tests pass
+      (269 integration tests skip: no MySQL on the build machine), 367 web
+      tests pass, production build clean
+- [x] 17.2 `FINAL_REPORT.md`
+- [x] 17.3 `SETUP_NEEDED.md` complete — and corrected. It told the owner to
+      paste nine settings that do not exist (`EMAIL_API_KEY`,
+      `EMAIL_TEST_INBOX`, `MAXMIND_LICENSE_KEY`, `FEATURE_GEOIP`, three
+      `VAPID_*` and four `FEATURE_*` flags), each written before the feature
+      was finished. Push and GeoIP are rewritten against what the server
+      actually reads
+- [x] 17.4 `CLAUDE.md` and `.env.example` updated — 15 settings the server
+      reads were missing from `.env.example`, `HOST` among them. `CLAUDE.md`
+      gains a "where the build is" section below the owner's brief, which is
+      left untouched
+- [x] 17.5 **The deploy has never run.** `deploy.yml` fires after CI passes on
+      `main`; there is no `main`. 87 green CI runs, zero deploys, so nothing
+      from Steps 0–17 is on crm.homes.me. Not fixed here on purpose — both
+      fixes put code on a live server — and written up as `SETUP_NEEDED.md` §0
+- [x] 17.6 A standing check so the documentation cannot drift from the
+      settings again: `config/env-docs.test.ts` fails the build when a
+      document names a setting the server does not read, or when a setting the
+      server reads is missing from `.env.example`

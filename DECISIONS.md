@@ -731,3 +731,27 @@ message bubble) and could not be `.hint` either (already the plain one-line
 hint under a login field, which would have gained `display:flex`). The
 collision check caught the second attempt a minute after it was written, which
 is the argument for having it.
+
+2026-10-30 — deploy — **The deploy has never run, and I did not make it run** —
+`deploy.yml` fires on `workflow_run` of CI with `branches: [main]`. This
+repository has no `main`: the work is on `claude/new-session-krd7bx`. So 87
+green CI runs produced zero deploys, and nothing from Steps 0–17 has reached
+crm.homes.me. Found while checking the handover rather than reported by
+anything — a workflow that never triggers is silent, which is the worst shape
+for this kind of bug. The two fixes are a branch rename or a manual dispatch,
+both in `SETUP_NEEDED.md` §0 and both the owner's to choose: pointing an
+automatic deploy at the branch I am committing to would send every future push
+of mine straight onto a site ten people use, and the build prompt's "work
+autonomously" does not stretch to that. The branch filter is left exactly as
+it is, because `main` is the right answer once a `main` exists.
+
+2026-10-30 — docs — The documentation is checked against the Zod schema, not
+trusted — `SETUP_NEEDED.md` told the owner to set `EMAIL_API_KEY`,
+`EMAIL_TEST_INBOX`, `MAXMIND_LICENSE_KEY`, `FEATURE_GEOIP`, `VAPID_*` and four
+`FEATURE_*` flags. Not one of those names exists. They were written before the
+features were finished and never corrected, and nothing complains: the owner
+pastes them, the CRM starts, the feature stays off, and he has no way to tell a
+wrong instruction from his own typing. `config/env-docs.test.ts` now fails the
+build when a variable named in `.env.example`, `SETUP_NEEDED.md`, `README.md`,
+`docs/DEPLOYMENT.md` or `docs/NOTIFICATIONS.md` is not one the server reads,
+and when a variable the server reads is missing from `.env.example` (15 were).

@@ -8,6 +8,51 @@ order — the first three are the urgent ones.
 
 ---
 
+## 🔴 0. None of this is live yet — and that is my mistake to tell you about
+
+**Everything I built is pushed to GitHub and tested, but it has never reached
+crm.homes.me.** I found this while writing the handover, and you should know it
+before you look at anything else.
+
+Here is what happened. The deploy is set up to run **after the tests pass on a
+branch called `main`**. This repository has no branch called `main` — the work
+is on `claude/new-session-krd7bx` — so the deploy has sat there and never run
+once, 87 pushes in a row. The tests ran every time and passed; the step that
+copies the result onto your server simply never fired.
+
+Nothing is lost or broken. The whole build is in GitHub, green, waiting.
+
+**What to do — pick one.** I did not do either myself, because both of them put
+code onto the server ten people use, and that is your call and not mine.
+
+**A) Make the branch the main one (recommended).** After this, every push that
+passes its tests deploys by itself, which is how the rest of my notes assume it
+works.
+
+1. **https://github.com/iamemirdulovic-wq/Emir-CRM/branches**
+2. Next to `claude/new-session-krd7bx`, click the **⋯ → Rename branch**
+3. Rename it to `main`, and confirm
+4. **Settings → General → Default branch** and make sure it says `main`
+
+**B) Deploy it once, by hand.** Nothing changes afterwards and you keep
+control of when it happens.
+
+1. **https://github.com/iamemirdulovic-wq/Emir-CRM/actions/workflows/deploy.yml**
+2. Click **Run workflow**, choose the branch `claude/new-session-krd7bx`,
+   click the green **Run workflow**
+
+Either way, the deploy checks four settings before it touches the server and
+stops with a clear message if any is missing. They are under **Settings →
+Secrets and variables → Actions** and are called `HOSTINGER_SSH_HOST`,
+`HOSTINGER_SSH_USER`, `HOSTINGER_SSH_KEY` and `DEPLOY_PATH`. If it stops and
+names one, that is the thing to add — nothing was changed on the server.
+
+The deploy takes a backup, runs the migrations, switches over, checks the site
+answers, and **puts the old version back by itself if it does not**. If it ever
+does roll back, say so and I will read the log.
+
+---
+
 ## 🔴 1. Change the leaked Gemini key (do this first)
 
 A Gemini API key was shown in a screenshot earlier, which means it must be
@@ -18,7 +63,10 @@ treated as public. Anyone who has it can spend your money.
 3. Click **Create API key** → copy the new one
 4. Go to **hPanel → Websites → crm.homes.me → Advanced → Node.js**
 5. In **Environment variables**, find `GEMINI_API_KEY`, paste the new value
-6. Click **Save**, then **Restart**
+6. While you are there, make sure `AI_PROVIDER` is set to `gemini` — the key
+   alone does not switch Emir AI on, and with `AI_PROVIDER` unset every AI
+   feature stays off
+7. Click **Save**, then **Restart**
 
 ---
 
@@ -145,9 +193,13 @@ It is free up to about 300 emails a day.
 2. Go to **SMTP & API → API Keys → Generate a new API key**, copy it
 3. **hPanel → Websites → crm.homes.me → Advanced → Node.js → Environment variables**, add:
    - `EMAIL_PROVIDER` = `brevo`
-   - `EMAIL_API_KEY` = *(the key you copied)*
+   - `BREVO_API_KEY` = *(the key you copied)*
    - `FEATURE_EMAIL_SENDING` = `true`
 4. **Save**, then **Restart**
+
+Those are the exact names the CRM reads. A name that is nearly right is the
+same as nothing at all: the CRM starts, says email is not connected, and
+nothing goes out.
 
 **Then prove emails are yours** so they don't go to spam. In Brevo go to
 **Senders, Domains & Dedicated IPs → Domains → Add a domain** → enter
@@ -159,39 +211,78 @@ It is free up to about 300 emails a day.
 3. Back in Brevo, click **Verify**
 
 Until this is done, leave `EMAIL_TEST_MODE` = `true` and set
-`EMAIL_TEST_INBOX` to your own email. Every client email will come to you
-instead of going out, so you can check them safely.
+`EMAIL_TEST_REDIRECT` to your own email. Every client email will come to you
+instead of going out, with the real recipient written into the subject, so you
+can check them safely.
 
 ---
 
-## 🟡 8. Turn on phone alerts (Web Push)
+## 🟡 8. Turn on phone alerts (Firebase)
 
-So agents get the lead alert even when the CRM is closed.
+So an agent gets the lead alert on their phone even when the CRM is closed.
 
-I generate the keys for you — you only paste them.
+This is seven values copied out of a free Firebase project. There is no key to
+generate yourself — Firebase makes them, you paste them. **`docs/NOTIFICATIONS.md`
+has the same steps with a table of exactly where each value sits in Firebase**;
+this is the short version.
 
-1. **hPanel → Advanced → SSH Access**, connect, then run:
-   ```
-   cd /home/USERNAME/domains/crm.homes.me/public_html && node scripts/make-vapid-keys.mjs
-   ```
-2. It prints two lines. Copy both.
-3. **Environment variables**, add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
-   and `VAPID_SUBJECT` = `mailto:crm@homes.me`
-4. **Save**, then **Restart**
+1. Create a free project at **https://console.firebase.google.com**
+2. In it, add a **Web app** (the `</>` icon). Firebase shows you a snippet —
+   from it you need `apiKey`, `appId` and `messagingSenderId`
+3. **Project settings → Cloud Messaging → Web Push certificates →
+   Generate key pair**, and copy the public key
+4. **Project settings → Service accounts → Generate new private key**. A `.json`
+   file downloads; open it and you need `client_email` and `private_key`
+5. **hPanel → Websites → crm.homes.me → Advanced → Node.js → Environment
+   variables**, add all seven:
+
+   | Name | Where it came from |
+   |---|---|
+   | `FCM_PROJECT_ID` | Project ID |
+   | `FCM_WEB_API_KEY` | `apiKey` from step 2 |
+   | `FCM_WEB_APP_ID` | `appId` from step 2 |
+   | `FCM_MESSAGING_SENDER_ID` | `messagingSenderId` from step 2 |
+   | `FCM_VAPID_KEY` | the public key from step 3 |
+   | `FCM_CLIENT_EMAIL` | `client_email` from the file in step 4 |
+   | `FCM_PRIVATE_KEY` | `private_key` from that file — the whole thing, `-----BEGIN` to `-----END` |
+
+6. **Save**, then **Restart**
+7. Also add `crm.homes.me` under **Project settings → Authorized domains**
+   (it is in step 3 of this file too)
+
+The first four are public by design — they ship to every phone that opens the
+CRM. **`FCM_PRIVATE_KEY` is the real secret:** keep it off chat, screenshots and
+the repository.
+
+Until this is done, agents still get every alert — in the bell inside the CRM
+and by email. Nothing is lost; it just will not light up a locked phone.
+
+(There is a `scripts/make-vapid-keys.mjs` in the repo. It is for a different,
+Firebase-free way of doing push that the CRM does not use. Ignore it — a key
+pair from it would do nothing.)
 
 ---
 
-## 🟡 9. Show which city agents log in from (optional)
+## 🟡 9. Show which city agents log in from (optional — skip it)
 
-For the Team Activity report. Free.
+For one column on the Team Activity report. Free, but it is a download and a
+file on the server rather than a key you paste, so it is the one item here I'd
+leave until everything else is running.
 
 1. Sign up at **https://www.maxmind.com/en/geolite2/signup**
-2. **My License Key → Generate new license key**
-3. Add `MAXMIND_LICENSE_KEY` to the environment variables, and
-   `FEATURE_GEOIP` = `true`
-4. **Save**, then **Restart**
+2. **Download Files → GeoLite2 City → Download GZIP**, and unzip it. Inside is
+   a file called `GeoLite2-City.mmdb`
+3. Put that file on the server — **hPanel → Files → File Manager** is the
+   easiest way — somewhere beside the CRM folder, not inside it
+4. **hPanel → Advanced → SSH Access**, connect, then run:
+   `cd /home/USERNAME/domains/crm.homes.me/public_html && npm install maxmind`
+5. **Environment variables**, add `MAXMIND_DB_PATH` = the full path to that
+   `.mmdb` file
+6. **Save**, then **Restart**
 
-Without this, the report says "Unknown" for the city. Everything else works.
+Without it, sign-ins are simply recorded without a city and every screen reads
+naturally — no "Unknown", no gap. The report, the devices list and the alerts
+all work exactly the same.
 
 ---
 
@@ -212,12 +303,31 @@ The snippet carries its own key, so no one else can post leads into your CRM.
 These are finished and waiting for a key. Nothing is broken; agents don't see
 them at all until they're on.
 
-| Feature | Switch | Needs |
+There is no on/off switch to flip for any of them — **each one turns itself on
+the moment its keys are in the environment, and stays off and silent until
+then.** That is deliberate: a switch that says "on" while the keys are missing
+is how a CRM ends up showing an agent a welcome message that was never sent.
+
+| Feature | Turns on when you set | Which needs |
 |---|---|---|
-| Meta lead ads | `FEATURE_META_LEADS` | Meta app review |
-| Google lead forms | `FEATURE_GOOGLE_LEADS` | Google Ads developer token |
-| WhatsApp inside the CRM | `FEATURE_WHATSAPP_API` | WhatsApp Business API approval |
-| Emir AI | `FEATURE_AI` | the Gemini key from step 1 |
+| Meta lead ads | `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_PAGE_ACCESS_TOKEN` | Meta app review |
+| Reporting lead quality back to Meta | `META_DATASET_ID`, `META_CAPI_ACCESS_TOKEN` | the same Meta app |
+| Google lead forms | `GOOGLE_LEAD_FORM_KEY` | nothing — you choose the value |
+| Google offline conversions | the five `GOOGLE_ADS_*` values | a Google Ads developer token |
+| WhatsApp inside the CRM | `WHATSAPP_PROVIDER` = `cloud`, plus `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_ACCESS_TOKEN` | WhatsApp Business API approval |
+| Emir AI | `AI_PROVIDER` = `gemini`, plus `GEMINI_API_KEY` | the new key from step 1 |
+| Client email and campaigns | see step 7 | a Brevo account |
+| Phone alerts | see step 8 | a Firebase project |
+
+Until WhatsApp is connected, the CRM records what it *would* have sent and
+labels it **"Not sent — WhatsApp is not connected yet"**, so an agent is never
+misled into thinking a lead has been contacted. (That behaviour is itself
+deliberate and needs `ALLOW_FAKE_WHATSAPP` = `1`, which is how the live site
+runs today.)
+
+Emir AI also has a spending limit, `AI_MONTHLY_CAP_USD`, which starts at **5
+dollars a month** and is checked before each request rather than after. Raise
+it in the environment variables when you want more.
 
 ---
 
