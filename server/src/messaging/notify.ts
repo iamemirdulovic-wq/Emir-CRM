@@ -25,7 +25,10 @@ export type NotificationType =
   | 'mention'
   | 'deal_won'
   | 'suspicious_activity'
-  | 'flagged_login';
+  | 'flagged_login'
+  /* A colleague said thank you on the Team Wall. */
+  | 'kudos'
+  | 'badge_earned';
 
 export interface NotifyInput {
   userId: string;

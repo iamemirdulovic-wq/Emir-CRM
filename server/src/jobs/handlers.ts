@@ -33,6 +33,7 @@ import { recycleStaleClaims } from '../assignment/apply.js';
 import type { JobType } from './types.js';
 import { runCampaignBatch } from '../email/campaigns.js';
 import { sendOwnerSummary } from '../activity/send-owner-summary.js';
+import { runWallDaily } from '../wall/auto.js';
 
 export type JobHandler = (payload: Record<string, unknown>) => Promise<unknown>;
 
@@ -371,6 +372,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   },
 
   'reports.owner_summary': async () => sendOwnerSummary(),
+
+  'wall.daily': async () => runWallDaily(),
 
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();

@@ -66,6 +66,9 @@ const SCHEDULES: Schedule[] = [
    * 3pm, by which point the day it describes is over.
    */
   { name: 'owner_summary', type: 'reports.owner_summary', everyMinutes: 60, atDubaiHour: 9 },
+  /* The wall's own posts, at 09:00 Dubai: anniversaries every day, and the
+     week's roundup on a Monday. */
+  { name: 'wall_daily', type: 'wall.daily', everyMinutes: 60, atDubaiHour: 9 },
 ];
 
 /** Dubai is UTC+4 all year, so there is no DST to think about. */

@@ -259,6 +259,14 @@ export async function runLeadAction(
     }).catch((err: unknown) => logger.warn('could not record the first action', errorContext(err)));
   }
 
+  /*
+   * Points and the wall, after the transaction has committed. Never allowed
+   * to fail the action: an agent whose Won button errors because the wall had
+   * a bad day is an agent who stops pressing Won.
+   */
+  void recordAchievement(actor, input.action, before.id, before.owner_user_id)
+    .catch((err: unknown) => logger.warn('could not record points for an action', errorContext(err)));
+
   const nextStepAt = closing ? null : (chosen?.at.toISOString() ?? before.next_step_at?.toISOString() ?? null);
 
   return {
@@ -311,4 +319,34 @@ const SAID: Record<LeadAction, (input: ActionInput) => string> = {
 function human(value: string | null | undefined): string {
   if (!value) return 'no reason given';
   return value.replace(/_/g, ' ');
+}
+
+/**
+ * What an action is worth, and what the wall should say about it.
+ *
+ * Nothing here pays for logging something. Reaching somebody pays, because
+ * the client is a witness; a viewing that happened pays more than one that
+ * was booked. A person paid for activity logs activity that did not happen.
+ */
+async function recordAchievement(
+  actor: AuditActor,
+  action: LeadAction,
+  opportunityId: string,
+  ownerId: string | null,
+): Promise<void> {
+  const userId = ownerId ?? actor.userId;
+  if (!userId) return;
+
+  const { awardXp } = await import('../wall/wall.js');
+
+  if (action === 'interested' || action === 'whatsapp') {
+    await awardXp({ userId, rule: 'lead_reached', subjectType: 'opportunity', subjectId: opportunityId });
+  }
+  if (action === 'meeting') {
+    await awardXp({ userId, rule: 'meeting_booked', subjectType: 'opportunity', subjectId: opportunityId });
+  }
+  if (action === 'won') {
+    const { postDealWon } = await import('../wall/auto.js');
+    await postDealWon(opportunityId);
+  }
 }

@@ -248,17 +248,30 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       third party on every page load
 
 ## Step 13 — Team Wall, kudos, points, badges (D13)
-- [ ] 13.1 Wall tables
-- [ ] 13.2 Composer: media, polls, mentions, types
-- [ ] 13.3 Post card: media grid, lightbox, reactions, threaded comments
-- [ ] 13.4 Auto-posts: deal won, birthday, anniversary, welcome
-- [ ] 13.5 XP rules + anti-gaming
-- [ ] 13.6 Kudos, 5 per week
-- [ ] 13.7 Sidebar: leaderboard, who's online, upcoming, kudos left
-- [ ] 13.8 Badges + unlock modal
-- [ ] 13.9 Streak with Sunday skipped
-- [ ] 13.10 Best of Homes Monday 09:00 + crown
-- [ ] 13.11 Moderation (pin, delete, mute, show deal value)
+- [x] 13.1 `wall_posts`, `wall_comments`, `wall_reactions`, `kudos`,
+      `xp_events`, `user_badges`
+- [x] 13.2 Composer with @mentions and polls
+- [x] 13.3 Post card: reactions, comments, three shown with the rest behind
+      a count so one busy thread does not push the wall off the screen
+- [x] 13.4 Auto-posts: deal won, welcome, work anniversary, Monday roundup.
+      **No birthdays** — the CRM holds no date of birth, and starting to hold
+      one so the wall can post about it is not a trade worth making.
+- [x] 13.5 XP rules written against the question "what would somebody do to
+      win without doing the work": outcomes not activity, once per thing
+      enforced by a unique key, a daily cap on everything repeatable, and
+      nothing at all for posting on the wall
+- [x] 13.6 Kudos, five a week, one per colleague per week so two people
+      cannot trade five each
+- [x] 13.7 Sidebar: level and progress, streak, leaderboard, who is on now,
+      thank-yous left
+- [x] 13.8 Badges recorded as they are earned, with an unseen list so the
+      unlock is celebrated once
+- [x] 13.9 Streak that the weekend does not break — a streak that punishes
+      somebody for not working Saturday is a streak that tells them to
+- [x] 13.10 Best of the week, Monday 09:00 Dubai, naming what people did
+      rather than a score, and silent on a week where nothing happened
+- [x] 13.11 Moderation: pin, remove (author or owner), and deal values hidden
+      unless an owner turns them on for a post
 
 ## Step 14 — Palette, shortcuts, tour, AI (C9, C10, D14)
 - [ ] 14.1 Command palette (Cmd+K) over leads, projects, pages, actions

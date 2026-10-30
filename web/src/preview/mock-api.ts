@@ -346,6 +346,53 @@ Emigeo Homes Real Estate LLC · Dubai, UAE · Licence 1120345</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
+/* ── Team wall ────────────────────────────────────────────────────────── */
+
+interface PreviewWallPost {
+  id: string; author_id: string | null; author_name: string | null; kind: string;
+  body: string | null; poll: unknown; show_value: number; pinned_at: string | null;
+  created_at: string;
+  reactions: Array<{ emoji: string; count: number; mine: boolean }>;
+  comments: Array<{ id: string; author_name: string | null; body: string; created_at: string }>;
+  commentCount: number;
+}
+
+const WALL_POSTS: PreviewWallPost[] = [
+  {
+    id: 'wp-1', author_id: null, author_name: null, kind: 'best_of_week',
+    body: 'Best of the week\n\n👑 Layla Hassan — 2 deals, 6 viewings\nOmar Haddad — 1 deal, 4 viewings\nRaj Mehta — 3 viewings',
+    poll: null, show_value: 0, pinned_at: ago(60 * 26), created_at: ago(60 * 26),
+    reactions: [{ emoji: '👏', count: 6, mine: true }, { emoji: '🔥', count: 3, mine: false }],
+    comments: [], commentCount: 0,
+  },
+  {
+    id: 'wp-2', author_id: 'u2', author_name: 'Layla Hassan', kind: 'deal_won',
+    body: 'Layla Hassan just closed a deal at Emaar Beachfront.',
+    poll: null, show_value: 0, pinned_at: null, created_at: ago(190),
+    reactions: [{ emoji: '🎉', count: 7, mine: true }, { emoji: '💪', count: 2, mine: false }],
+    comments: [
+      { id: 'wc-1', author_name: 'Omar Haddad', body: 'Well done — that one took months.', created_at: ago(180) },
+      { id: 'wc-2', author_name: 'Emir Dulovic', body: 'Excellent. The payment plan did it.', created_at: ago(170) },
+    ],
+    commentCount: 2,
+  },
+  {
+    id: 'wp-3', author_id: 'u3', author_name: 'Omar Haddad', kind: 'post',
+    body: 'Developer visit at Sobha tomorrow 11am — they are bringing the updated price list for Hartland II. Anyone with buyers waiting on that, tell me and I will ask.',
+    poll: null, show_value: 0, pinned_at: null, created_at: ago(300),
+    reactions: [{ emoji: '👍', count: 4, mine: false }],
+    comments: [{ id: 'wc-3', author_name: 'Layla Hassan', body: 'Yes please — two waiting.', created_at: ago(290) }],
+    commentCount: 1,
+  },
+  {
+    id: 'wp-4', author_id: null, author_name: null, kind: 'welcome',
+    body: 'Raj Mehta has joined the team as Property Consultant. Say hello.',
+    poll: null, show_value: 0, pinned_at: null, created_at: ago(60 * 72),
+    reactions: [{ emoji: '👏', count: 9, mine: true }],
+    comments: [], commentCount: 0,
+  },
+];
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -862,6 +909,70 @@ const ROUTES: Route[] = [
     };
   } },
   { method: 'PATCH', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => ({ ok: true }) },
+
+  // --- team wall ----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/wall$/, handler: () => ({ items: WALL_POSTS }) },
+  { method: 'POST', pattern: /^\/api\/wall$/, handler: ({ body }) => {
+    const id = `wp-${Date.now()}`;
+    WALL_POSTS.unshift({
+      id, author_id: currentUser().id, author_name: currentUser().name, kind: 'post',
+      body: String(body.body ?? ''), poll: null, show_value: 0, pinned_at: null,
+      created_at: new Date().toISOString(), reactions: [], comments: [], commentCount: 0,
+    });
+    return { id };
+  } },
+  { method: 'POST', pattern: /^\/api\/wall\/([^/]+)\/react$/, handler: ({ params, body }) => {
+    const post = WALL_POSTS.find((p) => p.id === params[0]);
+    const emoji = String(body.emoji ?? '👏');
+    if (post) {
+      const found = post.reactions.find((r) => r.emoji === emoji);
+      if (found) {
+        found.mine = !found.mine;
+        found.count += found.mine ? 1 : -1;
+        if (found.count <= 0) post.reactions = post.reactions.filter((r) => r.emoji !== emoji);
+      } else post.reactions.push({ emoji, count: 1, mine: true });
+    }
+    return { on: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/wall\/([^/]+)\/comments$/, handler: ({ params, body }) => {
+    const post = WALL_POSTS.find((p) => p.id === params[0]);
+    if (post) {
+      post.comments.push({
+        id: `wc-${Date.now()}`, author_name: currentUser().name,
+        body: String(body.body ?? ''), created_at: new Date().toISOString(),
+      });
+      post.commentCount += 1;
+    }
+    return { id: `wc-${Date.now()}` };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/wall\/([^/]+)$/, handler: ({ params }) => {
+    const index = WALL_POSTS.findIndex((p) => p.id === params[0]);
+    if (index >= 0) WALL_POSTS.splice(index, 1);
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/wall\/kudos$/, handler: () => ({ left: 3 }) },
+  { method: 'GET', pattern: /^\/api\/wall\/sidebar$/, handler: () => ({
+    leaderboard: [
+      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', points: 418 },
+      { id: OWNER.id, name: OWNER.name, points: 377 },
+      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', points: 265 },
+      { id: USERS[3]?.id ?? 'u4', name: 'Raj Mehta', points: 191 },
+    ],
+    online: [
+      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan' },
+      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad' },
+    ],
+    me: {
+      points: 377,
+      level: { level: 4, name: 'Steady', points: 377, from: 150, next: 400, progress: 0.908 },
+      streak: 9,
+      kudosLeft: 3,
+      badges: ['first_deal', 'fast_hands', 'week_streak', 'tidy_desk'],
+    },
+    badgeCount: 10,
+  }) },
+  { method: 'GET', pattern: /^\/api\/wall\/unseen-badges$/, handler: () => ({ items: [] }) },
+  { method: 'POST', pattern: /^\/api\/wall\/unseen-badges\/seen$/, handler: () => ({ ok: true }) },
 
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },

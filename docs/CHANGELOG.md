@@ -2,6 +2,43 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The Team Wall
+
+**The CRM posts to it itself.** A deal closes and the wall says so. Somebody
+joins and it introduces them. On Monday morning it puts up who did the most
+last week — naming what they actually did, "2 deals, 6 viewings", not a score.
+That is what makes it worth opening on a quiet Tuesday; a wall with only what
+people typed is empty by the second week.
+
+**Points, and they are hard to game.** Nothing is earned for logging a call —
+a person paid for activity logs activity that did not happen. Points come from
+things a client had to be present for: actually reaching somebody, a viewing
+that happened, a deal that closed. Everything pays once, everything repeatable
+has a daily limit, and posting on the wall earns nothing at all.
+
+**Five thank-yous a week**, one per colleague, so two people cannot sit and
+trade them.
+
+**A streak the weekend does not break.** Our week is Monday to Friday. A
+streak that punishes somebody for not working Saturday is a streak that tells
+them to work Saturday. It says so on screen, so nobody thinks they lost one.
+
+**Deal values stay private** unless you deliberately turn them on for a post.
+What a colleague earned is not everybody's business, and a wall that leaks it
+is a wall people stop posting on.
+
+**One thing I did not build**
+
+The plan said birthday posts. The CRM does not hold anyone's date of birth,
+and starting to collect one so a wall can post a greeting is not a trade worth
+making. Work anniversaries are there instead — those come from the joining
+date, which the system already has.
+
+**Where it stands**
+
+1,820 server tests and 234 web tests pass; 269 database tests run on the build
+server.
+
 ## Agent profiles and a business card that works
 
 **Every agent gets a page.** Their job title, BRN, a line about themselves, what

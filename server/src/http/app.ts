@@ -45,6 +45,7 @@ import { emailPublicRouter } from './routes/email-public.js';
 import { activityRouter } from './routes/activity.js';
 import { profilesRouter } from './routes/profiles.js';
 import { cardRouter } from './routes/card.js';
+import { wallRouter } from './routes/wall.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -209,6 +210,7 @@ export function createApp(): Express {
   app.use('/api/email', emailRouter);
   app.use('/api/activity', activityRouter);
   app.use('/api/profiles', profilesRouter);
+  app.use('/api/wall', wallRouter);
   /* The public business card: no login, no bundle, no session. */
   app.use('/', cardRouter);
   /* No login on these two: a client clicks the unsubscribe link and a

@@ -527,3 +527,47 @@ client who scans a code at a sales centre on one bar of signal gets the page,
 and it works with JavaScript off. The template is a pure function so it can
 be rendered and looked at without a database or a running server — which is
 the only way a page nobody logs into gets checked before a client sees it.
+
+2026-10-30 — wall — Every XP rule answers one question — "What would somebody
+do if they wanted to win without doing the work?" So: points are for outcomes,
+never activity (logging a call earns nothing — a person paid for activity logs
+calls that did not happen; reaching somebody earns, because the client is a
+witness). Everything pays once per thing, enforced by a unique key on the
+table rather than a check in code, so a retried job cannot pay twice.
+Everything repeatable has a daily cap, because without one the winner is
+whoever has the most leads, which is a fact about the router. And nothing at
+all is paid for posting on the wall: the moment points come from posting, the
+wall fills with posts.
+
+2026-10-30 — wall — The streak ignores the weekend — The UAE week is Monday to
+Friday. A streak that breaks because somebody did not work Saturday is a
+streak that tells people to work Saturday. A weekend day that was worked
+counts; it is just never required. The sidebar says so out loud, so nobody
+thinks they lost one.
+
+2026-10-30 — wall — Kudos are five a week and one per person per week — Five
+so they mean something. One per colleague per week because otherwise two
+people trade five each and both end the week with twenty-five points for
+nothing.
+
+2026-10-30 — wall — No birthdays — The spec asked for birthday posts. The CRM
+holds no date of birth, and starting to hold one so a wall can post about it
+is not a trade worth making — it is personal data collected for a greeting.
+Work anniversaries come from the joining date, which the CRM already has for
+other reasons.
+
+2026-10-30 — wall — The CRM posts, which is why anyone opens it — A wall with
+only what people typed is empty by the second week. A deal closing, a new
+starter and Monday's roundup appear on their own, so it is worth a look on a
+quiet Tuesday. Every auto-post is idempotent on its subject, so a retried job
+does not congratulate somebody twice.
+
+2026-10-30 — wall — Deal values are off unless somebody turns them on — What a
+colleague earned is not everybody's business, and a wall that leaks it is a
+wall people stop posting on. The post says the project; an owner can show the
+figure on one post if they want to.
+
+2026-10-30 — wall — The Monday roundup says what people did — "Layla — 2
+deals, 6 viewings", not "Layla — 418 points". A score means nothing to
+anybody. A week where nothing happened gets no post rather than a post about
+nobody.

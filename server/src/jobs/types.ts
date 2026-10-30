@@ -27,6 +27,8 @@ export const JOB_TYPES = [
   'email.campaign_batch',
   /** The owners' morning summary, at 09:00 Dubai. */
   'reports.owner_summary',
+  /** Anniversaries, and the Monday "best of the week" post. */
+  'wall.daily',
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];

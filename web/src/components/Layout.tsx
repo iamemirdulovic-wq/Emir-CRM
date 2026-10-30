@@ -80,6 +80,7 @@ const ENTRIES: Entry[] = [
     roles: ['owner', 'admin', 'manager'],
   },
   { to: '/pool', label: t('pool'), icon: 'inbox', title: t('pool'), roles: ['agent'] },
+  { to: '/wall', label: t('teamWall'), icon: 'message-square-heart', title: t('teamWall'), phone: true },
   { to: '/projects', label: t('projects'), icon: 'building-2', title: t('projects') },
   { to: '/offers', label: t('offers'), icon: 'sparkles', title: t('offers') },
   {
