@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAedShort, maskPhone } from './format.js';
+import { formatAedShort, maskPhone, plural } from './format.js';
 
 /**
  * The short budget appears on the pipeline card, in Incoming and on the
@@ -69,5 +69,30 @@ describe('hiding the middle of a phone number', () => {
     expect(maskPhone(null)).toBe('—');
     expect(maskPhone(undefined)).toBe('—');
     expect(maskPhone('')).toBe('—');
+  });
+});
+
+describe('plural', () => {
+  it('says one of a thing without an s', () => {
+    expect(plural(1, 'contact')).toBe('1 contact');
+    expect(plural(1, 'lead')).toBe('1 lead');
+  });
+
+  it('adds the s for everything else, including none', () => {
+    expect(plural(0, 'contact')).toBe('0 contacts');
+    expect(plural(2, 'contact')).toBe('2 contacts');
+  });
+
+  it('takes the plural when it is not just an s', () => {
+    expect(plural(1, 'person', 'people')).toBe('1 person');
+    expect(plural(3, 'person', 'people')).toBe('3 people');
+  });
+
+  it('groups a big number the way a reader expects', () => {
+    expect(plural(12500, 'contact')).toBe('12,500 contacts');
+  });
+
+  it('treats a negative as a plural rather than throwing', () => {
+    expect(plural(-1, 'contact')).toBe('-1 contacts');
   });
 });

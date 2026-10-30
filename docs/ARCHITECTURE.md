@@ -167,7 +167,10 @@ server/src/
 
 web/src/
   lib/           API client, auth context, realtime, i18n, formatting
-  styles/        the design system's CSS, ported from the approved design
+  styles/        the design system's CSS, ported from the approved design.
+                 A class may be a component or somebody else's modifier, not
+                 both, and two files may not give one name a different layout
+                 — `css-collisions.test.ts` enforces it
   design/        shell, icons, charts, theme, shared UI — see docs/DESIGN.md
   components/    the signed-in layout, the lead drawer, the command palette,
                  the keyboard layer and the guided tour

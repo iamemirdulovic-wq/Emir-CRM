@@ -121,3 +121,15 @@ export function humanize(value: string | null | undefined): string {
   if (phrase) return phrase;
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/**
+ * "1 contact", "12 contacts", "0 contacts".
+ *
+ * Built by hand in nine places and wrong in at least one of them — a list
+ * with one person in it read "1 contacts", which is the kind of thing that
+ * makes software feel unfinished. English plurals are mostly an "s"; the few
+ * that are not take the second argument.
+ */
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count.toLocaleString()} ${count === 1 ? one : many}`;
+}

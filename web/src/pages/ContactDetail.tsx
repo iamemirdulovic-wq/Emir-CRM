@@ -346,7 +346,7 @@ export function ContactDetail() {
             </div>
           ))}
           {user?.role !== 'agent' && (
-            <p className="note" style={{ marginTop: 12 }}>
+            <p className="callout" style={{ marginTop: 12 }}>
               <Icon name="info" />
               <span>A re-inquiry within 30 days on the same project is recorded here, not opened again.</span>
             </p>

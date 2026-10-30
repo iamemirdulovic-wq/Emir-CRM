@@ -34,6 +34,7 @@ rather than introducing a second system.
 | `npm test` | server suite then web suite |
 | `npm run typecheck` | both workspaces |
 | `npm run e2e` | Playwright smoke test against a running instance |
+| `npm run polish` | every screen at two sizes in both themes, checked for overflow, clipped text, broken images and tap targets too small for a thumb (needs the preview server, started from inside `web/`) |
 | `VITE_PREVIEW=1 npx vite --port 5182` (in `web/`) | the SPA against `src/preview/mock-api.ts`, no database needed |
 
 The preview server is how every screenshot in this build gets taken: there is

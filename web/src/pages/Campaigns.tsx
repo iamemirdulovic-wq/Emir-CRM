@@ -161,7 +161,7 @@ function NewCampaign({ defaultListId, onDone }: { defaultListId: string | null; 
   if (warning) {
     return (
       <>
-        <p className={warning.includes('skipped') ? 'err' : 'note'} style={{ display: 'block' }}>
+        <p className={warning.includes('skipped') ? 'err' : 'callout'} style={{ display: 'block' }}>
           {warning}
         </p>
         <Note>
@@ -341,7 +341,7 @@ export function CampaignDetailScreen() {
             <b>{stats.skipped}</b>
           </div>
           <div className="kv">
-            <span>Appointments since</span>
+            <span>Appointments booked since it started</span>
             <b>{stats.appointments}</b>
           </div>
         </Panel>

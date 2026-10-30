@@ -680,3 +680,54 @@ change is audited because `saveSetting` and `saveSecret` write the row
 themselves, so the way that stops being true is somebody writing to
 `app_settings` directly. A test scans the source for that rather than trusting
 a comment, in the same spirit as the hook-order and schema-map checks.
+
+2026-10-30 — polish — The layout pass is a browser, not a person — A hundred
+and eight screenshots is more than anybody looks at properly. A browser can be
+asked exactly the questions that matter: is anything past the right edge, does
+the page itself scroll sideways, is any text cut off with no way to read it,
+is any button too small for a thumb. It found the lead page dragging sideways
+on a phone, a thirteen-pixel row button and a timestamp pushing the audit log
+off the screen — none of which I had spotted by eye. Kept as `npm run polish`.
+
+2026-10-30 — polish — A class is a component or a modifier, never both — This
+has now bitten four times: `.note` was the hint under a field and the modifier
+on a note bubble, so every internal note in the inbox sat twelve pixels too
+low; `.unread` was the conversation badge and the modifier on an unread
+notification, so the notifications that mattered most rendered at eleven
+pixels bold. Neither shows in a type check or a test. There is a standing
+check for it now, with an allowlist for the one composition that is meant.
+
+2026-10-30 — polish — Hit areas grew, nothing moved — A thirteen-pixel button
+is a button you miss, but making every control forty-four pixels would pull
+the dense rows apart and change a design that was approved. Padding and an
+invisible pseudo-element give the thumb something to land on while the row
+keeps its proportions. Thirty-two rather than Apple's forty-four, because
+that is where a miss stops being the common case inside a list.
+
+2026-10-30 — polish — The board swipes rather than wraps on a phone — Seven
+action buttons wrapped onto three rows push everything an agent came to read
+below the fold. Swiping keeps Call and WhatsApp under the thumb and the rest
+a flick away, which is the pattern people already know.
+
+2026-10-30 — polish — The preview is not allowed to lie — Two whole screens —
+the project library and the sales offers — showed "No route for GET" because
+nothing mocked them. A preview with holes in it is worse than none: it is the
+only way anybody sees the app before it is live, and a screen that errors
+there reads as a screen that is broken.
+
+2026-10-30 — polish — Two stylesheets, one name, two components — `.board` was
+the pipeline's kanban in components.css and the Team Wall's leaderboard in
+kit.css. kit.css loads later and says `flex-direction: column`, so the board
+had not been a board since the wall was built — every stage stacked on top of
+the next, on every screen size, in both themes. Nothing failed: no type error,
+no test, and a screenshot of a stacked board still looks like a CRM. The
+collision check now compares what each file says a class's layout is, and the
+list of stylesheets it reads comes from `index.css` rather than being written
+out again, so a parked file joining the build is checked the day it does.
+
+2026-10-30 — polish — `.callout`, because both obvious names were taken — The
+hint with an icon could not be `.note` (a modifier on a channel badge and a
+message bubble) and could not be `.hint` either (already the plain one-line
+hint under a login field, which would have gained `display:flex`). The
+collision check caught the second attempt a minute after it was written, which
+is the argument for having it.

@@ -108,6 +108,11 @@ function titleFor(pathname: string): string {
   if (pathname.startsWith('/leads')) return 'My Leads';
   if (pathname.startsWith('/imports')) return 'Import';
   if (pathname.endsWith('/dial')) return 'Calling';
+  /* Reached from the name at the bottom of the sidebar rather than from the
+     navigation, so there is no entry to take the heading from — and without
+     this the page was headed with the product's name instead of its own. */
+  if (pathname.startsWith('/profile')) return 'My profile';
+  if (pathname.startsWith('/dev/')) return 'Components';
   const entry = ENTRIES.find((item) => pathname.startsWith(item.to));
   return entry?.title ?? BRAND.name;
 }

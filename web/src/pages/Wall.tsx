@@ -185,7 +185,7 @@ export function Wall() {
               </Panel>
 
               <Panel index={2} icon="trophy" title="Last 30 days">
-                <ol className="board">
+                <ol className="leaderboard">
                   {side.data.leaderboard.map((row, index) => (
                     <li key={row.id} className={row.id === user?.id ? 'me' : undefined}>
                       <span className="rank">{index + 1}</span>

@@ -246,7 +246,15 @@ export function Offers() {
             : 'Press New offer to build one from a lead and a project.'}
         />
       ) : (
-        <div className={view === 'list' ? 'drive list rise' : 'drive rise'} style={{ ['--i' as string]: 2 }}>
+        <>
+        {/*
+          * Folders in their own grid, so offers always start on a fresh row.
+          * Sharing one grid put the first offer card beside the folders
+          * whenever the folder count was not a multiple of the column count,
+          * which read as a mistake rather than as a layout.
+          */}
+        {visibleFolders.length > 0 && (
+          <div className={view === 'list' ? 'drive list rise' : 'drive rise'} style={{ ['--i' as string]: 2 }}>
           {visibleFolders.map((folder, index) => (
             <button
               key={folder.id}
@@ -268,7 +276,13 @@ export function Offers() {
               </div>
             </button>
           ))}
+          </div>
+        )}
 
+        <div
+          className={view === 'list' ? 'drive list rise' : 'drive rise'}
+          style={{ ['--i' as string]: 3, marginTop: visibleFolders.length > 0 ? 12 : 0 }}
+        >
           {list.map((offer, index) => (
             <article
               key={offer.id}
@@ -317,6 +331,7 @@ export function Offers() {
             </article>
           ))}
         </div>
+        </>
       )}
 
       {menu && (

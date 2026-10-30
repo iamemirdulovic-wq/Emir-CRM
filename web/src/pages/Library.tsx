@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api, qs } from '../lib/api.js';
 import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { formatAed, humanize } from '../lib/format.js';
+import { formatAed, humanize, plural } from '../lib/format.js';
 import { useShellSearch } from '../components/Layout.js';
 import { AddProject } from '../components/AddProject.js';
 import { Developers } from '../components/Developers.js';
@@ -180,7 +180,7 @@ export function Library() {
         <Kpi
           label="Most leads this month"
           value={stats.data?.mostLeads?.project_name ?? '—'}
-          sub={stats.data?.mostLeads ? `${stats.data.mostLeads.leads} leads` : 'No leads yet'}
+          sub={stats.data?.mostLeads ? plural(stats.data.mostLeads.leads, 'lead') : 'No leads yet'}
           icon="users"
         />
         <Kpi

@@ -177,7 +177,7 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 
 export function Note({ children }: { children: ReactNode }) {
   return (
-    <p className="note">
+    <p className="callout">
       <Icon name="info" />
       <span>{children}</span>
     </p>
@@ -429,7 +429,18 @@ export function budgetLabel(min: number | null, max: number | null, band: string
     value >= 1_000_000
       ? `${Number((value / 1_000_000).toFixed(1))}M`
       : `${Math.round(value / 1000)}K`;
-  if (min && max) return `AED ${short(min)}–${short(max)}`;
+  if (min && max) {
+    /*
+     * One figure when both ends read the same. A lead who said "3.5 million"
+     * has min and max set to the same number, and "AED 3.5M–3.5M" is a range
+     * that is not a range. It also catches two different figures that round to
+     * the same short form — 3,450,000 and 3,500,000 are both "3.5M", and
+     * showing that twice looks like a bug because it is one.
+     */
+    const low = short(min);
+    const high = short(max);
+    return low === high ? `AED ${low}` : `AED ${low}–${high}`;
+  }
   if (min) return `AED ${short(min)}+`;
   if (max) return `up to AED ${short(max)}`;
   return band ?? '—';

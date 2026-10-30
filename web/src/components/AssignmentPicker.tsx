@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
+import { plural } from '../lib/format.js';
 import type { AssignmentChoice, AssignmentMethod, AssignmentPreview, TeamRow, UserRow } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Field, Note, Select, Spinner } from '../design/ui.js';
@@ -205,7 +206,7 @@ export function AssignmentPicker({
             <>
               {preview.plan.counts.length === 0 && preview.pooled > 0 && (
                 <p className="muted">
-                  All {preview.pooled.toLocaleString()} leads go to the shared pool.
+                  All {plural(preview.pooled, 'lead')} go to the shared pool.
                 </p>
               )}
               {preview.plan.counts.map((row) => (
@@ -221,7 +222,7 @@ export function AssignmentPicker({
                 </div>
               ))}
               {preview.unmatched > 0 && (
-                <p className="muted">{preview.unmatched} leads match no rule and stay unassigned.</p>
+                <p className="muted">{plural(preview.unmatched, 'lead')} match no rule and stay unassigned.</p>
               )}
               {preview.warnings.map((warning) => (
                 <p className="err" style={{ display: 'block' }} key={warning.userId}>

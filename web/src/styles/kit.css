@@ -479,6 +479,23 @@
   .lead-actions{order:2}
 }
 
+/*
+ * On the lead page the bar carries seven buttons — Call, WhatsApp, Call back,
+ * Meeting, Problem, Lost, Won — which is 795px of row on a 390px phone. It
+ * was dragging the whole page sideways. It swipes instead: Call and WhatsApp
+ * are the two that matter and are where the thumb already is, and the rest
+ * are a flick away. Wrapping was the alternative and costs three rows of
+ * height above everything an agent came to read.
+ */
+@media (max-width:760px){
+  .toolbar .right .lead-actions{
+    max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;
+    /* Room for the buttons' own shadows, which a scroll box would clip. */
+    padding:4px 2px;margin:-4px -2px;scrollbar-width:none}
+  .toolbar .right .lead-actions::-webkit-scrollbar{display:none}
+  .toolbar .right .lead-actions .btn{flex:none}
+}
+
 /* ---------------------------------------------------------------------------
    Toast with a way back
    --------------------------------------------------------------------------- */
@@ -617,8 +634,11 @@
 
 .note-files{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;align-items:center}
 
+/* `min-width:0` because an <audio> element has a wide intrinsic size and a
+   flex item will not shrink below it — on a phone that pushed the whole lead
+   page sideways. */
 .note-voice{
-  display:flex;align-items:center;gap:8px;flex:1 1 260px;
+  display:flex;align-items:center;gap:8px;flex:1 1 260px;min-width:0;max-width:100%;
   padding:6px 10px;border-radius:99px;background:var(--surface-2)}
 .note-voice svg{color:var(--primary);flex:none}
 .note-voice audio{flex:1;min-width:0;height:32px}
@@ -780,6 +800,19 @@
 @keyframes live-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
 
+/*
+ * On a phone the Sign out button took enough of the row that the device line
+ * read "Agent · Wi…" and the name wrapped mid-word. The row stacks instead:
+ * who, then what they are doing, then the button across the bottom. Sign out
+ * ends somebody's session, so it keeps its word rather than becoming an icon.
+ */
+@media (max-width:560px){
+  .live-row{flex-wrap:wrap}
+  .live-who{flex:1 1 100%}
+  .live-who small{white-space:normal}
+  .live-row .btn{flex:1 1 100%;justify-content:center}
+}
+
 .signin{
   padding:11px 13px;border-radius:var(--r-m);border:1px solid var(--line);
   background:var(--surface-2)}
@@ -816,9 +849,14 @@
   width:100%;display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;
   background:none;border:0;font:inherit;text-align:left;color:var(--ink);border-radius:10px}
 .audit-line:hover{background:var(--surface-2)}
-.audit-line b{font-size:13px;flex:none}
-.audit-line time{margin-left:auto;color:var(--ink-3);font-size:12px;flex:none}
-.audit-line .muted{font-size:12px}
+/* Everything but the time may shrink and trail off. The description is
+   usually the longest part and was pushing the timestamp off the right edge
+   of a phone, which dragged the whole page sideways with it. */
+.audit-line b{font-size:13px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audit-line time{margin-left:auto;color:var(--ink-3);font-size:12px;flex:none;padding-left:4px}
+.audit-line .muted{font-size:12px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.audit-line .audit-action{flex:none}
 
 .audit-action{
   font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;
@@ -929,7 +967,10 @@
   display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;
   padding:13px;border-radius:var(--r-m);border:1px solid var(--line);
   background:linear-gradient(var(--glass),var(--glass)),var(--bg)}
+/* Two lines on a laptop. On a phone the placeholder wraps to three and
+   the last of it was cut off by the box. */
 .wall-compose textarea{resize:vertical;min-height:46px}
+@media (max-width:560px){.wall-compose textarea{min-height:76px}}
 
 .wall-post{
   padding:14px 15px;border-radius:var(--r-m);border:1px solid var(--line);
@@ -983,13 +1024,16 @@
 .level-bar{height:6px;border-radius:99px;background:var(--line);margin:7px 0 5px;overflow:hidden}
 .level-bar i{display:block;height:100%;border-radius:99px;background:var(--grad)}
 
-.board{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.board li{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:3px 0}
-.board li.me{font-weight:700}
-.board li a{color:inherit;text-decoration:none;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.board li a:hover{color:var(--primary)}
-.board .rank{width:18px;color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
-.board li b{font-variant-numeric:tabular-nums;color:var(--primary)}
+/* `.leaderboard`, not `.board`: `.board` is the pipeline's kanban, and this
+   rule's `flex-direction:column` was stacking its stages one on top of
+   another — the board had not been a board since this was added. */
+.leaderboard{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.leaderboard li{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:3px 0}
+.leaderboard li.me{font-weight:700}
+.leaderboard li a{color:inherit;text-decoration:none;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.leaderboard li a:hover{color:var(--primary)}
+.leaderboard .rank{width:18px;color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+.leaderboard li b{font-variant-numeric:tabular-nums;color:var(--primary)}
 
 .online{display:flex;flex-wrap:wrap;gap:6px}
 
@@ -1185,3 +1229,46 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
 .co-issues li{display:flex;align-items:flex-start;gap:9px;font-size:14px;line-height:1.5;
   color:var(--ink-2)}
 .co-issues svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--s-att)}
+
+/* ── Thumbs, on a phone ────────────────────────────────────────────────── */
+
+/*
+ * A 13-pixel button is a button you miss. Nothing here changes how anything
+ * looks: the hit area is grown with padding and a pseudo-element, so the row
+ * keeps its proportions and the thumb gets something to land on.
+ *
+ * 32px rather than the 44px Apple asks for, because these sit inside dense
+ * rows where 44 would push the content apart — 32 is the point at which a
+ * miss stops being the common case.
+ */
+@media (max-width:760px){
+  .rowbtn{min-width:32px;min-height:32px;padding:0 5px;margin:0 -5px;justify-content:center}
+  .rowbtn svg{width:15px;height:15px}
+
+  /* The row checkboxes on Incoming and the pipeline: a native checkbox is
+     13px and nothing but a bigger box fixes that — a checkbox cannot be
+     given a hit area wider than the box it draws. */
+  .view input[type="checkbox"]{width:22px;height:22px}
+
+  /*
+   * The switch keeps its 40x24 look — it is the approved design — and gains
+   * an invisible target around it.
+   */
+  .switch{position:relative}
+  .switch::after{content:"";position:absolute;left:-8px;right:-8px;top:-6px;bottom:-6px}
+
+  /* The 7D / 30D / 90D range switches, and the tab switches above a list. */
+  .seg button{min-height:30px;padding:4px 12px}
+
+  /* The one-tap note phrases: 27px is a pixel under where a thumb stops
+     missing. */
+  .note-quick-btn{min-height:30px}
+
+  /* Small round icon buttons inside cards. */
+  .wall-remove,.icon-btn{min-width:32px;min-height:32px}
+
+  /* Pin and Delete under a note: text links of 17px, which is a miss. The
+     gap grows with them so the two do not become one target. */
+  .note-row-actions{gap:18px}
+  .note-row-actions button{min-height:32px;padding:0 2px}
+}

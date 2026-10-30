@@ -48,8 +48,13 @@
 .side{position:fixed;top:14px;bottom:14px;left:14px;width:230px;border-radius:26px;display:flex;flex-direction:column;padding:18px 12px;z-index:20;color:var(--side-ink)}
 .side .brand{color:var(--ink);padding:4px 8px 20px}
 /* Takes the slack and scrolls inside it: an owner has sixteen items, and on a
-   1000px screen the last two used to sit underneath the footer. */
-.nav{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+   1000px screen the last two used to sit underneath the footer. The mask fades
+   the last item out at the bottom edge, so a half-cut row reads as "there is
+   more below" rather than as a broken layout. */
+.nav{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-height:0;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-width:thin;
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--side-ink);padding:10px 12px;border-radius:12px;font-weight:600;text-align:left;width:100%;transition:background .15s}
 .nav button:hover{background:var(--surface-2);color:var(--ink)}
 .nav button.active{background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(0,150,210,.3)}
@@ -185,7 +190,12 @@ tr:last-child td{border-bottom:0}
 .thread .l1{display:flex;align-items:center;gap:6px;font-weight:600}
 .thread .l1 time{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-weight:500}
 .thread .l2{color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.unread{background:var(--primary);color:#fff;font-size:11px;border-radius:99px;padding:0 6px;font-weight:700}
+/* Named for the thread it sits in, not `.unread`: that word is also a
+   modifier on a bell notification, and the badge's 11px bold was landing
+   on the unread notifications in the bell panel — making the ones that
+   matter most the hardest to read. */
+.thread-unread{align-self:center;display:grid;place-items:center;min-width:19px;height:19px;
+  background:var(--primary);color:#fff;font-size:11px;border-radius:99px;padding:0 6px;font-weight:700}
 .ch{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:6px;color:#fff}
 .ch svg{width:11px;height:11px}
 .ch.wa{background:var(--wa)} .ch.em{background:var(--s-new)} .ch.sms{background:var(--s-att)} .ch.note{background:#D9A400}
@@ -299,7 +309,10 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
   .bottom-nav{display:flex;position:fixed;bottom:10px;left:10px;right:10px;border-radius:22px;z-index:30;padding:6px 4px}
   .bottom-nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--ink-3);padding:5px;border-radius:14px}
   .bottom-nav button.active{color:var(--primary);background:var(--primary-soft)}
-  .col{flex-basis:84vw}
+  /* Nearly the full width, with the next stage peeking: a 276px column on
+     a 390px screen leaves a dead strip that reads as a broken layout
+     rather than as "swipe for the next stage". */
+  .col{flex-basis:86vw;max-height:none}
   .inbox{grid-template-columns:1fr;height:calc(100vh - 170px)}
   .inbox .convo{display:none}
   .inbox.open .threads{display:none}
@@ -434,8 +447,15 @@ th.money{text-align:right}
 .vat-big div{padding:16px;border-radius:16px;background:var(--surface-2);border:1px solid var(--glass-line)}
 .vat-big small{color:var(--ink-3);display:block}
 .vat-big b{font-size:24px;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.note{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;align-items:flex-start;margin-top:12px}
-.note svg{width:15px;height:15px;flex-shrink:0;margin-top:1px}
+/*
+ * The hint with an icon beside it. Named `.callout` because both obvious
+ * names were taken: `note` is a modifier on a channel badge (`.ch.note`) and
+ * on a message bubble (`.bubble.note`), and `.hint` is already the plain
+ * one-line hint under a login field. Either would have put this rule's
+ * `display:flex` on elements that are not flex containers.
+ */
+.callout{font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;align-items:flex-start;margin-top:12px}
+.callout svg{width:15px;height:15px;flex-shrink:0;margin-top:1px}
 .inv-calc{margin-top:6px;padding:14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--glass-line)}
 .inv-calc .kv:last-child b{font-size:18px;color:var(--primary)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}

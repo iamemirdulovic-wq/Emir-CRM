@@ -515,6 +515,112 @@ function brief(input: {
   };
 }
 
+/* The project library, built from the same projects the rest of the preview
+   uses — a project named on a lead is the project found here. */
+const LIBRARY_CARDS = PROJECTS.map((project, index) => ({
+  id: project.id,
+  slug: project.slug,
+  name: project.name,
+  developer: project.developer,
+  developer_id: `dv-${index + 1}`,
+  emirate: project.emirate,
+  community: project.area,
+  property_type: index === 1 ? 'villa' : 'apartment',
+  sale_status: (index === 3 ? 'coming_soon' : 'selling_now') as 'selling_now' | 'coming_soon' | 'sold_out',
+  starting_price_aed: project.starting_price_aed,
+  handover_date: project.handover_date,
+  payment_plan: project.payment_plan,
+  image_url: null as string | null,
+  cover_photo_id: null as string | null,
+  visibility: 'private' as const,
+  starred: index === 0 ? 1 : 0,
+  verified_at: project.verified_at,
+  archived_at: null as string | null,
+  units_available: [34, 29, 23, 0][index] ?? 0,
+  units_total: [120, 96, 74, 0][index] ?? 0,
+}));
+
+const DEVELOPERS = [
+  { id: 'dv-1', slug: 'emaar', legal_name: 'Emaar Properties PJSC', short_name: 'Emaar', orn: '1122',
+    trn: '100111222333444', head_office: 'Downtown Dubai', escrow_bank: 'Emirates NBD',
+    website: 'https://www.emaar.com', track_record: 'Listed developer, delivering since 1997.',
+    commission_pct: '4.00', payment_terms: '60 days from SPA', project_count: 1, contact_count: 2 },
+  { id: 'dv-2', slug: 'damac', legal_name: 'DAMAC Properties Dubai Co.', short_name: 'Damac', orn: '2244',
+    trn: '100222333444555', head_office: 'Business Bay', escrow_bank: 'Mashreq',
+    website: 'https://www.damacproperties.com', track_record: 'High volume across Dubailand.',
+    commission_pct: '5.00', payment_terms: '45 days from booking', project_count: 1, contact_count: 1 },
+  { id: 'dv-3', slug: 'aldar', legal_name: 'Aldar Properties PJSC', short_name: 'Aldar', orn: '3366',
+    trn: '100333444555666', head_office: 'Al Raha Beach, Abu Dhabi', escrow_bank: 'First Abu Dhabi Bank',
+    website: 'https://www.aldar.com', track_record: 'Abu Dhabi master developer.',
+    commission_pct: '4.50', payment_terms: '30 days from SPA', project_count: 1, contact_count: 3 },
+  { id: 'dv-4', slug: 'sobha', legal_name: 'Sobha Realty LLC', short_name: 'Sobha', orn: '4488',
+    trn: null, head_office: 'Sobha Hartland', escrow_bank: null,
+    website: 'https://www.sobharealty.com', track_record: null,
+    commission_pct: null, payment_terms: null, project_count: 1, contact_count: 0 },
+];
+
+/* The offer library. One of each state a card can be in, so the screen shows
+   what it looks like in use rather than an empty folder. */
+const OFFER_FOLDERS = [
+  { id: 'ofd-1', name: 'Saadiyat Island', parent_id: null, is_shared: 0, created_by: 'u-layla', offer_count: 2 },
+  { id: 'ofd-2', name: 'VIP investors', parent_id: null, is_shared: 0, created_by: 'u-omar', offer_count: 1 },
+  { id: 'ofd-3', name: 'Templates', parent_id: null, is_shared: 1, created_by: null, offer_count: 3 },
+];
+
+type PreviewOffer = {
+  id: string; slug: string; title: string; folder_id: string | null; contact_id: string | null;
+  project_id: string | null; agent_user_id: string; client_name: string | null;
+  project_name: string | null; agent_name: string | null; language: string; cover_style: number;
+  status: 'draft' | 'sent' | 'revoked'; starred: number; hold_until: string | null;
+  sent_at: string | null; deleted_at: string | null; updated_at: string; opens: number;
+  total_secs: number; last_view_at: string | null; state: 'draft' | 'sent' | 'opened' | 'reading' | 'revoked';
+};
+
+function offerCard(over: Partial<PreviewOffer>): PreviewOffer {
+  return {
+    id: 'of-0', slug: 'of-0', title: 'Offer', folder_id: null, contact_id: 'c-1', project_id: 'p-1',
+    agent_user_id: 'u-layla', client_name: 'Sara Al Mansoori', project_name: 'Emaar Beachfront',
+    agent_name: 'Layla Hassan', language: 'en', cover_style: 1, status: 'sent', starred: 0,
+    hold_until: null, sent_at: null, deleted_at: null, updated_at: new Date().toISOString(),
+    opens: 0, total_secs: 0, last_view_at: null, state: 'sent',
+    ...over,
+  };
+}
+
+const OFFERS: PreviewOffer[] = [
+  offerCard({
+    id: 'of-1', slug: 'beachfront-sara', title: 'Emaar Beachfront — 2 BR sea view',
+    starred: 1, status: 'sent', state: 'reading', opens: 7, total_secs: 622,
+    sent_at: new Date(Date.now() - 36e5 * 26).toISOString(),
+    last_view_at: new Date(Date.now() - 60_000).toISOString(),
+    hold_until: new Date(Date.now() + 36e5 * 48).toISOString(),
+  }),
+  offerCard({
+    id: 'of-2', slug: 'lagoons-omar', title: 'Damac Lagoons — 4 BR villa',
+    client_name: 'Omar Haddad', project_name: 'Damac Lagoons', agent_name: 'Omar Farouk',
+    agent_user_id: 'u-omar', contact_id: 'c-2', language: 'ar',
+    cover_style: 2, status: 'sent', state: 'opened', opens: 2, total_secs: 143,
+    sent_at: new Date(Date.now() - 36e5 * 70).toISOString(),
+    last_view_at: new Date(Date.now() - 36e5 * 5).toISOString(),
+  }),
+  offerCard({
+    id: 'of-3', slug: 'saadiyat-david', title: 'Saadiyat Lagoons — payment plan',
+    client_name: 'David Chen', project_name: 'Saadiyat Lagoons', contact_id: 'c-4',
+    cover_style: 3, status: 'sent', state: 'sent', opens: 0,
+    sent_at: new Date(Date.now() - 36e5 * 3).toISOString(),
+  }),
+  offerCard({
+    id: 'of-4', slug: 'draft-nadia', title: 'Untitled offer',
+    client_name: null, project_name: null, cover_style: 4, status: 'draft', state: 'draft', opens: 0,
+  }),
+  offerCard({
+    id: 'of-5', slug: 'old-offer', title: 'Creek Harbour — 1 BR',
+    client_name: 'Ahmed Khalil', project_name: 'Emaar Creek Harbour', contact_id: 'c-3',
+    cover_style: 5, status: 'sent', state: 'sent', opens: 1,
+    deleted_at: new Date(Date.now() - 36e5 * 100).toISOString(),
+  }),
+];
+
 /* The company as a client sees it. Filled in, so the Settings screen shows
    what a finished record looks like rather than an empty form. */
 const PREVIEW_COMPANY = {
@@ -1078,6 +1184,122 @@ const ROUTES: Route[] = [
     };
   } },
   { method: 'PATCH', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => ({ ok: true }) },
+
+  // --- the project library --------------------------------------------------
+  /*
+   * The library screen, its four KPI cards and the developer list. Built from
+   * the same PROJECTS the rest of the preview uses, so a project mentioned on
+   * a lead is the same project found here.
+   */
+  { method: 'GET', pattern: /^\/api\/library$/, handler: ({ query }) => {
+    const emirate = query.get('emirate') ?? '';
+    const status = query.get('status') ?? '';
+    const starred = query.get('starred') === '1';
+    const search = (query.get('search') ?? '').toLowerCase();
+
+    const items = LIBRARY_CARDS.filter((card) => {
+      if (emirate && card.emirate !== emirate) return false;
+      if (status && card.sale_status !== status) return false;
+      if (starred && card.starred !== 1) return false;
+      if (search) {
+        const haystack = `${card.name} ${card.developer} ${card.community ?? ''}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      return true;
+    });
+    return { items };
+  } },
+  { method: 'GET', pattern: /^\/api\/library\/stats$/, handler: () => ({
+    mostLeads: { project_name: 'Emaar Beachfront', leads: 41 },
+    trending: { project_name: 'Damac Lagoons', rise_pct: 38 },
+    bestConverting: { project_name: 'Shams Abu Dhabi', rate_pct: 9.4, deals: 3 },
+    inventory: {
+      available: 86,
+      value_aed: 214_500_000,
+      top: [
+        { name: 'Emaar Beachfront', available: 34 },
+        { name: 'Damac Lagoons', available: 29 },
+        { name: 'Shams Abu Dhabi', available: 23 },
+      ],
+    },
+  }) },
+  { method: 'GET', pattern: /^\/api\/library\/developers$/, handler: () => ({ items: DEVELOPERS }) },
+  { method: 'GET', pattern: /^\/api\/library\/developers\/([^/]+)$/, handler: ({ params }) => ({
+    developer: DEVELOPERS.find((entry) => entry.id === params[0]) ?? DEVELOPERS[0],
+    contacts: [
+      { id: 'dc-1', name: 'Hala Mansour', role: 'Broker relations', phone: '+97144011200',
+        whatsapp: '+971501200340', email: 'hala@example.ae' },
+      { id: 'dc-2', name: 'Yousef Karim', role: 'Inventory', phone: '+97144011233',
+        whatsapp: null, email: 'inventory@example.ae' },
+    ],
+  }) },
+  { method: 'POST', pattern: /^\/api\/library\/([^/]+)\/star$/, handler: ({ params, body }) => {
+    const card = LIBRARY_CARDS.find((entry) => entry.id === params[0]);
+    if (card) card.starred = (body as { starred?: boolean }).starred ? 1 : 0;
+    return { ok: true };
+  } },
+
+  // --- sales offers --------------------------------------------------------
+  /*
+   * The library, so the screen can be shown rather than an error. Enough rows
+   * to show every state a card has: a draft, one sent and not yet opened, one
+   * being read right now, and one in the trash.
+   */
+  { method: 'GET', pattern: /^\/api\/offers$/, handler: ({ query }) => {
+    const filter = query.get('filter') ?? 'all';
+    const folder = query.get('folder');
+    const search = (query.get('search') ?? '').toLowerCase();
+
+    const items = OFFERS.filter((offer) => {
+      if (filter === 'trash') return offer.deleted_at !== null;
+      if (offer.deleted_at !== null) return false;
+      if (filter === 'star' && !offer.starred) return false;
+      if (filter === 'viewed' && offer.opens === 0) return false;
+      if (filter === 'draft' && offer.status !== 'draft') return false;
+      if (folder && offer.folder_id !== folder) return false;
+      if (!folder && filter === 'all' && offer.folder_id !== null) return false;
+      if (search) {
+        const haystack = [offer.title, offer.client_name, offer.project_name, offer.agent_name]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      return true;
+    });
+    return { items };
+  } },
+  { method: 'GET', pattern: /^\/api\/offers\/folders$/, handler: () => ({ items: OFFER_FOLDERS }) },
+  { method: 'POST', pattern: /^\/api\/offers$/, handler: () => {
+    const id = `of-${Date.now()}`;
+    OFFERS.unshift({
+      ...OFFERS[0]!, id, slug: id, title: 'Untitled offer', status: 'draft', state: 'draft',
+      client_name: null, sent_at: null, opens: 0, total_secs: 0, last_view_at: null, starred: 0,
+      folder_id: null, deleted_at: null, updated_at: new Date().toISOString(),
+    });
+    return { id };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/offers\/([^/]+)$/, handler: ({ params, body }) => {
+    const offer = OFFERS.find((entry) => entry.id === params[0]);
+    if (offer) Object.assign(offer, body);
+    return offer ?? { ok: true };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/offers\/([^/]+)$/, handler: ({ params }) => {
+    const offer = OFFERS.find((entry) => entry.id === params[0]);
+    if (offer) offer.deleted_at = new Date().toISOString();
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/offers\/([^/]+)\/restore$/, handler: ({ params }) => {
+    const offer = OFFERS.find((entry) => entry.id === params[0]);
+    if (offer) offer.deleted_at = null;
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/offers\/folders$/, handler: ({ body }) => {
+    const id = `ofd-${Date.now()}`;
+    OFFER_FOLDERS.push({
+      id, name: String((body as { name?: string }).name ?? 'New folder'),
+      parent_id: null, is_shared: 0, created_by: currentUser().id, offer_count: 0,
+    });
+    return { id };
+  } },
 
   // --- the company record and the messaging limits -------------------------
   { method: 'GET', pattern: /^\/api\/company$/, handler: () => ({

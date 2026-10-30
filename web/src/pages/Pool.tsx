@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { humanize } from '../lib/format.js';
+import { humanize, plural } from '../lib/format.js';
 import type { PoolStatus } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { stageStyle } from '../design/stages.js';
@@ -73,7 +73,7 @@ export function Pool() {
         <Panel span={12} index={0} icon="inbox" title="Leads you have claimed">
           {atLimit && (
             <p className="err" style={{ display: 'block' }}>
-              You are holding {status.data.maxOpenClaims} leads. Work some of them, or give a few back,
+              You are holding {plural(status.data.maxOpenClaims, 'lead')}. Work some of them, or give a few back,
               before claiming more.
             </p>
           )}
@@ -84,7 +84,7 @@ export function Pool() {
               title="Nothing claimed yet"
               hint={
                 status.data.available > 0
-                  ? `${status.data.available} leads are waiting. Press "Claim next lead".`
+                  ? `${plural(status.data.available, 'lead')} ${status.data.available === 1 ? 'is' : 'are'} waiting. Press "Claim next lead".`
                   : 'The pool is empty right now.'
               }
             />

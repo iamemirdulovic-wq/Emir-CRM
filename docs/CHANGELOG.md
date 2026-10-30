@@ -2,6 +2,71 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The polish pass
+
+Every screen, on a laptop and on a phone, in light and in dark — 27 screens,
+108 combinations — checked by a browser rather than by eye. A person looking
+at a hundred screenshots misses things; a browser can be asked exactly the
+questions that matter, and it found several I had not.
+
+**The lead page could be dragged sideways on a phone.** Seven action buttons
+make a row 795 pixels wide on a 390-pixel screen, and it was pushing the whole
+page with it — content ended up off to the right with nothing to say it was
+there. The buttons swipe now. Call and WhatsApp stay where your thumb already
+is. The audit log had the same problem, caused by the timestamp.
+
+**Unread notifications were rendering at 11 pixels, bold.** The word "unread"
+was doing two jobs — the little number on a conversation in the inbox, and the
+mark on an unread notification in the bell — and the badge's styling was
+landing on the notifications. The ones that mattered most were the hardest to
+read.
+
+**Every internal note in the inbox sat twelve pixels too low**, with a grey
+icon instead of a white one, for the same kind of reason: "note" was both the
+small hint under a form field and the mark on a note in a conversation.
+
+Both are fixed, and there is now a check that fails the build if it ever
+happens again. It has caught this four times.
+
+**Things too small for a thumb.** A 13-pixel button on a row. 13-pixel
+checkboxes. The Pin and Delete under a note at 17 pixels. The 7D / 30D / 90D
+switches at 25. None of them look any different now — what grew is the area
+that responds to a tap, so the rows keep their proportions and you stop
+missing.
+
+**The pipeline had stopped being a board.** The word "board" was doing two
+jobs too — the kanban with its stages side by side, and the leaderboard on the
+Team Wall, which is a list going down. The list's styling won, and every stage
+of the pipeline had been stacked on top of the next since the Team Wall was
+built. It is a board again. The same check now catches two stylesheets giving
+one name a different layout.
+
+**And the board on a phone** had 276-pixel columns on a 390-pixel screen,
+which left a dead strip down the side. The columns are nearly full width now,
+with the next stage peeking to say "swipe".
+
+**Words.** A list with one person in it said "1 contacts". A campaign said
+"Appointments since" and stopped there. On a phone, Team activity showed
+"Agent · Wi…" because the Sign out button had taken the row — the rows stack
+now and you can read the whole thing.
+
+**Smaller things.** "AED 3.5M–3.5M" is one figure, not a range. The sidebar
+scrolls when sixteen items do not fit and fades at the edge so a half-cut row
+reads as "there is more below" rather than as a mistake. The profile page was
+headed "homes.me" instead of "My profile". The task due date now reads back
+the time you chose in words — "Fri 31 Oct 2026 · 10:00" — the way every other
+date field in the CRM already did, because a browser set to US English draws
+its date control month-first and 10/11 means two different days to two people
+in the same office. Folders in the offer library get their own row.
+
+**And the preview had two holes in it.** The project library and the sales
+offers both showed an error instead of a screen, because nothing stood in for
+their data. Both work now, so every screen in the CRM can be shown without a
+database behind it.
+
+The whole check is kept in the repository — `npm run polish` — so it can be
+run again after any change.
+
 ## The company is yours to change
 
 **Settings → Company.** The registered name, what people call you, where you

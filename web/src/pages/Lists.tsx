@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { humanize } from '../lib/format.js';
+import { humanize, plural } from '../lib/format.js';
 import type {
   AssignmentChoice, ListMemberRow, ListRow, StageKey, UserRow,
 } from '../lib/types.js';
@@ -254,7 +254,7 @@ export function ListDetail() {
         contactIds: [...selected],
         action,
       });
-      toast(`${result.affected} contacts updated`);
+      toast(`${plural(result.affected, 'contact')} updated`);
       setSelected(new Set());
       setActing(null);
       setTick((value) => value + 1);
@@ -321,7 +321,7 @@ export function ListDetail() {
       <Panel
         index={1}
         icon="list"
-        title={`${list?.name ?? 'List'} — ${members.data?.total.toLocaleString() ?? 0} contacts`}
+        title={`${list?.name ?? 'List'} — ${plural(members.data?.total ?? 0, 'contact')}`}
       >
         {members.loading && items.length === 0 && <Spinner />}
         {!members.loading && items.length === 0 && (

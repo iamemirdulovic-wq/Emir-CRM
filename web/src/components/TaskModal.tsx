@@ -8,6 +8,7 @@ import { useAuth } from '../lib/auth.js';
 import type { TaskAttachment, TaskDraft, TaskRow, UserRow } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { Field, Input, Modal, Select, TextArea } from '../design/ui.js';
+import { WhenField } from '../design/forms.js';
 
 /** A file chosen before the task exists, waiting for an id to be attached to. */
 type Pending = { key: string; file: File; preview: string | null };
@@ -208,7 +209,13 @@ export function TaskModal({
 
         <div className="field-row">
           <Field label="Due date and time" hint="Dubai time.">
-            <Input type="datetime-local" value={due} onChange={(event) => setDue(event.target.value)} required />
+            {/*
+              * The shared field rather than a bare input: it reads the chosen
+              * time back in words, because a browser set to US English draws
+              * its date control month-first and 10/11 then means two
+              * different days to two people in the same office.
+              */}
+            <WhenField value={due} onChange={setDue} />
           </Field>
           {team.length > 0 ? (
             <Field label="Assigned to">

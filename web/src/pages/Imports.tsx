@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { formatDateTime, humanize } from '../lib/format.js';
+import { formatDateTime, humanize, plural } from '../lib/format.js';
 import type {
   AssignmentChoice, AssignmentMethod, AssignmentPreview, ColumnMapping, ImportDetail, ImportField,
   ImportSettings, UploadResponse, UserRow,
@@ -710,7 +710,7 @@ export function ImportDetailScreen() {
           ) : (
             <>
               <p className="muted" style={{ marginTop: 0 }}>
-                {undo.data?.deletable ?? 0} contacts can still be removed.
+                {plural(undo.data?.deletable ?? 0, 'contact')} can still be removed.
                 {(undo.data?.keptBecauseWorkedOn ?? 0) > 0 &&
                   ` ${undo.data?.keptBecauseWorkedOn} will be kept because somebody has already worked them.`}
               </p>
@@ -722,7 +722,7 @@ export function ImportDetailScreen() {
                     .post(`/api/imports/${id}/undo`)
                     .then((result) => {
                       const typed = result as { deleted: number; kept: number };
-                      toast(`Removed ${typed.deleted} contacts, kept ${typed.kept}`);
+                      toast(`Removed ${plural(typed.deleted, 'contact')}, kept ${typed.kept}`);
                       setTick((value) => value + 1);
                     })
                     .catch((err: unknown) => toast(err instanceof ApiError ? err.message : 'Could not undo'));
@@ -821,7 +821,7 @@ function BatchTag({ settings, created }: { settings: unknown; created: number })
       {created > 0 && (
         <Link className="btn" to={`/leads?tab=all&tag=${encodeURIComponent(`batch:${tag}`)}`}>
           <Icon name="users-round" />
-          See these {created.toLocaleString()} leads
+          See these {plural(created, 'lead')}
         </Link>
       )}
     </div>

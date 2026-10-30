@@ -133,7 +133,7 @@ export function Inbox() {
                   {conversation.last_body ?? 'No messages yet'}
                 </span>
               </span>
-              {conversation.unread_count > 0 && <span className="unread">{conversation.unread_count}</span>}
+              {conversation.unread_count > 0 && <span className="thread-unread">{conversation.unread_count}</span>}
             </button>
           ))}
         </div>

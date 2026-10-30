@@ -334,7 +334,55 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       outside the helpers that do the auditing
 
 ## Step 16 — The great polish pass
-- [ ] 16.1 Every screen, desktop + mobile, light + dark, screenshotted and fixed
+- [x] 16.1 All 27 screens at two sizes in both themes — 108 screenshots —
+      checked by a browser rather than by eye, because a person looking at a
+      hundred screenshots misses things a browser can measure. Kept in the
+      repository as `npm run polish` so the team can re-run it
+- [x] 16.2 **The lead page dragged sideways on a phone** — a seven-button
+      action bar is 795px on a 390px screen and was pushing the whole page
+      with it. It swipes now; Call and WhatsApp stay where the thumb is
+- [x] 16.3 **The audit log did the same** — the timestamp pushed past the edge.
+      Everything but the time now shrinks and trails off
+- [x] 16.4 **Unread notifications rendered at 11px bold.** `.unread` was the
+      badge on a conversation *and* the modifier on an unread bell item, so
+      the notifications that matter most were the hardest to read
+- [x] 16.5 **Every internal note in the inbox sat 12px too low** with a grey
+      icon: `.note` was the hint under a form field *and* the modifier on a
+      note bubble and a channel badge. The hint is `.hint` now
+- [x] 16.6 A standing check for exactly that: a class may be a component or
+      somebody else's modifier, not both, and two base rules may not give one
+      class a different layout. It has bitten five times — the fifth was the
+      fix for the fourth, caught by the check a minute after it was written
+- [x] 16.7 Thumbs: a 13px row button, 13px row checkboxes, 17px note actions,
+      25px range switches. Nothing changed how anything looks — the hit areas
+      grew, with the switch keeping its approved 40x24 behind an invisible
+      target
+- [x] 16.8 **The pipeline had stopped being a board.** `.board` was the kanban
+      in one stylesheet and the Team Wall's leaderboard in another; the second
+      says `flex-direction: column`, loads later, and had been stacking every
+      stage one on top of the next since the wall was built. The check in 16.6
+      now catches two files giving one class name a different layout
+- [x] 16.9 The kanban columns were 276px on a 390px phone, leaving a dead
+      strip. Nearly full width now, with the next stage peeking
+- [x] 16.10 "AED 3.5M–3.5M" is one figure, not a range
+- [x] 16.11 The sidebar scrolls when an owner's sixteen items do not fit, and
+      fades at the edge so a half-cut row reads as "more below"
+- [x] 16.12 The profile page was headed "homes.me" rather than "My profile"
+- [x] 16.13 The task due date gained the read-back every other date field has
+      ("Fri 31 Oct 2026 · 10:00"), because a browser set to US English draws
+      its date control month-first
+- [x] 16.14 Folders in the offer library get their own row rather than
+      sharing a grid with the offers
+- [x] 16.15 The preview had no project library and no offers at all — both
+      screens showed an error. Both are mocked now, so every screen in the
+      app can be demonstrated without a database
+- [x] 16.16 Copy: "1 contacts" on a list of one, "Appointments since" ending
+      mid-sentence. A `plural()` helper replaces nine hand-built plurals
+- [x] 16.17 Team activity on a phone: the device line read "Agent · Wi…"
+      because Sign out took the row. It stacks now
+- [x] 16.18 **Final run: 108 screens, nothing overflowing, no clipped text,
+      no broken images, no console errors.** The 22 remaining small targets
+      are checkboxes at their native size and links inside sentences
 
 ## Step 17 — Final
 - [ ] 17.1 Full test run green

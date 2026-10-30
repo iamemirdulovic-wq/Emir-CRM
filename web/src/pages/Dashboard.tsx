@@ -261,7 +261,7 @@ export function Dashboard() {
               </table>
             </div>
           )}
-          <p className="note" style={{ marginTop: 12 }}>
+          <p className="callout" style={{ marginTop: 12 }}>
             <Icon name="info" />
             <span>
               Ranked on reservations first, then appointments and speed.{' '}
