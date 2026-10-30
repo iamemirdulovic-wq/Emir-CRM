@@ -395,9 +395,12 @@ has none.
       are checkboxes at their native size and links inside sentences
 
 ## Step 17 — Final
-- [x] 17.1 Full test run green — typecheck clean, 2,051 server tests pass
-      (269 integration tests skip: no MySQL on the build machine), 367 web
-      tests pass, production build clean
+- [x] 17.1 Full test run green — **and the integration tests actually ran.**
+      This machine has no MySQL and no Docker daemon, but it has apt:
+      `mysql-server-8.0` gives the same 8.0.46 CI uses. All 113 server files,
+      **2,332 tests, integration included**, pass against a real database;
+      367 web tests pass; typecheck and build clean. Every earlier report in
+      this file meant "2,051 pass and 269 skip" — 12% less than it sounded
 - [x] 17.2 `FINAL_REPORT.md`
 - [x] 17.3 `SETUP_NEEDED.md` complete — and corrected. It told the owner to
       paste nine settings that do not exist (`EMAIL_API_KEY`,
@@ -417,3 +420,16 @@ has none.
       settings again: `config/env-docs.test.ts` fails the build when a
       document names a setting the server does not read, or when a setting the
       server reads is missing from `.env.example`
+- [x] 17.7 **Two owners from one first-run setup, fixed.** CI run 85 had
+      failed on it and the next two runs passed, so it was sitting in the
+      history as a flake. It is a race: the setup route released its advisory
+      lock inside the transaction, so the second request counted a `users`
+      table that still looked empty and inserted a second owner. The guarantee
+      is now the schema's — `setup_claims`, one row, primary key always 1,
+      written in the same transaction. Twelve runs of that test, twelve passes
+- [x] 17.8 **27 tables were never emptied between tests.** Found by adding
+      one and watching four unrelated tests go red. Notes, notifications, the
+      wall, badges, kudos, XP, email campaigns, preferences, AI usage and
+      `app_secrets` were all leaking rows into whichever test ran next. All
+      added; `testing/reset-complete.test.ts` now checks the list against the
+      migrations, so the next new table is a decision rather than an oversight

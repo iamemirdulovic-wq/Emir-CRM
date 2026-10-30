@@ -4,6 +4,33 @@ All notable changes to the homes.me CRM, newest first. One entry per build phase
 
 ## Handover — and the deploy that never ran
 
+**Fixed**
+- **Two concurrent first-run setups both created an owner.** CI run 85 failed
+  on `setup.integration.test.ts` and runs 86 and 87 passed, so it sat in the
+  history looking like a flake. It is a race: the route took
+  `GET_LOCK('emir_crm_setup')` and released it *inside* the transaction, so the
+  window between the release and the commit was the window that mattered. The
+  second connection took the lock, counted a `users` table that still looked
+  empty because the first insert was uncommitted, and inserted a second owner.
+  Two owners, no error anywhere. On a public address that means somebody
+  submitting the setup form in the same second as the owner gets an owner
+  account on a CRM that reports nothing wrong. The guarantee moves into the
+  schema: `setup_claims`, one row, primary key always 1, written in the same
+  transaction as the account, so the loser blocks on the key and then gets a
+  duplicate. No lock ordering to get right and nothing an edit to the route can
+  switch off. That test now passes twelve runs out of twelve; the old code
+  passed about two in three.
+- **27 tables were never emptied between tests**, so a row written by one test
+  reached the next — notes, notifications, wall posts, kudos, XP events,
+  badges, profiles, email campaigns and their events, preferences, AI usage,
+  `app_secrets`, lead AI scores, assignments. Found by adding `setup_claims`
+  and watching four tests in an unrelated file go red. All 27 added to
+  `TRUNCATE_ORDER`, and the suite stayed green, which says nothing had been
+  depending on the leak. `testing/reset-complete.test.ts` now checks that list
+  against the migrations, so the next new table is a decision rather than an
+  oversight; only `migrations`, `pipelines` and `pipeline_stages` are kept, each
+  with its reason beside it.
+
 **Found**
 - **`deploy.yml` has never run once.** It fires on `workflow_run` of CI with
   `branches: [main]`, and this repository has no `main` — the work is on
@@ -53,8 +80,15 @@ All notable changes to the homes.me CRM, newest first. One entry per build phase
   the board view (7.5), which the Pipeline screen already is.
 
 **Verified**
-- Typecheck clean. 2,051 server tests pass, 269 skip for want of a database.
-  367 web tests pass. Production build clean. Every box in `PROGRESS.md` ticked.
+- **The integration suites actually ran, for the first time in the build.**
+  Every phase before this one reported "tests pass" meaning 2,051 passed and
+  269 skipped for want of a database — the 269 that test the database. This
+  machine has no MySQL and no Docker daemon, but it has apt:
+  `mysql-server-8.0` is the same 8.0.46 the CI service container uses. **113
+  files, 2,332 tests, nothing skipped, all passing.** The first full run found
+  the setup race above within six minutes.
+- Typecheck clean. 367 web tests pass. Production build clean. Every box in
+  `PROGRESS.md` ticked.
 
 ## The polish pass
 

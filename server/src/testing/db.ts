@@ -114,7 +114,7 @@ export async function seedFieldMappings(): Promise<void> {
  * tests customise (field mappings, tags, projects) are included and re-seeded,
  * so no test can depend on a previous one's leftovers.
  */
-const TRUNCATE_ORDER = [
+export const TRUNCATE_ORDER = [
   /*
    * Settings first, and this one matters: a test that changes how routing
    * behaves used to leave that change in the database for every test after
@@ -123,6 +123,7 @@ const TRUNCATE_ORDER = [
    * which is the worst kind to find.
    */
   'app_settings',
+  'app_secrets',
   'website_leads',
   'ai_messages',
   'ai_conversations',
@@ -177,7 +178,43 @@ const TRUNCATE_ORDER = [
   'inbound_events',
   'login_attempts',
   'sessions',
+  'session_log',
+  'notifications',
   'audit_log',
+  // Step 10 — email, children first.
+  'email_events',
+  'email_campaign_members',
+  'email_campaigns',
+  'email_templates',
+  'wa_templates',
+  'workflows',
+  // Steps 7 and 8 — the lead's own working data.
+  'note_files',
+  'lead_notes',
+  'task_attachments',
+  'lead_ai_scores',
+  'lead_assignments',
+  'assignment_state',
+  // Steps 12 and 13 — profiles, badges and the wall.
+  'wall_reactions',
+  'wall_comments',
+  'wall_posts',
+  'kudos',
+  'xp_events',
+  'user_badges',
+  'agent_profiles',
+  // Step 14 — preferences and what the AI has been asked.
+  'user_prefs',
+  'ai_usage',
+  'ai_knowledge_versions',
+  'ai_knowledge',
+  /*
+   * Step 17. Without this, the first test to set up the CRM claimed it for the
+   * whole file and every later setup test got a 409 — which is exactly the
+   * failure the comment at the top of this list describes, landing on whichever
+   * test happened to run next.
+   */
+  'setup_claims',
   'users',
   'form_field_map',
   'tags',

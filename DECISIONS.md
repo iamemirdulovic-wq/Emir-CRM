@@ -755,3 +755,41 @@ wrong instruction from his own typing. `config/env-docs.test.ts` now fails the
 build when a variable named in `.env.example`, `SETUP_NEEDED.md`, `README.md`,
 `docs/DEPLOYMENT.md` or `docs/NOTIFICATIONS.md` is not one the server reads,
 and when a variable the server reads is missing from `.env.example` (15 were).
+
+2026-10-30 — auth — **The first owner is one row with a fixed primary key, not
+an advisory lock** — CI run 85 failed on `setup.integration.test.ts`: two
+parallel first-run submissions both returned 201 and both became owners. The
+route already took `GET_LOCK('emir_crm_setup')`, and the lock was released
+*inside* the transaction — so the gap between the release and the commit was
+exactly the gap that mattered. The second connection took the lock, counted a
+`users` table that still looked empty because the first insert was uncommitted,
+and inserted a second owner. Two owners, no error. It then passed on the next
+two runs, which is why this had to be read as a race rather than a flaky test:
+a failure that comes and goes on a security boundary is the bug reporting
+itself. Fixed by moving the guarantee into the schema — `setup_claims` holds one
+row whose primary key is always 1, written in the same transaction as the
+account, so the loser blocks on the key and then gets a duplicate. No ordering
+to get right. Verified by running that test twelve times: twelve passes, where
+the old code passed roughly two runs in three.
+
+2026-10-30 — testing — **The between-test reset is checked against the
+migrations** — Adding `setup_claims` turned four tests red in a file it had
+nothing to do with: `TRUNCATE_ORDER` in `testing/db.ts` is hand-written, the new
+table was not in it, and the first test to claim the CRM claimed it for the rest
+of the file. Checking the list against the schema found 27 more tables added
+since it was last maintained — notes, notifications, the wall, badges, kudos, XP
+events, email campaigns, preferences, AI usage, `app_secrets`. Each of those was
+a test's rows reaching the next test. All 27 added; the suite stayed green, which
+says nothing was depending on the leak. `testing/reset-complete.test.ts` now
+fails the build when a table is in neither list, so the next one is a decision
+rather than an oversight. Only `migrations`, `pipelines` and `pipeline_stages`
+are kept, each with its reason written beside it.
+
+2026-10-30 — testing — **The 269 integration tests have now actually run** —
+Every report up to this point said they skip for want of a MySQL, and that was
+true: this machine has no database and Docker has no daemon. It does have apt.
+Installing `mysql-server-8.0` and running `mysqld_safe` gives the same 8.0.46
+CI uses, and the whole suite — 2,332 tests, integration included — passes
+against it. That is how the setup race was reproduced and how the fix was
+proved. Worth doing first next time rather than last: the claim "the tests pass"
+meant 12% less than it sounded like for the whole build.

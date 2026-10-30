@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { clientIp } from '../middleware/auth.js';
-import { execute, queryOne, withTransaction, type Executor } from '../../db/client.js';
+import { execute, isDuplicateKeyError, queryOne, withTransaction, type Executor } from '../../db/client.js';
 import { newId } from '../../lib/ids.js';
 import { normalizeEmail } from '../../lib/email.js';
 import { hashPassword } from '../../auth/password.js';
@@ -86,18 +86,23 @@ setupRouter.post(
     const { hash, algo } = await hashPassword(body.password);
     const id = newId();
 
-    await withTransaction(async (tx) => {
-      /*
-       * Two people opening the page at once must not both become the owner.
-       * A named lock rather than a row lock, because there is no row to lock:
-       * the check is "the table is empty", and an empty table has nothing to
-       * take a lock on.
-       */
-      const lock = await queryOne<{ got: number }>("SELECT GET_LOCK('emir_crm_setup', 10) AS got", [], tx);
-      if (Number(lock?.got ?? 0) !== 1) {
-        throw conflict('Another setup is in progress. Please try again in a moment.');
-      }
-      try {
+    /*
+     * Two people submitting the form in the same second must not both become
+     * the owner, and the counting check above cannot stop them: until the first
+     * transaction commits, the second one still sees an empty `users` table.
+     *
+     * This used to take a named lock, and CI caught it being wrong — the lock
+     * was released inside the transaction, so the gap between the release and
+     * the commit was exactly the gap that mattered, and two owners came out of
+     * it with no error anywhere. Rather than get the lock ordering right, the
+     * guarantee is now the schema's: `setup_claims` holds one row whose primary
+     * key is always 1, written in the same transaction as the account. The
+     * second transaction blocks on that key until the first commits, then fails
+     * with a duplicate. No ordering to get wrong, and nothing an edit to this
+     * file can quietly switch off.
+     */
+    try {
+      await withTransaction(async (tx) => {
         if (await ownerExists(tx)) {
           throw conflict('This CRM has already been set up. Sign in instead.');
         }
@@ -109,10 +114,25 @@ setupRouter.post(
           [id, body.name, email, hash, algo],
           tx,
         );
-      } finally {
-        await queryOne("SELECT RELEASE_LOCK('emir_crm_setup')", [], tx);
+
+        await execute(
+          'INSERT INTO setup_claims (id, user_id, email, ip, user_agent) VALUES (1, ?, ?, ?, ?)',
+          [id, email, clientIp(req), (req.get('user-agent') ?? '').slice(0, 255) || null],
+          tx,
+        );
+      });
+    } catch (err) {
+      /*
+       * The loser of the race, and the only way this fires: a second attempt
+       * once the CRM is already claimed. It reads the same as the check above
+       * on purpose — from outside, "somebody got there first" and "this was set
+       * up last week" are the same answer.
+       */
+      if (isDuplicateKeyError(err)) {
+        throw conflict('This CRM has already been set up. Sign in instead.');
       }
-    });
+      throw err;
+    }
 
     // must_change_password is 0 above: they chose this password themselves a
     // second ago, so demanding they change it teaches people to ignore the

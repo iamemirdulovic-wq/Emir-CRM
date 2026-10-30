@@ -1,7 +1,6 @@
 # Emigeo Homes CRM — what was built
 
-30 October 2026 · 87 commits on `claude/new-session-krd7bx` · tests green
-(2,418 of them; 269 need a database to run — see §7)
+30 October 2026 · 88 commits on `claude/new-session-krd7bx` · 2,699 tests green
 
 Read this first, then `SETUP_NEEDED.md`. Everything in plain English; the
 developer detail is in `docs/`.
@@ -50,13 +49,9 @@ Every change writes to the audit log: who, when, before and after.
 
 **Getting leads in, once.** Meta, Google, your website, property-investment.ae,
 WhatsApp, a spreadsheet, typed by hand — all land in one place, and the same
-person never becomes two records. There is a test that fires the same lead
-twenty times in parallel and requires exactly one contact to come out. Be
-straight about this one: it is one of the 269 tests that need a real MySQL, and
-this build machine has none, so **it has not actually been run.** The rule it
-checks is enforced by the database itself — a unique index on the phone number
-and a row lock — which is the strongest place to put it, but the test proving
-it is waiting on a database. See §6, item 3.
+person never becomes two records. A test fires the same lead twenty times in
+parallel and requires exactly one contact to come out — and that test now
+really runs (see §7).
 
 **The 5-minute rule.** A new lead is assigned instantly, round-robin, skipping
 agents who are off shift, and preferring whoever speaks the language and knows
@@ -168,6 +163,26 @@ still off, and had no way to tell a wrong instruction from your own typing.
 They are corrected, and **the build now fails** if any document names a setting
 the server does not read, or leaves one out.
 
+**Two people setting up the CRM at the same moment both became the owner.**
+This one matters most. The very first account is created from a public page —
+it has to be, because on managed hosting there is no terminal — and that page
+is open until the first account exists. It was supposed to be impossible for
+two to be created. CI had actually caught it once and then passed twice more,
+so it was sitting in the history looking like a glitch. It is a race: the code
+took a lock, let go of it a fraction too early, and the second request looked
+at a table that still appeared empty. In practice: if someone else had hit that
+page in the same second as you, they would have an owner account on your CRM
+and nothing anywhere would have said so. It cannot happen now, and not because
+the code is more careful — the database itself holds a single row that can only
+exist once. I ran that test twelve times to be sure; the old code passed about
+two runs in three, which is exactly why it went unnoticed.
+
+**27 tables were never being cleared between tests.** Which means tests were
+quietly handing data to each other, and a test that only passes because of the
+one before it is a test that is not checking anything. Found by accident — I
+added one small table and four unrelated tests went red. All 27 fixed, and the
+build now fails if a new table is left out.
+
 **The QR code on the business card had a real bug**, found by writing a second,
 independent decoder and reading the finished grid rather than trusting the
 encoder: the second copy of the format information is split seven-then-eight,
@@ -228,13 +243,13 @@ have never used and never will.
 1. **Get it live and watch it** — §0, then an hour watching the logs.
 2. **Connect WhatsApp properly.** It is the one thing the whole product is
    built around and it is still recording messages as *not sent*.
-3. **The integration tests against a real database.** 269 of them skip here
-   because this machine has no MySQL. They are written and they pass; they
-   have never run against your actual schema. This is the biggest gap in what
-   I can honestly claim.
-4. **Delete `web/src/pages/Projects.tsx`.** It is the old library screen,
+3. **Delete `web/src/pages/Projects.tsx`.** It is the old library screen,
    replaced and now unreachable, and dead code is what rots next.
-5. **Emir Books**, when you want it.
+4. **Emir Books**, when you want it.
+
+I had a fourth item here — "the 269 tests that have never actually run" — and I
+closed it instead of handing it to you. It is how the owner-account bug above
+was found.
 
 ---
 
@@ -242,19 +257,27 @@ have never used and never will.
 
 | | |
 |---|---|
-| Commits | 87, all with green tests |
-| Server tests | 2,051 passing · 269 skipped (they need a database) |
+| Commits | 88 |
+| Server tests | **2,332 passing, none skipped** — against a real MySQL 8 |
 | Web tests | 367 passing |
 | Type errors | none |
-| Migrations | 24, every one additive — nothing drops a column or a table |
-| Tables | 86 |
+| Migrations | 25, every one additive — nothing drops a column or a table |
+| Tables | 87 |
 | Screens | 26, each checked at two sizes in both themes |
 | Screens with a problem on the final pass | none |
 
-Five checks read the source code rather than trusting it, and each exists
-because it caught something real: hook order, the schema map, settings
-auditing, class-name collisions, and now the documentation against the
-settings the server actually reads.
+**On that first row.** Until today every report I gave you said "the tests
+pass", and what it meant was that 2,051 passed and 269 quietly skipped — the
+ones that need a real database, which is to say the ones that test the
+database. This machine has no MySQL, so I had been taking them on trust for
+seventeen steps. It turns out it can install one. The first full run found the
+owner-account race in §3 within six minutes. I should have done that on day
+one, and the honest version of this report says so.
+
+Six checks read the source code rather than trusting it, and every one of them
+exists because it caught something real: hook order, the schema map, settings
+auditing, class-name collisions, the documentation against the settings the
+server reads, and the between-test reset against the schema.
 
 ---
 
