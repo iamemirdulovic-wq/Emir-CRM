@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AskEmirAi } from './AskEmirAi.js';
+import { NewLeadCard } from './NewLeadCard.js';
 import { api, qs } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { t } from '../lib/i18n.js';
@@ -207,6 +208,13 @@ function Chrome() {
     >
       <SearchContext.Provider value={{ value: search, set: setSearch }}>
         <Outlet />
+        {/*
+          * On every screen, because an agent looking at yesterday's pipeline
+          * still has five minutes to accept the lead that just landed. It
+          * asks only for leads the signed-in person owns, so for anyone who
+          * never holds one there is nothing to show and no role check here.
+          */}
+        <NewLeadCard />
         {/* On every CRM screen, as the design has it. */}
         <AskEmirAi />
       </SearchContext.Provider>

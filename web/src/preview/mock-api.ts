@@ -44,6 +44,9 @@ const PERMISSIONS = [
 /** The preview always starts signed in — an empty login screen demonstrates nothing. */
 const session = { signedIn: true, locale: 'en' };
 
+/** Set once the preview's new-lead card has been accepted, so it stays gone. */
+let pendingAccepted = false;
+
 const currentUser = () => ({
   id: OWNER.id,
   name: OWNER.name,
@@ -192,9 +195,24 @@ const ROUTES: Route[] = [
     for (const lead of LEADS) if (ids.has(lead.id)) lead.owner = agent;
     return { assigned: ids.size, skipped: 0 };
   } },
-  { method: 'POST', pattern: /^\/api\/incoming\/([^/]+)\/accept$/, handler: () => ({
-    acceptedAt: new Date().toISOString(), actionDueInMinutes: 5,
-  }) },
+  /*
+   * One lead sitting on the signed-in person's clock, so the new-lead card
+   * shows in the preview. Accepting it clears the list, as it does for real.
+   */
+  { method: 'GET', pattern: /^\/api\/incoming\/pending$/, handler: () => {
+    const lead = LEADS[0];
+    if (pendingAccepted || !lead) return { items: [] };
+    return {
+      items: [{
+        id: 'opp-pending', contactId: lead.contactId, name: lead.name, phone: lead.phone,
+        project: lead.project, budgetMaxAed: lead.budgetMax, source: lead.source, secondsLeft: 184,
+      }],
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/incoming\/([^/]+)\/accept$/, handler: () => {
+    pendingAccepted = true;
+    return { acceptedAt: new Date().toISOString(), actionDueInMinutes: 5 };
+  } },
   { method: 'GET', pattern: /^\/api\/incoming\/settings$/, handler: () => ({
     slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
   }) },

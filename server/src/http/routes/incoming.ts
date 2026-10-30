@@ -104,6 +104,59 @@ incomingRouter.get(
   }),
 );
 
+/**
+ * The leads waiting for this agent to say "mine".
+ *
+ * Polled by the card that slides in on every screen. The seconds left are
+ * worked out here rather than in the browser: a phone whose clock is two
+ * minutes out would otherwise show a countdown that disagrees with the one
+ * actually running, and the agent would watch it hit zero with time to spare
+ * — or worse, think they had time they did not.
+ */
+incomingRouter.get(
+  '/pending',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const { slaMinutes } = await routingSettings();
+
+    const rows = await query<{
+      id: string;
+      contact_id: string;
+      full_name: string | null;
+      phone_e164: string | null;
+      project_name: string | null;
+      budget_max_aed: number | null;
+      source: string | null;
+      seconds_left: number;
+    }>(
+      `SELECT o.id, o.contact_id, c.full_name, c.phone_e164, o.project_name, o.budget_max_aed, o.source,
+              TIMESTAMPDIFF(SECOND, NOW(3), DATE_ADD(o.assigned_at, INTERVAL ? MINUTE)) AS seconds_left
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id
+        WHERE o.owner_user_id = ? AND o.status = 'open'
+          AND o.accepted_at IS NULL AND o.assigned_at IS NOT NULL
+        ORDER BY o.assigned_at ASC
+        LIMIT 5`,
+      [slaMinutes, user.id],
+    );
+
+    res.json({
+      items: rows.map((row) => ({
+        id: row.id,
+        contactId: row.contact_id,
+        name: row.full_name,
+        phone: row.phone_e164,
+        project: row.project_name,
+        budgetMaxAed: row.budget_max_aed,
+        source: row.source,
+        // Negative means the clock has run out and the sweep has not caught
+        // up yet; the card shows that honestly rather than counting backwards.
+        secondsLeft: Number(row.seconds_left),
+      })),
+    });
+  }),
+);
+
 const assignSchema = z.object({
   opportunityIds: z.array(z.string().min(1)).min(1).max(100),
   agentUserId: z.string().min(1),

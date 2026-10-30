@@ -267,6 +267,12 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .newlead b{display:flex;gap:6px;align-items:center}
 .newlead p{margin:4px 0 10px;color:var(--ink-2);font-size:13px}
 .newlead .btn{padding:7px 12px;font-size:13px}
+/* Added to the approved card: the deadline, so an agent can see how long they
+   have rather than finding out when the lead is taken back off them. */
+.newlead-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.newlead-clock{margin-left:auto;flex:none;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+  padding:2px 8px;border-radius:999px;background:var(--primary-soft);color:var(--primary)}
+.newlead-clock.late{background:color-mix(in srgb,var(--s-lost) 14%,transparent);color:var(--s-lost)}
 
 .bottom-nav{display:none}
 @media (max-width:1100px){

@@ -2,6 +2,35 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The agent sees the lead land
+
+The piece that makes the timer fair. The bounce was built last time: an agent
+who does not touch a lead within five minutes loses it back to you. That only
+works if the agent knows they were given one.
+
+**What changed**
+- **The new-lead alert now carries a real lead.** The card from the approved
+  design — flame, project, the one line that matters, Open lead and Call — sits
+  top-right on every screen and shows the lead the agent was just handed.
+- **A countdown on it**, so the five minutes is a number they can see rather
+  than something they find out about when the lead is taken away.
+- **Both buttons accept the lead.** Opening it or ringing the client is
+  accepting it; there is nothing else an agent could mean by pressing either,
+  so there is no extra "Accept" step to forget.
+
+**Why it is a card and not a notification**
+
+A notification is gone once dismissed. This stays until the agent does
+something, and it comes back on the next screen they open, because the lead is
+still theirs and the clock is still running.
+
+**Where it stands**
+
+693 server tests and 107 web tests pass; the build is clean. Checked in light,
+dark and on a phone.
+
+Is this right, or do you want changes?
+
 ## Assign from the lead itself, and an email when one arrives
 
 You described the flow you actually want: a lead arrives, you get an email,

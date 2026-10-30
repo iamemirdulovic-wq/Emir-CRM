@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
+import { formatAedShort, humanize } from '../lib/format.js';
 import { Icon } from '../design/index.js';
 import { ago, Avatar, Empty, ErrorNote, Note, Panel, Score, Spinner, useToast } from '../design/ui.js';
 
@@ -165,10 +166,10 @@ export function Incoming() {
                         lead.project,
                         // Budget, because it is the first thing an owner weighs
                         // when deciding which agent should get this one.
-                        lead.budgetMaxAed ? budget(lead.budgetMaxAed) : null,
-                        lead.source && humanSource(lead.source),
+                        formatAedShort(lead.budgetMaxAed),
+                        lead.source && humanize(lead.source),
                         lead.language?.toUpperCase(),
-                      ].filter(Boolean).join(' · ')}
+                      ].filter((part) => part && part !== '—').join(' · ')}
                     </span>
                   </Link>
 
@@ -194,24 +195,4 @@ export function Incoming() {
   );
 }
 
-/** AED 2,500,000 is a number to count; AED 2.5M is a number to read. */
-function budget(aed: number): string {
-  if (aed >= 1_000_000) return `AED ${(aed / 1_000_000).toFixed(aed % 1_000_000 === 0 ? 0 : 1)}M`;
-  if (aed >= 1_000) return `AED ${Math.round(aed / 1_000)}K`;
-  return `AED ${aed}`;
-}
 
-/** `meta_lead_ads` reads as machinery; "Meta ad" reads as where it came from. */
-function humanSource(source: string): string {
-  const names: Record<string, string> = {
-    meta_lead_ads: 'Meta ad',
-    meta_ctwa: 'WhatsApp ad',
-    google_ads: 'Google ad',
-    website: 'Website',
-    property_investment: 'property-investment.ae',
-    whatsapp_direct: 'WhatsApp',
-    csv_import: 'Imported',
-    manual: 'Added by hand',
-  };
-  return names[source] ?? source.replace(/_/g, ' ');
-}

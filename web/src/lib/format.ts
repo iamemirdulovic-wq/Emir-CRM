@@ -53,6 +53,18 @@ export function formatAed(amount: number | null | undefined): string {
 }
 
 /**
+ * AED 2,500,000 is a number to count; AED 2.5M is a number to read. Used
+ * wherever a budget sits in a list or on a card and the exact dirham does
+ * not matter — the full figure stays on the lead itself.
+ */
+export function formatAedShort(amount: number | null | undefined): string {
+  if (!amount) return '—';
+  if (amount >= 1_000_000) return `AED ${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (amount >= 1_000) return `AED ${Math.round(amount / 1_000)}K`;
+  return `AED ${amount}`;
+}
+
+/**
  * Enum values whose underscores are ranges rather than word breaks, so the
  * generic rule below would render "1_3_months" as "1 3 Months".
  */
