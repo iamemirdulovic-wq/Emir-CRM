@@ -115,6 +115,14 @@ export async function seedFieldMappings(): Promise<void> {
  * so no test can depend on a previous one's leftovers.
  */
 const TRUNCATE_ORDER = [
+  /*
+   * Settings first, and this one matters: a test that changes how routing
+   * behaves used to leave that change in the database for every test after
+   * it. Clearing the in-memory cache was not enough — the row was still
+   * there. The failure then lands on whichever test happens to run next,
+   * which is the worst kind to find.
+   */
+  'app_settings',
   'website_leads',
   'ai_messages',
   'ai_conversations',

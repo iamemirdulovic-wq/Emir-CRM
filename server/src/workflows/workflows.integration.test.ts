@@ -275,6 +275,9 @@ describeWithDb('workflows (integration)', () => {
   });
 
   it('sends the lead back to Incoming by default, and says who let it go', async () => {
+    /* Stated, not assumed: this is the default, and saying so here means the
+       test still holds if the default ever moves. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: true });
     const agent = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
