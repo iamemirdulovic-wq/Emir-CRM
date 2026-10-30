@@ -238,7 +238,13 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       invalidNumber: !phone.isValid,
     });
 
-    await execute('UPDATE opportunities SET lead_score = ? WHERE id = ?', [breakdown.score, opportunityId]);
+    /* The reason and the band are stored beside the number. A score of 82
+       tells an agent who to call first; "Budget AED 2.5M · ready now · asked
+       for a call" tells them what to open with. */
+    await execute(
+      'UPDATE opportunities SET lead_score = ?, score_reason = ?, score_band = ? WHERE id = ?',
+      [breakdown.score, breakdown.reason, breakdown.band, opportunityId],
+    );
     await execute('UPDATE contacts SET lead_score = ? WHERE id = ?', [breakdown.score, contactId]);
 
     // A score of 70+ is hot and triggers a manager push.
@@ -262,7 +268,13 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       }
     }
 
-    return { score: breakdown.score, isHot: breakdown.score >= HOT_SCORE_THRESHOLD, components: breakdown.components };
+    return {
+      score: breakdown.score,
+      isHot: breakdown.score >= HOT_SCORE_THRESHOLD,
+      band: breakdown.band,
+      reason: breakdown.reason,
+      components: breakdown.components,
+    };
   },
 
   'ai.extract': async (payload) => {

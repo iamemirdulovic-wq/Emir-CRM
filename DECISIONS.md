@@ -141,3 +141,25 @@ says which setting it exercises — The default changed to "back to Incoming"
 when Incoming was built, but the only integration test still asserted the old
 auto-reassign behaviour, so CI went red and the new default — the one Emir
 actually runs — had no coverage at all.
+
+2026-10-30 — ingestion — The spec's 0–6 lead score is **not** adopted; the
+existing 0–100 score stays and gains a reason and a band — The simple rules in
+D3.1 would be a downgrade from what is already there, and the same document
+asks elsewhere for a score out of 100. What was missing was not arithmetic but
+words: "82" tells an agent who to call first, "Budget AED 2.5M · ready now ·
+asked for a call" tells them how to open. Stored rather than recomputed, so
+what shows next to a lead is what was true when it was scored.
+
+2026-10-30 — ingestion — A lead that returns after being marked Lost goes to
+Incoming, not to its old agent — The sticky-owner rule normally sends a
+returning client to the agent who knows them, which is right, unless that
+agent is the one who decided they were not a buyer. Then the new message is
+evidence against that decision and the owner should see it. A client who ever
+*bought* is exempt: whoever sold to them gets the call.
+
+2026-10-30 — ingestion — The public form endpoint is a second door beside the
+HMAC one, not a replacement — HMAC signs the whole body with a shared secret,
+which is right for server-to-server and impossible in a browser, where
+anything the page knows everybody knows. The public endpoint instead gets a
+revocable site key, a 10/minute limit per address and a honeypot. The HMAC
+endpoint is untouched, as the owner asked.

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { decideOpportunity, isPossibleDuplicate, mergeContactFields, resolveOwner, type ExistingContact } from './merge.js';
+import {
+  decideOpportunity, isPossibleDuplicate, isReturningFromLost, mergeContactFields, resolveOwner,
+  type ExistingContact, type ExistingOpportunity,
+} from './merge.js';
 import { emptyLead, type LeadDTO } from './dto.js';
 
 const contact = (over: Partial<ExistingContact> = {}): ExistingContact => ({
@@ -182,5 +185,67 @@ describe('isPossibleDuplicate', () => {
     expect(isPossibleDuplicate('wa_id', contact({ phoneE164: '+971501111111' }), lead({ phoneE164: '+971502222222' }))).toBe(
       false,
     );
+  });
+});
+
+/**
+ * A client the team wrote off, coming back.
+ *
+ * The sticky-owner rule normally sends a returning client to the agent who
+ * knows them, which is right — unless that agent is the one who decided they
+ * were not a buyer. Then the message is evidence against that decision, and
+ * the owner should see it rather than the file being quietly reopened by the
+ * person who closed it.
+ */
+describe('a lead that comes back after being lost', () => {
+  const at = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const opp = (
+    status: 'open' | 'won' | 'lost',
+    over: Partial<ExistingOpportunity> = {},
+  ): ExistingOpportunity => ({
+    id: `opp-${status}-${Math.random().toString(36).slice(2, 8)}`,
+    projectName: 'Sobha Hartland II',
+    stageKey: 'new_lead',
+    status,
+    createdAt: at(120),
+    ...over,
+  });
+
+  it('is a returning lead when every enquiry is closed and one was lost', () => {
+    expect(isReturningFromLost([opp('lost')])).toBe(true);
+    expect(isReturningFromLost([opp('lost'), opp('lost')])).toBe(true);
+  });
+
+  /* Still being worked. The agent has not given up, so nothing is reopened. */
+  it('is not a returning lead while any enquiry is still open', () => {
+    expect(isReturningFromLost([opp('lost'), opp('open')])).toBe(false);
+    expect(isReturningFromLost([opp('open')])).toBe(false);
+  });
+
+  /*
+   * A repeat buyer is the opposite case. Whoever sold to them should get the
+   * call — taking that away would punish the agent who did the work.
+   */
+  it('leaves a past buyer with the agent who sold to them', () => {
+    expect(isReturningFromLost([opp('won')])).toBe(false);
+    expect(isReturningFromLost([opp('won'), opp('won')])).toBe(false);
+  });
+
+  /* Lost once, bought later: they are a client, not a write-off. */
+  it('treats someone who was lost and then bought as a buyer', () => {
+    expect(isReturningFromLost([opp('lost'), opp('won')])).toBe(false);
+  });
+
+  it('is not a returning lead for somebody brand new', () => {
+    expect(isReturningFromLost([])).toBe(false);
+  });
+
+  /*
+   * No time limit on purpose. A client lost two years ago who enquires again
+   * is more interesting than one lost last week, not less — and either way it
+   * is the owner's call, which is the whole point.
+   */
+  it('does not forget, however long ago it was', () => {
+    expect(isReturningFromLost([opp('lost', { createdAt: at(900) })])).toBe(true);
   });
 });

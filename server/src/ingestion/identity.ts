@@ -317,11 +317,18 @@ async function recordIdentities(tx: PoolConnection, contactId: string, lead: Lea
   }
 }
 
-/** Open opportunities for a contact, used by the re-inquiry rule. */
+/**
+ * This contact's recent enquiries, whatever became of them — the re-inquiry
+ * rule needs the closed ones too, to tell "they came back" from "they are new".
+ *
+ * Deleted ones are left out: attaching a fresh enquiry to an opportunity that
+ * has been deleted would file it somewhere nobody can see.
+ */
 export async function loadOpenOpportunities(tx: PoolConnection, contactId: string) {
   return query<{ id: string; project_name: string | null; stage_key: string; status: 'open' | 'won' | 'lost'; created_at: Date }>(
     `SELECT id, project_name, stage_key, status, created_at
-       FROM opportunities WHERE contact_id = ? ORDER BY created_at DESC LIMIT 50`,
+       FROM opportunities WHERE contact_id = ? AND deleted_at IS NULL
+      ORDER BY created_at DESC LIMIT 50`,
     [contactId],
     tx,
   );

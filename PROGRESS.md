@@ -54,13 +54,18 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       a guard that fails the build if any file hard-deletes a lead again
 
 ## Step 3 — Lead capture and dedupe (D3)
-- [ ] 3.1 One `createOrMergeLead()` used by every source
-- [ ] 3.2 Phone/email/name normalisation
-- [ ] 3.3 Dedupe → `enquiry_again`; a lost lead returns to Incoming
-- [ ] 3.4 Website endpoint + `X-Site-Key` + embeddable form snippet
-- [ ] 3.5 Meta lead ads webhook (flagged)
-- [ ] 3.6 Google lead forms webhook (flagged)
-- [ ] 3.7 Initial lead score rules + `score_reason`
+- [x] 3.1 One path for every source — `ingestLead()` already was it
+- [x] 3.2 Normalisation — already done through libphonenumber on the server
+- [x] 3.3 Re-inquiry attaches rather than duplicating (already); **a lead
+      that comes back after being Lost now goes to Incoming** rather than back
+      to the agent who closed the file. A past buyer is exempt
+- [x] 3.4 Public `/api/public/leads` with `X-Site-Key`, a honeypot and a
+      10/min limit, plus the `/embed/lead-form.js` snippet for homes.me. The
+      HMAC endpoint is untouched
+- [x] 3.5 Meta lead ads webhook — already built, behind its token
+- [x] 3.6 Google lead forms webhook — already built, behind `google_key`
+- [x] 3.7 `score_reason` and `score_band` (migration 0015). The existing
+      0–100 score is kept and now explains itself in words
 
 ## Step 4 — Incoming, routing, the 5-minute rule (D4)
 - [ ] 4.1 `routing_status` state machine, all transitions

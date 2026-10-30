@@ -115,6 +115,13 @@ const envSchema = z.object({
 
   // --- Website form -------------------------------------------------------
   WEBSITE_FORM_HMAC_SECRET: z.string().optional(),
+  /*
+   * The key the form on homes.me carries. It is in the page source by nature,
+   * so it is not a secret — it is a name that can be revoked. The protections
+   * that work on a public endpoint are the rate limit, the honeypot, and being
+   * able to change this the day it starts being abused.
+   */
+  PUBLIC_SITE_KEY: z.string().optional(),
   RECAPTCHA_SECRET: z.string().optional(),
   /*
    * property-investment.ae. Both may instead be set inside the CRM, where the

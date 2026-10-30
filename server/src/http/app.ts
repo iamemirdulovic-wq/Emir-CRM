@@ -14,6 +14,7 @@ import { clientIp, sessionTokenFrom } from './middleware/auth.js';
 import { cspForIndex } from './csp.js';
 import { authRouter } from './routes/auth.js';
 import { setupRouter } from './routes/setup.js';
+import { publicLeadsRouter } from './routes/public-leads.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
 import { pipelineRouter } from './routes/pipeline.js';
@@ -132,6 +133,20 @@ export function createApp(): Express {
   app.use('/b', rateLimit({ max: 120, windowMs: 60 * 1000 }));
 
   // Unauthenticated by necessity, and only while the users table is empty.
+  /*
+   * The public form on homes.me. Tight limits: a real page produces a handful
+   * of submissions a minute at most, and anything far above that is not a
+   * buyer. Per address, because there is no session to go on.
+   */
+  app.use('/api/public', rateLimit({
+    max: 10,
+    windowMs: 60 * 1000,
+    message: 'Too many submissions. Please wait a minute and try again.',
+  }));
+  app.use('/api/public', publicLeadsRouter);
+  /* The script tag the website embeds, served from the same router. */
+  app.use('/embed', publicLeadsRouter);
+
   app.use('/api/setup', setupRouter);
   app.use('/api/auth', authRouter);
   /*

@@ -135,6 +135,28 @@ export function decideOpportunity(
   return { action: 'create', reason: 'different_project' };
 }
 
+/**
+ * Someone the team had given up on has come back.
+ *
+ * Every enquiry they had is closed and at least one was marked Lost — so an
+ * agent decided this person was not a buyer, and this message says otherwise.
+ * That is worth an owner's eyes rather than dropping straight back onto the
+ * desk of the agent who closed the file, which is what the sticky-owner rule
+ * would otherwise do.
+ *
+ * A past *win* is the opposite: a repeat buyer belongs with the agent who
+ * sold to them, so a contact with only won enquiries is routed as normal.
+ */
+export function isReturningFromLost(existing: ExistingOpportunity[]): boolean {
+  if (existing.length === 0) return false;
+  /* Still being worked: the agent has not given up, so nothing is reopened. */
+  if (existing.some((o) => o.status === 'open')) return false;
+  /* Ever bought, and they are a client rather than a write-off — whoever
+     sold to them gets the call, whatever else was closed along the way. */
+  if (existing.some((o) => o.status === 'won')) return false;
+  return existing.some((o) => o.status === 'lost');
+}
+
 function mostRecent(list: ExistingOpportunity[]): ExistingOpportunity {
   return [...list].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] as ExistingOpportunity;
 }

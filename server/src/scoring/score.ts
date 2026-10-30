@@ -32,9 +32,14 @@ export type ScoreSignals = {
   invalidNumber: boolean;
 };
 
+export type ScoreBand = 'hot' | 'warm' | 'cold';
+
 export type ScoreBreakdown = {
   score: number;
   isHot: boolean;
+  band: ScoreBand;
+  /** The three things that moved it most, in words an agent can act on. */
+  reason: string;
   components: Array<{ signal: string; points: number }>;
 };
 
@@ -100,7 +105,76 @@ export function scoreLead(signals: ScoreSignals): ScoreBreakdown {
   const raw = components.reduce((total, c) => total + c.points, 0);
   const score = Math.max(0, Math.min(100, raw));
 
-  return { score, isHot: score >= HOT_SCORE_THRESHOLD, components };
+  return {
+    score,
+    isHot: score >= HOT_SCORE_THRESHOLD,
+    band: bandFor(score),
+    reason: explain(components, signals),
+    components,
+  };
+}
+
+/**
+ * Three bands, because an agent deciding who to call next is making a
+ * three-way choice, not reading a percentage.
+ */
+export function bandFor(score: number): ScoreBand {
+  if (score >= HOT_SCORE_THRESHOLD) return 'hot';
+  if (score >= 40) return 'warm';
+  return 'cold';
+}
+
+/**
+ * The score in words: "Budget AED 2.5M · ready now · replied on WhatsApp".
+ *
+ * A number out of a hundred tells an agent who to call first. It does not tell
+ * them what to open with, and that is the part that decides how the call goes.
+ * Only what the lead actually told us appears here — a missing budget is left
+ * out rather than guessed at.
+ */
+function explain(components: Array<{ signal: string; points: number }>, signals: ScoreSignals): string {
+  const parts: string[] = [];
+
+  const budget = signals.budgetMaxAed ?? signals.budgetMinAed;
+  if (budget !== null) parts.push(`Budget ${aed(budget)}`);
+
+  const TIMELINE: Record<string, string> = {
+    immediate: 'ready now',
+    '1_3_months': 'buying in 1–3 months',
+    '3_6_months': 'buying in 3–6 months',
+    '6_12_months': 'buying in 6–12 months',
+    '12_plus': 'buying in a year or more',
+  };
+  const timeline = TIMELINE[signals.timeline];
+  if (timeline) parts.push(timeline);
+
+  if (signals.requestedCall) parts.push('asked for a call');
+  else if (signals.repliedOnWhatsApp) parts.push('replied on WhatsApp');
+  else if (signals.requestedPricing) parts.push('asked for prices');
+  else if (signals.requestedBrochure) parts.push('asked for the brochure');
+
+  if (signals.inquiryCount > 1) parts.push(`enquired ${signals.inquiryCount} times`);
+  if (signals.goldenVisaInterest) parts.push('Golden Visa');
+
+  /* The problems matter more than the positives, so they go first and are
+     never crowded out by a long list of good news. */
+  const warnings: string[] = [];
+  if (signals.invalidNumber) warnings.push('number did not validate');
+  if (signals.spamSignals > 0) warnings.push('looks like junk');
+  else if (!signals.hasValidPhone && !signals.hasEmail) warnings.push('no way to reach them');
+  else if (!signals.hasValidPhone) warnings.push('no phone number');
+
+  const said = [...warnings, ...parts.slice(0, 3)];
+  if (said.length === 0) return 'Nothing to go on yet';
+  return said.join(' · ').slice(0, 255);
+}
+
+/** AED 2,500,000 is a number to count; AED 2.5M is a number to say out loud. */
+function aed(amount: number): string {
+  if (amount >= 1_000_000) {
+    return `AED ${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}M`;
+  }
+  return `AED ${Math.round(amount / 1_000)}K`;
 }
 
 /** Cheap heuristics for obvious junk, before anything is sent. */

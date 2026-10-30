@@ -6,7 +6,7 @@ import { writeAudit, SYSTEM_ACTOR } from '../audit/audit.js';
 import { DEFAULT_PIPELINE_KEY, defaultSubStatus } from '../pipeline/stages.js';
 import { enqueue } from '../jobs/queue.js';
 import type { LeadDTO } from './dto.js';
-import { decideOpportunity } from './merge.js';
+import { decideOpportunity, isReturningFromLost } from './merge.js';
 import { loadOpenOpportunities, resolveContact } from './identity.js';
 
 export type IngestResult = {
@@ -89,10 +89,28 @@ export async function ingestLead(lead: LeadDTO, opts: IngestOptions = {}): Promi
         meta: { reason: decision.reason, source: lead.source, externalId: lead.externalId },
       });
     } else {
+      /*
+       * Someone the team had given up on, enquiring again, does not go back to
+       * the agent who closed their file. Every enquiry they had is closed and
+       * one of them was marked Lost — an agent decided they were not a buyer,
+       * and this message says otherwise, which is the owner's call rather than
+       * that agent's. A past win is the opposite: a repeat buyer belongs with
+       * whoever sold to them, so only Lost does this.
+       */
+      const returning = isReturningFromLost(
+        existing.map((o) => ({
+          id: o.id,
+          projectName: o.project_name,
+          stageKey: o.stage_key,
+          status: o.status,
+          createdAt: o.created_at,
+        })),
+      );
+
       opportunityId = await createOpportunity(
         tx,
         resolved.contactId,
-        resolved.ownerUserId,
+        returning ? null : resolved.ownerUserId,
         lead,
         opts.importId ?? null,
       );
@@ -100,11 +118,26 @@ export async function ingestLead(lead: LeadDTO, opts: IngestOptions = {}): Promi
       await addActivity(tx, {
         contactId: resolved.contactId,
         opportunityId,
-        type: 'lead.created',
-        title: `New lead from ${lead.source}`,
+        type: returning ? 'lead.returned' : 'lead.created',
+        title: returning
+          ? `Came back after being marked Lost — enquired again from ${lead.source}`
+          : `New lead from ${lead.source}`,
         body: describeLead(lead),
-        meta: { reason: decision.reason, source: lead.source, externalId: lead.externalId },
+        meta: { reason: decision.reason, source: lead.source, externalId: lead.externalId, returning },
       });
+
+      if (returning) {
+        /* Unassigned, so it surfaces in Incoming for the owner to place, and
+           the contact's sticky owner goes with it. */
+        await execute('UPDATE contacts SET owner_user_id = NULL WHERE id = ?', [resolved.contactId], tx);
+        await execute(
+          `INSERT INTO unassigned_queue (id, opportunity_id, contact_id, reason)
+           VALUES (?, ?, ?, 'Came back after being marked Lost')
+           ON DUPLICATE KEY UPDATE reason = VALUES(reason), resolved_at = NULL`,
+          [newId(), opportunityId, resolved.contactId],
+          tx,
+        );
+      }
     }
 
     const conversationId = await ensureConversation(tx, resolved.contactId, resolved.ownerUserId);

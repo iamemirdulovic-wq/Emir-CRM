@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { env } from '../../config/env.js';
 import { verifyHmacSignature, verifyMetaSignature, safeEqual } from '../../lib/crypto.js';
 import { logger, errorContext } from '../../lib/logger.js';
+import { processAfterResponse } from '../../lib/after-response.js';
 import { clientIp } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/error.js';
 import {
@@ -45,14 +46,6 @@ export const webhookRouter = Router();
  * Processing happens after the response has been flushed, so a slow Graph API
  * call can never make Meta retry a webhook we already accepted.
  */
-function processAfterResponse(res: Response, work: () => Promise<void>): void {
-  const run = () => {
-    work().catch((err) => logger.error('webhook processing failed', errorContext(err)));
-  };
-  if (res.writableEnded) setImmediate(run);
-  else res.on('finish', run);
-}
-
 function rawBodyOf(req: Request): Buffer {
   return req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}), 'utf8');
 }
