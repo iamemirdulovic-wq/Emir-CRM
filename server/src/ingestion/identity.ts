@@ -21,6 +21,8 @@ export type ResolvedContact = {
   /** Sticky owner, if the contact already had one. */
   ownerUserId: string | null;
   appliedPatch: ContactPatch;
+  /** True when this enquiry brought a deleted contact back. */
+  revived?: boolean;
 };
 
 type ContactRow = {
@@ -223,6 +225,7 @@ async function updateExisting(
   const existing = toExisting(row);
   const patch = await applyPatch(tx, existing.id, mergeContactFields(existing, lead));
   await recordIdentities(tx, existing.id, lead);
+  const revived = await reviveIfDeleted(tx, existing.id);
 
   return {
     contactId: existing.id,
@@ -231,7 +234,33 @@ async function updateExisting(
     possibleDuplicate: false,
     ownerUserId: resolveOwner(existing).ownerUserId,
     appliedPatch: patch,
+    revived,
   };
+}
+
+/**
+ * A deleted client who enquires again comes back, with everything that was
+ * known about them.
+ *
+ * This is why the search above deliberately does not filter on `deleted_at`:
+ * the phone number is still unique in the table, so inserting a second row for
+ * the same person would fail outright. Finding the old row and clearing the
+ * timestamp is both the only thing that works and the right answer — they are
+ * the same person, and their history is worth more than a blank record.
+ */
+async function reviveIfDeleted(tx: PoolConnection, contactId: string): Promise<boolean> {
+  const result = await execute(
+    'UPDATE contacts SET deleted_at = NULL, deleted_by_user_id = NULL WHERE id = ? AND deleted_at IS NOT NULL',
+    [contactId],
+    tx,
+  );
+  if (result.affectedRows === 0) return false;
+
+  /* Their old enquiries stay deleted — a closed file from before is not this
+     enquiry, and reopening all of them would put stale cards back on the
+     board. The new opportunity for this enquiry is created as normal. */
+  logger.info('a deleted contact enquired again and was restored', { contactId });
+  return true;
 }
 
 /**

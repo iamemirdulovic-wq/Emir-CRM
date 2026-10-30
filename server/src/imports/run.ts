@@ -488,10 +488,24 @@ export async function undoImport(
 
   let deleted = 0;
   for (const row of rows) {
-    // Contacts cascade to their opportunities, conversations, tags and
-    // consents; import_rows.contact_id is ON DELETE SET NULL, so the row keeps
-    // its history of what happened.
-    const result = await execute('DELETE FROM contacts WHERE id = ?', [row.contact_id], exec);
+    /*
+     * A timestamp, not a DELETE. The rows selected above are ones nobody has
+     * worked yet, so nothing is lost either way — but "undo" running a
+     * statement that cascades through opportunities, conversations, tags and
+     * consents is one wrong WHERE away from taking the rest of the database
+     * with it. The import_rows keep pointing at the contact, so the record of
+     * what the import did stays readable.
+     */
+    const result = await execute(
+      'UPDATE contacts SET deleted_at = NOW(3), deleted_by_user_id = ? WHERE id = ? AND deleted_at IS NULL',
+      [actor.userId, row.contact_id],
+      exec,
+    );
+    await execute(
+      'UPDATE opportunities SET deleted_at = NOW(3), deleted_by_user_id = ? WHERE contact_id = ? AND deleted_at IS NULL',
+      [actor.userId, row.contact_id],
+      exec,
+    );
     deleted += result.affectedRows;
   }
 

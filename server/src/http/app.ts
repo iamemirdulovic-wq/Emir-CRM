@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,7 @@ import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { clientIp, sessionTokenFrom } from './middleware/auth.js';
 import { cspForIndex } from './csp.js';
 import { authRouter } from './routes/auth.js';
 import { setupRouter } from './routes/setup.js';
@@ -132,6 +134,33 @@ export function createApp(): Express {
   // Unauthenticated by necessity, and only while the users table is empty.
   app.use('/api/setup', setupRouter);
   app.use('/api/auth', authRouter);
+  /*
+   * An agent browsing leads, bounded. The number is far above a working day —
+   * opening a lead, its thread and its tasks is several requests, and a
+   * manager scrolling a board makes more — so this never gets in the way of
+   * the job. It is here to stop a script walking the whole database through
+   * the same endpoints an agent is allowed to use.
+   */
+  app.use(
+    ['/api/contacts', '/api/lists'],
+    rateLimit({
+      max: 120,
+      windowMs: 60 * 1000,
+      /*
+       * Per person, not per IP: the whole office shares one office IP, so an
+       * IP bucket would have five agents sharing one allowance. This runs
+       * before the router's own auth, so the session cookie is what
+       * identifies them — hashed, so a live token is not left sitting in a
+       * map in memory.
+       */
+      keyFor: (req) => {
+        const token = sessionTokenFrom(req);
+        if (!token) return clientIp(req) ?? 'unknown';
+        return createHash('sha256').update(token).digest('hex').slice(0, 32);
+      },
+      message: 'That is a lot of requests at once. Give it a moment and try again.',
+    }),
+  );
   app.use('/api/contacts', contactsRouter);
   app.use('/api/pipeline', pipelineRouter);
   app.use('/api/inbox', inboxRouter);

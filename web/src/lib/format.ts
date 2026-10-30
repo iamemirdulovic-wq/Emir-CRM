@@ -1,4 +1,5 @@
 import { locale } from './i18n.js';
+import { countryOfE164 } from '../design/phone.js';
 
 /** Asia/Dubai is the business timezone; everything is shown in it. */
 const TZ = 'Asia/Dubai';
@@ -62,6 +63,38 @@ export function formatAedShort(amount: number | null | undefined): string {
   if (amount >= 1_000_000) return `AED ${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}M`;
   if (amount >= 1_000) return `AED ${Math.round(amount / 1_000)}K`;
   return `AED ${amount}`;
+}
+
+/**
+ * Hide the middle of a phone number in a list.
+ *
+ * `+971 50 ••• 4567` — enough to recognise a client you know, not enough to
+ * read a column of them off a screen into a notebook.
+ *
+ * Be clear about what this is: the full number is still in the response, so
+ * that the Call button can dial it without a round trip. It raises the effort
+ * of copying the list by hand; it does not stop anyone determined. The real
+ * protection is elsewhere — agents only ever receive their own leads, exports
+ * are the owner's alone, and opening hundreds of leads in an hour tells the
+ * owner. See DECISIONS.md.
+ */
+export function maskPhone(e164: string | null | undefined): string {
+  if (!e164) return '—';
+  const digits = e164.replace(/\D+/g, '');
+  if (digits.length < 8) return e164;
+
+  /*
+   * Split on the real dial code rather than a fixed number of characters:
+   * +971 and +91 are different lengths, and slicing blindly turns both into
+   * something that is not a phone number in any country.
+   */
+  const country = countryOfE164(`+${digits}`);
+  const dial = country?.dial ?? digits.slice(0, 3);
+  const national = digits.slice(dial.length);
+
+  /* Country code, the operator's two digits, then the last four — which is
+     what a person uses to recognise a number they already know. */
+  return `+${dial} ${national.slice(0, 2)} ••• ${national.slice(-4)}`;
 }
 
 /**

@@ -256,13 +256,33 @@ listsRouter.post(
       .object({ contactIds: z.array(z.string().max(36)).min(1).max(1000), confirm: z.literal(true) })
       .parse(req.body);
 
+    const marks = body.contactIds.map(() => '?').join(',');
     const before = await query<{ id: string; full_name: string | null }>(
-      `SELECT id, full_name FROM contacts WHERE id IN (${body.contactIds.map(() => '?').join(',')})`,
+      `SELECT id, full_name FROM contacts WHERE id IN (${marks}) AND deleted_at IS NULL`,
       body.contactIds,
     );
+
+    /*
+     * A timestamp, not a DELETE. Every foreign key into contacts cascades, so
+     * the old statement took the opportunities, the activities, the whole
+     * WhatsApp thread and the notes an agent wrote after a viewing — a hundred
+     * selected rows, gone, with nothing to restore from but last night's dump.
+     *
+     * The rows stay. They drop out of every list, board, inbox and export, and
+     * a client who comes back comes back with their history.
+     */
     const result = await execute(
-      `DELETE FROM contacts WHERE id IN (${body.contactIds.map(() => '?').join(',')})`,
-      body.contactIds,
+      `UPDATE contacts SET deleted_at = NOW(3), deleted_by_user_id = ?
+        WHERE id IN (${marks}) AND deleted_at IS NULL`,
+      [user.id, ...body.contactIds],
+    );
+
+    /* Their enquiries go with them, or the pipeline keeps showing cards for
+       a person who is no longer in the CRM. */
+    await execute(
+      `UPDATE opportunities SET deleted_at = NOW(3), deleted_by_user_id = ?
+        WHERE contact_id IN (${marks}) AND deleted_at IS NULL`,
+      [user.id, ...body.contactIds],
     );
 
     await writeAudit({
@@ -273,9 +293,72 @@ listsRouter.post(
       // Names, not phone numbers: the audit log must be able to answer "what
       // was deleted" without itself becoming a copy of the contact list.
       before: { requested: body.contactIds.length, names: before.map((row) => row.full_name) },
-      after: { deleted: result.affectedRows },
+      after: { deleted: result.affectedRows, recoverable: true },
     });
 
     res.json({ deleted: result.affectedRows });
+  }),
+);
+
+/**
+ * Put them back.
+ *
+ * A delete that cannot be undone is a slow version of the one this replaced.
+ * The window is deliberately generous — a wrong bulk delete is usually noticed
+ * when someone goes looking for a client, which can be days later — and it
+ * restores the enquiries alongside the people, because a contact with no
+ * opportunity is a name with nothing attached to it.
+ */
+listsRouter.post(
+  '/restore',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    if (user.role !== 'owner') throw forbidden('Only the owner can restore deleted contacts');
+
+    const body = z.object({ contactIds: z.array(z.string().max(36)).min(1).max(1000) }).parse(req.body);
+    const marks = body.contactIds.map(() => '?').join(',');
+
+    const result = await execute(
+      `UPDATE contacts SET deleted_at = NULL, deleted_by_user_id = NULL
+        WHERE id IN (${marks}) AND deleted_at IS NOT NULL`,
+      body.contactIds,
+    );
+    await execute(
+      `UPDATE opportunities SET deleted_at = NULL, deleted_by_user_id = NULL
+        WHERE contact_id IN (${marks}) AND deleted_at IS NOT NULL`,
+      body.contactIds,
+    );
+
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'contacts.restored',
+      entityType: 'contact',
+      entityId: null,
+      before: { requested: body.contactIds.length },
+      after: { restored: result.affectedRows },
+    });
+
+    res.json({ restored: result.affectedRows });
+  }),
+);
+
+/** What is in the bin, newest first — the list you restore from. */
+listsRouter.get(
+  '/deleted',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    if (user.role !== 'owner') throw forbidden('Only the owner can see deleted contacts');
+
+    const items = await query(
+      `SELECT c.id, c.full_name, c.phone_e164, c.email, c.deleted_at,
+              u.name AS deleted_by,
+              (SELECT COUNT(*) FROM opportunities o WHERE o.contact_id = c.id) AS enquiries
+         FROM contacts c
+         LEFT JOIN users u ON u.id = c.deleted_by_user_id
+        WHERE c.deleted_at IS NOT NULL
+        ORDER BY c.deleted_at DESC
+        LIMIT 500`,
+    );
+    res.json({ items });
   }),
 );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAedShort } from './format.js';
+import { formatAedShort, maskPhone } from './format.js';
 
 /**
  * The short budget appears on the pipeline card, in Incoming and on the
@@ -37,5 +37,37 @@ describe('the short budget figure', () => {
     expect(formatAedShort(null)).toBe('—');
     expect(formatAedShort(undefined)).toBe('—');
     expect(formatAedShort(0)).toBe('—');
+  });
+});
+
+/**
+ * The masked number in a list. It is deliberately not security — the full
+ * number is in the same response, because the Call button has to dial it
+ * without a round trip. It raises the effort of copying a column of clients
+ * by hand, and nothing more. See DECISIONS.md.
+ */
+describe('hiding the middle of a phone number', () => {
+  it('leaves enough to recognise a client you already know', () => {
+    expect(maskPhone('+971501234567')).toBe('+971 50 ••• 4567');
+  });
+
+  it('ignores the spaces a number may already carry', () => {
+    expect(maskPhone('+971 50 123 4567')).toBe('+971 50 ••• 4567');
+  });
+
+  it('splits on the real dial code, not a fixed number of characters', () => {
+    expect(maskPhone('+919876543210')).toBe('+91 98 ••• 3210');
+  });
+
+  /* A number too short to mask is shown as it is rather than turned into
+     something that looks like a different number. */
+  it('does not mangle a number with nothing to hide', () => {
+    expect(maskPhone('+9715')).toBe('+9715');
+  });
+
+  it('says nothing rather than "undefined" when there is no number', () => {
+    expect(maskPhone(null)).toBe('—');
+    expect(maskPhone(undefined)).toBe('—');
+    expect(maskPhone('')).toBe('—');
   });
 });

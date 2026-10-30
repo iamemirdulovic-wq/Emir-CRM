@@ -11,6 +11,7 @@ import { isManagerOrAbove, ROLES } from '../../auth/rbac.js';
 import { generateTemporaryPassword, hashPassword } from '../../auth/password.js';
 import { destroyAllSessionsForUser } from '../../auth/sessions.js';
 import { writeAudit, diffFields } from '../../audit/audit.js';
+import { returnLeadsToIncoming } from '../../routing/handover.js';
 import { env } from '../../config/env.js';
 
 export const usersRouter = Router();
@@ -176,16 +177,22 @@ usersRouter.patch(
       [...entries.map(([, v]) => v as never), targetId],
     );
 
-    // Deactivating a user ends all of their sessions immediately. Their leads
-    // stay in the system for reassignment.
+    /*
+     * Deactivating someone ends their sessions, and sends their open leads
+     * back to Incoming. The second half matters more than it looks: a lead
+     * left assigned to an account that cannot sign in is never called again
+     * — no card moves, no follow-up fires, no timer bounces it. It is not
+     * lost on paper, it is just dead.
+     */
     if (body.isActive === false) {
       const ended = await destroyAllSessionsForUser(targetId);
+      const handover = await returnLeadsToIncoming(actorFrom(req), targetId, 'deactivated');
       await writeAudit({
         actor: actorFrom(req),
         action: 'user.deactivated',
         entityType: 'user',
         entityId: targetId,
-        after: { sessionsEnded: ended },
+        after: { sessionsEnded: ended, leadsReturnedToIncoming: handover.returned },
       });
     }
 

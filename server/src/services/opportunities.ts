@@ -7,6 +7,7 @@ import { cancelJobs, enqueue } from '../jobs/queue.js';
 import { isPastAttemptedContact, type StageKey } from '../pipeline/stages.js';
 import { qualityEventFor, validateMove, type MoveRequest } from '../pipeline/moves.js';
 import type { Role } from '../auth/rbac.js';
+import { LIVE_CONTACT, LIVE_OPPORTUNITY } from '../auth/deleted.js';
 
 export type OpportunityRow = {
   id: string;
@@ -279,7 +280,11 @@ export async function loadBoard(params: {
     [params.pipelineKey],
   );
 
-  const where: string[] = ['o.pipeline_id = (SELECT id FROM pipelines WHERE `key` = ?)'];
+  const where: string[] = [
+    'o.pipeline_id = (SELECT id FROM pipelines WHERE `key` = ?)',
+    LIVE_OPPORTUNITY,
+    LIVE_CONTACT,
+  ];
   const args: Array<string | number> = [params.pipelineKey];
 
   if (params.visibleUserIds !== null) {

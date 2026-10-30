@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, qs } from '../lib/api.js';
 import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { formatDateTime, humanize } from '../lib/format.js';
+import { formatDateTime, humanize, maskPhone } from '../lib/format.js';
 import { useShellSearch } from '../components/Layout.js';
 import type { Card, StageKey } from '../lib/types.js';
 import { Icon } from '../design/index.js';
@@ -264,7 +264,9 @@ export function Contacts() {
                               {row.full_name ?? 'Unnamed'}
                             </Link>
                             <div className="muted" style={{ fontSize: 12 }}>
-                              {row.phone_e164 ?? row.email ?? '—'}
+                              {/* Masked in the list; the whole number is on
+                                   the lead itself, where the Call button is. */}
+                              {row.phone_e164 ? maskPhone(row.phone_e164) : (row.email ?? '—')}
                             </div>
                           </div>
                           {row.dnc === 1 && <span className="pill due">DNC</span>}
@@ -398,7 +400,9 @@ export function Contacts() {
                       </Link>
                     </td>
                     <td className="muted">{row.reason}</td>
-                    <td className="muted">{row.phone_e164 ?? row.email ?? '—'}</td>
+                    <td className="muted">
+                      {row.phone_e164 ? maskPhone(row.phone_e164) : (row.email ?? '—')}
+                    </td>
                     <td className="muted">{row.owner_name ?? 'Unassigned'}</td>
                   </tr>
                 ))}

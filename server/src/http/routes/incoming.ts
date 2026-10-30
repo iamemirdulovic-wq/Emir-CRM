@@ -58,6 +58,7 @@ incomingRouter.get(
          JOIN contacts c ON c.id = o.contact_id
          LEFT JOIN unassigned_queue q ON q.opportunity_id = o.id AND q.resolved_at IS NULL
         WHERE o.status = 'open' AND o.owner_user_id IS NULL
+          AND o.deleted_at IS NULL AND c.deleted_at IS NULL
         ORDER BY o.created_at ASC
         LIMIT 200`,
     );
@@ -98,7 +99,8 @@ incomingRouter.get(
       return;
     }
     const row = await queryOne<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM opportunities WHERE status = 'open' AND owner_user_id IS NULL`,
+      `SELECT COUNT(*) AS n FROM opportunities
+        WHERE status = 'open' AND owner_user_id IS NULL AND deleted_at IS NULL`,
     );
     res.json({ count: Number(row?.n ?? 0) });
   }),
@@ -134,6 +136,7 @@ incomingRouter.get(
          FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id
         WHERE o.owner_user_id = ? AND o.status = 'open'
+          AND o.deleted_at IS NULL AND c.deleted_at IS NULL
           AND o.accepted_at IS NULL AND o.assigned_at IS NOT NULL
         ORDER BY o.assigned_at ASC
         LIMIT 5`,

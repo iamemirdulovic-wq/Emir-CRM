@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import { actorFrom, blockUntilPasswordChanged, currentUser, requireAuth } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
+import { LIVE_CONTACT } from '../../auth/deleted.js';
 import { isManagerOrAbove, type Role } from '../../auth/rbac.js';
 import { execute, query, queryOne } from '../../db/client.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
@@ -40,7 +41,8 @@ inboxRouter.get(
       throw forbidden('Only managers and above can see every conversation');
     }
 
-    const where: string[] = [];
+    /* A deleted lead's thread leaves the inbox with them. */
+    const where: string[] = [LIVE_CONTACT];
     const args: Array<string | number> = [];
 
     if (params.filter === 'mine') {

@@ -11,6 +11,8 @@ import {
   requirePermission,
 } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
+import { LIVE_CONTACT } from '../../auth/deleted.js';
+import { noteLeadViewed } from '../../auth/browsing.js';
 import { query, queryOne, execute } from '../../db/client.js';
 import { badRequest } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
@@ -45,7 +47,7 @@ contactsRouter.get(
     const visible = await visibleUserIds(user);
     const scope = ownerPredicate('c.owner_user_id', visible);
 
-    const where = [scope.sql, 'c.merged_into_id IS NULL'];
+    const where = [scope.sql, 'c.merged_into_id IS NULL', LIVE_CONTACT];
     const args: Array<string | number> = [...scope.params];
 
     if (params.search) {
@@ -139,6 +141,9 @@ contactsRouter.get(
     const user = currentUser(req);
     const contactId = String(req.params.id);
     await assertCanViewContact(contactId, await visibleUserIds(user));
+    /* Counted, never blocked. Opening leads is the job; opening hundreds of
+       them in an hour is a different activity, and the owner hears about it. */
+    void noteLeadViewed(actorFrom(req), contactId);
     res.json(await contact360(contactId));
   }),
 );
@@ -230,6 +235,7 @@ contactsRouter.get(
          FROM contacts c
          JOIN contacts o ON o.id = c.possible_duplicate_of
         WHERE c.merged_into_id IS NULL AND o.merged_into_id IS NULL
+          AND c.deleted_at IS NULL AND o.deleted_at IS NULL
         ORDER BY c.created_at DESC
         LIMIT 200`,
     );
@@ -301,7 +307,7 @@ contactsRouter.get(
          FROM contacts c
          LEFT JOIN users u ON u.id = c.owner_user_id
          LEFT JOIN opportunities o ON o.contact_id = c.id
-        WHERE c.merged_into_id IS NULL
+        WHERE c.merged_into_id IS NULL AND c.deleted_at IS NULL
         ORDER BY c.created_at DESC
         LIMIT 50000`,
     );

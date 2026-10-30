@@ -79,3 +79,45 @@ company name where it identifies the app and the brand where people look at it.
 ordinary paths. Only the **preview** build uses `HashRouter` — My first reading
 of it was wrong, and it would have misled every later step that reads
 `location.pathname`.
+
+2026-10-30 — security — Export, bulk delete, hard delete and audit-log reading
+move from `admin` to **owner only** — Part D1 says so, and the reason holds:
+an export is a copy of the client database that walks out of the building and
+cannot be called back. An admin runs the CRM day to day; taking the whole
+database out of it is not day to day.
+
+2026-10-30 — data — "Delete" is now a timestamp, never a DELETE — Every
+foreign key into `contacts` cascades, so one owner selecting a hundred rows
+took their opportunities, activities, WhatsApp threads and the notes an agent
+wrote after a viewing, with nothing to restore from but the overnight dump.
+A test (`auth/deleted.test.ts`) now fails the build if any file hard-deletes a
+contact or an opportunity; it immediately found a second one I had missed, in
+the import undo.
+
+2026-10-30 — data — Identity resolution deliberately does **not** filter
+deleted contacts; it revives them — The phone number is unique across the
+whole table, so a second row for the same person cannot be inserted. Finding
+the old row and clearing the timestamp is both the only thing that works and
+the better answer: they are the same person, and their history is worth more
+than a blank record. Their old closed enquiries stay deleted, so stale cards
+do not reappear on the board.
+
+2026-10-30 — security — Phone masking in lists is **cosmetic, and is written
+down as such** — The full number stays in the response so the Call button can
+dial without a round trip, which means anyone who opens developer tools can
+read it. It raises the effort of copying a column of clients by hand and does
+nothing more. The protection that is real sits elsewhere: agents only ever
+receive their own leads (fenced in SQL), exports are the owner's alone, and
+opening 200+ leads in an hour tells the owner.
+
+2026-10-30 — security — The browsing alarm counts and reports; it never blocks
+— An agent stopped mid-call by a false positive is a worse outcome than the
+thing being guarded against, and an owner who gets a false alarm on Tuesday
+ignores the real one on Friday. It fires once per hour-long window, not once
+per lead past the line.
+
+2026-10-30 — routing — Deactivating an agent returns their open leads to
+Incoming — They used to stay assigned to an account that cannot sign in, so no
+card moved, no follow-up fired and no timer bounced them. The lead was not
+lost on paper; it was just never going to be called again, which is the exact
+failure this CRM exists to prevent.

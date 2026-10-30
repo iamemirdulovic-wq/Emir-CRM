@@ -11,6 +11,7 @@ import { tagContact } from '../ingestion/ingest.js';
 import { assign } from '../assignment/apply.js';
 import type { AssignmentMethod, AssignmentRuleClause, SplitShare } from '../assignment/distribute.js';
 import { buildFilter, type ListFilter } from './filters.js';
+import { LIVE_CONTACT } from '../auth/deleted.js';
 
 export interface ListRecord {
   id: string;
@@ -90,7 +91,8 @@ export async function listMembers(
   const listParam = list.kind === 'smart' ? [] : [listId];
   const listWhere = list.kind === 'smart' ? '' : 'lm.list_id = ? AND ';
 
-  const where = `${listWhere}${built.sql} AND ${scopeSql}`;
+  /* A deleted lead drops out of every list and smart list it was in. */
+  const where = `${listWhere}${built.sql} AND ${scopeSql} AND ${LIVE_CONTACT}`;
   const params = [...listParam, ...built.params, ...scope.params];
 
   const items = await query<ListMemberRow>(
@@ -152,7 +154,7 @@ export async function resolveListContacts(
          FROM contacts c
          LEFT JOIN opportunities o
                 ON o.id = (SELECT id FROM opportunities WHERE contact_id = c.id ORDER BY created_at DESC LIMIT 1)
-        WHERE ${built.sql}`,
+        WHERE ${built.sql} AND ${LIVE_CONTACT}`,
       built.params,
       exec,
     );
@@ -162,7 +164,7 @@ export async function resolveListContacts(
     `SELECT lm.contact_id, lm.opportunity_id, c.owner_user_id, c.dnc, c.wa_id, ${consent}
        FROM list_members lm
        JOIN contacts c ON c.id = lm.contact_id
-      WHERE lm.list_id = ? AND c.merged_into_id IS NULL`,
+      WHERE lm.list_id = ? AND c.merged_into_id IS NULL AND c.deleted_at IS NULL`,
     [listId],
     exec,
   );

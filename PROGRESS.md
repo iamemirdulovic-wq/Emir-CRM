@@ -38,13 +38,20 @@ A box is ticked only when the item is **built, tested and screenshotted**.
 - [x] 1.10 `/dev/components` showcase, owner only, both themes
 
 ## Step 2 — Roles, permissions, data protection, audit (D1)
-- [ ] 2.1 Export, bulk delete and audit read become **owner only**
-- [ ] 2.2 Soft delete (`deleted_at`) on contacts and opportunities; owner only
-- [ ] 2.3 Phone masking in list payloads; full number only on an owned lead
-- [ ] 2.4 Agent rate limit (120/min) + >200 distinct leads/hour alarm
-- [ ] 2.5 Agent deactivation returns open leads to Incoming, tagged
-- [ ] 2.6 Every export audit-logged
-- [ ] 2.7 Permission tests for every role on every lead endpoint
+- [x] 2.1 Export, bulk delete, hard delete and audit read are now **owner
+      only** — they were granted to `admin`
+- [x] 2.2 Soft delete on contacts and opportunities (migration 0014), with
+      restore and a bin to restore from. A deleted client who enquires again
+      is revived with their history, because the phone number is still unique
+- [x] 2.3 Phone masking in the contacts list — cosmetic by design; see
+      `DECISIONS.md` for exactly what it does and does not protect
+- [x] 2.4 Per-session rate limit (120/min) on the lead endpoints, and an
+      owner alert when someone opens 200+ distinct leads in an hour
+- [x] 2.5 Deactivation returns open leads to Incoming, tagged "From <name>
+      (left)", clearing the sticky owner and cancelling their timers
+- [x] 2.6 Every export audit-logged — already was
+- [x] 2.7 Permission tests: the whole matrix written out independently, plus
+      a guard that fails the build if any file hard-deletes a lead again
 
 ## Step 3 — Lead capture and dedupe (D3)
 - [ ] 3.1 One `createOrMergeLead()` used by every source

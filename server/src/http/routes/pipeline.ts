@@ -123,7 +123,7 @@ pipelineRouter.get(
          FROM unassigned_queue q
          JOIN opportunities o ON o.id = q.opportunity_id
          JOIN contacts c ON c.id = q.contact_id
-        WHERE q.resolved_at IS NULL
+        WHERE q.resolved_at IS NULL AND o.deleted_at IS NULL AND c.deleted_at IS NULL
         ORDER BY q.created_at ASC
         LIMIT 200`,
     );

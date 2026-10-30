@@ -47,13 +47,26 @@ const MANAGER: Permission[] = [
 const ADMIN: Permission[] = [
   ...MANAGER,
   'contacts:read:all',
-  'contacts:delete',
   'templates:manage',
   'projects:manage',
   'workflows:manage',
   'integrations:manage',
   'users:manage',
   'reports:all',
+];
+
+/**
+ * What only the owner may do.
+ *
+ * The client database is the business. An export is a copy of it that walks
+ * out of the building and cannot be called back, and a bulk delete is the
+ * same loss in the other direction — so both stop at one person, and so does
+ * reading the record of who did what. An admin runs the CRM day to day;
+ * taking the whole database out of it is not day to day.
+ */
+const OWNER: Permission[] = [
+  ...ADMIN,
+  'contacts:delete',
   'export',
   'bulk:delete',
   'audit:read',
@@ -70,8 +83,8 @@ const AUTOMATION: Permission[] = [
 ];
 
 const MATRIX: Record<Role, readonly Permission[]> = {
-  owner: [...ADMIN],
-  admin: [...ADMIN],
+  owner: OWNER,
+  admin: ADMIN,
   manager: MANAGER,
   agent: AGENT,
   automation: AUTOMATION,
