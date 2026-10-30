@@ -69,6 +69,14 @@ const SCHEDULES: Schedule[] = [
   /* The wall's own posts, at 09:00 Dubai: anniversaries every day, and the
      week's roundup on a Monday. */
   { name: 'wall_daily', type: 'wall.daily', everyMinutes: 60, atDubaiHour: 9 },
+  /*
+   * The nightly second opinion on lead quality. 03:00 Dubai, because it spends
+   * model calls in a batch and nobody is waiting on it: by the time the first
+   * agent opens the app the verdicts are already on the cards. Running it in
+   * the working day would put a queue of AI calls in front of the ones an
+   * agent is actually waiting for.
+   */
+  { name: 'ai_review', type: 'ai.review_sweep', everyMinutes: 60, atDubaiHour: 3 },
 ];
 
 /** Dubai is UTC+4 all year, so there is no DST to think about. */

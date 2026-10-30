@@ -29,6 +29,11 @@ export const JOB_TYPES = [
   'reports.owner_summary',
   /** Anniversaries, and the Monday "best of the week" post. */
   'wall.daily',
+  /** The nightly second opinion: who to look at, then one job per lead. */
+  'ai.review_sweep',
+  'ai.review_lead',
+  /** Summarise the notes on one lead, when they have changed. */
+  'ai.notes_digest',
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];

@@ -46,6 +46,8 @@ import { activityRouter } from './routes/activity.js';
 import { profilesRouter } from './routes/profiles.js';
 import { cardRouter } from './routes/card.js';
 import { wallRouter } from './routes/wall.js';
+import { searchRouter } from './routes/search.js';
+import { prefsRouter } from './routes/prefs.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -211,6 +213,9 @@ export function createApp(): Express {
   app.use('/api/activity', activityRouter);
   app.use('/api/profiles', profilesRouter);
   app.use('/api/wall', wallRouter);
+  /* What the command palette asks: leads and projects, both fenced. */
+  app.use('/api/search', searchRouter);
+  app.use('/api/prefs', prefsRouter);
   /* The public business card: no login, no bundle, no session. */
   app.use('/', cardRouter);
   /* No login on these two: a client clicks the unsubscribe link and a

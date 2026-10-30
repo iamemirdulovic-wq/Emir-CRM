@@ -156,8 +156,10 @@ server/src/
   messaging/     send guard, WhatsApp adapters, email SMTP/IMAP, templates
   workflows/     guards, assignment, intent, workflows A/B/C, run tracking
   jobs/          queue, worker loop, cron, handlers
-  scoring/       lead score
-  ai/            provider-agnostic AI (Gemini, OpenAI, or off)
+  scoring/       lead score, and the limits on what the AI may do to it
+  ai/            provider-agnostic AI (Gemini, OpenAI, or off), the notes
+                 digest, and the nightly lead review
+  leads/         notes, the one-tap actions, the tabs, the next-step rules
   attribution/   Meta CAPI, Google offline conversions
   http/          Express app, middleware, routes
   realtime/      SSE hub
@@ -167,7 +169,8 @@ web/src/
   lib/           API client, auth context, realtime, i18n, formatting
   styles/        the design system's CSS, ported from the approved design
   design/        shell, icons, charts, theme, shared UI — see docs/DESIGN.md
-  components/    the signed-in layout and the lead drawer
+  components/    the signed-in layout, the lead drawer, the command palette,
+                 the keyboard layer and the guided tour
   pages/         login, change password, dashboard, pipeline, inbox, contacts,
                  contact 360, tasks, projects, sales offers, automations,
                  settings, imports, lists, campaigns, the dialler, the lead

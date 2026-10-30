@@ -1,7 +1,7 @@
 import { execute, query, queryOne } from '../db/client.js';
 import { logger } from '../lib/logger.js';
 import { parsePhone } from '../lib/phone.js';
-import { HOT_SCORE_THRESHOLD } from '../config/constants.js';
+import { AI_REVIEW_NIGHTLY_LIMIT, HOT_SCORE_THRESHOLD } from '../config/constants.js';
 import { fetchLeadDetail, fetchFormLeads, normalizeMetaLead } from '../ingestion/sources/meta.js';
 import { markEventFailed, markEventProcessed, markEventProcessing, recordInboundEvent } from '../ingestion/events.js';
 import { ingestLead } from '../ingestion/ingest.js';
@@ -15,12 +15,13 @@ import { syncTemplates } from '../messaging/templates/sync.js';
 import { pollInbox } from '../messaging/email/imap.js';
 import { detectSpamSignals, scoreLead } from '../scoring/score.js';
 import { applyExtractedFields, extractFields, summarizeContact } from '../ai/index.js';
+import { leadsToReview, refreshNotesDigest, reviewLead } from '../ai/lead-review.js';
 import { sendCapiEvent } from '../attribution/meta-capi.js';
 import { uploadConversion } from '../attribution/google-ads.js';
 import { purgeExpiredSessions } from '../auth/sessions.js';
 import { purgeOldLoginAttempts } from '../auth/lockout.js';
 import { reclaimStaleJobs, enqueue } from './queue.js';
-import { pruneCronKeys } from './cron.js';
+import { dubaiDateKey, pruneCronKeys } from './cron.js';
 import { runChunk } from '../imports/run.js';
 import { purgeExpiredUploads } from '../imports/retention.js';
 import { sweepTaskReminders } from '../tasks/reminders.js';
@@ -300,6 +301,43 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   'ai.summarize': async (payload) => {
     const result = await summarizeContact(str(payload, 'contactId'));
     return result ?? { skipped: 'ai_disabled_or_no_messages' };
+  },
+
+  /*
+   * The nightly sweep. It does not score anything itself: it decides who is
+   * worth looking at and enqueues one job each, spread over the small hours,
+   * so a slow model or a rate limit costs one lead rather than the batch.
+   */
+  'ai.review_sweep': async (payload) => {
+    const limit = Math.max(1, Math.min(500, Number(payload.limit ?? AI_REVIEW_NIGHTLY_LIMIT)));
+    const ids = await leadsToReview(limit);
+    let queued = 0;
+    for (const [index, opportunityId] of ids.entries()) {
+      await enqueue(
+        'ai.review_lead',
+        { opportunityId },
+        {
+          /* Thirty seconds apart: gentle on the provider, and the whole batch
+             still lands long before anybody opens the app. */
+          runAt: new Date(Date.now() + index * 30_000),
+          dedupeKey: `ai.review:${opportunityId}:${dubaiDateKey(new Date())}`,
+        },
+      );
+      queued += 1;
+    }
+    return { considered: ids.length, queued };
+  },
+
+  'ai.review_lead': async (payload) => {
+    const result = await reviewLead(str(payload, 'opportunityId'));
+    return result ?? { skipped: 'lead_gone' };
+  },
+
+  'ai.notes_digest': async (payload) => {
+    const result = await refreshNotesDigest(str(payload, 'opportunityId'), {
+      force: payload.force === true,
+    });
+    return result ?? { skipped: 'no_notes_or_ai_disabled' };
   },
 
   // --- ad platform feedback -------------------------------------------------

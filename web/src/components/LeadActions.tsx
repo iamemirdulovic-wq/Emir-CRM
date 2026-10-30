@@ -291,6 +291,10 @@ export function LeadActionBar({
       {tel && (
         <a
           className="btn btn-primary" href={tel}
+          /* The keyboard shortcut presses this button rather than
+             reimplementing it, so C does exactly what the mouse does —
+             including logging the call and opening the "how did it go" sheet. */
+          data-lead-action="call"
           onClick={() => {
             /* Logged on the way out, then the sheet asks how it went when
                they come back to the tab. */
@@ -303,7 +307,11 @@ export function LeadActionBar({
         </a>
       )}
       {wa && (
-        <a className="btn btn-wa" href={wa} target="_blank" rel="noreferrer" onClick={() => void run('whatsapp')}>
+        <a
+          className="btn btn-wa" href={wa} target="_blank" rel="noreferrer"
+          data-lead-action="whatsapp"
+          onClick={() => void run('whatsapp')}
+        >
           <Icon name="message-circle" />
           {!compact && 'WhatsApp'}
         </a>

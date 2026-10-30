@@ -11,6 +11,9 @@ import { Avatar } from '../design/ui.js';
 import {
   Chip, Empty, ErrorNote, Field, Note, Panel, Select, Spinner, Toolbar, useToast,
 } from '../design/ui.js';
+import { Button } from '../design/forms.js';
+import { useCommands } from '../components/CommandLayer.js';
+import { isMacLike } from '../lib/shortcuts.js';
 import { AiKnowledgeTab } from '../components/AiKnowledge.js';
 import { PhoneAppPanel } from '../components/PhoneApp.js';
 import { RoutingSettings } from '../components/RoutingSettings.js';
@@ -178,7 +181,39 @@ function ProfileTab() {
           Animations already follow your device&rsquo;s reduce-motion setting; nothing to switch here.
         </Note>
       </Panel>
+
+      <GettingAround />
     </div>
+  );
+}
+
+/**
+ * The tour and the shortcut list, where somebody would look for them.
+ *
+ * The command palette offers both too, but a person who does not know the
+ * palette exists is exactly the person who wants the tour — so it cannot be
+ * the only way in.
+ */
+function GettingAround() {
+  const commands = useCommands();
+
+  return (
+    <Panel span={6} index={3} icon="sparkles" title="Getting around">
+      <p className="muted" style={{ marginTop: 0 }}>
+        Five quick pointers at the things people ask about on their first morning. Take it as often
+        as you like — nobody is told you did.
+      </p>
+
+      <div className="toolbar">
+        <Button icon="play" onClick={() => commands?.startTour()}>Show me around</Button>
+        <Button icon="key-round" onClick={() => commands?.openHelp()}>Keyboard shortcuts</Button>
+      </div>
+
+      <Note>
+        Press <kbd>{isMacLike(navigator.platform, navigator.userAgent) ? '⌘ K' : 'Ctrl K'}</kbd> on
+        any screen to search a lead, a project or a screen by name. Press <kbd>?</kbd> for the rest.
+      </Note>
+    </Panel>
   );
 }
 

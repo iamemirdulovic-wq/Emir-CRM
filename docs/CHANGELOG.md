@@ -2,6 +2,68 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Find anything, do it without the mouse, and be told what to do next
+
+**Press ⌘K — Ctrl K on Windows — anywhere.** Type four letters of a client's
+name and you are on their lead page. Type a phone number the way you read it
+off a screen, with spaces, a plus, a leading zero or none of those, and it
+finds them anyway. Type a project and you get the project and every lead
+asking about it. Type nothing and it offers the screens you use.
+
+It will not guess. "slt" does not find Settings, because landing on a screen
+you did not mean is worse than finding nothing: a word has to start with what
+you typed.
+
+**The keyboard.** `N` adds a lead, `/` jumps into the search box on whatever
+screen you are on, `?` shows the whole list. `G` then a letter goes somewhere —
+G then D for the Dashboard, G then L for your leads. On a lead, `C` calls,
+`W` opens WhatsApp, `E` writes an email, `A` starts a note and `S` sets the
+next step. Those single letters are dead the moment you are typing in a box,
+so writing "we agreed on the corner unit" in a note does not ring the client
+halfway through the sentence. Nothing but ⌘K is taken from the browser.
+
+**The tour.** Five pointers at the things people ask about on their first
+morning, with a spotlight on each one. Owners get a different five from
+agents, starting with the queue of leads nobody has taken — which an agent
+cannot see at all. It runs once by itself and lives in Settings after that, so
+it can be taken again by anybody who wants it. Finishing it on a laptop
+finishes it on the phone.
+
+**Where this stands, at the top of every lead.** One line saying what to do —
+"Send a WhatsApp, today" — with the reason next to it and a button that puts
+it in your list. The reason matters: an agent who disagrees with "ring them
+again" can see it is because three calls went unanswered and decide for
+themselves.
+
+Underneath it, what the notes add up to in three lines, and the thing not to
+say — an objection, a promise made, a developer they fell out with. Eleven
+notes written by two people over three weeks, read for you.
+
+**What decides the next step.** Rules, not a model. The channel, the date and
+whether to contact somebody at all are the three that cost money when they are
+wrong, and they are decided the same way every time: an unanswered message
+beats everything, an overdue promise beats a schedule, three unanswered calls
+switch to WhatsApp, somebody who asked us to stop gets nothing suggested at
+all. All of it works with Emir AI switched off.
+
+**What the AI does instead.** It reads how somebody writes — "can you call me
+now, I fly Sunday" and "ok thanks" are the same to a weights table and are not
+the same lead — and gives a verdict: Hot, Good, Weak or Junk. It runs at 3am
+on up to 120 leads, oldest verdict first. It can move a score by at most 20
+points, a verdict it is unsure of moves nothing, and a lead with no working
+number can never be made hot however keen it reads. A confident "junk" puts a
+button on the screen; it never closes anything. Every verdict is kept rather
+than overwritten, so "it said junk in March and hot in May" is a fact and not
+a claim.
+
+Any price, size, handover date or percentage the model produces that is not
+written in the notes is thrown away before it reaches the screen — checked in
+code, not asked for in the prompt.
+
+**Also fixed.** On a 1000-pixel screen an owner's sidebar had sixteen items
+and the last two sat underneath the footer. The navigation now scrolls inside
+itself.
+
 ## The Team Wall
 
 **The CRM posts to it itself.** A deal closes and the wall says so. Somebody

@@ -992,3 +992,177 @@
 .board li b{font-variant-numeric:tabular-nums;color:var(--primary)}
 
 .online{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ── Keyboard: the palette, the shortcut sheet, the tour ───────────────── */
+
+/*
+ * A key as it is printed on a keyboard. Used in the palette footer, the
+ * shortcut sheet and the odd hint, so it is defined once here rather than
+ * three times with three different corner radii.
+ */
+kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;
+  padding:0 6px;font:inherit;font-size:11px;font-weight:700;line-height:1;color:var(--ink-2);
+  background:var(--surface-2);border:1px solid var(--glass-line);border-bottom-width:2px;
+  border-radius:7px;white-space:nowrap}
+
+/* The command palette ---------------------------------------------------- */
+
+.palette-back{position:fixed;inset:0;z-index:59;display:flex;justify-content:center;
+  align-items:flex-start;padding:14vh 16px 16px;background:rgba(6,13,26,.3);
+  -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);animation:kit-fade .15s ease}
+.palette{width:min(620px,100%);max-height:min(70vh,640px);display:flex;flex-direction:column;
+  border-radius:22px;background:var(--glass-strong);border:1px solid var(--glass-line);
+  box-shadow:0 30px 70px rgba(9,24,44,.3);overflow:hidden;
+  animation:kit-pop .2s cubic-bezier(.2,.8,.2,1)}
+
+.palette-input{display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid var(--glass-line)}
+.palette-input svg{width:20px;height:20px;color:var(--ink-3);flex:none}
+.palette-input input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;
+  color:var(--ink);outline:none}
+.palette-input input::placeholder{color:var(--ink-3)}
+.palette-esc{flex:none}
+
+.palette-list{flex:1;overflow:auto;padding:8px}
+.palette-none{margin:18px 10px;color:var(--ink-3);text-align:center}
+.palette-group h4{margin:10px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+.palette-row{display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border:0;
+  background:none;border-radius:12px;text-align:left;color:var(--ink);cursor:pointer}
+.palette-row.on{background:var(--primary-soft)}
+.palette-row.on .palette-icon{background:var(--primary);color:#fff;border-color:transparent}
+.palette-icon{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:10px;
+  background:var(--surface-2);border:1px solid var(--glass-line);color:var(--ink-2)}
+.palette-icon svg{width:17px;height:17px}
+.palette-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.palette-text strong{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palette-text small{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.palette-row > svg{width:16px;height:16px;color:var(--ink-3);flex:none}
+
+.palette-foot{display:flex;gap:16px;padding:9px 16px;border-top:1px solid var(--glass-line);
+  font-size:12px;color:var(--ink-3)}
+.palette-foot span{display:inline-flex;align-items:center;gap:5px}
+
+/* The shortcut sheet ----------------------------------------------------- */
+
+.keys{display:flex;flex-direction:column;gap:18px}
+.keys section h4{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-size:12px;
+  font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.keys section h4 small{font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;
+  color:var(--ink-3);opacity:.8}
+.keys dl{margin:0;display:flex;flex-direction:column}
+.keys-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:7px 2px;border-bottom:1px solid var(--line)}
+.keys-row:last-child{border-bottom:0}
+.keys-row dt{color:var(--ink);font-size:14px}
+.keys-row dd{margin:0;display:inline-flex;align-items:center;gap:5px;flex:none}
+.keys-row dd em{font-style:normal;font-size:11px;color:var(--ink-3)}
+.keys-note{display:flex;align-items:center;gap:8px;margin:16px 0 0;padding-top:12px;
+  border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+.keys-note svg{width:16px;height:16px;flex:none}
+
+/* The tour --------------------------------------------------------------- */
+
+.tour{position:fixed;inset:0;z-index:58;pointer-events:none}
+/*
+ * The click-catcher. It only carries the dim when there is nothing to point
+ * at — when there is, the ring's own shadow is the dim, and two of them
+ * stacked would leave the thing being pointed at as dark as everything else,
+ * which is the opposite of a spotlight.
+ */
+.tour-dim{position:absolute;inset:0;pointer-events:auto;animation:kit-fade .2s ease}
+.tour-dim.solo{background:rgba(6,13,26,.55)}
+/* The ring, not a cut-out: a box-shadow big enough to cover the screen gives
+   the same "everything else is dark" effect in one element, and no mask. */
+.tour-ring{position:absolute;border-radius:14px;border:2px solid var(--primary);
+  box-shadow:0 0 0 9999px rgba(6,13,26,.55),0 0 0 4px rgba(10,163,186,.35);pointer-events:none;
+  transition:top .25s var(--ease),left .25s var(--ease),width .25s var(--ease),height .25s var(--ease)}
+.tour-bubble{position:absolute;width:min(340px,calc(100vw - 32px));padding:16px 18px 14px;
+  border-radius:20px;background:var(--glass-strong);border:1px solid var(--glass-line);
+  box-shadow:0 24px 60px rgba(9,24,44,.3);pointer-events:auto;
+  animation:kit-pop .22s cubic-bezier(.2,.8,.2,1)}
+.tour-bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-bottom:12px}
+.tour-bar span{display:block;height:100%;border-radius:99px;background:var(--grad);
+  transition:width .3s var(--ease)}
+.tour-bubble h3{margin:0 0 6px;font-size:16px;font-weight:700;color:var(--ink)}
+.tour-bubble p{margin:0 0 14px;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.tour-bubble footer{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tour-count{font-size:12px;font-weight:600;color:var(--ink-3)}
+.tour-buttons{display:flex;gap:6px}
+.tour-buttons .btn{padding:8px 13px;font-size:13px}
+
+@keyframes kit-fade{from{opacity:0}to{opacity:1}}
+@keyframes kit-pop{from{opacity:0;transform:translateY(-8px) scale(.98)}
+  to{opacity:1;transform:none}}
+
+@media (prefers-reduced-motion:reduce){
+  .palette,.palette-back,.tour-bubble,.tour-dim{animation:none}
+  .tour-ring,.tour-bar span{transition:none}
+}
+
+@media (max-width:720px){
+  .palette-back{padding:8vh 10px 10px}
+  .palette-foot{display:none}
+  .tour-bubble{width:calc(100vw - 24px)}
+}
+
+/* ── The lead brief: where this stands, and what to do next ────────────── */
+
+.brief{display:flex;flex-direction:column;gap:12px}
+.brief-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brief-head h4{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.brief-head h4 svg{width:16px;height:16px}
+
+.brief-verdict{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;
+  font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--glass-line);
+  color:var(--ink-2)}
+.brief-verdict svg{width:14px;height:14px}
+.brief-verdict.is-hot{background:color-mix(in srgb,var(--hot) 14%,transparent);
+  border-color:color-mix(in srgb,var(--hot) 35%,transparent);color:var(--hot)}
+.brief-verdict.is-good{background:var(--wa-soft);border-color:color-mix(in srgb,var(--wa) 32%,transparent);
+  color:var(--wa)}
+.brief-verdict.is-junk{color:var(--ink-3)}
+
+/* The one line that says what to do. Given the weight of a card rather than a
+   sentence, because it is the only thing on this page that is an instruction. */
+.brief-do{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 14px;border-radius:var(--r-m);background:var(--primary-soft);
+  border:1px solid color-mix(in srgb,var(--primary) 24%,transparent)}
+.brief-do.is-now{background:color-mix(in srgb,var(--hot) 10%,transparent);
+  border-color:color-mix(in srgb,var(--hot) 28%,transparent)}
+.brief-do.is-later{background:var(--surface-2);border-color:var(--glass-line)}
+.brief-do-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brief-do-text strong{font-size:15px;font-weight:700;color:var(--ink)}
+.brief-do-text small{font-size:12.5px;color:var(--ink-2)}
+.brief-do .btn{flex:none}
+
+.brief-clear{display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;
+  border-radius:var(--r-m);background:var(--surface-2);font-size:13.5px;color:var(--ink-2)}
+.brief-clear svg{width:16px;height:16px;color:var(--wa);flex:none}
+
+.brief-notes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+.brief-notes li{position:relative;padding-left:16px;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.brief-notes li::before{content:"";position:absolute;left:3px;top:9px;width:5px;height:5px;
+  border-radius:99px;background:var(--primary)}
+
+.brief-watch{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;
+  border-radius:var(--r-m);background:color-mix(in srgb,var(--s-att) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--s-att) 28%,transparent);font-size:13.5px;
+  line-height:1.45;color:var(--ink)}
+.brief-watch svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--s-att)}
+
+.brief-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-size:12px;color:var(--ink-3)}
+.brief-why{flex:1;min-width:0}
+.brief-link{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;
+  font:inherit;font-size:12px;font-weight:600;color:var(--primary);cursor:pointer}
+.brief-link:disabled{opacity:.5;cursor:progress}
+.brief-link svg{width:14px;height:14px}
+
+@media (max-width:720px){
+  .brief-do{flex-direction:column;align-items:stretch}
+  .brief-do .btn{width:100%}
+}

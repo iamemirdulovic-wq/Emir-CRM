@@ -274,10 +274,35 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       unless an owner turns them on for a post
 
 ## Step 14 — Palette, shortcuts, tour, AI (C9, C10, D14)
-- [ ] 14.1 Command palette (Cmd+K) over leads, projects, pages, actions
-- [ ] 14.2 Keyboard shortcuts + `?` help
-- [ ] 14.3 Five-step guided tour, replayable
-- [ ] 14.4 Notes summary, next-step suggestion, nightly score refinement
+- [x] 14.1 Command palette (Cmd+K) over leads, projects, pages, actions.
+      `/api/search` returns leads behind the same owner fence as every other
+      query, plus projects. Matching is word-start, never letter-skipping:
+      "slt" must not find Settings, because landing on a screen you did not
+      mean is worse than finding nothing
+- [x] 14.2 A phone number typed in any shape finds the lead — "050 123 4567",
+      "+971 50 123 4567", "0501234567" and an Arabic-numeral paste all match
+      the stored E.164
+- [x] 14.3 Keyboard shortcuts, one listener for the whole app: ⌘K, `/`, `N`,
+      `?`, G-then-a-letter to navigate, and C/W/E/A/S on a lead
+- [x] 14.4 No single letter ever fires while somebody is typing, and nothing
+      but ⌘K is taken from the browser
+- [x] 14.5 `?` sheet, grouped, showing ⌘ on a Mac and Ctrl everywhere else
+- [x] 14.6 Five-step guided tour with a real spotlight, different five for an
+      owner and an agent, replayable from Settings or the palette
+- [x] 14.7 Tour progress kept server-side in `user_prefs`, so finishing it on
+      a laptop finishes it on the phone
+- [x] 14.8 Notes digest: three lines and the thing not to say, with any figure
+      the model produced that is not in the notes dropped in code rather than
+      asked for in the prompt
+- [x] 14.9 Next step suggested by rules, not by a model — the channel, the
+      date and whether to contact somebody at all are decided the same way
+      every time, and the whole feature works with AI switched off
+- [x] 14.10 Nightly score refinement at 03:00 Dubai, capped at 120 leads: the
+      AI moves a score by at most 20, a verdict it is unsure of moves nothing,
+      an unreachable lead can never be hot, and "junk" is a suggestion with a
+      button rather than a closed lead
+- [x] 14.11 `lead_ai_scores` keeps every verdict rather than overwriting, so
+      "it said junk in March and hot in May" is a fact and not a claim
 
 ## Step 15 — Owner settings (D15)
 - [ ] 15.1 All sections, each change audit-logged

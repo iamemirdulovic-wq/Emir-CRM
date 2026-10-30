@@ -393,6 +393,128 @@ const WALL_POSTS: PreviewWallPost[] = [
   },
 ];
 
+/*
+ * One person's own choices.
+ *
+ * Kept in the browser rather than in this module so they survive a reload,
+ * the way the real ones survive a sign-out: a tour that started again on
+ * every refresh would be a demo of the wrong thing. Empty on a first visit,
+ * so the tour does run once.
+ */
+const PREFS_KEY = 'homes.preview.prefs';
+
+const PREVIEW_PREFS: Record<string, string | null> = readPreviewPrefs();
+
+function readPreviewPrefs(): Record<string, string | null> {
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string | null>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePreviewPrefs(): void {
+  try {
+    window.localStorage.setItem(PREFS_KEY, JSON.stringify(PREVIEW_PREFS));
+  } catch {
+    /* Private mode. The preview still works, the tour just runs again. */
+  }
+}
+
+/**
+ * The lead brief: the notes summary, the verdict and the next step.
+ *
+ * Written out per lead rather than computed, because the point of the preview
+ * is to show what a good one looks like — a lead with three sharp lines of
+ * notes and an obvious next call, and one with nothing to do today.
+ */
+function leadBrief(opportunityId: string) {
+  const lead = LEADS.find((entry) => entry.id === opportunityId) ?? LEADS[0];
+  const briefs: Record<string, ReturnType<typeof brief>> = {
+    'o-1': brief({
+      verdict: 'hot',
+      why: 'Replies within minutes and has asked for prices twice.',
+      lines: [
+        'Investor, second property in Dubai — bought in JVC in 2023.',
+        'Wants a sea view and will not go below the 20th floor.',
+        'Has the deposit ready; waiting on the floor plans to decide.',
+      ],
+      watchOut: 'Do not put her with the Damac agent again — she fell out with them over a missed call.',
+      advice: {
+        type: 'whatsapp',
+        note: 'Answer their message',
+        why: 'They wrote 3 hours ago and nobody has replied.',
+        urgency: 'now',
+        headline: 'Send a WhatsApp, today',
+      },
+    }),
+    'o-2': brief({
+      verdict: 'good',
+      why: 'Answers every question and turned up to the first viewing.',
+      lines: [
+        'Family of five moving from Abu Dhabi, needs four bedrooms and a maid\u2019s room.',
+        'School run to Dubai British matters more than the view.',
+      ],
+      watchOut: null,
+      advice: {
+        type: 'whatsapp',
+        note: 'Confirm the appointment',
+        why: 'Booked but not confirmed. A confirmed appointment is the one they turn up to.',
+        urgency: 'soon',
+        headline: 'Send a WhatsApp, today',
+      },
+    }),
+  };
+
+  return (
+    briefs[lead?.id ?? ''] ?? brief({
+      verdict: (lead?.score ?? 0) >= 70 ? 'hot' : (lead?.score ?? 0) >= 40 ? 'good' : 'weak',
+      why: lead?.score !== undefined ? `Scored ${lead.score} from what they told us.` : null,
+      lines: [],
+      watchOut: null,
+      advice:
+        lead?.stage === 'new_lead'
+          ? {
+              type: 'call',
+              note: 'First call',
+              why: 'Nobody has spoken to them yet.',
+              urgency: 'now',
+              headline: 'Call them, today',
+            }
+          : null,
+    })
+  );
+}
+
+function brief(input: {
+  verdict: 'hot' | 'good' | 'weak' | 'junk';
+  why: string | null;
+  lines: string[];
+  watchOut: string | null;
+  advice: { type: string; note: string; why: string; urgency: string; headline: string } | null;
+}) {
+  return {
+    notes: {
+      lines: input.lines,
+      watchOut: input.watchOut,
+      at: input.lines.length > 0 ? new Date(Date.now() - 36e5).toISOString() : null,
+      stale: input.lines.length === 0,
+    },
+    verdict: {
+      value: input.verdict,
+      why: input.why,
+      source: 'ai' as const,
+      at: new Date(Date.now() - 7 * 36e5).toISOString(),
+    },
+    advice: input.advice
+      ? { ...input.advice, at: new Date(Date.now() + 90 * 60_000).toISOString() }
+      : null,
+    adviceWhy: input.advice ? null : 'Nothing is owed on this lead today.',
+    suggestInvalid: input.verdict === 'junk',
+  };
+}
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -909,6 +1031,61 @@ const ROUTES: Route[] = [
     };
   } },
   { method: 'PATCH', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => ({ ok: true }) },
+
+  // --- the command palette, the tour, and the lead brief -------------------
+  /*
+   * What Cmd+K asks for. The same two-list shape the real endpoint returns,
+   * matched the same way: a name, an email, a project, or a phone number in
+   * whatever shape it was typed.
+   */
+  { method: 'GET', pattern: /^\/api\/search$/, handler: ({ query }) => {
+    const q = (query.get('q') ?? '').trim().toLowerCase();
+    if (!q) return { leads: [], projects: [] };
+    const digits = q.replace(/\D/g, '').replace(/^0+/, '');
+
+    const leads = LEADS.filter((lead) => {
+      if (lead.name.toLowerCase().includes(q)) return true;
+      if ((lead.email ?? '').toLowerCase().includes(q)) return true;
+      if ((lead.project ?? '').toLowerCase().includes(q)) return true;
+      return digits.length >= 6 && lead.phone.replace(/\D/g, '').endsWith(digits.slice(-9));
+    })
+      .slice(0, 6)
+      .map((lead) => ({
+        id: lead.id,
+        label: lead.name,
+        hint: [lead.project, STAGES.find((stage) => stage.key === lead.stage)?.name].filter(Boolean).join(' · ') || null,
+        to: `/contacts/${lead.contactId}`,
+      }));
+
+    const projects = PROJECTS.filter((project) =>
+      [project.name, project.developer, project.area].some((field) => (field ?? '').toLowerCase().includes(q)),
+    )
+      .slice(0, 6)
+      .map((project) => ({
+        id: project.id,
+        label: project.name,
+        hint: [project.developer, project.area].filter(Boolean).join(' · ') || null,
+        to: `/projects?project=${project.id}`,
+      }));
+
+    return { leads, projects };
+  } },
+
+  /* The tour starts unseen in the preview, so it can be demonstrated. */
+  { method: 'GET', pattern: /^\/api\/prefs$/, handler: () => ({ prefs: PREVIEW_PREFS }) },
+  { method: 'PUT', pattern: /^\/api\/prefs$/, handler: ({ body }) => {
+    const name = String(body.name ?? '');
+    if (name) {
+      PREVIEW_PREFS[name] = body.value === null ? null : String(body.value);
+      writePreviewPrefs();
+    }
+    return { ok: true };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/brief$/, handler: ({ params }) => leadBrief(params[0] ?? '') },
+  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/brief$/, handler: ({ params }) => ({
+    ...leadBrief(params[0] ?? ''), refreshed: true,
+  }) },
 
   // --- team wall ----------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/wall$/, handler: () => ({ items: WALL_POSTS }) },

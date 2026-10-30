@@ -13,6 +13,8 @@ import {
   Toolbar, useToast,
 } from '../design/ui.js';
 import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
+import { LeadBrief } from '../components/LeadBrief.js';
+import { useLeadShortcuts } from '../components/CommandLayer.js';
 import { LeadNotes } from '../components/LeadNotes.js';
 import { EmailComposer } from '../components/EmailComposer.js';
 import { WhatsAppOpenings } from '../components/WhatsAppOpenings.js';
@@ -76,6 +78,22 @@ export function ContactDetail() {
   const [emailOpen, setEmailOpen] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
 
+  /*
+   * While this page is open, C, W, E, A and S belong to it. Call and WhatsApp
+   * press the real buttons rather than repeating what they do, so the
+   * keyboard and the mouse cannot drift apart — a shortcut that rang the
+   * client without logging the call would make the timeline lie.
+   *
+   * Also above the early returns, for the reason given there.
+   */
+  useLeadShortcuts({
+    call: () => document.querySelector<HTMLElement>('[data-lead-action="call"]')?.click(),
+    whatsapp: () => document.querySelector<HTMLElement>('[data-lead-action="whatsapp"]')?.click(),
+    email: () => setEmailOpen(true),
+    note: () => document.querySelector<HTMLTextAreaElement>('.note-compose textarea')?.focus(),
+    nextStep: () => actions.setSheet('next_step'),
+  });
+
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
   if (!detail.data) return <Spinner />;
 
@@ -132,6 +150,18 @@ export function ContactDetail() {
       />
 
       <div className="dash">
+        {/*
+          * Full width and first, above the two columns. It is the only thing
+          * on this page that says what to do rather than what happened, and
+          * in the right-hand column it was stretched to the height of the
+          * profile panel beside it with half of it empty.
+          */}
+        {opportunity && (
+          <Panel span={12} index={0}>
+            <LeadBrief opportunityId={opportunity.id} onChanged={detail.reload} />
+          </Panel>
+        )}
+
         <Panel span={4} index={1}>
           <div className="p360-top" style={{ borderBottom: 0 }}>
             <Avatar name={contact.full_name} size={60} colour={style.colour} />
@@ -234,7 +264,7 @@ export function ContactDetail() {
           </div>
         </Panel>
 
-        <Panel span={8} index={2} icon="sticky-note" title="Notes">
+        <Panel span={8} index={3} icon="sticky-note" title="Notes">
           <div className="lead-reach">
             <button type="button" className="btn" onClick={() => setEmailOpen(true)}>
               <Icon name="mail" />
@@ -254,7 +284,7 @@ export function ContactDetail() {
           />
         </Panel>
 
-        <Panel span={8} index={3} icon="activity" title="Activity">
+        <Panel span={8} index={4} icon="activity" title="Activity">
           {activities.length === 0 ? (
             <Empty icon="activity" title="Nothing recorded yet" />
           ) : (
@@ -275,7 +305,7 @@ export function ContactDetail() {
           )}
         </Panel>
 
-        <Panel span={6} index={4} icon="check-square" title={`Tasks (${openTasks.length} open)`}>
+        <Panel span={6} index={5} icon="check-square" title={`Tasks (${openTasks.length} open)`}>
           {tasks.length === 0 && <Empty icon="check-circle-2" title="No tasks" />}
           {tasks.map((task) => (
             <div className="task" key={task.id}>
@@ -295,7 +325,7 @@ export function ContactDetail() {
           <NewTask contactId={contact.id} opportunityId={opportunity?.id ?? null} onCreated={detail.reload} />
         </Panel>
 
-        <Panel span={6} index={5} icon="layers" title="Inquiries">
+        <Panel span={6} index={6} icon="layers" title="Inquiries">
           {opportunities.length === 0 && <Empty icon="kanban" title="No opportunities" />}
           {opportunities.map((item) => (
             <div className="kv" key={item.id}>

@@ -6,7 +6,9 @@ import {
 } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { query, queryOne } from '../../db/client.js';
-import { badRequest } from '../../lib/errors.js';
+import { badRequest, notFound } from '../../lib/errors.js';
+import { rateLimit } from '../middleware/rate-limit.js';
+import { leadBrief, refreshNotesDigest } from '../../ai/lead-review.js';
 import { isLeadTab, TABS, LEAD_TABS, type LeadTab } from '../../leads/tabs.js';
 import {
   LEAD_ACTIONS, LOST_REASONS, PROBLEM_REASONS, runLeadAction,
@@ -256,3 +258,50 @@ myLeadsRouter.post(
     res.json(result);
   }),
 );
+
+/**
+ * The brief at the top of the lead page: what the notes add up to, what the AI
+ * makes of the lead, and what to do next.
+ *
+ * A plain read — no model call — so opening a lead is never slower because of
+ * it. The notes summary is whatever was last worked out, with a `stale` flag
+ * when somebody has added a note since; the screen offers a Refresh button
+ * rather than spending a model call on every page load.
+ */
+myLeadsRouter.get(
+  '/:id/brief',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    const brief = await leadBrief(opportunityId);
+    if (!brief) throw notFound('That lead no longer exists.');
+    res.json(brief);
+  }),
+);
+
+/** Re-read the notes. Rate-limited, because each one is a model call. */
+myLeadsRouter.post(
+  '/:id/brief',
+  rateLimit({ windowMs: 60_000, max: 10, keyFor: (req: Request) => `brief:${currentUser(req).id}` }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    const digest = await refreshNotesDigest(opportunityId, { force: true });
+    const brief = await leadBrief(opportunityId);
+    res.json({ ...brief, refreshed: digest !== null });
+  }),
+);
+
+/**
+ * The same fence as everything else on this screen, in one place: an agent can
+ * only reach their own leads, a manager their team's.
+ */
+async function assertLeadIsVisible(req: Request, opportunityId: string): Promise<void> {
+  const visible = await visibleUserIds(currentUser(req));
+  const scope = ownerPredicate('o.owner_user_id', visible);
+  const allowed = await queryOne<{ id: string }>(
+    `SELECT o.id FROM opportunities o WHERE o.id = ? AND o.deleted_at IS NULL AND ${scope.sql}`,
+    [opportunityId, ...scope.params],
+  );
+  if (!allowed) throw badRequest('That lead is not yours to work.');
+}

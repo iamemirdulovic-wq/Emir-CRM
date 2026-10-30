@@ -47,7 +47,9 @@
 #app{display:none;min-height:100vh}
 .side{position:fixed;top:14px;bottom:14px;left:14px;width:230px;border-radius:26px;display:flex;flex-direction:column;padding:18px 12px;z-index:20;color:var(--side-ink)}
 .side .brand{color:var(--ink);padding:4px 8px 20px}
-.nav{display:flex;flex-direction:column;gap:2px}
+/* Takes the slack and scrolls inside it: an owner has sixteen items, and on a
+   1000px screen the last two used to sit underneath the footer. */
+.nav{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--side-ink);padding:10px 12px;border-radius:12px;font-weight:600;text-align:left;width:100%;transition:background .15s}
 .nav button:hover{background:var(--surface-2);color:var(--ink)}
 .nav button.active{background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(0,150,210,.3)}

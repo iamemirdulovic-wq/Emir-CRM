@@ -16,6 +16,7 @@ import { avatarColour, initials } from '../design/stages.js';
 import type { Conversation, Role, TasksResponse } from '../lib/types.js';
 import { BRAND } from '../brand.js';
 import { useHeartbeat } from '../lib/heartbeat.js';
+import { CommandLayer } from './CommandLayer.js';
 
 /**
  * The signed-in shell: which nav a role sees, what the top bar says, and the
@@ -255,7 +256,27 @@ function Chrome() {
       }
     >
       <SearchContext.Provider value={{ value: search, set: setSearch }}>
-        <Outlet />
+        {/*
+          * One keyboard listener for the whole app, and the three things it
+          * opens: Cmd+K, the shortcut list and the tour. It wraps the screen
+          * rather than sitting beside it so a screen can hand it shortcuts of
+          * its own — the lead page lends C, W and E.
+          */}
+        <CommandLayer
+          role={user.role}
+          onAddLead={() => setAdding(true)}
+          onToggleSound={() => {
+            const next = !soundOn;
+            setSoundEnabled(next);
+            setSoundOn(next);
+            if (next) play('notify');
+          }}
+          onSignOut={() => {
+            void signOut().then(() => navigate('/login', { replace: true }));
+          }}
+        >
+          <Outlet />
+        </CommandLayer>
         {/*
           * On every screen, because an agent looking at yesterday's pipeline
           * still has five minutes to accept the lead that just landed. It

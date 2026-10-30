@@ -73,6 +73,16 @@ export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
 /** Lead score at or above this is `hot`. */
 export const HOT_SCORE_THRESHOLD = 70;
 
+/**
+ * How many leads the nightly AI pass looks at.
+ *
+ * A cap rather than "everything that qualifies", because every one is a model
+ * call against the owner's monthly budget. The sweep orders by the oldest
+ * verdict first, so a bigger database means each lead is looked at less often
+ * — not that the bill grows.
+ */
+export const AI_REVIEW_NIGHTLY_LIMIT = 120;
+
 /** Inbox collision guard: soft lock while an agent is replying. */
 export const REPLY_LOCK_MS = 90 * 1000;
 

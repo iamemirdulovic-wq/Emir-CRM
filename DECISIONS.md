@@ -571,3 +571,68 @@ figure on one post if they want to.
 deals, 6 viewings", not "Layla — 418 points". A score means nothing to
 anybody. A week where nothing happened gets no post rather than a post about
 nobody.
+
+2026-10-30 — palette — The palette does not skip letters — Fuzzy matching
+would let "slt" find Settings. An agent who types three letters and lands on a
+screen they did not mean has been hurt by the feature; one who types three
+letters and gets nothing just types a fourth. A word in the label has to start
+with what was typed, or the whole label has to contain it.
+
+2026-10-30 — palette — Leads come above the screens once something is typed —
+The sidebar is already a good way to reach a screen. The one thing it cannot
+do is find a person, so that is what the palette leads with. With nothing
+typed it is the other way round, and at most three actions, or the opening
+list is "sign out, switch light and dark" and one page.
+
+2026-10-30 — shortcuts — Only ⌘K is taken from the browser — Every other
+modifier combination belongs to the browser, and a CRM that swallows ⌘R or
+⌘L to be clever is a CRM people fight. Single letters are free because they
+are dead inside any field.
+
+2026-10-30 — shortcuts — G then a letter, and an unknown second key cancels —
+Single letters for navigation collide with everything, and the two-key form is
+the one people already know. Pressing G then N does nothing rather than adding
+a lead: somebody who pressed G meant to go somewhere, and firing the wrong
+thing because the second key was not in the table is how a shortcut rings a
+client by accident.
+
+2026-10-30 — tour — Five steps, and a different five for an owner — The only
+tour anybody finishes is the one that ends before they get bored. An owner's
+first question is "what has nobody taken", which an agent cannot even see, so
+the two tours start in different places.
+
+2026-10-30 — tour — Kept on the server, not in the browser — Somebody who
+finished the tour on their laptop should not be walked through it again on
+their phone. `user_prefs` is deliberately a short, fixed list of names: a table
+anybody can write arbitrary keys into becomes the dumping ground for things
+that should have been columns.
+
+2026-10-30 — ai — The next step is decided by rules, the AI only words it —
+The channel, the date and whether to contact somebody at all are the three
+that cost money when they are wrong: a viewing on a date the model made up, a
+WhatsApp to somebody who asked us to stop, a call at 2am. Rules decide those,
+the same way every time, and the feature works with AI switched off — which is
+how this CRM will run most days.
+
+2026-10-30 — ai — A figure the model produced that is not in the notes is
+dropped in code — The prompt says not to invent prices, and prompts are
+advice. The check is a function that compares every money, area, percentage
+and year against the text the model was given, and throws away the line
+carrying anything it made up. It is not corrected, because there is no way to
+know what it should have said.
+
+2026-10-30 — ai — The AI moves a score, it never sets one — At most 20 points,
+scaled by its own confidence, and nothing at all below half. An unreachable
+lead can never be made hot, whatever it wrote, because "hot" here means a
+manager gets a push and somebody drops what they are doing. A confident "junk"
+puts a button on the screen; it does not close anything.
+
+2026-10-30 — ai — Every verdict is kept, not overwritten — One row per time
+the AI looked at a lead. "It said junk in March and hot in May" is then a fact
+we can show rather than a thing anybody has to take on trust, and a prompt
+change that makes it worse is visible instead of invisible.
+
+2026-10-30 — ai — The nightly pass is capped at 120 leads — Every one is a
+model call against the owner's monthly budget. It takes the oldest verdicts
+first, so a bigger database means each lead is looked at less often rather
+than the bill growing.
