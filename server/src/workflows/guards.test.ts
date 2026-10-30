@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateGuards, isRetryable, isWindowOpen, type GuardContext, type SendIntent } from './guards.js';
+import { rulesFrom } from '../config/messaging-rules.js';
 
 /** Asia/Dubai is UTC+4 all year. */
 const dubai = (isoLocal: string) => new Date(`${isoLocal}+04:00`);
@@ -200,5 +201,62 @@ describe('guards: precedence', () => {
       intent(),
     );
     expect(decision.allowed === false && decision.reason).toBe('window_closed_needs_template');
+  });
+});
+
+describe('guards: the limits an owner can change', () => {
+  const stricter = rulesFrom({ quietStart: '20', quietEnd: '10', maxPer24h: '1', botPauseHours: '48' });
+
+  it('keeps the master prompt’s limits when nothing is set', () => {
+    /* 21:00 Dubai is inside a 20:00 night and outside a 22:00 one. */
+    const nine = dubai('2026-03-11T21:00:00');
+    expect(evaluateGuards(ctx({ now: nine }), intent()).allowed).toBe(true);
+  });
+
+  it('respects a longer night', () => {
+    const nine = dubai('2026-03-11T21:00:00');
+    const decision = evaluateGuards(ctx({ now: nine, rules: stricter }), intent());
+    expect(decision.allowed === false && decision.reason).toBe('quiet_hours');
+  });
+
+  it('says the hours it actually enforced, not the ones in the prompt', () => {
+    const nine = dubai('2026-03-11T21:00:00');
+    const decision = evaluateGuards(ctx({ now: nine, rules: stricter }), intent());
+    expect(decision.allowed === false && decision.message).toContain('20:00');
+    expect(decision.allowed === false && decision.message).toContain('10:00');
+  });
+
+  it('defers to the hour the owner set, not to eight', () => {
+    const night = dubai('2026-03-11T23:00:00');
+    const decision = evaluateGuards(ctx({ now: night, rules: stricter }), intent());
+    const defer = decision.allowed === false ? decision.deferUntil : null;
+    expect(defer).toBeInstanceOf(Date);
+    expect(new Date((defer as Date).getTime() + 4 * 3600_000).getUTCHours()).toBe(10);
+  });
+
+  it('respects a lower daily cap', () => {
+    const decision = evaluateGuards(ctx({ automatedMessagesLast24h: 1, rules: stricter }), intent());
+    expect(decision.allowed === false && decision.reason).toBe('rate_limited');
+    /* The default cap of three would have let this through. */
+    expect(evaluateGuards(ctx({ automatedMessagesLast24h: 1 }), intent()).allowed).toBe(true);
+  });
+
+  it('respects a longer pause after a human replies', () => {
+    const thirtyHoursAgo = new Date(MIDDAY.getTime() - 30 * 3600_000);
+    expect(evaluateGuards(ctx({ lastHumanOutboundAt: thirtyHoursAgo }), intent()).allowed).toBe(true);
+    const decision = evaluateGuards(ctx({ lastHumanOutboundAt: thirtyHoursAgo, rules: stricter }), intent());
+    expect(decision.allowed === false && decision.reason).toBe('bot_paused');
+  });
+
+  it('cannot be set to let a fourth message through — the ceiling holds', () => {
+    const loose = rulesFrom({ maxPer24h: '99' });
+    const decision = evaluateGuards(ctx({ automatedMessagesLast24h: 6, rules: loose }), intent());
+    expect(decision.allowed === false && decision.reason).toBe('rate_limited');
+  });
+
+  it('cannot be set to abolish the night', () => {
+    const loose = rulesFrom({ quietStart: '22', quietEnd: '22' });
+    const decision = evaluateGuards(ctx({ now: NIGHT, rules: loose }), intent());
+    expect(decision.allowed === false && decision.reason).toBe('quiet_hours');
   });
 });

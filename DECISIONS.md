@@ -636,3 +636,47 @@ change that makes it worse is visible instead of invisible.
 model call against the owner's monthly budget. It takes the oldest verdicts
 first, so a bigger database means each lead is looked at less often rather
 than the bill growing.
+
+2026-10-30 — settings — The company lives in Settings, not in the source — The
+constants file said out loud that these belonged in Settings beside the TRN.
+They reach every WhatsApp footer, every email signature, every offer and every
+business card, and changing the company's name needed a developer and a
+deploy. The constants stay as the defaults, so an installation that never
+opens the screen behaves exactly as before.
+
+2026-10-30 — settings — Each field says where it shows up — "ORN" means
+nothing on its own. "The RERA office registration number, on every offer" tells
+an owner what changing it will do to a client, which is the only reason they
+are on that screen.
+
+2026-10-30 — settings — Renaming warns instead of pretending — Meta approves a
+WhatsApp template's footer as part of the template, so changing the name here
+cannot change one already approved. The template library is now built from the
+company record, so a re-submission picks the new name up by itself, and the
+screen says plainly that a re-submission is needed. The alternative is a client
+welcomed by one company and followed up by another — the exact bug the single
+constant was introduced to fix.
+
+2026-10-30 — settings — The messaging limits are clamped, not validated — Six
+automatic messages a day is the ceiling whatever is typed, and the quiet window
+cannot be made shorter than four hours. An owner may be stricter than the
+master prompt and only slightly looser. A number typed into a box should not be
+able to switch a guard off, and refusing the save instead would just mean
+somebody typing until it is accepted.
+
+2026-10-30 — settings — Problems are listed, not enforced — A half-filled
+company record is a normal state on day one. Refusing to save the legal name
+because the TRN is not ready yet helps nobody, so the checks appear as a
+"Worth fixing" list beside the fields instead.
+
+2026-10-30 — settings — The logo URL is public — It is in the footer of every
+client email and at the top of every offer page, both opened by people with no
+account here. The URL carries a version so a replacement is not served from a
+cache, and there is exactly one logo on disk so an old one in another format
+cannot linger.
+
+2026-10-30 — settings — A standing check that settings stay audited — Every
+change is audited because `saveSetting` and `saveSecret` write the row
+themselves, so the way that stops being true is somebody writing to
+`app_settings` directly. A test scans the source for that rather than trusting
+a comment, in the same spirit as the hook-order and schema-map checks.

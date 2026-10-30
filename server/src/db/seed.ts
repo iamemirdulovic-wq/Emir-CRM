@@ -4,7 +4,7 @@ import { logger, errorContext } from '../lib/logger.js';
 import { normalizeEmail } from '../lib/email.js';
 import { hashPassword, generateTemporaryPassword } from '../auth/password.js';
 import { DEFAULT_PIPELINE_KEY, STAGE_DEFINITIONS } from '../pipeline/stages.js';
-import { TEMPLATE_LIBRARY } from '../messaging/templates/library.js';
+import { currentTemplateLibrary } from '../messaging/templates/library.js';
 import { ensureDatabase, runMigrations } from './migrate.js';
 import { isEntrypoint } from '../lib/entrypoint.js';
 import { seedSystemTemplates } from '../email/templates.js';
@@ -44,7 +44,8 @@ async function seedPipeline(): Promise<void> {
 }
 
 async function seedTemplates(): Promise<void> {
-  for (const template of TEMPLATE_LIBRARY) {
+  const library = await currentTemplateLibrary();
+  for (const template of library) {
     await execute(
       `INSERT INTO wa_templates (id, name, language, category, status, components)
        VALUES (?, ?, ?, ?, 'DRAFT', ?)
@@ -52,7 +53,7 @@ async function seedTemplates(): Promise<void> {
       [newId(), template.name, template.language, template.category, JSON.stringify(template.components)],
     );
   }
-  logger.info('whatsapp templates seeded', { count: TEMPLATE_LIBRARY.length });
+  logger.info('whatsapp templates seeded', { count: library.length });
 }
 
 async function seedWorkflows(): Promise<void> {

@@ -11,7 +11,8 @@ import { query, queryOne } from '../db/client.js';
 import { env } from '../config/env.js';
 import { logger, errorContext } from '../lib/logger.js';
 import { sendInternalEmail } from '../messaging/email/internal.js';
-import { COMPANY_NAME, PRODUCT_NAME } from '../config/constants.js';
+import { PRODUCT_NAME } from '../config/constants.js';
+import { companyDetails, displayName } from '../config/company.js';
 import { routingSettings } from './settings.js';
 
 interface LeadRow {
@@ -89,7 +90,7 @@ export async function emailOwnersAboutLead(input: {
     '',
     `Open the lead: ${link}`,
     '',
-    COMPANY_NAME,
+    displayName(await companyDetails()),
     PRODUCT_NAME,
   ].filter((line) => line !== null);
 

@@ -515,6 +515,53 @@ function brief(input: {
   };
 }
 
+/* The company as a client sees it. Filled in, so the Settings screen shows
+   what a finished record looks like rather than an empty form. */
+const PREVIEW_COMPANY = {
+  legalName: 'Emigeo Homes Real Estate LLC',
+  tradingName: 'Emigeo Homes',
+  localityEn: 'Dubai & Abu Dhabi',
+  localityAr: 'دبي وأبوظبي',
+  trn: '100123456700003',
+  orn: '31482',
+  licenceNo: 'CN-4471920',
+  licenceExpiry: '2027-04-18',
+  address: 'Office 1204, Boulevard Plaza Tower 1, Downtown Dubai',
+  phone: '+971 4 123 4567',
+  whatsapp: '+971501112233',
+  email: 'hello@homes.me',
+  website: 'https://homes.me',
+  logoUrl: '',
+};
+
+const PREVIEW_MESSAGING = { quietStartHour: 22, quietEndHour: 8, maxPer24h: 3, botPauseHours: 24 };
+
+function previewCompanyIssues(): string[] {
+  const issues: string[] = [];
+  if (!PREVIEW_COMPANY.trn) issues.push('No TRN yet. It has to appear on every tax invoice.');
+  if (PREVIEW_COMPANY.trn && !/^\d{15}$/.test(PREVIEW_COMPANY.trn.replace(/\s/g, ''))) {
+    issues.push('A UAE tax registration number is fifteen digits. Check the TRN.');
+  }
+  if (!PREVIEW_COMPANY.logoUrl) {
+    issues.push('No logo yet. Offers and the business card fall back to the initials.');
+  }
+  return issues;
+}
+
+function previewMessaging() {
+  const length = (PREVIEW_MESSAGING.quietEndHour - PREVIEW_MESSAGING.quietStartHour + 24) % 24;
+  const pad = (hour: number) => String(hour).padStart(2, '0');
+  return {
+    ...PREVIEW_MESSAGING,
+    describes: `${pad(PREVIEW_MESSAGING.quietStartHour)}:00 to ${pad(PREVIEW_MESSAGING.quietEndHour)}:00 — ${length} hours`,
+    customised:
+      PREVIEW_MESSAGING.quietStartHour !== 22 || PREVIEW_MESSAGING.quietEndHour !== 8
+      || PREVIEW_MESSAGING.maxPer24h !== 3 || PREVIEW_MESSAGING.botPauseHours !== 24,
+    defaults: { quietStartHour: 22, quietEndHour: 8, maxPer24h: 3, botPauseHours: 24 },
+    limits: { maxPer24hCeiling: 6, botPauseHours: [1, 72] },
+  };
+}
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -1031,6 +1078,42 @@ const ROUTES: Route[] = [
     };
   } },
   { method: 'PATCH', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => ({ ok: true }) },
+
+  // --- the company record and the messaging limits -------------------------
+  { method: 'GET', pattern: /^\/api\/company$/, handler: () => ({
+    company: PREVIEW_COMPANY,
+    issues: previewCompanyIssues(),
+    renameWarning:
+      'The WhatsApp templates Meta has already approved carry the old name in their footer. '
+      + 'Changing it here updates what we would submit next time; the approved ones have to be '
+      + 're-submitted and approved again before clients see the new name.',
+    messaging: previewMessaging(),
+  }) },
+  { method: 'PUT', pattern: /^\/api\/company$/, handler: ({ body }) => {
+    const changed: string[] = [];
+    for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+      if (!(key in PREVIEW_COMPANY) || typeof value !== 'string') continue;
+      const next = value.trim();
+      if (next === PREVIEW_COMPANY[key as keyof typeof PREVIEW_COMPANY]) continue;
+      PREVIEW_COMPANY[key as keyof typeof PREVIEW_COMPANY] = next;
+      changed.push(key);
+    }
+    return { company: PREVIEW_COMPANY, issues: previewCompanyIssues(), changed };
+  } },
+  { method: 'PUT', pattern: /^\/api\/company\/messaging$/, handler: ({ body }) => {
+    for (const key of ['quietStartHour', 'quietEndHour', 'maxPer24h', 'botPauseHours'] as const) {
+      const value = Number((body as Record<string, unknown>)[key]);
+      if (Number.isFinite(value)) PREVIEW_MESSAGING[key] = value;
+    }
+    /* The same ceilings the server enforces, so the preview shows the clamp. */
+    PREVIEW_MESSAGING.maxPer24h = Math.min(6, Math.max(1, PREVIEW_MESSAGING.maxPer24h));
+    PREVIEW_MESSAGING.botPauseHours = Math.min(72, Math.max(1, PREVIEW_MESSAGING.botPauseHours));
+    return previewMessaging();
+  } },
+  { method: 'DELETE', pattern: /^\/api\/company\/logo$/, handler: () => {
+    PREVIEW_COMPANY.logoUrl = '';
+    return { ok: true };
+  } },
 
   // --- the command palette, the tour, and the lead brief -------------------
   /*

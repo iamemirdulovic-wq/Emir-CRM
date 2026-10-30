@@ -3,7 +3,8 @@ import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 import { maskPhone } from '../lib/redact.js';
 import { notFound } from '../lib/errors.js';
-import { BOT_PAUSE_AFTER_HUMAN_MS, WA_WINDOW_MS } from '../config/constants.js';
+import { WA_WINDOW_MS } from '../config/constants.js';
+import { messagingRules } from '../config/messaging-rules.js';
 import { evaluateGuards, isRetryable, type Channel, type GuardContext, type GuardDecision } from '../workflows/guards.js';
 import { whatsapp } from './whatsapp/index.js';
 import type { SendResult } from './whatsapp/adapter.js';
@@ -98,6 +99,9 @@ export async function loadGuardContext(contactId: string, channel: Channel, now 
       lastHumanOutboundAt: contact.last_human_outbound_at,
       waWindowExpiresAt: conversation?.wa_window_expires_at ?? null,
       now,
+      /* The limits as the owner has them set. Read here, once per send,
+         rather than inside the guards, which stay pure. */
+      rules: await messagingRules(),
     },
   };
 }
@@ -288,7 +292,10 @@ export async function recordOutbound(input: RecordOutboundInput): Promise<SendOu
     );
 
     if (input.ok) {
-      const humanPause = !input.isAutomated && input.userId ? new Date(now.getTime() + BOT_PAUSE_AFTER_HUMAN_MS) : null;
+      /* The same pause the guards enforce, so the stored date and the
+         derived one cannot disagree after the owner changes it. */
+      const { botPauseMs } = await messagingRules();
+      const humanPause = !input.isAutomated && input.userId ? new Date(now.getTime() + botPauseMs) : null;
       await execute(
         `UPDATE contacts
             SET last_outbound_at = ?,

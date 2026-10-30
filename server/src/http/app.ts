@@ -47,6 +47,7 @@ import { profilesRouter } from './routes/profiles.js';
 import { cardRouter } from './routes/card.js';
 import { wallRouter } from './routes/wall.js';
 import { searchRouter } from './routes/search.js';
+import { companyRouter } from './routes/company.js';
 import { prefsRouter } from './routes/prefs.js';
 
 /**
@@ -216,6 +217,9 @@ export function createApp(): Express {
   /* What the command palette asks: leads and projects, both fenced. */
   app.use('/api/search', searchRouter);
   app.use('/api/prefs', prefsRouter);
+  /* The company as it introduces itself to a client. Its logo route is
+     public, because it is in the footer of every email we send. */
+  app.use('/api/company', companyRouter);
   /* The public business card: no login, no bundle, no session. */
   app.use('/', cardRouter);
   /* No login on these two: a client clicks the unsubscribe link and a

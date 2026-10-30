@@ -5,7 +5,7 @@ import { actorFrom, blockUntilPasswordChanged, requireAuth, requirePermission } 
 import { execute, query, queryOne } from '../../db/client.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
-import { TEMPLATE_LIBRARY } from '../../messaging/templates/library.js';
+import { currentTemplateLibrary } from '../../messaging/templates/library.js';
 import { validateTemplate } from '../../messaging/templates/validator.js';
 import { seedLocalTemplates, syncTemplates } from '../../messaging/templates/sync.js';
 import { writeAudit } from '../../audit/audit.js';
@@ -35,7 +35,12 @@ templatesRouter.get(
   '/library',
   asyncHandler(async (_req: Request, res: Response) => {
     res.json({
-      items: TEMPLATE_LIBRARY.map((t) => ({ ...t, validation: validateTemplate(t) })),
+      /* The names in the footers are whatever Settings says today, so an
+         owner who renamed the company can see what would be submitted. */
+      items: (await currentTemplateLibrary()).map((template) => ({
+        ...template,
+        validation: validateTemplate(template),
+      })),
     });
   }),
 );

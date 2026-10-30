@@ -2,6 +2,47 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The company is yours to change
+
+**Settings → Company.** The registered name, what people call you, where you
+are in English and Arabic, the TRN, the ORN, the trade licence and when it
+expires, the address, the phone, the WhatsApp number, the email, the website
+and the logo.
+
+These used to be written into the code. Changing the company's name meant a
+developer and a deploy, which is why the comment above them in the source said
+they belonged in Settings beside the TRN. They appear at the bottom of every
+WhatsApp template, in the signature of every follow-up email, and on every
+offer and business card — so every field on the screen says where it shows up,
+rather than just what it is called.
+
+**Renaming tells you the truth about it.** Meta approves a WhatsApp template's
+footer as part of the template, so changing the name here cannot change one
+that is already approved. The screen says so before you save, and the CRM now
+builds the templates from the company record, so when you re-submit them they
+carry the new name by themselves.
+
+**Worth fixing.** A TRN that is not fifteen digits, an ORN that is not the RERA
+number, a licence that expires in three weeks, a name too long for the
+sixty characters Meta allows in a footer, a missing logo. Listed beside the
+fields rather than refusing the save — a half-filled record is a normal state
+on day one.
+
+**Automated messaging.** The quiet hours, how many automatic messages one
+person may get in a day, and how long the follow-ups pause after an agent
+writes to a client. These were fixed in the code too. They are wired into the
+real guard, so changing them changes what the CRM actually does.
+
+They can be tightened freely and only loosened a little: six messages a day is
+the ceiling whatever you type, and the night cannot be made shorter than four
+hours. A number typed into a box should not be able to switch a guard off.
+
+**Every change is written to the audit log** — once per field, and once for the
+record as a whole with the old value beside the new one, because "who changed
+the company's name on the invoices" is exactly what an audit log is for. A
+standing check scans the source and fails the build if anything ever writes to
+the settings tables without going through the code that does the auditing.
+
 ## Find anything, do it without the mouse, and be told what to do next
 
 **Press ⌘K — Ctrl K on Windows — anywhere.** Type four letters of a client's

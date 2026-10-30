@@ -305,7 +305,33 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       "it said junk in March and hot in May" is a fact and not a claim
 
 ## Step 15 — Owner settings (D15)
-- [ ] 15.1 All sections, each change audit-logged
+- [x] 15.1 **Settings → Company**: registered name, trading name, where we are
+      in English and Arabic, TRN, ORN, trade licence and its expiry, address,
+      phone, WhatsApp, email, website, logo. These were constants in the
+      source — the comment above them said they belonged in Settings beside
+      the TRN, and this is that
+- [x] 15.2 Each field says where it shows up, so an owner is not guessing what
+      changing "ORN" will do to a client
+- [x] 15.3 Renaming the company warns, before saving, that the WhatsApp
+      templates Meta has already approved carry the old name in their footer
+      and have to be re-submitted. The template library is now built from the
+      company record, so a re-submission picks up the new name by itself
+- [x] 15.4 **Worth fixing**: a TRN that is not fifteen digits, an ORN that is
+      not the RERA number, an expired or nearly-expired licence, a name too
+      long for Meta's 60-character footer, a missing logo
+- [x] 15.5 Logo upload (PNG/JPG/WebP, 2 MB), served from a public URL because
+      it is in the footer of every client email, versioned so a new one is not
+      served from a cache
+- [x] 15.6 **Automated messaging**: quiet hours, messages per person per day,
+      and the pause after an agent writes — wired into the real send guard, so
+      changing them changes what the CRM actually does
+- [x] 15.7 The limits are clamped, not validated: six messages a day is the
+      ceiling whatever is typed, and the night cannot be made shorter than
+      four hours. A number typed into a box cannot turn a guard off
+- [x] 15.8 Every change audit-logged — per setting by `saveSetting`, and once
+      for the record as a whole with before and after. A standing check scans
+      the source and fails if anything writes `app_settings` or `app_secrets`
+      outside the helpers that do the auditing
 
 ## Step 16 — The great polish pass
 - [ ] 16.1 Every screen, desktop + mobile, light + dark, screenshotted and fixed

@@ -106,10 +106,27 @@ it catches up on the leads whose time ran out and sends you **one** summary
 
 ---
 
-## 🟠 6. Re-submit the WhatsApp message templates
+## 🟠 6. Fill in your company details, then re-submit the WhatsApp templates
 
-Your company name changed to **Emigeo Homes Real Estate**, and the 16 approved
-WhatsApp templates still say the old name. Meta has to approve the new wording.
+**New:** the company's name, TRN, ORN, licence, address and logo are now
+yours to set, in **Settings → Company**. They used to be written into the code,
+so changing them needed me. They appear at the bottom of every WhatsApp
+template, in the signature of every follow-up email, and on every offer and
+business card.
+
+1. Open the CRM → **Settings → Company**
+2. Fill in the registered name, TRN, ORN, licence number and expiry, address,
+   phone, WhatsApp, email and website
+3. Drop your logo in on the right — PNG or JPG, under 2 MB
+4. Press **Save the company details**
+
+Anything missing or odd is listed under **Worth fixing** on the same screen.
+
+**Then the templates.** Your company name changed to **Emigeo Homes Real
+Estate**, and the 16 approved WhatsApp templates still say the old name.
+Changing it in Settings updates what the CRM would submit next time — it
+cannot change a template Meta has already approved, because Meta approves the
+footer as part of the template.
 
 1. **business.facebook.com → WhatsApp Manager → Message templates**
 2. For each template, click **⋯ → Edit**, change the company name, **Submit**

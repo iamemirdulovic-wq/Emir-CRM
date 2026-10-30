@@ -11,7 +11,7 @@ import { templateNameFor } from '../messaging/templates/library.js';
 import { findVerifiedProject, formatAed } from '../services/projects.js';
 import { moveStage } from '../services/opportunities.js';
 import { cancelRuns, findRunningRun, startRun, setStep, completeRun } from './runs.js';
-import { COMPANY_NAME } from '../config/constants.js';
+import { companyDetails, displayName } from '../config/company.js';
 
 /**
  * Workflow B — no-response follow-up.
@@ -219,7 +219,7 @@ async function step24h(contactId: string, opportunityId: string): Promise<Workfl
     opportunityId,
     automated: true,
     subject: `${projectLabel} — details and availability`,
-    text: buildProjectEmail(ctx, project, startingPrice),
+    text: buildProjectEmail(ctx, project, startingPrice, displayName(await companyDetails())),
   });
 
   await createCallTask(contactId, opportunityId, ctx.agentUserId, 'Call the lead — no response after 24 hours', 'high');
@@ -252,7 +252,7 @@ async function step3d(contactId: string, opportunityId: string): Promise<Workflo
       `Hello ${ctx.leadName},\n\n` +
       `I have not managed to reach you about ${projectLabel}, and I do not want to keep messaging if the timing is not right.\n\n` +
       `Just reply "yes" and I will keep your file open, or "no" and I will close it and stop following up.\n\n` +
-      `${ctx.agentName}\n${COMPANY_NAME}`,
+      `${ctx.agentName}\n${displayName(await companyDetails())}`,
   });
 
   return handleSendResult('followup_3d', result, contactId, opportunityId, 'followup_3d');
@@ -292,7 +292,14 @@ async function closeUnresponsive(contactId: string, opportunityId: string): Prom
   return { step: 'close_unresponsive', action: 'closed' };
 }
 
-function buildProjectEmail(ctx: LeadContext, project: Awaited<ReturnType<typeof findVerifiedProject>>, price: string | null): string {
+/* The company name is passed in rather than read here, so this stays a pure
+   function of its arguments and can be tested without a database. */
+function buildProjectEmail(
+  ctx: LeadContext,
+  project: Awaited<ReturnType<typeof findVerifiedProject>>,
+  price: string | null,
+  companyName: string,
+): string {
   const lines = [`Hello ${ctx.leadName},`, ''];
   if (project) {
     lines.push(`${project.name} by ${project.developer}${project.area ? `, ${project.area}` : ''}.`);
@@ -305,7 +312,7 @@ function buildProjectEmail(ctx: LeadContext, project: Awaited<ReturnType<typeof 
   } else {
     lines.push('I would be glad to send you the current availability and payment plans.');
   }
-  lines.push('', 'Reply here or on WhatsApp and I will take it from there.', '', ctx.agentName, COMPANY_NAME);
+  lines.push('', 'Reply here or on WhatsApp and I will take it from there.', '', ctx.agentName, companyName);
   return lines.join('\n');
 }
 
@@ -347,7 +354,8 @@ async function handleSendResult(
     text:
       `Hello ${ctx.leadName},\n\n` +
       `I tried to reach you on WhatsApp about ${ctx.projectName ?? 'your enquiry'}. ` +
-      `Reply here and I will send the details straight away.\n\n${ctx.agentName}\n${COMPANY_NAME}`,
+      `Reply here and I will send the details straight away.\n\n${ctx.agentName}\n`
+      + `${displayName(await companyDetails())}`,
   });
   return { step, action: 'sent', reason: 'whatsapp_failed_email_fallback' };
 }

@@ -3,7 +3,7 @@ import { newId } from '../../lib/ids.js';
 import { logger } from '../../lib/logger.js';
 import { pushToManagers } from '../push.js';
 import { whatsapp } from '../whatsapp/index.js';
-import { TEMPLATE_LIBRARY } from './library.js';
+import { currentTemplateLibrary } from './library.js';
 import { validateTemplate } from './validator.js';
 
 /**
@@ -77,7 +77,10 @@ export async function syncTemplates(): Promise<SyncResult> {
 
   // A template we rely on that the provider has never heard of is just as
   // broken as a rejected one.
-  const missingFromProvider = TEMPLATE_LIBRARY.filter((t) => !seen.has(`${t.name}:${t.language}`)).map((t) => t.name);
+  const library = await currentTemplateLibrary();
+  const missingFromProvider = library
+    .filter((template) => !seen.has(`${template.name}:${template.language}`))
+    .map((template) => template.name);
 
   if (newlyBroken.length > 0) {
     logger.error('whatsapp templates are no longer usable', { templates: newlyBroken });
@@ -119,7 +122,7 @@ export async function seedLocalTemplates(): Promise<{ inserted: number; invalid:
   const invalid: string[] = [];
   let inserted = 0;
 
-  for (const template of TEMPLATE_LIBRARY) {
+  for (const template of await currentTemplateLibrary()) {
     const result = validateTemplate(template);
     if (!result.valid) {
       invalid.push(`${template.name}: ${result.issues.map((i) => i.message).join(', ')}`);

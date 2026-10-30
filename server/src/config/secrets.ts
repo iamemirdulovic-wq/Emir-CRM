@@ -36,7 +36,30 @@ export type SettingName =
   | 'ROUTING_EMAIL_OWNER_NEW_LEAD'
   | 'ROUTING_QUIET_HOURS'
   | 'ROUTING_QUIET_START'
-  | 'ROUTING_QUIET_END';
+  | 'ROUTING_QUIET_END'
+  /* The company as it introduces itself to a client — see config/company.ts.
+     These used to be constants in the source; they reach every WhatsApp
+     footer, every email signature, the business card and every offer. */
+  | 'COMPANY_LEGAL_NAME'
+  | 'COMPANY_TRADING_NAME'
+  | 'COMPANY_LOCALITY_EN'
+  | 'COMPANY_LOCALITY_AR'
+  | 'COMPANY_TRN'
+  | 'COMPANY_ORN'
+  | 'COMPANY_LICENCE_NO'
+  | 'COMPANY_LICENCE_EXPIRY'
+  | 'COMPANY_ADDRESS'
+  | 'COMPANY_PHONE'
+  | 'COMPANY_WHATSAPP'
+  | 'COMPANY_EMAIL'
+  | 'COMPANY_WEBSITE'
+  | 'COMPANY_LOGO_URL'
+  /* The limits on automated messaging — see config/messaging-rules.ts. The
+     master prompt fixes the defaults; these let an owner tighten them. */
+  | 'MSG_QUIET_START'
+  | 'MSG_QUIET_END'
+  | 'MSG_MAX_PER_24H'
+  | 'MSG_BOT_PAUSE_HOURS';
 
 /*
  * Cached, because this is read on the path of every AI call and a database

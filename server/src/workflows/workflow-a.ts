@@ -21,7 +21,7 @@ import { templateNameFor } from '../messaging/templates/library.js';
 import { findVerifiedProject } from '../services/projects.js';
 import { chooseAgent, type Candidate } from './assignment.js';
 import { startRunOnce, setStep, completeRun, failRun } from './runs.js';
-import { COMPANY_NAME, COMPANY_LOCALITY_EN } from '../config/constants.js';
+import { companyDetails, displayName, footerFor } from '../config/company.js';
 
 /**
  * Workflow A — Instant capture. Target: under 30 seconds end to end.
@@ -340,7 +340,7 @@ async function sendWelcome(
   const projectName = opportunity?.project_name ?? (language === 'ar' ? 'مشاريعنا' : 'our projects');
   const leadName = contact?.first_name ?? contact?.full_name ?? (language === 'ar' ? 'عميلنا العزيز' : 'there');
   const agentName = agent?.name ?? (language === 'ar' ? 'فريق المبيعات' : 'our sales team');
-  const company = COMPANY_NAME;
+  const company = displayName(await companyDetails());
 
   const approved = await queryOne<{ status: string }>(
     'SELECT status FROM wa_templates WHERE name = ? AND language = ?',
@@ -399,7 +399,7 @@ async function sendWelcomeEmail(
       `Hello ${leadName},\n\n` +
       `Thank you for your enquiry about ${projectName}. My name is ${agentName} and I will be looking after it personally.\n\n` +
       `I will call you shortly. If it is easier, simply reply to this email with a good time to reach you.\n\n` +
-      `${agentName}\n${COMPANY_NAME} — ${COMPANY_LOCALITY_EN}`,
+      `${agentName}\n${footerFor(await companyDetails(), 'en')}`,
   });
   return { sent: 'sent' in result && result.sent, channel: 'sent' in result && result.sent ? 'email' : 'none' };
 }

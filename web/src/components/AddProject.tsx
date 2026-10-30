@@ -130,21 +130,9 @@ async function uploadFile(
   file: File,
   headers: Record<string, string> = {},
 ): Promise<{ id: string } | null> {
-  const response = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': file.type,
-      'X-Filename': encodeURIComponent(file.name),
-      ...headers,
-    },
-    body: file,
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(text || `Upload failed (${response.status})`);
-  }
-  return response.json().catch(() => null) as Promise<{ id: string } | null>;
+  /* The shape lives in the API client now, so the two upload paths on this
+     screen and the logo upload in Settings cannot drift apart. */
+  return api.upload<{ id: string } | null>(path, file, headers);
 }
 
 /** The document kinds a developer actually sends, in the order they matter. */
@@ -458,16 +446,7 @@ export function AddProject({ developers, onDone, onCancel }: {
     setReadingWhat('the document');
     const stop = startTicking();
     try {
-      const response = await fetch('/api/library/extract/file', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': file.type, 'X-Filename': encodeURIComponent(file.name) },
-        body: file,
-      });
-      const text = await response.text();
-      const payload = text ? JSON.parse(text) : null;
-      if (!response.ok) throw new Error(payload?.error?.message ?? 'Could not read that file');
-      applyExtraction(payload);
+      applyExtraction(await api.upload('/api/library/extract/file', file));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not read that file');
       setStep(-1);

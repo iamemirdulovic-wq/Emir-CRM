@@ -1,5 +1,7 @@
 import type { TemplateDefinition } from './types.js';
-import { COMPANY_NAME, COMPANY_LOCALITY_EN, COMPANY_LOCALITY_AR } from '../../config/constants.js';
+import {
+  COMPANY_DEFAULTS, companyDetails, displayName, footerFor, type CompanyDetails,
+} from '../../config/company.js';
 
 /**
  * The day-one template library. Every template exists in English and Arabic.
@@ -10,10 +12,20 @@ import { COMPANY_NAME, COMPANY_LOCALITY_EN, COMPANY_LOCALITY_AR } from '../../co
  * variables next to each other, and always ship examples.
  */
 
-const FOOTER_EN = `${COMPANY_NAME} — ${COMPANY_LOCALITY_EN}`;
-const FOOTER_AR = `${COMPANY_NAME} — ${COMPANY_LOCALITY_AR}`;
+/**
+ * The library is a function of the company, because the footer and the
+ * examples carry its name.
+ *
+ * Meta approves the whole template, footer included, so changing the name here
+ * changes what we would submit next time rather than what is already approved.
+ * Settings says so out loud; see `RENAME_WARNING`.
+ */
+export function templateLibrary(company: CompanyDetails = COMPANY_DEFAULTS): TemplateDefinition[] {
+  const FOOTER_EN = footerFor(company, 'en');
+  const FOOTER_AR = footerFor(company, 'ar');
+  const COMPANY_NAME = displayName(company);
 
-export const TEMPLATE_LIBRARY: TemplateDefinition[] = [
+  return [
   // --- lead_welcome --------------------------------------------------------
   {
     name: 'lead_welcome_en',
@@ -371,7 +383,13 @@ export const TEMPLATE_LIBRARY: TemplateDefinition[] = [
       },
     ],
   },
-];
+  ];
+}
+
+/** The library as the company is configured right now. */
+export async function currentTemplateLibrary(): Promise<TemplateDefinition[]> {
+  return templateLibrary(await companyDetails());
+}
 
 /** `lead_welcome_{lang}` with a safe fallback to English. */
 export function templateNameFor(base: string, language: string): string {
@@ -379,6 +397,6 @@ export function templateNameFor(base: string, language: string): string {
   return `${base}_${lang}`;
 }
 
-export function findTemplate(name: string): TemplateDefinition | undefined {
-  return TEMPLATE_LIBRARY.find((t) => t.name === name);
+export function findTemplate(name: string, library: TemplateDefinition[] = templateLibrary()): TemplateDefinition | undefined {
+  return library.find((t) => t.name === name);
 }

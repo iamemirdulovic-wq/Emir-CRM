@@ -1,7 +1,4 @@
-import {
-  BOT_PAUSE_AFTER_HUMAN_MS,
-  MAX_AUTOMATED_MESSAGES_PER_24H,
-} from '../config/constants.js';
+import { MESSAGING_DEFAULTS, type MessagingRules } from '../config/messaging-rules.js';
 import { isQuietHours, nextAllowedSendTime } from '../lib/time.js';
 
 /**
@@ -31,6 +28,12 @@ export type GuardContext = {
   /** When the WhatsApp free-form window closes. Null means it is closed. */
   waWindowExpiresAt: Date | null;
   now: Date;
+  /**
+   * The limits, as the owner has them set. Omitted means the master prompt's
+   * defaults, which is what every existing test and every caller that has not
+   * been changed gets.
+   */
+  rules?: MessagingRules;
 };
 
 export type SendIntent = {
@@ -60,6 +63,8 @@ export type GuardReason =
   | 'window_closed_needs_template';
 
 export function evaluateGuards(ctx: GuardContext, intent: SendIntent): GuardDecision {
+  const rules = ctx.rules ?? MESSAGING_DEFAULTS;
+
   // Never send automated messages to DNC contacts. A human may still not
   // message someone who asked us to stop, so this applies to both.
   if (ctx.dnc) {
@@ -100,7 +105,7 @@ export function evaluateGuards(ctx: GuardContext, intent: SendIntent): GuardDeci
   // Belt and braces: derive the pause from the last manual message too, in case
   // bot_paused_until was never written.
   if (ctx.lastHumanOutboundAt) {
-    const pausedUntil = new Date(ctx.lastHumanOutboundAt.getTime() + BOT_PAUSE_AFTER_HUMAN_MS);
+    const pausedUntil = new Date(ctx.lastHumanOutboundAt.getTime() + rules.botPauseMs);
     if (pausedUntil.getTime() > ctx.now.getTime()) {
       return {
         allowed: false,
@@ -111,7 +116,7 @@ export function evaluateGuards(ctx: GuardContext, intent: SendIntent): GuardDeci
     }
   }
 
-  if (ctx.automatedMessagesLast24h >= MAX_AUTOMATED_MESSAGES_PER_24H) {
+  if (ctx.automatedMessagesLast24h >= rules.maxPer24h) {
     return {
       allowed: false,
       reason: 'rate_limited',
@@ -119,12 +124,14 @@ export function evaluateGuards(ctx: GuardContext, intent: SendIntent): GuardDeci
     };
   }
 
-  if (!intent.bypassQuietHours && isQuietHours(ctx.now)) {
+  if (!intent.bypassQuietHours && isQuietHours(ctx.now, rules)) {
     return {
       allowed: false,
       reason: 'quiet_hours',
-      message: 'Quiet hours: no automated messages between 22:00 and 08:00 Asia/Dubai',
-      deferUntil: nextAllowedSendTime(ctx.now),
+      message:
+        `Quiet hours: no automated messages between ${pad(rules.quietStartHour)}:00 `
+        + `and ${pad(rules.quietEndHour)}:00 Asia/Dubai`,
+      deferUntil: nextAllowedSendTime(ctx.now, rules),
     };
   }
 
@@ -143,4 +150,8 @@ export function isWindowOpen(ctx: Pick<GuardContext, 'waWindowExpiresAt' | 'now'
 export function isRetryable(decision: GuardDecision): boolean {
   if (decision.allowed) return false;
   return decision.reason === 'quiet_hours' || decision.reason === 'bot_paused';
+}
+
+function pad(hour: number): string {
+  return String(hour).padStart(2, '0');
 }

@@ -1,4 +1,5 @@
-import { QUIET_HOURS, TIMEZONE } from '../config/constants.js';
+import { TIMEZONE } from '../config/constants.js';
+import { hoursUntilOpen, inQuietWindow, MESSAGING_DEFAULTS, type MessagingRules } from '../config/messaging-rules.js';
 
 /** Wall-clock parts of `date` as seen in Asia/Dubai. */
 export function dubaiParts(date: Date = new Date()): {
@@ -28,26 +29,31 @@ export function dubaiParts(date: Date = new Date()): {
   };
 }
 
-/** True between 22:00 and 08:00 Asia/Dubai. */
-export function isQuietHours(date: Date = new Date()): boolean {
+/**
+ * True inside the quiet window — 22:00 to 08:00 Asia/Dubai unless the owner
+ * has set it otherwise in Settings.
+ */
+export function isQuietHours(date: Date = new Date(), rules: MessagingRules = MESSAGING_DEFAULTS): boolean {
   const { hour } = dubaiParts(date);
-  return hour >= QUIET_HOURS.startHour || hour < QUIET_HOURS.endHour;
+  return inQuietWindow(hour, rules);
 }
 
 /**
  * The next moment automated messaging is allowed. When we are already outside
  * quiet hours this returns `date` unchanged.
  */
-export function nextAllowedSendTime(date: Date = new Date()): Date {
-  if (!isQuietHours(date)) return date;
+export function nextAllowedSendTime(
+  date: Date = new Date(),
+  rules: MessagingRules = MESSAGING_DEFAULTS,
+): Date {
+  if (!isQuietHours(date, rules)) return date;
   const { hour } = dubaiParts(date);
   const result = new Date(date.getTime());
-  // Advance in whole minutes until the Dubai clock reads 08:00.
-  const hoursUntilOpen = hour >= QUIET_HOURS.startHour ? 24 - hour + QUIET_HOURS.endHour : QUIET_HOURS.endHour - hour;
-  result.setTime(result.getTime() + hoursUntilOpen * 60 * 60 * 1000);
+  // Advance in whole minutes until the Dubai clock reads the opening hour.
+  result.setTime(result.getTime() + hoursUntilOpen(hour, rules) * 60 * 60 * 1000);
   const { minute } = dubaiParts(result);
   result.setTime(result.getTime() - minute * 60 * 1000);
-  return isQuietHours(result) ? new Date(result.getTime() + 60 * 60 * 1000) : result;
+  return isQuietHours(result, rules) ? new Date(result.getTime() + 60 * 60 * 1000) : result;
 }
 
 export function addMs(date: Date, ms: number): Date {

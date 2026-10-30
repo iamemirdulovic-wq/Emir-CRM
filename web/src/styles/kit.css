@@ -1166,3 +1166,22 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   .brief-do{flex-direction:column;align-items:stretch}
   .brief-do .btn{width:100%}
 }
+
+/* ── The company record ────────────────────────────────────────────────── */
+
+.co-head{margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;
+  font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.co-save{display:flex;align-items:center;gap:14px;margin-top:18px;padding-top:14px;
+  border-top:1px solid var(--line)}
+
+.co-logo{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;
+  border-radius:var(--r-m);background:var(--surface-2);border:1px solid var(--glass-line)}
+/* A logo is any shape, so it is fitted rather than cropped, on a light panel
+   because most brokerage logos are dark on transparent. */
+.co-logo img{max-width:100%;max-height:120px;object-fit:contain;background:#fff;
+  border-radius:var(--r-s);padding:10px}
+
+.co-issues{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.co-issues li{display:flex;align-items:flex-start;gap:9px;font-size:14px;line-height:1.5;
+  color:var(--ink-2)}
+.co-issues svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--s-att)}
