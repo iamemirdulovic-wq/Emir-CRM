@@ -793,3 +793,25 @@ CI uses, and the whole suite — 2,332 tests, integration included — passes
 against it. That is how the setup race was reproduced and how the fix was
 proved. Worth doing first next time rather than last: the claim "the tests pass"
 meant 12% less than it sounded like for the whole build.
+
+2026-10-30 — testing — **The browser smoke test had stopped being runnable, and
+that hid two things** — `npm run e2e` is the only check that drives the real
+app in a browser, and it had not been run since the tour, the rebrand and the
+My Leads work landed. Seven of its twenty steps failed, none of them because
+the product was broken: it waited for the words "Emir CRM" on a login page that
+now says homes.me; it clicked a `/contacts` sidebar link that Step 7 replaced
+with My Leads; and five steps failed because **the tour is modal on a first
+sign-in and was swallowing every click after the dashboard.** That last one is
+correct behaviour — the dim catches a click and skips the tour, Escape closes
+it, `aria-modal` says so — but a smoke test that trips over it is a smoke test
+nobody runs again, and a step that silently finds nothing (the `/contacts`
+click) is a step that passes by doing nothing. The tour is now checked rather
+than worked around: it must appear for an account that has never seen it, and
+Escape must close it. Twenty steps, all green, twice in a row.
+
+2026-10-30 — testing — The My Leads tabs are a `tablist`, so
+`getByRole('button', { name: 'All' })` finds nothing — Worth writing down
+because it cost twenty minutes: the Settings tabs are `Chip` buttons and the My
+Leads tabs are `Tabs` with `role="tab"`, and the two look identical on screen.
+The lead page also opens on "Follow-up today", which is empty on a day with
+nothing due, so a test that wants a lead has to click "All" first.

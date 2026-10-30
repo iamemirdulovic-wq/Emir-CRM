@@ -177,6 +177,17 @@ the code is more careful — the database itself holds a single row that can onl
 exist once. I ran that test twelve times to be sure; the old code passed about
 two runs in three, which is exactly why it went unnoticed.
 
+**The browser test of the real app had quietly stopped working.** It is the
+only check that opens the CRM in a browser and clicks through it like a person,
+and it had not been run since the tour and the rebrand. Seven of its twenty
+steps failed — none because anything was broken. One waited for the old company
+name on the login page. One clicked a sidebar link that no longer exists, and
+had been "passing" by finding nothing. And five failed because the welcome tour
+covers the screen until you dismiss it, which is correct and is what a tour
+should do, but it meant the test could not click anything. All twenty now pass,
+twice in a row, and I have screenshots of all 21 screens from the real app
+rather than the preview.
+
 **27 tables were never being cleared between tests.** Which means tests were
 quietly handing data to each other, and a test that only passes because of the
 one before it is a test that is not checking anything. Found by accident — I
@@ -265,6 +276,7 @@ was found.
 | Tables | 87 |
 | Screens | 26, each checked at two sizes in both themes |
 | Screens with a problem on the final pass | none |
+| Browser walk-through of the real app | 20 steps, green twice running |
 
 **On that first row.** Until today every report I gave you said "the tests
 pass", and what it meant was that 2,051 passed and 269 quietly skipped — the

@@ -10,10 +10,26 @@
  * Expects a server on BASE with demo data loaded:
  *
  *   npm run demo && npm start &
- *   npx playwright install chromium
  *   node e2e/ui.mjs
  *
- * Set E2E_BASE_URL to point somewhere else, OUTDIR to keep the screenshots.
+ * Set E2E_BASE_URL to point somewhere else, OUTDIR to keep the screenshots,
+ * CHROMIUM_PATH to use a browser that is already on the machine.
+ *
+ * On a box with no MySQL and no Docker daemon — which is where this is usually
+ * written — one is two commands away, and it is the same 8.0 the CI service
+ * container uses:
+ *
+ *   apt-get install -y mysql-server-8.0 && mysqld_safe &
+ *   mysql --protocol=socket -uroot -e "CREATE DATABASE emir_crm_e2e;
+ *     CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY ''; GRANT ALL ON *.* TO 'root'@'127.0.0.1';"
+ *
+ * Worth the five minutes. Running this against a real database is what found
+ * the first-run-setup race, and running it at all is what found that the tour
+ * had been swallowing every click since Step 14.
+ *
+ * It is re-runnable against the same environment: the owner's temporary
+ * password only works once and the tour is only new once, so both of those
+ * steps fall back or skip rather than failing on a second run.
  */
 import { chromium } from 'playwright';
 
@@ -74,7 +90,9 @@ const step = async (name, fn) => {
 
 await step('login page renders', async () => {
   await page.goto(`${BASE}/pipeline`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('text=Emir CRM', { timeout: 10000 });
+  // The brand, not the product name: this is the one check that would notice
+  // the login page losing its identity entirely.
+  await page.waitForSelector('text=homes.me', { timeout: 10000 });
   if (!page.url().includes('/login')) throw new Error(`expected redirect to /login, got ${page.url()}`);
   await shot(page, '01-login.png');
 });
@@ -118,6 +136,29 @@ await step('forces the temporary password change', async () => {
   await page.waitForURL(/\/dashboard/, { timeout: 15000 });
 });
 
+/*
+ * The tour is modal on a first sign-in, by design: the dim covers the app and a
+ * click anywhere skips it. That makes it the first thing a browser meets after
+ * the dashboard, and until this step existed every click after sign-in was
+ * swallowed by it — which is how a smoke test stops being run. So it is checked
+ * rather than worked around: it must appear for somebody who has never seen it,
+ * and Escape must close it.
+ */
+await step('the tour greets a first-time user, and Escape closes it', async () => {
+  const dim = page.locator('.tour-dim');
+  try {
+    await dim.waitFor({ state: 'visible', timeout: 6000 });
+  } catch {
+    // The owner has finished it on an earlier run; the preference is per user
+    // and lives in the database, so it stays finished.
+    skip('this account has already seen the tour');
+  }
+  await shot(page, '03-tour.png');
+  await page.keyboard.press('Escape');
+  await dim.waitFor({ state: 'detached', timeout: 6000 });
+});
+
+
 await step('the dashboard draws its charts from real data', async () => {
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.kpi .val', { timeout: 15000 });
@@ -151,14 +192,26 @@ await step('inbox renders a thread with the 24-hour window indicator', async () 
   await shot(page, '05-inbox.png');
 });
 
-await step('contact 360 opens', async () => {
-  await page.click('a[href="/contacts"]');
-  await page.waitForTimeout(1500);
-  const rows = await page.locator('a[href^="/contacts/"]').count();
-  if (rows > 0) {
-    await page.locator('a[href^="/contacts/"]').first().click();
-    await page.waitForTimeout(2000);
-  }
+await step('a lead opens from My Leads, with its brief and its actions', async () => {
+  /*
+   * There is no `/contacts` screen any more — Step 7 replaced it with My Leads,
+   * and `/contacts` only survives as a redirect. This step used to click a
+   * sidebar link that no longer exists and then find nothing, which is a step
+   * that passes by doing nothing.
+   *
+   * It also has to pick a tab. My Leads opens on "Follow-up today", which on a
+   * healthy morning is empty on purpose, so "All" is where the leads are. The
+   * tabs are a tablist, not chips — `getByRole('button')` finds none of them.
+   */
+  await page.goto(`${BASE}/leads`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab', { name: 'All' }).first().click();
+  await page.waitForSelector('a[href^="/contacts/"]', { timeout: 10000 });
+  await page.locator('a[href^="/contacts/"]').first().click();
+  await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: 10000 });
+  // The two things Step 7 put on this page: what to do next, and the one-tap
+  // actions. A lead page without them is the old read-only page back again.
+  await page.waitForSelector('.brief', { timeout: 10000 });
+  await page.waitForSelector('.lead-actions', { timeout: 10000 });
   await shot(page, '06-contact.png');
 });
 
@@ -219,9 +272,16 @@ await step('settings shows the team and the appearance controls', async () => {
   await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
   await page.waitForSelector('text=Reduce glass effect', { timeout: 10000 });
   await shot(page, '10-settings.png');
-  await page.getByRole('button', { name: 'Team' }).click();
+  // The tabs here are chips, and `.toolbar .chip` is what they are: naming the
+  // element rather than guessing at a role keeps this working when one of them
+  // is translated.
+  const tab = (label) => page.locator('.toolbar .chip', { hasText: label }).first();
+  await tab('Company').click();
+  await page.waitForSelector('text=Registered name', { timeout: 10000 });
+  await shot(page, '11-settings-company.png');
+  await tab('Team').click();
   await page.waitForSelector('text=Reset password', { timeout: 10000 });
-  await shot(page, '11-settings-team.png');
+  await shot(page, '12-settings-team.png');
 });
 
 await step('mobile layout works', async () => {

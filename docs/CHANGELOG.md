@@ -32,6 +32,19 @@ All notable changes to the homes.me CRM, newest first. One entry per build phase
   with its reason beside it.
 
 **Found**
+- **`npm run e2e` had stopped working, and that hid two things.** The only
+  check that drives the real app in a browser had not been run since the tour,
+  the rebrand and My Leads landed. Seven of its twenty steps failed and not one
+  of them because the product was broken: it waited for "Emir CRM" on a login
+  page that says homes.me, it clicked a `/contacts` sidebar link that Step 7
+  replaced, and five steps died because the tour is modal on a first sign-in
+  and was swallowing every click after the dashboard. The tour behaviour is
+  right — the dim catches a click and skips, Escape closes it, `aria-modal`
+  says so — but a smoke test that trips over it never gets run again, and the
+  `/contacts` step had been "passing" by finding nothing at all. The tour is
+  now a step of its own: it must appear for an account that has never seen it,
+  and Escape must close it. Twenty steps, green twice in a row against a real
+  server, a real MySQL and a real Chromium.
 - **`deploy.yml` has never run once.** It fires on `workflow_run` of CI with
   `branches: [main]`, and this repository has no `main` — the work is on
   `claude/new-session-krd7bx`. 87 pushes, 87 green CI runs, zero deploys: so

@@ -427,6 +427,13 @@ has none.
       table that still looked empty and inserted a second owner. The guarantee
       is now the schema's — `setup_claims`, one row, primary key always 1,
       written in the same transaction. Twelve runs of that test, twelve passes
+- [x] 17.9 **`npm run e2e` had stopped working.** The only check that drives
+      the real app in a browser had not been run since the tour, the rebrand
+      and My Leads landed: 7 of its 20 steps failed, none of them because the
+      product was broken. The tour is modal on a first sign-in — correct, and
+      it was swallowing every click after the dashboard. Now checked rather
+      than dodged. **20 steps green against a real server, a real database and
+      a real Chromium, twice in a row.** Screenshots of all 21 screens
 - [x] 17.8 **27 tables were never emptied between tests.** Found by adding
       one and watching four unrelated tests go red. Notes, notifications, the
       wall, badges, kudos, XP, email campaigns, preferences, AI usage and
