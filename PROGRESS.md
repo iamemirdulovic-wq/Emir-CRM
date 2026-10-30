@@ -427,6 +427,10 @@ has none.
       table that still looked empty and inserted a second owner. The guarantee
       is now the schema's — `setup_claims`, one row, primary key always 1,
       written in the same transaction. Twelve runs of that test, twelve passes
+- [x] 17.10 `SETUP_NEEDED.md` §5 never named `WORKER_IN_PROCESS`, the setting
+      that section exists for. Found by reading `/health` on a running server:
+      `"worker":"separate"`. With it off every timer is silent and every screen
+      looks fine. §5 now names it and gives a URL to check it
 - [x] 17.9 **`npm run e2e` had stopped working.** The only check that drives
       the real app in a browser had not been run since the tour, the rebrand
       and My Leads landed: 7 of its 20 steps failed, none of them because the

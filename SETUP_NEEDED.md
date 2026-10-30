@@ -145,8 +145,21 @@ stops. Please check it:
 
 1. **hPanel → Websites → crm.homes.me → Advanced → Node.js**
 2. Check the app shows **Running**
-3. If there is an **Application mode** setting, make sure it is **Production**
-4. If there is an **Auto restart** or **Always on** switch, turn it **on**
+3. In **Environment variables**, check `WORKER_IN_PROCESS` is `1`. **This is
+   the one that matters most on this page.** Your hosting runs a single process
+   per app, and the timers live inside a worker — with this off the CRM looks
+   completely normal and silently never sends a welcome message, never fires a
+   follow-up and never checks the 5-minute rule. If it is missing, add it as
+   `1`, **Save**, **Restart**
+4. If there is an **Application mode** setting, make sure it is **Production**
+5. If there is an **Auto restart** or **Always on** switch, turn it **on**
+
+**How to check it took, in your browser.** Open
+**https://crm.homes.me/health** — it answers with one line of text. You want to
+see `"worker":"in-process"`. If it says `"worker":"separate"` the timers are not
+running, and step 3 is why. (`"off"` means `WORKER_ENABLED` has been set to 0.)
+This is also the quickest way to tell whether the CRM is up at all, and it is
+the page the deploy itself checks before it keeps a new release.
 
 If the app is ever stopped for a while, nothing is lost. When it starts again
 it catches up on the leads whose time ran out and sends you **one** summary

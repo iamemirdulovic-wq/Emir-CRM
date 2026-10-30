@@ -815,3 +815,15 @@ because it cost twenty minutes: the Settings tabs are `Chip` buttons and the My
 Leads tabs are `Tabs` with `role="tab"`, and the two look identical on screen.
 The lead page also opens on "Follow-up today", which is empty on a day with
 nothing due, so a test that wants a lead has to click "All" first.
+
+2026-10-30 — docs — `SETUP_NEEDED.md` §5 did not mention `WORKER_IN_PROCESS`,
+which is the setting that whole section exists for — The developer docs are
+right about it (`.env.example`, `DEPLOYMENT.md` and `GO-LIVE.md` all say it),
+but the owner-facing file told him to check the app says "Running" and stopped
+there. Hostinger runs one process per application; the timers live in a worker;
+the default is off. With it off the CRM looks completely normal and silently
+never sends a welcome message, never fires a follow-up and never checks the
+five-minute rule — which is the single worst failure this product can have,
+because the screens all work. Found by reading `/health` on a real server:
+`"worker":"separate"`. §5 now names the variable and gives him a URL to check it
+in a browser, which is also how he can tell the CRM is up.

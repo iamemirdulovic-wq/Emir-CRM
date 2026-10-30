@@ -64,6 +64,16 @@ All notable changes to the homes.me CRM, newest first. One entry per build phase
   cost is specific: the owner is not a programmer, he pastes what he is told,
   presses Restart, sees the feature still off, and cannot tell a wrong
   instruction from his own typing.
+- **`SETUP_NEEDED.md` §5 never named `WORKER_IN_PROCESS`.** That section exists
+  to make sure the timers run, and the one setting that makes them run was not
+  in it — the developer docs have it (`.env.example`, `DEPLOYMENT.md`,
+  `GO-LIVE.md`) but the owner-facing file said "check the app says Running" and
+  stopped. Managed hosting runs one process per application, the worker is
+  where the 5-minute rule, the follow-ups and the instant welcome live, and the
+  default is off. With it off every screen works and nothing is ever sent, which
+  is the worst failure this product has. Found by reading `/health` on a running
+  server: `"worker":"separate"`. §5 now names it and gives a URL to check it in
+  a browser.
 - **15 settings the server reads were missing from `.env.example`**, `HOST`
   among them — the bind address a managed host needs to see the app as up.
 

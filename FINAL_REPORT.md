@@ -194,6 +194,15 @@ one before it is a test that is not checking anything. Found by accident — I
 added one small table and four unrelated tests went red. All 27 fixed, and the
 build now fails if a new table is left out.
 
+**The handover file never told you to check the one setting the timers need.**
+Your hosting runs a single process per app, and the 5-minute rule, the
+follow-ups and the instant welcome all live in a background worker that is off
+unless one variable says otherwise. With it off the CRM looks perfectly
+normal — every screen works — and silently never sends anything. The developer
+notes had it; the file written for you did not. It does now, with a link you
+can open in a browser to see for yourself: **crm.homes.me/health** should say
+`"worker":"in-process"`.
+
 **The QR code on the business card had a real bug**, found by writing a second,
 independent decoder and reading the finished grid rather than trusting the
 encoder: the second copy of the format information is split seven-then-eight,
