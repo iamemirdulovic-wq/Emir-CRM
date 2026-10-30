@@ -15,6 +15,7 @@ import { ToastHost, useToast } from '../design/ui.js';
 import { avatarColour, initials } from '../design/stages.js';
 import type { Conversation, Role, TasksResponse } from '../lib/types.js';
 import { BRAND } from '../brand.js';
+import { useHeartbeat } from '../lib/heartbeat.js';
 
 /**
  * The signed-in shell: which nav a role sees, what the top bar says, and the
@@ -88,6 +89,14 @@ const ENTRIES: Entry[] = [
     title: t('automations'),
     roles: ['owner', 'admin', 'manager'],
   },
+  {
+    to: '/team-activity',
+    label: t('teamActivity'),
+    icon: 'users-round',
+    title: t('teamActivity'),
+    roles: ['owner', 'admin', 'manager'],
+  },
+  { to: '/audit', label: t('auditLog'), icon: 'shield', title: t('auditLog'), roles: ['owner'] },
   { to: '/settings', label: t('settings'), icon: 'settings', title: t('settings'), phone: true },
 ];
 
@@ -112,6 +121,11 @@ export function Layout() {
 function Chrome() {
   const { user, signOut, refresh } = useAuth();
   const navigate = useNavigate();
+
+  /* Tells the server this browser is still here, every thirty seconds and
+     only while the tab is visible — which is what makes "active minutes" in
+     the reports mean anything. */
+  useHeartbeat(Boolean(user));
   const location = useLocation();
   const toast = useToast();
   const [search, setSearch] = useState('');

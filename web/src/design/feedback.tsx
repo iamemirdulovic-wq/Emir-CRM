@@ -216,7 +216,8 @@ export function TimelineItem({
  * mattered gets clicked through too.
  */
 export function ConfirmDialog({
-  open, title, body, confirmLabel, cancelLabel = 'Cancel', danger, busy, typeToConfirm, onConfirm, onCancel,
+  open, title, body, confirmLabel, cancelLabel = 'Cancel', danger, busy, typeToConfirm,
+  confirmDisabled, onConfirm, onCancel,
 }: {
   open: boolean;
   title: string;
@@ -227,6 +228,12 @@ export function ConfirmDialog({
   busy?: boolean;
   /** When set, the exact text the person must type before confirming. */
   typeToConfirm?: string;
+  /**
+   * For a dialog whose body asks for something — a reason, a date — that the
+   * server will insist on. Better to grey the button than to let the request
+   * go and come back as a validation error nobody can act on.
+   */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -245,7 +252,7 @@ export function ConfirmDialog({
   }, [open, onCancel]);
 
   if (!open) return null;
-  const blocked = Boolean(typeToConfirm) && typed.trim() !== typeToConfirm;
+  const blocked = (Boolean(typeToConfirm) && typed.trim() !== typeToConfirm) || Boolean(confirmDisabled);
 
   return (
     <>

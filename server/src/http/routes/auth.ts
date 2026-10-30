@@ -12,6 +12,7 @@ import { permissionsFor, type Role } from '../../auth/rbac.js';
 import { writeAudit } from '../../audit/audit.js';
 import { actorFrom, clientIp, currentUser, requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/error.js';
+import { recordSignIn } from '../../activity/track.js';
 
 export const authRouter = Router();
 
@@ -109,12 +110,22 @@ authRouter.post(
 
     await clearFailures(user.id);
     await recordLoginAttempt(email, ip, true);
-    const { token } = await createSession(user.id, {
+    const { token, sessionId } = await createSession(user.id, {
       rememberMe: body.rememberMe,
       ip,
       userAgent: req.get('user-agent') ?? null,
     });
     setSessionCookie(res, token, body.rememberMe);
+
+    /* Records the device and the city, and works out whether anything about
+       this sign-in is worth telling the owner about. Never fails the login. */
+    await recordSignIn({
+      userId: user.id,
+      userName: user.name,
+      sessionId,
+      ip: ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    });
 
     await writeAudit({
       actor: { userId: user.id, role: user.role, label: user.email, ip, userAgent: req.get('user-agent') },

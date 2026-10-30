@@ -202,13 +202,31 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       asked `users` for a column that does not exist
 
 ## Step 11 — Dashboards and activity (D11)
-- [ ] 11.1 Agent dashboard: greeting, today strip, "Do this now", my week, my rank
-- [ ] 11.2 Owner dashboard: stats, sources + cost per lead, funnel, leaderboard, lost reasons, overdue
-- [ ] 11.3 Session tracking: GeoIP, device, heartbeat, timeout, flags
-- [ ] 11.4 Team Activity: live now, table, heatmap, session log, force logout
-- [ ] 11.5 Audit log viewer (owner)
-- [ ] 11.6 Owner daily summary email at 09:00 Dubai
-- [ ] 11.7 AI insight card (flagged)
+- [x] 11.1 Agent dashboard: greeting by Dubai time, this week's strip, a loose
+      standing rather than a rank number, and "Do this now" — up to six cards
+      ordered by what costs most to leave undone, each an instruction with a
+      button to exactly those leads. Nothing is counted twice.
+- [x] 11.2 Owner dashboard — the stats, sources, funnel, leaderboard and lost
+      reasons were already built; the new part is the counted-facts card at
+      the top, which leads with what went wrong rather than the total
+- [x] 11.3 Session tracking: device from the user agent, optional GeoIP that
+      the CRM works without, a heartbeat that only counts while the tab is
+      visible, and flags for a new device, a new country, the middle of the
+      night and two countries too close together to have flown between
+- [x] 11.4 Team Activity: live now with what screen each person is on, the
+      sign-in log with the unusual ones marked, a heatmap endpoint, and force
+      sign-out with a required reason
+- [x] 11.5 Audit log viewer (owner only), collapsed to one line a row with
+      before and after side by side when opened
+- [x] 11.6 Owner daily summary at 09:00 Dubai — problems first, no
+      congratulating, and "yesterday" means the Dubai day so an evening's work
+      lands in the right report
+- [x] 11.7 Insight card — real counted figures, and it says so. The AI layer
+      may rephrase the lines and never sees a number it could change.
+- [x] 11.8 The new-lead alert no longer covers the toolbar's right-hand
+      control, which it did on every screen that has one
+- [x] 11.9 The preview can be opened as an agent (`?as=agent`), because the
+      CRM looks genuinely different to an agent and to an owner
 
 ## Step 12 — Profiles and business card (D12)
 - [ ] 12.1 `agent_profiles` table

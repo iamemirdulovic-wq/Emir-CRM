@@ -2,6 +2,48 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## A dashboard that tells you what to do
+
+**For an agent**, the dashboard now opens with their name, their week, and up
+to six cards saying exactly what to do next — call these two before they go
+back to the pool, these seven follow-ups are overdue, these three hot leads
+have never been rung. Each one is a button that goes straight to those leads.
+When there is nothing owing it says so, by name, instead of showing an empty
+grid.
+
+**For an owner**, it opens with what actually happened yesterday: the problems
+first, then the numbers, then one line of good news. It does not congratulate
+anybody every morning, because an email that always opens "great work!" is one
+that gets filtered — and then the morning something is wrong, that gets
+filtered too.
+
+**Team activity.** Who is signed in right now, what screen they are on, and
+from what device and city. Plus a sign-in log that marks the ones worth a
+look: a device nobody has seen before, a country nobody has signed in from, or
+two countries too close together in time to have flown between — which is the
+clearest sign a password is being used by somebody else. You can sign anyone
+out of everything, with a reason that goes in the audit log.
+
+**The audit log**, for you only. Every row is one line until you open it, and
+then it shows who, when, from where, and exactly what changed — before on the
+left, after on the right.
+
+**A morning summary at 9am Dubai**, to you and the admins. Short, problems
+first, and "yesterday" means the Dubai day, so an evening's work lands in the
+right report rather than the next one.
+
+**A bug that affected every screen**
+
+The new-lead alert card sat exactly where the toolbar's right-hand button is —
+so with an alert showing, that button could not be pressed. Anywhere. It now
+sits below the toolbar.
+
+**Where it stands**
+
+1,674 server tests and 232 web tests pass; 269 database tests run on the build
+server. The preview can now be opened as an agent (`?as=agent`) so you can see
+what they see, not only the owner view.
+
 ## Email to clients, properly
 
 **Write an email from the lead page.** Pick one of six templates, change any

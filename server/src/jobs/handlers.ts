@@ -32,6 +32,7 @@ import { recycleList } from '../lists/store.js';
 import { recycleStaleClaims } from '../assignment/apply.js';
 import type { JobType } from './types.js';
 import { runCampaignBatch } from '../email/campaigns.js';
+import { sendOwnerSummary } from '../activity/send-owner-summary.js';
 
 export type JobHandler = (payload: Record<string, unknown>) => Promise<unknown>;
 
@@ -368,6 +369,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     if (!campaignId) return { sent: 0, done: true };
     return runCampaignBatch(campaignId);
   },
+
+  'reports.owner_summary': async () => sendOwnerSummary(),
 
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();

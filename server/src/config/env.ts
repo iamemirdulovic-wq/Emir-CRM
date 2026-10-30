@@ -162,6 +162,13 @@ const envSchema = z.object({
    */
   EMAIL_TEST_MODE: boolish.default(false),
   EMAIL_TEST_REDIRECT: z.string().optional(),
+
+  /*
+   * Optional. Without it, sign-ins are recorded with no city, which every
+   * screen is written to read naturally. A MaxMind database is a licence, a
+   * download and a cron job, and the CRM must not need one to work.
+   */
+  MAXMIND_DB_PATH: z.string().optional(),
   IMAP_HOST: z.string().optional(),
   IMAP_PORT: z.coerce.number().int().positive().default(993),
   IMAP_SECURE: boolish.default(true),

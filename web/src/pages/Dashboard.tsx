@@ -7,6 +7,8 @@ import type { DashboardResponse } from '../lib/types.js';
 import { AreaChart, ChartDefs, CountUp, Donut, Funnel, Gauge, Heat, Icon, Spark } from '../design/index.js';
 import { Avatar, duration, Empty, ErrorNote, Panel, Seg, Spinner } from '../design/ui.js';
 import type { IconName } from '../design/Icon.js';
+import { DoNow } from '../components/DoNow.js';
+import { InsightCard } from '../components/InsightCard.js';
 
 const RANGES = [
   { value: 7, label: '7D' },
@@ -87,9 +89,17 @@ export function Dashboard() {
     },
   ];
 
+  /*
+   * An agent opens the CRM to find out who to ring. An owner opens it to find
+   * out whether the team is doing that. The same screen cannot lead with both,
+   * so it leads with whichever the viewer is.
+   */
+  const isOwner = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
+
   return (
     <>
       <ChartDefs />
+      {isOwner ? <InsightCard /> : <DoNow />}
       <div className="dash">
         {kpiCards.map((kpi, i) => (
           <div className="kpi span-3 rise" key={kpi.label} style={{ ['--i' as string]: i }}>

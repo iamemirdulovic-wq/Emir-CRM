@@ -120,16 +120,42 @@ function myLeadRows() {
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */
 let pendingAccepted = false;
 
-const currentUser = () => ({
-  id: OWNER.id,
-  name: OWNER.name,
-  email: OWNER.email,
-  role: OWNER.role,
-  locale: session.locale,
-  availability: 'available' as const,
-  mustChangePassword: false,
-  permissions: PERMISSIONS,
-});
+/**
+ * Who the preview is signed in as.
+ *
+ * The CRM looks genuinely different to an agent and to an owner — the agent
+ * dashboard leads with what to do next, the owner's with what went wrong
+ * yesterday — so a preview that can only be the owner can only show half of
+ * it. Set `?as=agent` on the URL, or `localStorage.emir.previewRole`.
+ */
+function previewRole(): string {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('as');
+    if (fromUrl) localStorage.setItem('emir.previewRole', fromUrl);
+    return localStorage.getItem('emir.previewRole') || OWNER.role;
+  } catch {
+    return OWNER.role;
+  }
+}
+
+const AGENT_PERMISSIONS = PERMISSIONS.filter((name) =>
+  !name.includes(':all') && !name.startsWith('users:') && !name.startsWith('audit:')
+  && !name.startsWith('reports:') && !name.includes('export'));
+
+const currentUser = () => {
+  const role = previewRole();
+  const as = role === 'owner' ? OWNER : (USERS.find((u) => u.role === role) ?? OWNER);
+  return {
+    id: as.id,
+    name: as.name,
+    email: as.email,
+    role: as.role,
+    locale: session.locale,
+    availability: 'available' as const,
+    mustChangePassword: false,
+    permissions: as.role === 'owner' || as.role === 'admin' ? PERMISSIONS : AGENT_PERMISSIONS,
+  };
+};
 
 const userName = (id: string | null) => USERS.find((u) => u.id === id)?.name ?? null;
 
@@ -671,6 +697,124 @@ const ROUTES: Route[] = [
     if (campaign) campaign.status = 'paused';
     return { ok: true };
   } },
+
+  // --- activity -----------------------------------------------------------
+  { method: 'POST', pattern: /^\/api\/activity\/beat$/, handler: () => ({ ok: true }) },
+  { method: 'GET', pattern: /^\/api\/activity\/do-now$/, handler: () => ({
+    greeting: `Good morning, ${currentUser().name.split(' ')[0] ?? ''}`,
+    cards: [
+      {
+        key: 'sla_running_out', title: 'Call 2 new leads now',
+        why: 'They go back to the pool in a few minutes if you do not touch them.',
+        count: 2, urgency: 'now', icon: 'alarm-clock', href: '/leads?tab=new',
+      },
+      {
+        key: 'overdue', title: '7 follow-ups are overdue',
+        why: 'You said you would come back to them and the time has passed.',
+        count: 7, urgency: 'now', icon: 'clock-3', href: '/leads?tab=overdue',
+      },
+      {
+        key: 'hot_never_called', title: '3 hot leads have never been called',
+        why: 'These are the most likely to buy and nobody has spoken to them yet.',
+        count: 3, urgency: 'now', icon: 'flame', href: '/leads?tab=hot',
+      },
+      {
+        key: 'no_next_step', title: '18 leads have nothing planned',
+        why: 'Nobody is coming back to these. Decide what happens next, or close them.',
+        count: 18, urgency: 'soon', icon: 'circle-alert', href: '/leads?tab=no_next_step',
+      },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/activity\/my-week$/, handler: () => ({
+    contacted: 41, appointments: 6, won: 2, newLeads: 23, rank: 2, outOf: 7,
+  }) },
+  { method: 'GET', pattern: /^\/api\/activity\/insight$/, handler: () => ({
+    quiet: false,
+    source: 'Counted from your own data',
+    lines: [
+      { kind: 'problem', text: '3 leads arrived with nobody to work them.' },
+      { kind: 'problem', text: '2 leads were not touched inside five minutes.' },
+      { kind: 'problem', text: '11 follow-ups are overdue across the team.' },
+      { kind: 'number', text: '34 new leads, 13 more than the day before.' },
+      { kind: 'number', text: '29 of them were contacted (85%).' },
+      { kind: 'number', text: '5 appointments and 1 reservation booked.' },
+      { kind: 'good', text: 'Layla Hassan spoke to the most people — 12 leads.' },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/activity\/team$/, handler: () => ({
+    liveWithinMs: 120000,
+    items: [
+      { userId: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', role: 'agent', availability: 'available',
+        device: 'iPhone · Safari', where: 'Dubai, United Arab Emirates', doing: '/leads',
+        live: true, lastSeen: 'Just now', lastSeenAt: new Date().toISOString() },
+      { userId: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', role: 'agent', availability: 'busy',
+        device: 'Windows · Chrome', where: 'Dubai, United Arab Emirates', doing: '/inbox',
+        live: true, lastSeen: 'Just now', lastSeenAt: new Date().toISOString() },
+      { userId: USERS[3]?.id ?? 'u4', name: 'Raj Mehta', role: 'agent', availability: 'off',
+        device: 'Android · Chrome', where: 'Abu Dhabi, United Arab Emirates', doing: null,
+        live: false, lastSeen: '2 h ago', lastSeenAt: ago(120) },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/activity\/sessions$/, handler: ({ query }) => {
+    const all = [
+      {
+        id: 's1', name: 'Raj Mehta', device: 'Windows · Edge', where: 'Manila, Philippines',
+        level: 'alarm',
+        flags: [
+          { key: 'new_country', level: 'alarm', message: 'Raj Mehta signed in from Philippines, which they have never done before.' },
+          { key: 'impossible_travel', level: 'alarm', message: 'Raj Mehta was in United Arab Emirates and then in Philippines less than an hour later. That is not a journey anyone makes, so the password may be in use by somebody else.' },
+        ],
+        signedInAt: ago(45), signedOutAt: null, activeMinutes: 12,
+      },
+      {
+        id: 's2', name: 'Layla Hassan', device: 'iPhone · Safari', where: 'Dubai, United Arab Emirates',
+        level: 'none', flags: [], signedInAt: ago(180), signedOutAt: null, activeMinutes: 164,
+      },
+      {
+        id: 's3', name: 'Omar Haddad', device: 'Windows · Chrome', where: 'Dubai, United Arab Emirates',
+        level: 'watch',
+        flags: [{ key: 'new_device', level: 'watch', message: 'Omar Haddad signed in on a Windows · Chrome for the first time.' }],
+        signedInAt: ago(400), signedOutAt: ago(200), activeMinutes: 88,
+      },
+    ];
+    return { items: query.get('flagged') === '1' ? all.filter((row) => row.level !== 'none') : all };
+  } },
+  { method: 'GET', pattern: /^\/api\/activity\/heatmap$/, handler: () => ({ cells: [] }) },
+  { method: 'POST', pattern: /^\/api\/activity\/sign-out\/([^/]+)$/, handler: () => ({
+    ok: true, endedSessions: 2, name: 'Raj Mehta',
+  }) },
+  { method: 'GET', pattern: /^\/api\/activity\/audit$/, handler: () => ({
+    page: 1, pageSize: 50,
+    actions: [
+      { action: 'contact.updated', n: 412 },
+      { action: 'opportunity.stage_changed', n: 288 },
+      { action: 'auth.login', n: 190 },
+      { action: 'contact.deleted', n: 4 },
+    ],
+    items: [
+      {
+        id: 'a1', actor_user_id: 'u1', actor_name: 'Emir Dulovic', actor_label: 'emir@emigeohomes.ae',
+        actor_role: 'owner', action: 'contact.deleted', entity_type: 'contact', entity_id: 'c-9',
+        before_json: { full_name: 'Test Lead', phone_e164: '+971500000000', owner_user_id: 'u2' },
+        after_json: { deleted_at: new Date().toISOString() },
+        ip: '94.200.12.45', created_at: ago(30),
+      },
+      {
+        id: 'a2', actor_user_id: 'u2', actor_name: 'Layla Hassan', actor_label: 'layla@emigeohomes.ae',
+        actor_role: 'agent', action: 'opportunity.stage_changed', entity_type: 'opportunity',
+        entity_id: 'o-14',
+        before_json: { stage_key: 'attempted_contact' },
+        after_json: { stage_key: 'engaged_qualified' },
+        ip: '94.200.12.51', created_at: ago(55),
+      },
+      {
+        id: 'a3', actor_user_id: 'u1', actor_name: 'Emir Dulovic', actor_label: 'emir@emigeohomes.ae',
+        actor_role: 'owner', action: 'auth.force_sign_out', entity_type: 'user', entity_id: 'u4',
+        before_json: null, after_json: { reason: 'Lost phone', sessions: 2 },
+        ip: '94.200.12.45', created_at: ago(90),
+      },
+    ],
+  }) },
 
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },

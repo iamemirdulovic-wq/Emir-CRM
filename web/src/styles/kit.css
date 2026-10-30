@@ -723,3 +723,151 @@
 /* The two "reach them" buttons above the notes on a lead. */
 .lead-reach{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .lead-reach .btn{flex:1 1 150px;justify-content:center}
+
+/* ---------------------------------------------------------------------------
+   "Do this now" — the top of an agent's morning
+   --------------------------------------------------------------------------- */
+
+.do-now{margin-bottom:18px}
+.do-now-greeting{margin:0 0 12px;font-size:21px;font-weight:700;letter-spacing:-.01em}
+
+.do-now-cards{display:grid;gap:9px}
+@media (min-width:900px){.do-now-cards{grid-template-columns:1fr 1fr}}
+
+.do-now-card{
+  display:flex;align-items:center;gap:12px;padding:13px 15px;text-decoration:none;
+  border-radius:var(--r-m);border:1px solid var(--line);color:var(--ink);
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg);
+  transition:transform .15s var(--ease),border-color .15s}
+.do-now-card:hover{transform:translateY(-1px);border-color:var(--primary)}
+.do-now-card > svg:last-child{margin-left:auto;color:var(--ink-3);flex:none}
+
+.do-now-icon{
+  width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;
+  background:var(--primary-soft);color:var(--primary)}
+
+.do-now-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.do-now-body b{font-size:14.5px;line-height:1.3}
+.do-now-body small{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+
+/* The ones that cost money today are allowed to look different. */
+.do-now-card.u-now{border-color:color-mix(in srgb,var(--hot) 40%,var(--line))}
+.do-now-card.u-now .do-now-icon{background:rgba(232,121,79,.14);color:var(--hot)}
+.do-now-card.u-soon .do-now-icon{background:var(--surface-2);color:var(--ink-2)}
+
+/* ---------------------------------------------------------------------------
+   Team activity
+   --------------------------------------------------------------------------- */
+
+.live-list,.signin-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+
+.live-row{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--r-m);
+  border:1px solid var(--line);background:var(--surface-2)}
+.live-row.on{border-color:color-mix(in srgb,var(--s-won) 45%,var(--line))}
+
+.live-who{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.live-who b{font-size:14px}
+.live-who small{color:var(--ink-2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.live-doing{
+  display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);flex:none}
+.live-row.on .live-doing{color:var(--s-won);font-weight:600}
+
+.live-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--s-won);flex:none;
+  animation:live-pulse 2s var(--ease) infinite}
+@keyframes live-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
+
+.signin{
+  padding:11px 13px;border-radius:var(--r-m);border:1px solid var(--line);
+  background:var(--surface-2)}
+/* Only the rows that need a look are coloured; a list where every row shouts
+   is a list nobody reads. */
+.signin.watch{border-color:color-mix(in srgb,var(--s-att) 45%,var(--line))}
+.signin.alarm{border-color:var(--s-lost);background:rgba(217,138,138,.08)}
+
+.signin-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.signin-head time{margin-left:auto;color:var(--ink-3);font-size:12px}
+
+.signin-flags{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.signin-flags li{
+  display:flex;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--ink-2)}
+.signin-flags li svg{flex:none;margin-top:2px;color:var(--s-att)}
+.signin-flags li.alarm{color:var(--ink);font-weight:600}
+.signin-flags li.alarm svg{color:var(--s-lost)}
+
+.signin-foot{margin-top:7px;font-size:11.5px}
+
+/* ---------------------------------------------------------------------------
+   Audit log
+   --------------------------------------------------------------------------- */
+
+.audit-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.audit-filters select,.audit-filters input{flex:1 1 200px}
+
+.audit-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+
+.audit-row{border-radius:10px;border:1px solid transparent}
+.audit-row.serious{border-color:color-mix(in srgb,var(--s-lost) 30%,transparent)}
+
+.audit-line{
+  width:100%;display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;
+  background:none;border:0;font:inherit;text-align:left;color:var(--ink);border-radius:10px}
+.audit-line:hover{background:var(--surface-2)}
+.audit-line b{font-size:13px;flex:none}
+.audit-line time{margin-left:auto;color:var(--ink-3);font-size:12px;flex:none}
+.audit-line .muted{font-size:12px}
+
+.audit-action{
+  font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary)}
+.audit-row.serious .audit-action{background:rgba(217,138,138,.14);color:var(--s-lost)}
+
+.audit-detail{padding:4px 11px 12px;display:flex;flex-direction:column;gap:3px}
+.audit-diff{display:grid;gap:10px;margin-top:8px}
+@media (min-width:760px){.audit-diff{grid-template-columns:1fr 1fr}}
+.audit-diff pre{
+  margin:4px 0 0;padding:9px 11px;border-radius:10px;background:var(--surface-2);
+  font-size:11.5px;line-height:1.5;overflow:auto;max-height:260px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+
+.audit-pager{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:14px}
+
+/* The counted-facts card at the top of the owner's dashboard. */
+.insight{
+  margin-bottom:16px;padding:14px 16px;border-radius:var(--r-l);
+  border:1px solid var(--line);
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg)}
+
+.insight-head{
+  display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;margin-bottom:9px}
+.insight-head svg{color:var(--primary)}
+.insight-head small{margin-left:auto;color:var(--ink-3);font-size:11.5px;font-weight:500}
+
+.insight-lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.insight-lines li{
+  display:flex;gap:7px;align-items:flex-start;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.insight-lines li svg{flex:none;margin-top:3px;color:var(--ink-3)}
+.insight-lines li.problem{color:var(--ink);font-weight:600}
+.insight-lines li.problem svg{color:var(--s-lost)}
+.insight-lines li.good svg{color:var(--s-won)}
+
+/*
+ * The new-lead alert used to sit at the same height as the toolbar's
+ * right-hand control, on top of it, making that control unpressable on every
+ * screen that has one — the Live/Sign-ins switch, New campaign, the date
+ * range. It now clears the toolbar: the toolbar ends at 129px on a desktop
+ * and 154px on a phone, so the card starts below both.
+ */
+
+/* The agent's own week, under the greeting. */
+.my-week{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:-4px 0 12px;
+  font-size:13px;color:var(--ink-2)}
+.my-week b{font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums;margin-right:3px}
+.my-week small{color:var(--ink-3);font-size:11.5px}
+.my-week em{
+  font-style:normal;margin-left:auto;font-size:12px;font-weight:600;color:var(--primary);
+  background:var(--primary-soft);padding:3px 10px;border-radius:99px}

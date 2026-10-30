@@ -262,7 +262,7 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:rgba(14,27,44,.82);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:#fff;padding:11px 18px;border-radius:99px;font-weight:600;opacity:0;transition:all .2s;z-index:60;display:flex;gap:8px;align-items:center}
 .toast svg{color:#5BE3F0}
 .toast.show{opacity:1;transform:translate(-50%,0)}
-.newlead{position:fixed;top:84px;right:28px;width:320px;border-radius:22px;padding:14px 16px;z-index:50;transform:translateY(-20px) scale(.96);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.2,.8,.2,1);background:var(--glass-strong)}
+.newlead{position:fixed;top:140px;right:28px;width:320px;border-radius:22px;padding:14px 16px;z-index:50;transform:translateY(-20px) scale(.96);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.2,.8,.2,1);background:var(--glass-strong)}
 .newlead.show{transform:none;opacity:1;pointer-events:auto}
 .newlead b{display:flex;gap:6px;align-items:center}
 .newlead p{margin:4px 0 10px;color:var(--ink-2);font-size:13px}
@@ -305,7 +305,7 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
   .back-btn{display:grid}
   .bubble{max-width:86%}
   .funnel-row{grid-template-columns:100px 1fr 40px}
-  .newlead{left:14px;right:14px;width:auto;top:74px}
+  .newlead{left:14px;right:14px;width:auto;top:164px}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root{--glass:rgba(255,255,255,.92)}

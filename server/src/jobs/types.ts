@@ -25,6 +25,8 @@ export const JOB_TYPES = [
   'maintenance.cleanup',
   /** One batch of an email campaign; it schedules the next one itself. */
   'email.campaign_batch',
+  /** The owners' morning summary, at 09:00 Dubai. */
+  'reports.owner_summary',
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];

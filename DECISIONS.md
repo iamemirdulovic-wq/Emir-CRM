@@ -417,3 +417,59 @@ switched off.
 signature needs them today and the business card in Step 12 needs them next.
 A UAE broker must show their BRN on client-facing material, so it is a field
 rather than a line someone remembers to type.
+
+2026-10-30 — dashboard — The agent's dashboard leads with what to do, the
+owner's with what went wrong — An agent opening the CRM at 9am does not need
+a chart; they need to know which of their ninety leads to ring first, and a
+chart cannot answer that. "Do this now" is up to six cards ordered by what
+costs most to leave undone — a lead about to be taken away, then a promise
+already broken, then a hot lead nobody has rung. Nothing is counted twice: a
+lead that is both hot and overdue appears in the more urgent card only,
+because two cards for one lead is how a list stops being trusted. Empty
+counts produce no card at all, because a dashboard full of "0 overdue"
+teaches people to skim.
+
+2026-10-30 — dashboard — A standing, not a rank number — "Near the top this
+week" rather than "4th of 9". A leaderboard with a number against every name
+turns a team into a scoreboard, and the person in last place stops opening
+the dashboard, which is the opposite of what a nudge is for.
+
+2026-10-30 — activity — Only the sign-in that does not belong — Ten agents
+signing in from their phones every morning is Tuesday, not an event, and an
+owner who has to read that will stop reading by Thursday. So there is no flag
+for "signed in from a phone" or "signed in at 9am". There is one for a device
+nobody has seen, one for a country nobody has signed in from, one for 1am to
+5am — not the evening, because agents in this business work evenings — and
+one for two countries too close together in time to have flown between, which
+is the single strongest sign a password is in use by somebody else. The first
+sign-in on a new account produces one line rather than three alarms for one
+ordinary event.
+
+2026-10-30 — activity — Active minutes are counted from heartbeats, capped —
+The heartbeat only fires while the tab is visible, and a gap longer than two
+minutes adds two minutes rather than the whole gap. A laptop left open over a
+weekend would otherwise read as sixty hours of work, and every "hours worked"
+report built on that is a lie.
+
+2026-10-30 — activity — GeoIP is optional and the CRM works without it — A
+MaxMind database is a licence, a download and a cron job to keep fresh. The
+import is a runtime one with a variable specifier so `maxmind` never becomes
+a dependency of this project, and every screen reads naturally with the city
+missing.
+
+2026-10-30 — activity — Team Activity is owner and manager only — Where a
+colleague signed in from is personal data about them, not a company
+noticeboard. A manager sees their own team and nobody else.
+
+2026-10-30 — reports — The insight card says the numbers are counted — Every
+line is a query. The AI layer, when switched on, may rephrase those lines and
+nothing else; it never sees a number it could change and never invents one.
+A dashboard that mixes measured figures with generated ones teaches people to
+trust neither.
+
+2026-10-30 — ui — The new-lead alert covered the toolbar's control — The
+alert sits fixed at the top right, which is exactly where the toolbar's
+right-hand control sits: the Live/Sign-ins switch, New campaign, the date
+range. An agent with an alert up could not press any of them, on any screen.
+The alert now starts below the toolbar — 140px on a desktop, 164px on a
+phone, measured rather than guessed.

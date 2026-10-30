@@ -3,6 +3,7 @@ import { hashToken } from '../lib/crypto.js';
 import { newToken } from '../lib/ids.js';
 import { SESSION_TTL_DEFAULT_MS, SESSION_TTL_REMEMBER_MS } from '../config/constants.js';
 import type { Role } from './rbac.js';
+import { recordSignOut } from '../activity/track.js';
 
 export type SessionUser = {
   id: string;
@@ -17,7 +18,16 @@ export type SessionUser = {
   availability: 'available' | 'busy' | 'off';
 };
 
-export type CreatedSession = { token: string; expiresAt: Date };
+export type CreatedSession = {
+  token: string;
+  expiresAt: Date;
+  /**
+   * The row's primary key — the hash of the token, never the token itself.
+   * Returned so the caller can record the sign-in against this session
+   * without having to hash the token a second time.
+   */
+  sessionId: string;
+};
 
 /**
  * Sessions live server-side in MySQL. The cookie carries a random token; the
@@ -38,7 +48,7 @@ export async function createSession(
     [hashToken(token), userId, expiresAt, opts.rememberMe ? 1 : 0, opts.ip ?? null, (opts.userAgent ?? '').slice(0, 500) || null],
     exec,
   );
-  return { token, expiresAt };
+  return { token, expiresAt, sessionId: hashToken(token) };
 }
 
 type SessionRow = {
@@ -96,7 +106,11 @@ export async function resolveSession(
 /** Logout deletes the session. */
 export async function destroySession(token: string | undefined | null, exec: Executor = getPool()): Promise<void> {
   if (!token) return;
-  await execute('DELETE FROM sessions WHERE id = ?', [hashToken(token)], exec);
+  const sessionId = hashToken(token);
+  /* Closed in the log before the row goes, so the history keeps an end time
+     rather than a session that appears to have run for ever. */
+  await recordSignOut(sessionId, exec);
+  await execute('DELETE FROM sessions WHERE id = ?', [sessionId], exec);
 }
 
 /** Deactivating a user ends all of that user's sessions immediately. */

@@ -19,6 +19,15 @@ type Schedule = {
   payload?: Record<string, unknown>;
   /** Some schedules fan out over rows, e.g. one job per Meta form. */
   expand?: () => Promise<Array<Record<string, unknown>>>;
+  /**
+   * Once a day, at this hour in Dubai.
+   *
+   * A plain `everyMinutes: 1440` would fire at whatever time of day the
+   * epoch happens to land on, which for a morning summary is the whole
+   * point missed. With this set, the window is the Dubai date and the job
+   * is only offered during that hour.
+   */
+  atDubaiHour?: number;
 };
 
 const SCHEDULES: Schedule[] = [
@@ -51,7 +60,25 @@ const SCHEDULES: Schedule[] = [
    */
   { name: 'task_reminders', type: 'task.reminder_sweep', everyMinutes: 5 },
   { name: 'cleanup', type: 'maintenance.cleanup', everyMinutes: 60 },
+  /*
+   * The owners' morning summary. 09:00 Dubai, because it is written to be
+   * read with the first coffee and a summary that lands at 3am is read at
+   * 3pm, by which point the day it describes is over.
+   */
+  { name: 'owner_summary', type: 'reports.owner_summary', everyMinutes: 60, atDubaiHour: 9 },
 ];
+
+/** Dubai is UTC+4 all year, so there is no DST to think about. */
+const DUBAI_OFFSET_MS = 4 * 60 * 60 * 1000;
+
+/** The Dubai calendar date, as `2026-10-30`. */
+export function dubaiDateKey(now: Date): string {
+  return new Date(now.getTime() + DUBAI_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+export function dubaiHour(now: Date): number {
+  return new Date(now.getTime() + DUBAI_OFFSET_MS).getUTCHours();
+}
 
 /** Window key: the same for every worker inside one interval. */
 function windowKey(everyMinutes: number, now: Date): string {
@@ -70,7 +97,13 @@ export async function runDueCrons(now: Date = new Date()): Promise<number> {
 
   let queued = 0;
   for (const schedule of SCHEDULES) {
-    const key = `cron:${schedule.name}:${windowKey(schedule.everyMinutes, now)}`;
+    /* A daily schedule is offered only during its hour, and its window is
+       the Dubai date so it fires once a day rather than once an hour. */
+    if (schedule.atDubaiHour !== undefined && dubaiHour(now) !== schedule.atDubaiHour) continue;
+
+    const key = schedule.atDubaiHour !== undefined
+      ? `cron:${schedule.name}:${dubaiDateKey(now)}`
+      : `cron:${schedule.name}:${windowKey(schedule.everyMinutes, now)}`;
     try {
       if (schedule.expand) {
         const payloads = await schedule.expand();
