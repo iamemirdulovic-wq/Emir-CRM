@@ -11,6 +11,16 @@ export const LEAD_SOURCES = [
   'google_ads',
   'csv_import',
   'manual',
+  /*
+   * Entered by a person. These are not flavours of "manual": where a lead
+   * came from is the question the source-quality report exists to answer, and
+   * a walk-in converting at four times the rate of an Instagram enquiry is
+   * exactly the kind of thing that gets lost if they share a label.
+   */
+  'walk_in',
+  'referral',
+  'instagram',
+  'event',
 ] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 

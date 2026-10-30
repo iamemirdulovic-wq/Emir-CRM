@@ -95,10 +95,16 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       mention, followup_due) light up as Steps 7, 8 and 13 land
 
 ## Step 6 — Add Lead popup (D6)
-- [ ] 6.1 Three steps: Who · What · Source
-- [ ] 6.2 Live duplicate check with agent-safe wording
-- [ ] 6.3 Agent-created lead assigns to them with no timer
-- [ ] 6.4 Confetti + toast; opens the lead with "Log first call"
+- [x] 6.1 Three steps: Who · What they want · Where from. **The button was
+      dead** — it navigated to `/contacts?new=1`, which no screen read
+- [x] 6.2 Live duplicate check. An agent is told only that the client exists
+      when the lead is someone else's; the server does not send the name
+- [x] 6.3 An agent's own lead is theirs with no timer — they have already
+      spoken to the client, so there is nothing to chase
+- [x] 6.4 Confetti and the toast, then straight to the lead where the call
+      buttons are. Adding a lead is never the goal; calling them is
+- [x] 6.5 No automatic welcome template on a manual lead — somebody just
+      spoke to this person
 
 ## Step 7 — My Leads, lead page, actions, next step (D7)
 - [ ] 7.1 Rename Contacts → My Leads / Leads, with 301 redirects

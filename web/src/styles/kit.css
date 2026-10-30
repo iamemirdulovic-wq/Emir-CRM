@@ -378,15 +378,18 @@
 .bell-item time{flex:none;font-size:11.5px;color:var(--ink-3);white-space:nowrap;padding-top:2px}
 
 /*
- * Opaque, then glassy.
+ * Opaque, then glassy — every panel that floats over the app.
  *
- * The blur behind these panels is an enhancement, not the thing that makes
- * them readable: it is off on older devices, off under the "reduce glass"
- * setting, and off in headless rendering. Compositing the glass tint over the
- * app's own background colour gives a surface that is solid either way, and
- * still looks like the rest of the design when the blur is there.
+ * The blur behind these is an enhancement, not the thing that makes them
+ * readable: it is off on older devices, off under the "reduce glass" setting,
+ * and off in headless rendering. Without it the dashboard read straight
+ * through a notification list and through the Add lead form, which is the
+ * sort of thing that looks like a bug to everyone except the person who has
+ * a GPU. Compositing the glass tint over the app's own background colour
+ * gives a surface that is solid either way and still looks like the design
+ * when the blur is there.
  */
-.bell-panel,.combo-list,.country-picker{
+.bell-panel,.combo-list,.country-picker,.modal,.drawer,.sheet,.confirm,.menu,.ask{
   background:linear-gradient(var(--glass-strong),var(--glass-strong)),var(--bg)}
 
 @media (max-width:760px){
@@ -401,3 +404,28 @@
   .bell-panel .bell-list{max-height:none;flex:1}
 }
 @media (prefers-reduced-motion:reduce){.bell-panel{animation:none}}
+
+/* ── Confetti, and adding a lead ───────────────────────────────────────── */
+
+/* Above everything, and never in the way of a click. */
+.confetti{position:fixed;inset:0;z-index:70;pointer-events:none}
+
+.add-sub{margin:-4px 0 12px;color:var(--ink-2);font-size:13.5px}
+.add-steps{display:flex;gap:16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.add-steps .on{color:var(--primary)}
+.add-foot{display:flex;align-items:center;gap:8px;width:100%}
+.add-dots{display:flex;gap:5px;margin-right:auto}
+.add-dots i{width:7px;height:7px;border-radius:999px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+.add-dots i.on{background:var(--primary);width:18px}
+.add-dots i.done{background:color-mix(in srgb,var(--primary) 45%,transparent)}
+.chip-row{display:flex;flex-wrap:wrap;gap:7px}
+
+/* The client is already here. Amber, because it is worth stopping for and is
+   not an error — most of the time the right answer is to open the lead. */
+.add-dupe{display:flex;align-items:center;gap:10px;margin-top:4px;padding:10px 12px;border-radius:12px;
+  background:color-mix(in srgb,var(--s-att) 12%,transparent);font-size:13.5px;line-height:1.45}
+.add-dupe > svg{flex:none;color:var(--s-att)}
+.add-dupe > span{flex:1;min-width:0}
+.add-mine{display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;border-radius:12px;
+  background:var(--primary-soft);color:var(--ink-2);font-size:13.5px}
+.add-mine svg{flex:none;color:var(--primary)}

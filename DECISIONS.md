@@ -209,3 +209,23 @@ background colour rather than relying on `backdrop-filter` — The blur is off o
 older devices, off under the "reduce glass" setting, and off in headless
 rendering. A dense list of text has to be legible either way; the blur is an
 enhancement, not the thing holding it up.
+
+2026-10-30 — leads — Walk-in, referral, Instagram and event are real sources,
+not flavours of "manual" — Where a lead came from is the question the
+source-quality report exists to answer, and a walk-in converting at four times
+the rate of an Instagram enquiry is exactly what gets lost if they share a
+label.
+
+2026-10-30 — leads — A manual lead gets no automatic welcome template —
+Somebody has just spoken to this person. A template arriving thirty seconds
+later saying "thank you for your interest" reads as a machine that was not
+listening. Scoring still runs.
+
+2026-10-30 — leads — An agent adding their own lead keeps it with no clock —
+They are standing in front of the client; there is nothing to chase. A manager
+handing one to somebody else is an ordinary hand-over and does get a clock.
+
+2026-10-30 — web — Confetti is forty lines and a canvas rather than a library
+— Fifteen kilobytes downloaded on mobile data for something that lasts a
+second and a half is not a trade worth making. It does nothing at all under
+reduce-motion.

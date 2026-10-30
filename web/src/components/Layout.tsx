@@ -4,6 +4,7 @@ import { AskEmirAi } from './AskEmirAi.js';
 import { NewLeadCard } from './NewLeadCard.js';
 import { InstallPrompt } from './InstallPrompt.js';
 import { Bell } from './Bell.js';
+import { AddLead } from './AddLead.js';
 import { play, setSoundEnabled, soundEnabled } from '../lib/sound.js';
 import { api, qs } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -100,6 +101,9 @@ function Chrome() {
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [soundOn, setSoundOn] = useState(soundEnabled);
+  /* The Add lead button used to navigate to /contacts?new=1, which no
+     screen read — it did nothing at all. */
+  const [adding, setAdding] = useState(false);
 
   const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
 
@@ -211,10 +215,10 @@ function Chrome() {
           if (on) play('notify');
         },
       }}
-      mobileAction={{ label: t('addLead'), icon: 'plus', onClick: () => navigate('/contacts?new=1') }}
+      mobileAction={{ label: t('addLead'), icon: 'plus', onClick: () => setAdding(true) }}
       bell={<Bell />}
       action={
-        <button type="button" className="btn btn-primary" onClick={() => navigate('/contacts?new=1')}>
+        <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
           <Icon name="plus" />
           <span>{t('addLead')}</span>
         </button>
@@ -231,6 +235,7 @@ function Chrome() {
         <NewLeadCard />
         {/* Asked once, on the second visit. */}
         <InstallPrompt />
+        <AddLead open={adding} onClose={() => setAdding(false)} />
         {/* On every CRM screen, as the design has it. */}
         <AskEmirAi />
       </SearchContext.Provider>

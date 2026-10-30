@@ -286,6 +286,24 @@ const ROUTES: Route[] = [
     return { marked: 1 };
   } },
 
+  /* Adding a lead by hand. The duplicate check answers for one known number
+     so the warning can be seen in the preview. */
+  { method: 'POST', pattern: /^\/api\/leads\/check$/, handler: ({ body }) => {
+    const phone = String((body as { phone?: string }).phone ?? '');
+    if (phone.endsWith('501234567')) {
+      return { found: true, canOpen: true, contactId: 'c-1', name: 'Sara Al Mansoori', ownerName: 'Layla Hassan' };
+    }
+    return { found: false };
+  } },
+  { method: 'GET', pattern: /^\/api\/leads\/agents$/, handler: () => ({
+    items: USERS.filter((u) => u.is_active).slice(0, 4).map((u, i) => ({
+      id: u.id, name: u.name, open_leads: 4 + i * 3,
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/leads$/, handler: () => ({
+    contactId: 'c-1', opportunityId: 'opp-new', isNewContact: true, assignedTo: null,
+  }) },
+
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },
   { method: 'PATCH', pattern: /^\/api\/users\/([^/]+)$/, handler: ({ params, body }) => {
