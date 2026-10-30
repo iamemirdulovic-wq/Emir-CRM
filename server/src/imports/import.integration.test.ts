@@ -14,6 +14,11 @@ import { previewUndo, runChunk, stageRows, undoImport } from './run.js';
 let workDir = '';
 
 /** Writes a CSV and registers it as an uploaded import, ready to stage. */
+/** The contacts still in the CRM. Undo marks them deleted; it does not destroy them. */
+async function liveContacts(): Promise<unknown[]> {
+  return query('SELECT id FROM contacts WHERE deleted_at IS NULL');
+}
+
 async function createImport(
   csv: string,
   over: Partial<ImportSettings> = {},
@@ -425,11 +430,19 @@ describeWithDb('undoing an import', () => {
       ['Full Name,Mobile No.', 'One,0501111111', 'Two,0502222222'].join('\n'),
     );
     await runToCompletion(importId);
-    expect(await query('SELECT id FROM contacts')).toHaveLength(2);
+    expect(await liveContacts()).toHaveLength(2);
 
     const result = await undoImport(SYSTEM_ACTOR, importId);
     expect(result.deleted).toBe(2);
-    expect(await query('SELECT id FROM contacts')).toHaveLength(0);
+    expect(await liveContacts()).toHaveLength(0);
+
+    /*
+     * Gone from the CRM, not gone from the database. Undo marks them deleted
+     * rather than running a statement that cascades through opportunities,
+     * conversations, tags and consents — one wrong WHERE in that statement
+     * would take the rest of the business with it.
+     */
+    expect(await query('SELECT id FROM contacts')).toHaveLength(2);
   });
 
   it('keeps a lead somebody has already worked', async () => {
@@ -454,7 +467,7 @@ describeWithDb('undoing an import', () => {
 
     const result = await undoImport(SYSTEM_ACTOR, importId);
     expect(result.deleted).toBe(1);
-    expect(await query('SELECT id FROM contacts')).toHaveLength(1);
+    expect(await liveContacts()).toHaveLength(1);
   });
 
   it('never deletes a contact it merely updated', async () => {

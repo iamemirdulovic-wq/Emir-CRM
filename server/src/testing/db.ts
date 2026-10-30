@@ -6,6 +6,7 @@ import { runMigrations, ensureDatabase } from '../db/migrate.js';
 import { newId } from '../lib/ids.js';
 import { hashPassword } from '../auth/password.js';
 import { DEFAULT_PIPELINE_KEY, STAGE_DEFINITIONS } from '../pipeline/stages.js';
+import { clearSecretCache } from '../config/secrets.js';
 
 /**
  * Integration-test harness. The suites that need a database skip themselves
@@ -181,6 +182,15 @@ export async function resetTables(): Promise<void> {
     await execute(`TRUNCATE TABLE ${table}`);
   }
   await execute('SET FOREIGN_KEY_CHECKS = 1');
+
+  /*
+   * Settings are cached in memory for thirty seconds, and truncating the table
+   * does not touch that. A whole suite runs well inside thirty seconds, so a
+   * test that changed a setting would hand its value to every test after it —
+   * and the failure would land on whichever test happened to run next, which
+   * is the worst kind to debug.
+   */
+  clearSecretCache();
   await seedFieldMappings();
 }
 

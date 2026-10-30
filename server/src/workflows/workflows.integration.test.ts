@@ -15,6 +15,8 @@ import { normalizeLead } from '../ingestion/normalize.js';
 import { handleInboundMessage } from '../ingestion/whatsapp-inbound.js';
 import { parseWhatsAppWebhook } from '../ingestion/sources/whatsapp.js';
 import { runWorkflowA, runSlaCheck } from './workflow-a.js';
+import { saveRoutingSettings } from '../routing/settings.js';
+import { SYSTEM_ACTOR } from '../audit/audit.js';
 import { runWorkflowBStep, shouldContinue } from './workflow-b.js';
 import { runWorkflowC } from './workflow-c.js';
 import { setWhatsAppAdapterForTesting } from '../messaging/whatsapp/index.js';
@@ -228,7 +230,17 @@ describeWithDb('workflows (integration)', () => {
   // The 5-minute SLA
   // -------------------------------------------------------------------------
 
-  it('reassigns and tags the card when the agent has not touched the lead', async () => {
+  /*
+   * Two ways a breach can end, and the owner chooses which.
+   *
+   * The default is now "back to Incoming": the owner asked to see a lead an
+   * agent let go rather than have it quietly handed on. Passing it straight to
+   * the next agent is still there for an owner who would rather the client was
+   * called than that anyone was told — so both are covered, and each test says
+   * which setting it is exercising.
+   */
+  it('hands the lead to another agent when the owner has turned bouncing off', async () => {
+    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
     const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
@@ -260,6 +272,50 @@ describeWithDb('workflows (integration)', () => {
       [ingested.contactId],
     );
     expect(tags.map((t) => t.value)).toContain('sla-breach');
+  });
+
+  it('sends the lead back to Incoming by default, and says who let it go', async () => {
+    const agent = await createTestUser({ role: 'agent', name: 'Slow Agent' });
+    await createTestUser({ role: 'agent', name: 'Backup Agent' });
+
+    const ingested = await arriveLead();
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
+      agent.id,
+      ingested.opportunityId,
+    ]);
+
+    const result = await runSlaCheck({
+      opportunityId: ingested.opportunityId,
+      contactId: ingested.contactId,
+      assignedUserId: agent.id,
+    });
+
+    expect(result.breached).toBe(true);
+    expect(result.bounced).toBe(true);
+    /* Nobody new: the point of the default is that the owner decides who. */
+    expect(result.reassignedTo).toBeNull();
+
+    const opportunity = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?',
+      [ingested.opportunityId],
+    );
+    expect(opportunity?.owner_user_id).toBeNull();
+
+    /*
+     * The sticky owner has to go too. Leaving it would route this person's
+     * next enquiry straight back to the agent who just let this one lapse.
+     */
+    const contact = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM contacts WHERE id = ?',
+      [ingested.contactId],
+    );
+    expect(contact?.owner_user_id).toBeNull();
+
+    const queued = await queryOne<{ reason: string }>(
+      'SELECT reason FROM unassigned_queue WHERE opportunity_id = ? AND resolved_at IS NULL',
+      [ingested.opportunityId],
+    );
+    expect(queued?.reason).toContain('Slow Agent');
   });
 
   it('does not breach the SLA when the agent has already acted', async () => {

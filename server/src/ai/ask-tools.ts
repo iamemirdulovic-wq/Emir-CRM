@@ -250,7 +250,10 @@ export async function runTool(
                 ROUND(AVG(o.lead_score), 1) AS average_score
            FROM opportunities o
           WHERE o.created_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)${fence.clause}
-          GROUP BY source
+          -- The expression, not its alias. MySQL 8 runs with only_full_group_by
+          -- on by default and rejects grouping by an alias that wraps a
+          -- non-aggregated column, so grouping by the alias threw on every call.
+          GROUP BY COALESCE(o.campaign_name, o.source, 'unknown')
           HAVING COUNT(*) > 0
           ORDER BY COUNT(*) DESC
           LIMIT 20`,

@@ -121,3 +121,23 @@ Incoming — They used to stay assigned to an account that cannot sign in, so no
 card moved, no follow-up fired and no timer bounced them. The lead was not
 lost on paper; it was just never going to be called again, which is the exact
 failure this CRM exists to prevent.
+
+2026-10-30 — process — **Check CI after every push. "Tests pass" locally is not
+the same as tests passing** — 268 integration tests skip in this environment
+for want of a MySQL, and there is no way to run them here: no mysqld, no
+Docker daemon. CI is the only place they run. I pushed three times saying the
+tests passed while CI was red, which was true of what I could run and
+misleading about what mattered. From here, every push is followed by reading
+the CI run before anything is called done.
+
+2026-10-30 — testing — `resetTables()` now clears the settings cache — Settings
+are cached in memory for thirty seconds and truncating the table does not
+touch that, so a test that changed a setting handed its value to every test
+after it. The failure would land on whichever test happened to run next, which
+is the worst kind to debug.
+
+2026-10-30 — testing — The SLA breach now has a test for each ending, and each
+says which setting it exercises — The default changed to "back to Incoming"
+when Incoming was built, but the only integration test still asserted the old
+auto-reassign behaviour, so CI went red and the new default — the one Emir
+actually runs — had no coverage at all.
