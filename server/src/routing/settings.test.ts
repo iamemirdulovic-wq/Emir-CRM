@@ -17,6 +17,7 @@ describe('reading the lead routing settings', () => {
       slaMinutes: '3', reminderMinutes: '1', autoAssign: '0', bounceToOwner: '1',
     })).toEqual({
       slaMinutes: 3, reminderMinutes: 1, autoAssign: false, bounceToOwner: true, emailOwnerOnNewLead: true,
+      quietHours: true, quietStart: '22:00', quietEnd: '08:00',
     });
   });
 
@@ -88,5 +89,47 @@ describe('reading the lead routing settings', () => {
     expect(parseRoutingSettings({}).autoAssign).toBe(true);
     expect(parseRoutingSettings({ autoAssign: null }).autoAssign).toBe(true);
     expect(parseRoutingSettings({ autoAssign: '0' }).autoAssign).toBe(false);
+  });
+});
+
+/**
+ * The hours when the clock does not run.
+ *
+ * A lead arriving at 03:10 still gets its reply inside thirty seconds; what
+ * must not happen is taking it off a sleeping agent at 03:15 for not calling.
+ * A time stored wrong here would either leave the clock running all night or
+ * stop it all day, and neither announces itself.
+ */
+describe('the quiet hours', () => {
+  it('is on from ten at night until eight, unless someone changed it', () => {
+    const settings = parseRoutingSettings({});
+    expect(settings.quietHours).toBe(true);
+    expect(settings.quietStart).toBe('22:00');
+    expect(settings.quietEnd).toBe('08:00');
+  });
+
+  it('reads the times an owner set', () => {
+    const settings = parseRoutingSettings({ quietStart: '21:30', quietEnd: '07:00' });
+    expect(settings.quietStart).toBe('21:30');
+    expect(settings.quietEnd).toBe('07:00');
+  });
+
+  /* Written back padded, so the stored value and the shown value match. */
+  it('normalises a time typed without a leading zero', () => {
+    expect(parseRoutingSettings({ quietStart: '9:05' }).quietStart).toBe('09:05');
+  });
+
+  /*
+   * A time that cannot be read falls back rather than reaching the routing
+   * code, where it would quietly mean midnight and stop the clock all day.
+   */
+  it('falls back on a time that is not a time', () => {
+    expect(parseRoutingSettings({ quietStart: 'evening' }).quietStart).toBe('22:00');
+    expect(parseRoutingSettings({ quietEnd: '25:00' }).quietEnd).toBe('08:00');
+    expect(parseRoutingSettings({ quietStart: '' }).quietStart).toBe('22:00');
+  });
+
+  it('can be switched off entirely', () => {
+    expect(parseRoutingSettings({ quietHours: '0' }).quietHours).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import type { AuditActor } from '../audit/audit.js';
 import type { Executor } from '../db/client.js';
 import { getPool } from '../db/client.js';
 import { SLA_FIRST_TOUCH_MS } from '../config/constants.js';
+import { parseClock } from './hours.js';
 
 export interface RoutingSettings {
   /**
@@ -42,6 +43,20 @@ export interface RoutingSettings {
    * — fifty leads is fifty emails — so it is a switch rather than a rule.
    */
   emailOwnerOnNewLead: boolean;
+  /**
+   * The hours when the five-minute clock does not run.
+   *
+   * A lead arriving at 03:10 still gets its WhatsApp inside thirty seconds —
+   * the welcome does not sleep. What must not happen is holding a sleeping
+   * agent to a five-minute call-back and taking the lead off them at 03:15 for
+   * failing. The lead stays theirs overnight and the clock starts when the
+   * office opens.
+   */
+  quietHours: boolean;
+  /** "22:00" — when the clock stops, Dubai time. */
+  quietStart: string;
+  /** "08:00" — when it starts again. */
+  quietEnd: string;
 }
 
 export const ROUTING_DEFAULTS: RoutingSettings = {
@@ -52,6 +67,9 @@ export const ROUTING_DEFAULTS: RoutingSettings = {
   autoAssign: true,
   bounceToOwner: true,
   emailOwnerOnNewLead: true,
+  quietHours: true,
+  quietStart: '22:00',
+  quietEnd: '08:00',
 };
 
 /** Bounds, so a typo cannot switch the timer off or make it meaningless. */
@@ -78,7 +96,18 @@ export function parseRoutingSettings(raw: Partial<Record<keyof RoutingSettings, 
     autoAssign: bool(raw.autoAssign, ROUTING_DEFAULTS.autoAssign),
     bounceToOwner: bool(raw.bounceToOwner, ROUTING_DEFAULTS.bounceToOwner),
     emailOwnerOnNewLead: bool(raw.emailOwnerOnNewLead, ROUTING_DEFAULTS.emailOwnerOnNewLead),
+    quietHours: bool(raw.quietHours, ROUTING_DEFAULTS.quietHours),
+    /* Read through the clock parser and written back as it understood them,
+       so a value that would not parse never reaches the routing code. */
+    quietStart: clockText(raw.quietStart, ROUTING_DEFAULTS.quietStart),
+    quietEnd: clockText(raw.quietEnd, ROUTING_DEFAULTS.quietEnd),
   };
+}
+
+/** A stored time, normalised to "HH:MM", or the default if it is not one. */
+function clockText(value: string | null | undefined, fallback: string): string {
+  const minutes = parseClock(value, parseClock(fallback, 0));
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
 function number(value: string | null | undefined, fallback: number): number {
@@ -97,14 +126,23 @@ function clamp(value: number, low: number, high: number): number {
 }
 
 export async function routingSettings(exec: Executor = getPool()): Promise<RoutingSettings> {
-  const [slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead] = await Promise.all([
+  const [
+    slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
+    quietHours, quietStart, quietEnd,
+  ] = await Promise.all([
     setting('ROUTING_SLA_MINUTES', exec),
     setting('ROUTING_REMINDER_MINUTES', exec),
     setting('ROUTING_AUTO_ASSIGN', exec),
     setting('ROUTING_BOUNCE_TO_OWNER', exec),
     setting('ROUTING_EMAIL_OWNER_NEW_LEAD', exec),
+    setting('ROUTING_QUIET_HOURS', exec),
+    setting('ROUTING_QUIET_START', exec),
+    setting('ROUTING_QUIET_END', exec),
   ]);
-  return parseRoutingSettings({ slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead });
+  return parseRoutingSettings({
+    slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
+    quietHours, quietStart, quietEnd,
+  });
 }
 
 /** Save a change, and hand back what the settings now are. */
@@ -126,6 +164,9 @@ export async function saveRoutingSettings(
     autoAssign: String(patch.autoAssign ?? current.autoAssign),
     bounceToOwner: String(patch.bounceToOwner ?? current.bounceToOwner),
     emailOwnerOnNewLead: String(patch.emailOwnerOnNewLead ?? current.emailOwnerOnNewLead),
+    quietHours: String(patch.quietHours ?? current.quietHours),
+    quietStart: String(patch.quietStart ?? current.quietStart),
+    quietEnd: String(patch.quietEnd ?? current.quietEnd),
   });
 
   // Only what actually moved, so the audit log reads as a list of decisions
@@ -145,5 +186,14 @@ export async function saveRoutingSettings(
   if (next.emailOwnerOnNewLead !== current.emailOwnerOnNewLead) {
     await saveSetting(actor, 'ROUTING_EMAIL_OWNER_NEW_LEAD', next.emailOwnerOnNewLead ? '1' : '0', exec);
   }
-  return next;
+
+  if (next.quietHours !== current.quietHours) {
+    await saveSetting(actor, 'ROUTING_QUIET_HOURS', next.quietHours ? '1' : '0', exec);
+  }
+  if (next.quietStart !== current.quietStart) {
+    await saveSetting(actor, 'ROUTING_QUIET_START', next.quietStart, exec);
+  }
+  if (next.quietEnd !== current.quietEnd) {
+    await saveSetting(actor, 'ROUTING_QUIET_END', next.quietEnd, exec);
+  }  return next;
 }

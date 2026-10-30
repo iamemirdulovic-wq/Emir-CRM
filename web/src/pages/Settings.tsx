@@ -13,8 +13,9 @@ import {
 } from '../design/ui.js';
 import { AiKnowledgeTab } from '../components/AiKnowledge.js';
 import { PhoneAppPanel } from '../components/PhoneApp.js';
+import { RoutingSettings } from '../components/RoutingSettings.js';
 
-type Tab = 'profile' | 'team' | 'teams' | 'templates' | 'ai' | 'health';
+type Tab = 'profile' | 'team' | 'teams' | 'routing' | 'templates' | 'ai' | 'health';
 
 const ROLES: Role[] = ['owner', 'admin', 'manager', 'agent', 'automation'];
 
@@ -38,11 +39,16 @@ export function Settings() {
   const tabs: {
     value: Tab;
     label: string;
-    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity' | 'sparkles';
+    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity' | 'sparkles' | 'timer';
   }[] = [
     { value: 'profile', label: 'You', icon: 'user' },
     ...(can('users:manage') ? ([{ value: 'team' as const, label: t('team'), icon: 'users' as const }]) : []),
     ...(isManager ? ([{ value: 'teams' as const, label: 'Desks', icon: 'users-round' as const }]) : []),
+    /* Routing decides what happens to every lead, so it is the owner's
+       alone — the server refuses a PATCH from anyone else either way. */
+    ...(user?.role === 'owner'
+      ? ([{ value: 'routing' as const, label: 'Lead routing', icon: 'timer' as const }])
+      : []),
     ...(isManager
       ? ([
           { value: 'templates' as const, label: t('templates'), icon: 'layout-template' as const },
@@ -65,6 +71,7 @@ export function Settings() {
       {tab === 'profile' && <ProfileTab />}
       {tab === 'team' && <TeamTab />}
       {tab === 'teams' && <DesksTab />}
+      {tab === 'routing' && <RoutingSettings />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'ai' && <AiKnowledgeTab />}
       {tab === 'health' && <HealthTab />}

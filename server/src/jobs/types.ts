@@ -4,6 +4,7 @@ export const JOB_TYPES = [
   'meta.backfill_form',
   'workflow.a.instant_capture',
   'workflow.a.sla_check',
+  'workflow.a.sla_reminder',
   'workflow.b.step',
   'workflow.c.route_inbound',
   'whatsapp.send_template',

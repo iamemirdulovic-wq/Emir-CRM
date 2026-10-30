@@ -163,3 +163,29 @@ which is right for server-to-server and impossible in a browser, where
 anything the page knows everybody knows. The public endpoint instead gets a
 revocable site key, a 10/minute limit per address and a honeypot. The HMAC
 endpoint is untouched, as the owner asked.
+
+2026-10-30 — routing — The SLA is an exact-time job per lead, **not** the
+30-second sweep the spec asks for — The deadline is known the moment a lead is
+assigned, so the cheapest correct thing is to ask to be woken then: no polling
+at all, and the bounce lands on the second rather than up to half a minute
+late. The jobs table's dedupe key already makes two workers produce one bounce,
+which is the property the sweep was specified to guarantee.
+
+2026-10-30 — routing — Quiet hours pause the *clock*, never the reply — A lead
+arriving at 03:10 still gets its WhatsApp inside thirty seconds. What must not
+happen is holding a sleeping agent to a five-minute call-back and taking the
+lead off them at 03:15 for failing: by morning the lead has bounced, the agent
+has a breach against their name, and nobody has spoken to the client. The lead
+stays theirs overnight and the clock starts at 08:00.
+
+2026-10-30 — routing — The spec's "on-duty agent" out-of-hours mode is not
+built — Emigeo has seven agents and no night shift. Pausing is the behaviour
+that fits; a rota nobody is on would be a screen to maintain and a way to send
+a 3am lead to someone who is also asleep. Easy to add if a night desk ever
+exists.
+
+2026-10-30 — routing — Bounce alerts are damped after three in a minute — A
+worker coming back from an outage runs a queue of expired timers in seconds,
+and each is a real bounce wanting to tell somebody. Seven buzzes in four
+seconds gets the phone silenced, and the next one — on a normal Tuesday, about
+a lead that matters — is silenced with it.

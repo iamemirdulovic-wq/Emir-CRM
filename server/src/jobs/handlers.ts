@@ -5,7 +5,7 @@ import { HOT_SCORE_THRESHOLD } from '../config/constants.js';
 import { fetchLeadDetail, fetchFormLeads, normalizeMetaLead } from '../ingestion/sources/meta.js';
 import { markEventFailed, markEventProcessed, markEventProcessing, recordInboundEvent } from '../ingestion/events.js';
 import { ingestLead } from '../ingestion/ingest.js';
-import { runWorkflowA, runSlaCheck } from '../workflows/workflow-a.js';
+import { runWorkflowA, runSlaCheck, runSlaReminder } from '../workflows/workflow-a.js';
 import { runWorkflowBStep, type Step } from '../workflows/workflow-b.js';
 import { runWorkflowC } from '../workflows/workflow-c.js';
 import { sendWhatsApp } from '../messaging/send.js';
@@ -112,6 +112,14 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       assignedUserId: str(payload, 'assignedUserId'),
       // Absent on jobs queued before the accept step existed: those are the
       // accept clock, which is what they always were.
+      ...(payload.phase === 'action' ? { phase: 'action' as const } : {}),
+    }),
+
+  'workflow.a.sla_reminder': async (payload) =>
+    runSlaReminder({
+      opportunityId: str(payload, 'opportunityId'),
+      contactId: str(payload, 'contactId'),
+      assignedUserId: str(payload, 'assignedUserId'),
       ...(payload.phase === 'action' ? { phase: 'action' as const } : {}),
     }),
 

@@ -68,14 +68,19 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       0–100 score is kept and now explains itself in words
 
 ## Step 4 — Incoming, routing, the 5-minute rule (D4)
-- [ ] 4.1 `routing_status` state machine, all transitions
-- [ ] 4.2 SLA scheduler every 30 s, idempotent, parallel-safe
-- [ ] 4.3 Reminder at `reminder_minutes`, sent once
-- [ ] 4.4 Out-of-hours modes (pause / on-duty agent)
-- [ ] 4.5 Downtime catch-up: one summary, not one per lead
-- [ ] 4.6 Incoming page: cards, waiting timer, bulk bar, agent picker
-- [ ] 4.7 Owner routing settings screen
-- [ ] 4.8 State machine tests incl. double-run and auto-reassign
+- [x] 4.1 State machine — built with Incoming; `decideSla()` is the pure
+      function and both endings now have integration tests
+- [x] 4.2 **Not** a 30-second sweep: an exact-time job per lead. The deadline
+      is known when the lead is assigned, so no polling and the bounce lands
+      on the second. Deduped by key, so two workers produce one bounce
+- [x] 4.3 The reminder now exists. It was a setting with nothing behind it —
+      an owner could choose three minutes and no agent was ever nudged
+- [x] 4.4 Quiet hours: the clock pauses overnight and starts in the morning.
+      Clients still get their reply at any hour
+- [x] 4.5 Downtime catch-up: three bounces in a minute become one summary
+- [x] 4.6 Incoming page — built previously
+- [x] 4.7 Owner routing settings screen, in plain words
+- [x] 4.8 Tests: 18 for the quiet-hours arithmetic, 8 for the alert damper
 
 ## Step 5 — Notifications (D5)
 - [ ] 5.1 `notifications` table + centre (dropdown / mobile page)

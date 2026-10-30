@@ -318,3 +318,24 @@
 .bottom-add-dot svg{width:24px;height:24px;stroke-width:2.2}
 .bottom-add:active .bottom-add-dot{transform:scale(.94)}
 @media (prefers-reduced-motion:reduce){.bottom-add:active .bottom-add-dot{transform:none}}
+
+/* ── Lead routing settings ─────────────────────────────────────────────── */
+
+.routing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px}
+/* Full width and explicitly left-aligned: the panel lays its children out as
+   a column, and without this each row floats to a different x depending on how
+   long its sentence is, which reads as unfinished. */
+.routing-switch{display:flex;width:100%;justify-content:flex-start;align-items:flex-start;
+  gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+/* The shared .switch is built for the sidebar, where it sits at the far right
+   of its row. Here it leads the line it belongs to. */
+.routing-switch .switch{margin-left:0;flex:none}
+.routing-switch > div{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.routing-switch b{font-size:14.5px}
+/* The consequence of the switch, which changes with it — so the owner reads
+   what will happen rather than the setting restated. */
+.routing-switch small{color:var(--ink-2);font-size:13px;line-height:1.5}
+#settings .routing-switch + .routing-grid{margin:2px 0 6px 52px}
+@media (max-width:560px){
+  #settings .routing-switch + .routing-grid{margin-left:0}
+}

@@ -7,6 +7,8 @@ import { SYSTEM_ACTOR, writeAudit } from '../audit/audit.js';
 import { addActivity } from '../ingestion/ingest.js';
 import { enqueue } from '../jobs/queue.js';
 import { routingSettings } from '../routing/settings.js';
+import { parseClock, slaDeadline } from '../routing/hours.js';
+import { recordBounceForAlerting } from '../routing/storm.js';
 import { emailOwnersAboutLead } from '../routing/new-lead-email.js';
 import {
   bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
@@ -481,8 +483,18 @@ export async function armSlaTimer(input: {
   contactId: string;
   assignedUserId: string;
   phase: SlaPhase;
-}): Promise<void> {
-  const { slaMinutes } = await routingSettings();
+}): Promise<{ deadline: Date; deferred: boolean }> {
+  const settings = await routingSettings();
+  const now = new Date();
+
+  /*
+   * A job at an exact time rather than a sweep every thirty seconds. The
+   * deadline is known the moment the lead is assigned, so the cheapest
+   * correct thing is to ask to be woken then — no polling, and the bounce
+   * lands on the second rather than up to half a minute late.
+   */
+  const { deadline, deferred } = slaDeadline(now, settings.slaMinutes, quietHoursOf(settings));
+
   await enqueue(
     'workflow.a.sla_check',
     {
@@ -493,11 +505,100 @@ export async function armSlaTimer(input: {
     },
     {
       priority: 2,
-      runAt: new Date(Date.now() + slaMinutes * 60 * 1000),
+      runAt: deadline,
       dedupeKey: `sla:${input.opportunityId}:${input.phase}`,
       contactId: input.contactId,
     },
   );
+
+  /*
+   * The nudge. It was a setting with nothing behind it until now — an owner
+   * could choose three minutes and no agent was ever reminded. Armed as its
+   * own job so it can be cancelled independently, and skipped entirely when
+   * there is no room for it before the deadline.
+   */
+  if (settings.reminderMinutes > 0) {
+    const remindAt = new Date(deadline.getTime() - settings.reminderMinutes * 60 * 1000);
+    if (remindAt.getTime() > now.getTime() + 5_000) {
+      await enqueue(
+        'workflow.a.sla_reminder',
+        {
+          opportunityId: input.opportunityId,
+          contactId: input.contactId,
+          assignedUserId: input.assignedUserId,
+          phase: input.phase,
+        },
+        {
+          priority: 2,
+          runAt: remindAt,
+          dedupeKey: `sla-reminder:${input.opportunityId}:${input.phase}`,
+          contactId: input.contactId,
+        },
+      ).catch((err: unknown) => logger.warn('could not arm the reminder', errorContext(err)));
+    }
+  }
+
+  return { deadline, deferred };
+}
+
+/** The quiet window, or null when the owner has switched it off. */
+function quietHoursOf(settings: { quietHours: boolean; quietStart: string; quietEnd: string }) {
+  if (!settings.quietHours) return null;
+  return {
+    startMinute: parseClock(settings.quietStart, 22 * 60),
+    endMinute: parseClock(settings.quietEnd, 8 * 60),
+  };
+}
+
+/**
+ * "Two minutes left." Sent only if the lead is still sitting there.
+ *
+ * Deliberately quiet about the ones that no longer need it: an agent who
+ * accepted the lead a minute ago does not want to be told they are about to
+ * lose it, and a nudge that arrives after the fact teaches people to ignore
+ * nudges.
+ */
+export async function runSlaReminder(input: {
+  opportunityId: string;
+  contactId: string;
+  assignedUserId: string;
+  phase?: SlaPhase;
+}): Promise<{ sent: boolean; why: string }> {
+  const phase: SlaPhase = input.phase ?? 'accept';
+  const opportunity = await queryOne<{
+    owner_user_id: string | null;
+    accepted_at: Date | null;
+    first_touch_at: Date | null;
+    status: string;
+    title: string | null;
+  }>(
+    `SELECT owner_user_id, accepted_at, first_touch_at, status, title
+       FROM opportunities WHERE id = ? AND deleted_at IS NULL`,
+    [input.opportunityId],
+  );
+
+  if (!opportunity) return { sent: false, why: 'gone' };
+  if (opportunity.status !== 'open') return { sent: false, why: 'closed' };
+  if (opportunity.owner_user_id !== input.assignedUserId) return { sent: false, why: 'owner_changed' };
+  if (phase === 'accept' && opportunity.accepted_at) return { sent: false, why: 'accepted' };
+  if (opportunity.first_touch_at) return { sent: false, why: 'acted' };
+
+  const acted = await hasActed({
+    opportunityId: input.opportunityId,
+    contactId: input.contactId,
+    since: phase === 'action' ? opportunity.accepted_at : null,
+  });
+  if (acted.acted) return { sent: false, why: 'acted' };
+
+  const { reminderMinutes } = await routingSettings();
+  await pushToUser(input.assignedUserId, {
+    title: `${reminderMinutes} minute${reminderMinutes === 1 ? '' : 's'} left`,
+    body: `${opportunity.title ?? 'Your new lead'} goes back to the owner if you do not call.`,
+    link: `/contacts/${input.contactId}`,
+    priority: 'high',
+  }).catch((err: unknown) => logger.warn('could not send the SLA reminder', errorContext(err)));
+
+  return { sent: true, why: 'reminded' };
 }
 
 /**
@@ -594,12 +695,28 @@ export async function runSlaCheck(input: {
       await tagOps(tx, input.contactId, 'sla-breach');
     });
 
-    await pushToManagers({
-      title: 'Lead bounced — needs reassigning',
-      body: `${opportunity.title ?? 'A lead'} came back from ${agent?.name ?? 'an agent'}. It is waiting in Incoming.`,
-      link: '/incoming',
-      priority: 'high',
-    }).catch((err) => logger.warn('bounce push failed', errorContext(err)));
+    /*
+     * After an outage the worker runs a queue of expired timers in seconds,
+     * and every one of them is a real bounce wanting to tell somebody. Seven
+     * buzzes in four seconds gets the phone silenced, and the next one — on a
+     * normal Tuesday, about a lead that matters — is silenced with it.
+     */
+    const alert = recordBounceForAlerting();
+    if (alert.tell === 'each') {
+      await pushToManagers({
+        title: 'Lead bounced — needs reassigning',
+        body: `${opportunity.title ?? 'A lead'} came back from ${agent?.name ?? 'an agent'}. It is waiting in Incoming.`,
+        link: '/incoming',
+        priority: 'high',
+      }).catch((err) => logger.warn('bounce push failed', errorContext(err)));
+    } else if (alert.tell === 'summary') {
+      await pushToManagers({
+        title: `${alert.count} leads came back at once`,
+        body: 'They are waiting in Incoming. This usually means the CRM was offline for a while.',
+        link: '/incoming',
+        priority: 'high',
+      }).catch((err) => logger.warn('bounce summary push failed', errorContext(err)));
+    }
 
     return { breached: true, bounced: true, reassignedTo: null };
   }

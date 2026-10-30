@@ -44,6 +44,11 @@ const PERMISSIONS = [
 /** The preview always starts signed in — an empty login screen demonstrates nothing. */
 const session = { signedIn: true, locale: 'en' };
 
+const routing = {
+  slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
+  emailOwnerOnNewLead: true, quietHours: true, quietStart: '22:00', quietEnd: '08:00',
+};
+
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */
 let pendingAccepted = false;
 
@@ -213,9 +218,18 @@ const ROUTES: Route[] = [
     pendingAccepted = true;
     return { acceptedAt: new Date().toISOString(), actionDueInMinutes: 5 };
   } },
-  { method: 'GET', pattern: /^\/api\/incoming\/settings$/, handler: () => ({
-    slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
-  }) },
+  { method: 'GET', pattern: /^\/api\/incoming\/settings$/, handler: () => routing },
+  { method: 'PATCH', pattern: /^\/api\/incoming\/settings$/, handler: ({ body }) => {
+    Object.assign(routing, body);
+    /* The server caps the reminder against the deadline; the preview does the
+       same so the screen behaves the way it really will. */
+    routing.reminderMinutes = Math.min(routing.reminderMinutes, routing.slaMinutes - 1);
+    return routing;
+  } },
+
+  /* Push is a real browser capability the preview has no server for; saying
+     "not configured" is what the screen expects when it is switched off. */
+  { method: 'GET', pattern: /^\/api\/users\/me\/push-config$/, handler: () => ({ configured: false }) },
 
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },

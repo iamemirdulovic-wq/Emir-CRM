@@ -312,11 +312,19 @@ incomingRouter.get(
   }),
 );
 
+const CLOCK = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
 const settingsSchema = z.object({
   slaMinutes: z.number().int().optional(),
   reminderMinutes: z.number().int().optional(),
   autoAssign: z.boolean().optional(),
   bounceToOwner: z.boolean().optional(),
+  emailOwnerOnNewLead: z.boolean().optional(),
+  quietHours: z.boolean().optional(),
+  /* Rejected here as well as normalised later: an owner who typed "9pm"
+     should be told, not silently given ten at night. */
+  quietStart: z.string().regex(CLOCK, 'Use a 24-hour time such as 22:00').optional(),
+  quietEnd: z.string().regex(CLOCK, 'Use a 24-hour time such as 08:00').optional(),
 });
 
 incomingRouter.patch(

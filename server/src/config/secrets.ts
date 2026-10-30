@@ -33,7 +33,10 @@ export type SettingName =
   | 'ROUTING_REMINDER_MINUTES'
   | 'ROUTING_AUTO_ASSIGN'
   | 'ROUTING_BOUNCE_TO_OWNER'
-  | 'ROUTING_EMAIL_OWNER_NEW_LEAD';
+  | 'ROUTING_EMAIL_OWNER_NEW_LEAD'
+  | 'ROUTING_QUIET_HOURS'
+  | 'ROUTING_QUIET_START'
+  | 'ROUTING_QUIET_END';
 
 /*
  * Cached, because this is read on the path of every AI call and a database
