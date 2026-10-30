@@ -8,7 +8,7 @@
  *    .app-switch-slot so the sidebar already has its final proportions.
  */
 import { Fragment, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
 import { BrandLockup } from '../brand.js';
@@ -157,13 +157,17 @@ export function AppShell({
         <div className="app-switch-slot" aria-hidden="true" />
 
         <div className="side-foot">
-          <div className="avatar" style={{ background: user.colour ?? 'var(--s-apt)' }}>
-            {user.initials}
-          </div>
-          <div className="who">
-            <span>{user.name}</span>
-            <small>{user.role}</small>
-          </div>
+          {/* The name is the way to one's own profile — the place everybody
+              already looks for it, and one fewer item in the navigation. */}
+          <Link className="side-me" to="/profile" title="Your profile">
+            <div className="avatar" style={{ background: user.colour ?? 'var(--s-apt)' }}>
+              {user.initials}
+            </div>
+            <div className="who">
+              <span>{user.name}</span>
+              <small>{user.role}</small>
+            </div>
+          </Link>
           <button type="button" onClick={onSignOut} title="Sign out" aria-label="Sign out">
             <Icon name="log-out" />
           </button>

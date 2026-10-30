@@ -229,11 +229,23 @@ A box is ticked only when the item is **built, tested and screenshotted**.
       CRM looks genuinely different to an agent and to an owner
 
 ## Step 12 — Profiles and business card (D12)
-- [ ] 12.1 `agent_profiles` table
-- [ ] 12.2 Profile page with photo/cover crop, fields, status, availability
-- [ ] 12.3 Six generated skyline covers (original SVG, no copyrighted photos)
-- [ ] 12.4 Auto stats, badges shelf, level
-- [ ] 12.5 Public business card + QR + vCard
+- [x] 12.1 `agent_profiles` table, separate from `users` so the query that
+      serves a public card cannot reach a password hash
+- [x] 12.2 Profile page — headline, bio, languages, what they sell, job title,
+      BRN, cover, and the switch that makes the card public (off by default)
+- [x] 12.3 Six generated skyline covers, drawn in SVG from a handful of
+      numbers. No photograph: a stock skyline is either licensed or stolen.
+      Each under 10 KB and identical on every render.
+- [x] 12.4 Stats counted from the CRM and ten badges earned from them — none
+      that anybody can hand out, several reachable in a first month — plus a
+      level that is a word rather than a number
+- [x] 12.5 Public business card at `/card/{slug}`: server-rendered HTML with
+      no bundle and no session, a QR code generated in this repository, and a
+      vCard that saves on one tap
+- [x] 12.6 A QR encoder written here rather than installed or fetched from a
+      free QR image service — those work by being told the URL, which for a
+      business card means handing a named person at a named brokerage to a
+      third party on every page load
 
 ## Step 13 — Team Wall, kudos, points, badges (D13)
 - [ ] 13.1 Wall tables

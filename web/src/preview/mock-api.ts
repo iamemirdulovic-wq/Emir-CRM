@@ -816,6 +816,53 @@ const ROUTES: Route[] = [
     ],
   }) },
 
+  // --- profiles -----------------------------------------------------------
+  { method: 'GET', pattern: /^\/api\/profiles\/covers$/, handler: () => ({
+    items: [
+      { key: 'marina-dusk', name: 'Marina at dusk' },
+      { key: 'downtown-night', name: 'Downtown at night' },
+      { key: 'creek-dawn', name: 'Creek at dawn' },
+      { key: 'saadiyat-day', name: 'Saadiyat by day' },
+      { key: 'desert-gold', name: 'Desert gold' },
+      { key: 'teal-calm', name: 'Calm teal' },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => {
+    const me = currentUser();
+    const badges = [
+      { key: 'first_deal', name: 'First deal', how: 'Close your first deal', icon: 'trophy', earned: true, progress: 1 },
+      { key: 'fast_hands', name: 'Fast hands', how: 'Answer new leads in under two minutes, typically', icon: 'zap', earned: true, progress: null },
+      { key: 'week_streak', name: 'Seven days running', how: 'Speak to at least one lead every day for a week', icon: 'calendar-check', earned: true, progress: 1 },
+      { key: 'tidy_desk', name: 'Tidy desk', how: 'Have a next step on every open lead', icon: 'check-check', earned: true, progress: 1 },
+      { key: 'under_thirty', name: 'Under thirty', how: 'Answer new leads in under thirty seconds, typically', icon: 'flame', earned: false, progress: null },
+      { key: 'ten_deals', name: 'Ten deals', how: 'Close ten deals', icon: 'crown', earned: false, progress: 0.4 },
+      { key: 'month_streak', name: 'Thirty days running', how: 'Speak to at least one lead every day for a month', icon: 'target', earned: false, progress: 0.23 },
+      { key: 'fifty_meetings', name: 'Fifty viewings', how: 'Book fifty viewings', icon: 'map-pin', earned: false, progress: 0.62 },
+      { key: 'note_taker', name: 'Note taker', how: 'Write a hundred notes', icon: 'sticky-note', earned: false, progress: 0.41 },
+      { key: 'one_year', name: 'One year', how: 'Be here a year', icon: 'badge-check', earned: false, progress: 0.75 },
+    ];
+    return {
+      profile: {
+        user_id: me.id, slug: me.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: me.name, email: me.email, role: me.role,
+        job_title: 'Property Consultant', brn: '48219', photo_url: null,
+        phone_e164: '+971501234567',
+        headline: 'Off-plan in Dubai Marina and Downtown. I answer in minutes, not days.',
+        bio: 'Six years selling off-plan in Dubai. I work with buyers who want a straight answer about what a unit really costs, including the fees nobody mentions.',
+        cover_key: 'marina-dusk',
+        languages: ['English', 'Arabic', 'Hindi'],
+        specialities: ['Off-plan', 'Dubai Marina', 'Investment'],
+        public_phone: null, public_email: null, whatsapp: '+971501234567',
+        instagram: null, linkedin: null, is_public: 1,
+      },
+      stats: { leadsWorking: 46, dealsWon: 4, appointments: 31, speedToLeadSeconds: 48, monthsHere: 9 },
+      badges,
+      level: { level: 'Solid', index: 2, earned: 4, of: badges.length },
+      editable: true,
+    };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/profiles\/([^/]+)$/, handler: () => ({ ok: true }) },
+
   // --- users --------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/users$/, handler: () => ({ items: USERS }) },
   { method: 'PATCH', pattern: /^\/api\/users\/([^/]+)$/, handler: ({ params, body }) => {

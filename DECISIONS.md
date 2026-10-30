@@ -473,3 +473,57 @@ right-hand control sits: the Live/Sign-ins switch, New campaign, the date
 range. An agent with an alert up could not press any of them, on any screen.
 The alert now starts below the toolbar — 140px on a desktop, 164px on a
 phone, measured rather than guessed.
+
+2026-10-30 — profiles — The covers are drawn, not photographed — A stock
+photograph of the Dubai skyline is either licensed or stolen, and a
+brokerage's own CRM must not be either. Six SVG covers generated from a
+handful of numbers: a couple of kilobytes each, sharp at any size, identical
+on every render, and belonging to nobody but this repository. Deliberately
+abstract, so nobody can say "that is the Burj and you have drawn it wrong".
+
+2026-10-30 — profiles — The QR code is generated here — Not installed, and
+not fetched from one of the free QR image services. Those services work by
+being told the URL you want encoded, which for a business card is a named
+person at a named brokerage handed to a third party on every page load, for
+ever. Two hundred lines avoids that and avoids a dependency to keep updated.
+Byte mode, level M, versions 1 to 10 — about 213 characters, where a card URL
+is forty; anything longer throws rather than producing a code that will not
+scan.
+
+2026-10-30 — profiles — The QR is verified by decoding it — An encoder nobody
+has decoded is an encoder that ships broken. This Chromium has no
+BarcodeDetector, so the test includes an independent decoder written against
+the standard, which reads the mask out of the format bits in the finished
+grid rather than being told which one was chosen. It found a real bug: the
+second copy of the format information is split seven then eight, not eight
+then seven, and writing eight overwrote the module that must always be dark —
+which strict scanners check before anything else.
+
+2026-10-30 — profiles — The numbers on a profile cannot be typed — An agent
+writes their own bio and picks a cover. Deals, viewings and how fast they
+answer are counted. A profile where the figures are typed is a profile nobody
+believes, starting with the person whose profile it is.
+
+2026-10-30 — profiles — Badges are earned, never awarded — A badge somebody
+can hand out is a badge somebody can withhold, and "employee of the month" is
+a thing an agent resents. Every one of these is a fact checked against the
+same data the reports use. They are also reachable: four land in a first
+month, because a shelf that is empty on somebody's second day is a shelf they
+stop looking at.
+
+2026-10-30 — profiles — The level is a word — "Solid", "Senior", not "Level
+3". A number invites comparison; a word describes. And the step from no badges
+to one moves it, because the first badge should feel like something.
+
+2026-10-30 — profiles — The public card is off by default and 404s the same
+either way — A card nobody switched on cannot leak. A profile that is off,
+and a slug that does not exist, both return exactly the same page: a
+different message would let anybody test which agents work here by guessing
+names.
+
+2026-10-30 — profiles — The card is server-rendered HTML — No bundle, no
+session, no API call, fourteen kilobytes including the cover and the QR. A
+client who scans a code at a sales centre on one bar of signal gets the page,
+and it works with JavaScript off. The template is a pure function so it can
+be rendered and looked at without a database or a running server — which is
+the only way a page nobody logs into gets checked before a client sees it.

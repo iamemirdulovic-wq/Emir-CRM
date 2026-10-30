@@ -26,6 +26,7 @@ import { Pool } from './pages/Pool.js';
 import { EmailCampaigns } from './pages/EmailCampaigns.js';
 import { TeamActivity } from './pages/TeamActivity.js';
 import { AuditLog } from './pages/AuditLog.js';
+import { Profile } from './pages/Profile.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -88,6 +89,8 @@ export function App() {
           <Route path="/campaigns/:id" element={<CampaignDetailScreen />} />
           <Route path="/campaigns/:id/dial" element={<Dialler />} />
           <Route path="/email-campaigns" element={<EmailCampaigns />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:userId" element={<Profile />} />
           <Route path="/team-activity" element={<TeamActivity />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/imports" element={<Imports />} />

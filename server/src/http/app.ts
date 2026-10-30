@@ -43,6 +43,8 @@ import { startHeartbeat } from '../realtime/hub.js';
 import { emailRouter } from './routes/email.js';
 import { emailPublicRouter } from './routes/email-public.js';
 import { activityRouter } from './routes/activity.js';
+import { profilesRouter } from './routes/profiles.js';
+import { cardRouter } from './routes/card.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -206,6 +208,9 @@ export function createApp(): Express {
   app.use('/api/my-leads', myLeadsRouter);
   app.use('/api/email', emailRouter);
   app.use('/api/activity', activityRouter);
+  app.use('/api/profiles', profilesRouter);
+  /* The public business card: no login, no bundle, no session. */
+  app.use('/', cardRouter);
   /* No login on these two: a client clicks the unsubscribe link and a
      provider posts the webhook. Both prove themselves by signature. */
   app.use('/', emailPublicRouter);

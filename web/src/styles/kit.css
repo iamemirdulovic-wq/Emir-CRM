@@ -871,3 +871,47 @@
 .my-week em{
   font-style:normal;margin-left:auto;font-size:12px;font-weight:600;color:var(--primary);
   background:var(--primary-soft);padding:3px 10px;border-radius:99px}
+
+/* ---------------------------------------------------------------------------
+   Agent profile
+   --------------------------------------------------------------------------- */
+
+.profile-head{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.profile-head h2{margin:0;font-size:19px}
+.profile-head p{margin:2px 0 6px;font-size:13px}
+
+.level-pill{
+  display:inline-block;font-size:11.5px;font-weight:700;padding:3px 11px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary)}
+
+.headline{margin:0 0 10px;font-size:15px;line-height:1.6}
+
+.badges{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+
+/* `.shelf-badge`, not `.badge`: the sidebar's unread counts already own that
+   name, and a half-matching rule is worse than no rule. */
+.shelf-badge{
+  padding:12px 13px;border-radius:var(--r-m);border:1px solid var(--line);
+  background:var(--surface-2);display:flex;flex-direction:column;gap:3px;
+  align-items:flex-start;text-align:left;
+  /* A locked badge is visible but plainly not earned: hiding them would mean
+     nobody knows what to aim at. */
+  opacity:.55}
+.shelf-badge.got{opacity:1;border-color:color-mix(in srgb,var(--s-won) 40%,var(--line))}
+.shelf-badge b{font-size:13.5px}
+.shelf-badge small{font-size:11.5px;color:var(--ink-2);line-height:1.45}
+
+.badge-icon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:4px;
+  background:var(--primary-soft);color:var(--primary)}
+.shelf-badge.got .badge-icon{background:rgba(93,187,143,.18);color:var(--s-won)}
+
+.badge-bar{display:block;width:100%;height:4px;border-radius:99px;background:var(--line);margin-top:6px;overflow:hidden}
+.badge-bar i{display:block;height:100%;border-radius:99px;background:var(--primary)}
+
+/* One's own profile, reached by one's own name in the sidebar. */
+.side-me{
+  display:flex;align-items:center;gap:10px;flex:1;min-width:0;
+  text-decoration:none;color:inherit;border-radius:10px;padding:2px;margin:-2px;
+  transition:background .15s}
+.side-me:hover{background:var(--surface-2)}
