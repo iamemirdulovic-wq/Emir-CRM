@@ -2,6 +2,28 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Correction: it was deploying the whole time
+
+**Found**
+- The CRM is deployed by **Hostinger's own GitHub integration**, which watches
+  the working branch and ships every push to mycrm.emirdulovic.com in about 75
+  seconds. The panel lists every commit of this build, green.
+- I had recorded the opposite. `.github/workflows/deploy.yml` fires on a branch
+  called `main`, there is no `main`, and it has never run — all true — and I
+  turned that into "nothing has ever reached the live site" and put it at the
+  top of the final report, then had the owner chasing SSH keys and repository
+  secrets for a path nothing uses. The container cannot reach the site, so the
+  honest claim was always "I cannot see from here"; one screenshot of the
+  hosting panel settled it.
+
+**Changed**
+- `FINAL_REPORT.md` §1, `SETUP_NEEDED.md` §0, `PROGRESS.md` and `CLAUDE.md`
+  corrected, each keeping the mistake visible rather than quietly rewritten.
+- `deploy.yml` and `docs/DEPLOYMENT.md` now open by saying they are not the
+  live path and to check the hosting panel first.
+- `CLAUDE.md` now leads with the fact that matters most here: **every push is a
+  release to ten people, with no staging and no approval step.**
+
 ## The Business Card Studio
 
 **Added**

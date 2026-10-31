@@ -7,29 +7,27 @@ developer detail is in `docs/`.
 
 ---
 
-## 1. Start here: it is not live yet
+## 1. It is live, and it deploys itself
 
-**Everything I built is finished and tested, and none of it has reached
-crm.homes.me.** I found this at the end, while writing this report, and it is
-the first thing you need to know.
+Hostinger's GitHub integration is connected to this repository and watches the
+working branch. **Every push is on mycrm.emirdulovic.com in about 75 seconds**,
+with nothing for anybody to press. hPanel → Websites → mycrm.emirdulovic.com →
+Deployments lists every one of them, all green.
 
-The deploy is wired to run after the tests pass **on a branch called `main`**.
-This repository has no branch called `main` — the work sits on
-`claude/new-session-krd7bx`. So the deploy has never run: 87 pushes, 87 green
-test runs, zero deploys. Nothing failed; the last step simply never fired,
-and a step that never fires says nothing.
+**An earlier version of this report said the opposite** — that none of the work
+had reached the site. I had been reading `.github/workflows/deploy.yml`, which
+fires on a branch called `main`; there is no `main`, so it has never run once.
+I concluded from that that nothing deployed, without checking the hosting panel,
+where the real answer was. The workflow is a second, unused path. It needs no
+keys and no secrets, because nothing uses it.
 
-Nothing is lost. The whole build is in GitHub, tested, waiting.
+**Worth knowing:** there is no staging. A push is a release, for everyone on
+the team, immediately.
 
-**Fixing it is two clicks and it is your call, not mine** — either rename the
-branch to `main` (then it deploys by itself from now on) or press **Run
-workflow** once by hand. **`SETUP_NEEDED.md` §0** has both, click by click.
-I did not do it myself because either one puts new code onto the server ten
-people use, and that is yours to decide.
-
-So: what the live site shows you today is **not** what is described below.
-
----
+**And the address:** the CRM runs on **mycrm.emirdulovic.com**, not
+crm.homes.me. Moving it is a real job — the Meta app, the webhooks and the
+approved WhatsApp templates all name an address — so it is listed as a decision
+for you rather than something done quietly.
 
 ## 2. What was built
 

@@ -799,14 +799,21 @@ Then `docs/CHANGELOG.md` for the detail of a particular day.
 ## What is actually running
 
 - **Name and address.** The company is **Emigeo Homes Real Estate**, the brand
-  is **homes.me**, and the CRM runs at **crm.homes.me**, used daily by about
-  ten people. There is no staging.
-- **The deploy has never run.** `deploy.yml` fires after CI passes on `main`,
-  and this repository has no `main` — 87 green CI runs, zero deploys. So the
-  live site is *not* what is in this branch. Check which it is before debugging
-  anything the owner reports. `SETUP_NEEDED.md` §0 is the fix, and it is the
-  owner's to make: pointing an auto-deploy at a working branch is not a
-  decision to take quietly on a site ten people use.
+  is **homes.me**, and the CRM runs at **mycrm.emirdulovic.com**, used daily by
+  about ten people.
+- **Every push is a release.** Hostinger's own GitHub integration watches this
+  branch and deploys it to **mycrm.emirdulovic.com** in about 75 seconds. There
+  is no staging and no approval step: a commit pushed is a commit ten people
+  are using. That is the single most important fact about this repository.
+- **`.github/workflows/deploy.yml` is not how it deploys.** It fires on a
+  branch called `main`, there is no `main`, and it has never run. I read that
+  as "nothing has ever deployed" and told the owner so, repeatedly, while
+  Hostinger was deploying every commit by another route. **Check the hosting
+  panel before drawing any conclusion about what is live** — hPanel → Websites
+  → mycrm.emirdulovic.com → Deployments lists every release.
+- **The address is `mycrm.emirdulovic.com`, not crm.homes.me.** Documents in
+  this repo written before 31 Oct say crm.homes.me; they are describing a move
+  that was planned and never made.
 - **Shape.** An npm-workspaces monorepo: `server/` (Express + TypeScript, ESM,
   `mysql2`, Zod on every endpoint) and `web/` (React + Vite). 24 migrations,
   86 tables, 36 route files, 26 screens.

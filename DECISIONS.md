@@ -932,3 +932,26 @@ and they are lazy — Named in the brief. They load on the first press of a
 download button, so the rest of the CRM does not carry a PDF writer it never
 uses. The QR library the brief also suggested was not installed, because we
 already have one.
+
+2026-10-31 — deploy — **It was deploying the whole time; I was reading the
+wrong thing** — On 30 Oct I recorded that `deploy.yml` had never run and
+concluded that nothing from the build had reached the live site. The first
+half was true: it fires on `main`, there is no `main`, zero runs. The
+conclusion was wrong. Hostinger's own GitHub integration is connected to this
+repository, watches the working branch, and had deployed **every commit** —
+the panel lists them all, green, about 75 seconds each. I had the owner
+chasing SSH keys and repository secrets for two days over a deploy path
+nothing uses.
+
+What produced the error: I inferred the state of a system I could not reach
+from the only evidence I could reach, and wrote it down as fact instead of as
+an inference. The container has no route to the site, so the honest sentence
+was "the Actions deploy has never run; I cannot see from here whether the site
+is current" — and then ask for the hosting panel, which settled it in one
+screenshot. Corrected in `FINAL_REPORT.md`, `SETUP_NEEDED.md`, `PROGRESS.md`
+and `CLAUDE.md`, with the mistake left visible in each rather than quietly
+rewritten.
+
+The operational consequence matters more than the error: **every push is a
+release to ten people, with no staging and no approval.** That is now the
+first thing `CLAUDE.md` says about this repository.

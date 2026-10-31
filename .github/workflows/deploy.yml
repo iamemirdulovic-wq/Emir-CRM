@@ -1,5 +1,21 @@
 name: Deploy
 
+# ─────────────────────────────────────────────────────────────────────────
+# THIS IS NOT HOW THE CRM DEPLOYS. Nothing here has ever run.
+#
+# mycrm.emirdulovic.com is deployed by Hostinger's own GitHub integration,
+# which watches the working branch and ships every push in about 75 seconds.
+# See hPanel → Websites → mycrm.emirdulovic.com → Deployments.
+#
+# This workflow fires on a branch called `main`; there is no `main`, so it has
+# never triggered — and on 30 Oct I read that as "nothing has ever deployed"
+# and sent the owner chasing SSH keys for a path nothing uses. It is kept
+# because it is the right shape for a VPS one day, and it needs four
+# repository secrets that are deliberately not set.
+#
+# Before concluding anything about what is live, look at the hosting panel.
+# ─────────────────────────────────────────────────────────────────────────
+
 # Runs after CI passes on the deploy branch, or on demand from the Actions tab.
 # Nothing here holds a credential: the four secrets live in GitHub's settings,
 # and the database password never leaves the server at all.

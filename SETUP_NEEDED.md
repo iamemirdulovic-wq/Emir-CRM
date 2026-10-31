@@ -8,75 +8,30 @@ order — the first three are the urgent ones.
 
 ---
 
-## 🔴 0. None of this is live yet — and that is my mistake to tell you about
+## ✅ 0. Deploying — nothing to do, it already works
 
-**Everything I built is pushed to GitHub and tested, but it has never reached
-crm.homes.me.** I found this while writing the handover, and you should know it
-before you look at anything else.
+**This section used to say none of the work was live. That was wrong, and I am
+leaving the correction here rather than quietly deleting it.**
 
-Here is what happened. The deploy is set up to run **after the tests pass on a
-branch called `main`**. This repository has no branch called `main` — the work
-is on `claude/new-session-krd7bx` — so the deploy has sat there and never run
-once, 87 pushes in a row. The tests ran every time and passed; the step that
-copies the result onto your server simply never fired.
+Your CRM deploys itself. Hostinger's own GitHub integration is connected to
+this repository and watches the branch, so every push is on the site in about
+75 seconds with no key, no button and no step for you:
 
-Nothing is lost or broken. The whole build is in GitHub, green, waiting.
+- **hPanel → Websites → mycrm.emirdulovic.com → Deployments**
+- Connected with GitHub · Auto-deployment on
+- Branch `claude/new-session-krd7bx`, root `./`, Node 20.x
+- **Redeploy** on that page re-runs the last one if you ever need it
 
-**What to do — pick one.** I did not do either myself, because both of them put
-code onto the server ten people use, and that is your call and not mine.
+**What I got wrong.** The repository also contains a GitHub Actions deploy
+(`.github/workflows/deploy.yml`) that fires on a branch called `main`. There is
+no `main`, so it has never run — and I read that as "nothing has ever
+deployed", when in truth Hostinger was doing it all along by a different
+route. That workflow is unused and inert. Ignore it; it needs no SSH keys and
+no repository secrets, because nothing uses it.
 
-**A) Make the branch the main one (recommended).** After this, every push that
-passes its tests deploys by itself, which is how the rest of my notes assume it
-works.
-
-1. **https://github.com/iamemirdulovic-wq/Emir-CRM/branches**
-2. Next to `claude/new-session-krd7bx`, click the **⋯ → Rename branch**
-3. Rename it to `main`, and confirm
-4. **Settings → General → Default branch** and make sure it says `main`
-
-**B) Deploy it once, by hand.** Nothing changes afterwards and you keep
-control of when it happens.
-
-1. **https://github.com/iamemirdulovic-wq/Emir-CRM/actions/workflows/deploy.yml**
-2. Click **Run workflow**, choose the branch `claude/new-session-krd7bx`,
-   click the green **Run workflow**
-
-**I ran it on 31 Oct and it stopped at the first step: all four of those
-settings are empty.** It checks them before it touches anything, so your server
-was not changed in any way. They have never been set, which is the other half
-of why nothing has ever deployed.
-
-Only you can add them — one of them is a private key, and it must go straight
-from the hosting panel into GitHub. **Do not paste it to me or into any chat.**
-
-1. **hPanel → Advanced → SSH Access.** Note the **IP address**, the **port**
-   and the **username**. If there is no SSH key yet, click **Manage SSH keys →
-   Add new key → Generate**, and keep the *private* key it shows you
-2. **https://github.com/iamemirdulovic-wq/Emir-CRM/settings/secrets/actions**
-3. **New repository secret**, four times:
-
-   | Name | Value |
-   |---|---|
-   | `HOSTINGER_SSH_HOST` | the IP address from step 1 |
-   | `HOSTINGER_SSH_USER` | the username from step 1 |
-   | `HOSTINGER_SSH_KEY` | the whole private key, `-----BEGIN` to `-----END` |
-   | `DEPLOY_PATH` | the folder the CRM lives in, e.g. `/home/uXXXXXXXX/domains/crm.homes.me/public_html` |
-
-   Two more are optional but worth adding: `HOSTINGER_SSH_PORT` (Hostinger
-   usually uses **65002**, not 22) and `APP_URL` = `https://crm.homes.me`, which
-   makes the deploy check the site answers from outside before it keeps the
-   release.
-4. Then tell me, and I will run it — or do it yourself at
-   **Actions → Deploy → Run workflow**
-
-**If you already deploy another way** — for example hPanel's own Git page
-pulling the repository — then point that at the branch
-`claude/new-session-krd7bx` and press its deploy button instead, and none of
-the above is needed. Tell me which it is and I will write the right steps down.
-
-The deploy takes a backup, runs the migrations, switches over, checks the site
-answers, and **puts the old version back by itself if it does not**. If it ever
-does roll back, say so and I will read the log.
+**What this means in practice:** anything I push is live immediately for
+everybody on the team. There is no staging and no approval step. That is why
+every change is tested before it is pushed.
 
 ---
 

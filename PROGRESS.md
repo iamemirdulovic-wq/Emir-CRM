@@ -10,10 +10,13 @@ Last updated: 30 Oct 2026
 
 A box is ticked only when the item is **built, tested and screenshotted**.
 
-**All seventeen steps are closed.** Read `FINAL_REPORT.md`, then
-`SETUP_NEEDED.md` — starting with §0, because none of this has reached
-crm.homes.me yet: the deploy only runs on a `main` branch and this repository
-has none.
+**All seventeen steps are closed, and all of it is live.** Hostinger deploys
+every push to **mycrm.emirdulovic.com** by itself, in about 75 seconds. Read
+`FINAL_REPORT.md`, then `SETUP_NEEDED.md`.
+
+(An earlier version of this note said nothing had deployed. That was my error —
+`.github/workflows/deploy.yml` has indeed never run, but it is not what
+deploys this app. See `DECISIONS.md`, 31 Oct.)
 
 ---
 
@@ -439,7 +442,12 @@ has none.
       reads were missing from `.env.example`, `HOST` among them. `CLAUDE.md`
       gains a "where the build is" section below the owner's brief, which is
       left untouched
-- [x] 17.5 **The deploy has never run.** `deploy.yml` fires after CI passes on
+- [x] 17.5 ~~The deploy has never run.~~ **Wrong — corrected 31 Oct.**
+      `deploy.yml` has never run, which is true and harmless: Hostinger's own
+      GitHub integration deploys every push and always has. The error was
+      concluding from one unused workflow that nothing was live. Original note
+      kept below so the mistake is visible:
+- [x] 17.5a **`deploy.yml` has never run.** `deploy.yml` fires after CI passes on
       `main`; there is no `main`. 87 green CI runs, zero deploys, so nothing
       from Steps 0–17 is on crm.homes.me. Not fixed here on purpose — both
       fixes put code on a live server — and written up as `SETUP_NEEDED.md` §0

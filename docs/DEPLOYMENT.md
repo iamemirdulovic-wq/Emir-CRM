@@ -79,7 +79,13 @@ deployment, not a nicety.
 
 ## Automatic deploy from GitHub
 
-> **It has never run.** As of 30 Oct 2026 this repository has no `main` branch
+> **Not the live path, and it has never run.** mycrm.emirdulovic.com is
+> deployed by **Hostinger's own GitHub integration** — connected to this
+> repository, watching the working branch, every push live in about 75
+> seconds, listed under hPanel → Websites → mycrm.emirdulovic.com →
+> Deployments. The workflow below is a second route, kept for a VPS one day.
+>
+> As of 30 Oct 2026 this repository has no `main` branch
 > — the work is on `claude/new-session-krd7bx` — so the `workflow_run` trigger
 > below has matched nothing and the Deploy workflow has zero runs against 87
 > green CI runs. Either rename the working branch to `main`, or dispatch Deploy
