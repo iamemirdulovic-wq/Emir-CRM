@@ -1,10 +1,13 @@
-import type { ReactNode } from 'react';
+import { Suspense, lazy, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth.js';
 import { Layout } from './components/Layout.js';
 import { Spinner } from './design/ui.js';
 import { Login } from './pages/Login.js';
 import { Setup } from './pages/Setup.js';
+/* Lazy, and deliberately so: the studio pulls in a PDF writer, and nobody
+   opening the pipeline should pay for it. */
+const BusinessCard = lazy(() => import('./pages/BusinessCard.js').then((m) => ({ default: m.BusinessCard })));
 import { ChangePassword } from './pages/ChangePassword.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Pipeline } from './pages/Pipeline.js';
@@ -61,6 +64,13 @@ export function App() {
             page sends you to /login when it sees that. */}
         <Route path="/setup" element={<Setup />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        {/* The Business Card Studio. Public on purpose: it holds no CRM data,
+            everything stays in the browser, and the team should be able to
+            make a card from a phone without signing in first. */}
+        <Route
+          path="/tools/business-card"
+          element={<Suspense fallback={null}><BusinessCard /></Suspense>}
+        />
 
         {/* One shell around every signed-in screen, as the design has it. */}
         <Route

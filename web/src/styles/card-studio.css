@@ -1,0 +1,133 @@
+/*
+ * Poppins, self-hosted.
+ *
+ * The brand sheet sets the card in Poppins; the CRM itself is Inter. Without
+ * these the preview quietly rendered in Inter and the PDF fell back to
+ * Helvetica — the card would have been approved on screen in one typeface and
+ * printed in another, with nothing to say so.
+ *
+ * Self-hosted rather than linked, because the PDF writer needs the same bytes
+ * and fetching them from our own origin avoids a cross-origin request on the
+ * one click that matters. OFL licensed; the licence ships beside them.
+ */
+@font-face{font-family:'Poppins';font-style:normal;font-weight:400;font-display:swap;
+  src:url('/fonts/Poppins-Regular.ttf') format('truetype')}
+@font-face{font-family:'Poppins';font-style:normal;font-weight:500;font-display:swap;
+  src:url('/fonts/Poppins-Medium.ttf') format('truetype')}
+@font-face{font-family:'Poppins';font-style:normal;font-weight:700;font-display:swap;
+  src:url('/fonts/Poppins-Bold.ttf') format('truetype')}
+
+/* ── Business Card Studio ──────────────────────────────────────────────────
+   Its own stylesheet, and every class prefixed `bc-`. The collision check in
+   css-collisions.test.ts exists because two files quietly sharing a plain
+   class name broke the pipeline board once; a prefix is how a new file avoids
+   joining in. */
+
+.bc{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
+.bc-head h1{margin:0 0 4px;font-size:26px;font-weight:700;color:var(--ink)}
+.bc-head p{margin:0;font-size:14px}
+
+.bc-steps{display:flex;gap:8px;list-style:none;margin:22px 0;padding:0;flex-wrap:wrap}
+.bc-steps li{flex:1 1 150px}
+.bc-steps button{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;
+  border-radius:var(--r-m);border:1px solid var(--glass-line);background:var(--glass);
+  font-size:13px;font-weight:600;color:var(--ink-3);cursor:pointer;transition:all .2s var(--ease)}
+.bc-steps button:disabled{cursor:default;opacity:.65}
+.bc-steps .on button{color:var(--ink);border-color:var(--primary);background:var(--primary-soft)}
+.bc-steps .done button{color:var(--ink-2)}
+.bc-num{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
+  background:var(--surface-2);font-size:12px;font-weight:700;flex:0 0 auto}
+.bc-steps .on .bc-num{background:var(--primary);color:#fff}
+
+/* The card itself. The SVG carries its own aspect ratio, so the box only has
+   to say how wide it is. */
+.bc-face{width:100%;border-radius:10px;overflow:hidden;box-shadow:0 10px 30px rgba(9,24,44,.16)}
+.bc-face svg{display:block;width:100%;height:auto}
+.bc-face.grain{position:relative}
+.bc-face.grain::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.055'/%3E%3C/svg%3E")}
+
+.bc-pick-head{text-align:center;margin:8px 0 20px}
+.bc-pick-head h2{margin:0 0 4px;font-size:20px;font-weight:700;color:var(--ink)}
+.bc-pick-head p{margin:0;font-size:14px}
+
+.bc-designs{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.bc-design{position:relative;border-radius:var(--r-l);border:2px solid transparent;
+  background:var(--glass);transition:all .25s var(--ease);opacity:.72}
+.bc-design.on{border-color:var(--primary);opacity:1}
+.bc-designs:not(:hover) .bc-design.on,.bc-design:hover{opacity:1}
+.bc-design:hover{transform:translateY(-6px);box-shadow:0 22px 50px rgba(9,24,44,.18)}
+.bc-design-hit{position:absolute;inset:0;z-index:2;border:0;background:none;cursor:pointer;
+  border-radius:var(--r-l)}
+.bc-design-hit:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.bc-flip{position:absolute;top:10px;right:10px;z-index:3;display:grid;place-items:center;
+  width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.25);
+  background:rgba(0,0,0,.35);color:#fff;cursor:pointer}
+.bc-design-foot{padding:12px 14px 14px}
+.bc-design-name{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--ink)}
+.bc-design-foot p{margin:4px 0 8px;font-size:13px}
+.bc-rec{padding:2px 7px;border-radius:99px;background:var(--primary-soft);color:var(--primary);
+  font-size:11px;font-weight:700}
+.bc-dots{display:flex;gap:5px}
+.bc-dots span{width:13px;height:13px;border-radius:50%;border:1px solid var(--glass-line)}
+
+/* Two cards at an angle, which is how anyone is actually shown a card. */
+.bc-mockup{padding:24px 18px 18px;border-radius:var(--r-l) var(--r-l) 0 0;
+  background:linear-gradient(160deg,#f3eee9,#e7e0d9);overflow:hidden}
+.bc-mockup.dark{background:linear-gradient(160deg,#1d1d1d,#0e0e0e)}
+/* Tall enough for both cards at their offsets. The front card is 72% wide and
+   the artboard is 91:61, so it is 0.72 × 0.67 = 48% of the width tall; at an
+   18% offset the pair needs about 1.5× that again in height. Getting this
+   wrong is what had the card sitting on top of its own name. */
+.bc-tilt{position:relative;height:0;padding-bottom:62%}
+.bc-tilt .bc-face{position:absolute;width:72%;transition:transform .6s var(--ease)}
+.bc-behind{top:3%;left:24%;transform:rotate(-9deg)}
+.bc-infront{top:18%;left:2%;transform:rotate(-9deg)}
+
+.bc-two{display:grid;grid-template-columns:1fr 400px;gap:24px;align-items:start}
+.bc-form section{margin-bottom:22px;padding:16px;border-radius:var(--r-l);
+  background:var(--glass);border:1px solid var(--glass-line)}
+.bc-form h2{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--ink)}
+.bc-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+.bc-switch{display:flex;gap:8px}
+.bc-switch button{display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:99px;
+  border:1px solid var(--glass-line);background:var(--glass);font-size:13px;font-weight:600;
+  color:var(--ink-2);cursor:pointer}
+.bc-switch button.on{border-color:var(--primary);color:var(--ink);background:var(--primary-soft)}
+.bc-switch span{width:12px;height:12px;border-radius:50%;border:1px solid var(--glass-line)}
+.bc-check{display:flex;align-items:center;gap:9px;margin:8px 0;font-size:13px;color:var(--ink-2)}
+
+.bc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.bc-bar-right{display:flex;align-items:center;gap:12px}
+
+.bc-done{display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:start}
+.bc-done h2{margin:0 0 12px;font-size:21px;font-weight:700;color:var(--ink)}
+.bc-done .bc-mockup{border-radius:var(--r-l)}
+.bc-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.bc-chips span{padding:4px 10px;border-radius:99px;background:var(--surface-2);
+  font-size:12px;font-weight:600;color:var(--ink-2)}
+.bc-downloads{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.bc-row{display:flex;flex-wrap:wrap;gap:9px}
+
+.bc-modal{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:18px;
+  background:rgba(8,16,28,.6);backdrop-filter:blur(3px)}
+.bc-modal-in{width:min(1100px,100%);max-height:92vh;overflow:auto;padding:20px;
+  border-radius:var(--r-l);background:var(--glass-strong);border:1px solid var(--glass-line)}
+.bc-modal-in header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.bc-modal-in h2{margin:0;font-size:19px;font-weight:700;color:var(--ink)}
+.bc-modal-in header button{border:0;background:none;color:var(--ink-2);cursor:pointer}
+.bc-compare{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.bc-compare > div{display:flex;flex-direction:column;gap:10px}
+.bc-compare h3{margin:0;font-size:14px;font-weight:700;color:var(--ink)}
+
+@media (max-width:980px){
+  .bc-designs,.bc-compare{grid-template-columns:1fr}
+  .bc-two,.bc-done{grid-template-columns:1fr}
+  .bc-side{position:static}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .bc-design,.bc-tilt .bc-face,.bc-steps button{transition:none}
+  .bc-design:hover{transform:none}
+}

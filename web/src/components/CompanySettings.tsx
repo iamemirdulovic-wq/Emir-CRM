@@ -269,6 +269,17 @@ export function CompanySettings() {
         </Note>
       </Panel>
 
+      <Panel span={4} index={2} icon="sparkles" title="Brand tools">
+        <a className="btn" href="/tools/business-card" target="_blank" rel="noreferrer">
+          <Icon name="sparkles" size={14} />
+          Business card studio
+        </a>
+        <Note>
+          Three homes.me card designs, filled in with anyone&apos;s details, downloaded as a
+          print-ready PDF. Anyone on the team can open it — it keeps nothing and sends nothing.
+        </Note>
+      </Panel>
+
       {issues.length > 0 && (
         <Panel span={12} index={2} icon="alert-triangle" title="Worth fixing">
           <ul className="co-issues">

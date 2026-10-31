@@ -351,6 +351,16 @@ export function Profile() {
                   Open my card
                 </a>
               )}
+
+              <div className="sec-t">Printed cards</div>
+              <a className="btn" href="/tools/business-card" target="_blank" rel="noreferrer">
+                <Icon name="sparkles" size={14} />
+                Design a card to print
+              </a>
+              <Note>
+                Three homes.me designs, your details, and a PDF your printer can use. The
+                link above is the digital one; this is the one for your pocket.
+              </Note>
             </>
           )}
         </Panel>

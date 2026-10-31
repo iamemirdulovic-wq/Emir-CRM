@@ -396,6 +396,13 @@ has none.
 
 ## After the handover — reported from the live CRM
 
+- [x] A5 **Business Card Studio** at `/tools/business-card` — three designs,
+      live preview, print-ready PDF, PNG, JPG and a shareable mockup. One SVG
+      artboard in millimetres feeds all of them. Verified in a browser: the
+      PDF is 91 × 61 mm with Poppins embedded and square corners for the
+      die-cut, the images are exactly 1075 × 720, the QR opens the agent's
+      WhatsApp
+
 - [x] A3 **The business card and client emails ignored Settings → Company.**
       Both read a settings row nothing writes any more, so they printed a
       hard-coded name whatever the owner typed. Fixed, with a check that fails

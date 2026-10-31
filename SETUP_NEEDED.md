@@ -41,11 +41,38 @@ control of when it happens.
 2. Click **Run workflow**, choose the branch `claude/new-session-krd7bx`,
    click the green **Run workflow**
 
-Either way, the deploy checks four settings before it touches the server and
-stops with a clear message if any is missing. They are under **Settings →
-Secrets and variables → Actions** and are called `HOSTINGER_SSH_HOST`,
-`HOSTINGER_SSH_USER`, `HOSTINGER_SSH_KEY` and `DEPLOY_PATH`. If it stops and
-names one, that is the thing to add — nothing was changed on the server.
+**I ran it on 31 Oct and it stopped at the first step: all four of those
+settings are empty.** It checks them before it touches anything, so your server
+was not changed in any way. They have never been set, which is the other half
+of why nothing has ever deployed.
+
+Only you can add them — one of them is a private key, and it must go straight
+from the hosting panel into GitHub. **Do not paste it to me or into any chat.**
+
+1. **hPanel → Advanced → SSH Access.** Note the **IP address**, the **port**
+   and the **username**. If there is no SSH key yet, click **Manage SSH keys →
+   Add new key → Generate**, and keep the *private* key it shows you
+2. **https://github.com/iamemirdulovic-wq/Emir-CRM/settings/secrets/actions**
+3. **New repository secret**, four times:
+
+   | Name | Value |
+   |---|---|
+   | `HOSTINGER_SSH_HOST` | the IP address from step 1 |
+   | `HOSTINGER_SSH_USER` | the username from step 1 |
+   | `HOSTINGER_SSH_KEY` | the whole private key, `-----BEGIN` to `-----END` |
+   | `DEPLOY_PATH` | the folder the CRM lives in, e.g. `/home/uXXXXXXXX/domains/crm.homes.me/public_html` |
+
+   Two more are optional but worth adding: `HOSTINGER_SSH_PORT` (Hostinger
+   usually uses **65002**, not 22) and `APP_URL` = `https://crm.homes.me`, which
+   makes the deploy check the site answers from outside before it keeps the
+   release.
+4. Then tell me, and I will run it — or do it yourself at
+   **Actions → Deploy → Run workflow**
+
+**If you already deploy another way** — for example hPanel's own Git page
+pulling the repository — then point that at the branch
+`claude/new-session-krd7bx` and press its deploy button instead, and none of
+the above is needed. Tell me which it is and I will write the right steps down.
 
 The deploy takes a backup, runs the migrations, switches over, checks the site
 answers, and **puts the old version back by itself if it does not**. If it ever

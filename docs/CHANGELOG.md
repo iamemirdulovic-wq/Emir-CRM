@@ -2,6 +2,40 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The Business Card Studio
+
+**Added**
+- **`/tools/business-card`** — three homes.me designs, your details, and a file
+  the printer can use. Three steps on one page, nothing sent anywhere, and the
+  last card you made is remembered in the browser. Public, because it holds no
+  CRM data and the team should be able to make a card from a phone.
+- Every output comes from **one artboard**: `renderFace()` draws a card side as
+  SVG in real millimetres, and the preview, the PDF, the PNG, the JPG and the
+  shareable mockup are all that same string. A pretty preview with a separate
+  print path is how a card gets approved on screen and arrives wrong from the
+  printer.
+
+**Found while building it**
+- **Poppins was missing in three places, each of them silent.** The brand sheet
+  sets the card in Poppins; the CRM is Inter. The preview rendered in Inter,
+  the PDF fell back to Helvetica, and the PNG and JPG fell back to the system
+  sans — because an SVG rasterised through an `<img>` is an isolated document
+  and cannot see the page's fonts. The third is the dangerous one: the preview
+  next to the download button was right while the downloaded file was wrong.
+  Self-hosted now, embedded in the PDF, and inlined into the SVG before
+  rasterising.
+- **The first PDF had the rounded corners baked in**, so the artwork arrived as
+  a rounded shape on a white page. Rounded corners are a die-cut: ink has to
+  run past the cut or the finished card shows white slivers at every corner.
+  The print artwork is square and full-bleed now, with the radius written on
+  the PDF's own note page.
+
+**Verified in a browser, not by inspection**
+- PDF: 3 pages at 91 × 61 mm, 187 vector drawing operators, all three Poppins
+  weights embedded (`pdffonts` says `emb yes`), rasterised and looked at.
+- PNG and JPG: exactly 1075 × 720, which is 300 DPI at 85 × 55 mm plus bleed.
+- Mockup: 1080 × 1080. All six files download with no page errors.
+
 ## The agent's own card — and the company name that never reached it
 
 **Fixed**

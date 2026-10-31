@@ -890,3 +890,45 @@ anyway. It now accepts a same-origin path as well; `//host` is still refused,
 because a browser reads that as a host rather than a path, and so are
 `javascript:` and `data:` — this page is served to the public with no session
 behind it.
+
+2026-10-31 — cards — **The Business Card Studio renders one artboard, and
+everything comes from it** — The preview, the PDF, the PNG, the JPG and the
+mockup are all `renderFace()`, an SVG in real millimetres. The alternative —
+a pretty preview and a separate print path — is how a card gets approved on
+screen and arrives from the printer different, which is a cost nobody notices
+until a box of five hundred is wrong.
+
+2026-10-31 — cards — Poppins is self-hosted, and embedded three times over —
+The brand sheet sets the card in Poppins; the CRM itself is Inter. Three
+separate places had to be fixed and each failed silently: the preview rendered
+in Inter (no `@font-face`), the PDF fell back to Helvetica (jsPDF ships only
+the fourteen standard fonts), and the PNG/JPG fell back to the system sans
+because **an SVG rasterised through an `<img>` is an isolated document and
+cannot see the page's fonts**. That last one is the nasty one: the preview
+beside the download button was correct while the downloaded file was not. The
+TTFs are now self-hosted, registered with jsPDF, and inlined as base64 inside
+the SVG before rasterising. OFL licensed, licence shipped beside them.
+
+2026-10-31 — cards — The print PDF keeps square corners; only the images are
+rounded — Rounded corners are a die-cut, not something a press prints. The
+first PDF had the rounding baked in, so the artwork arrived as a rounded shape
+on a white page: the ink stops short of the cut and the finished card shows
+white slivers at every corner. The artwork is square and full-bleed now, and
+page 3 of the PDF tells the printer the radius. The PNG and JPG keep the
+rounding, because that is the card anybody pictures.
+
+2026-10-31 — cards — The QR encoder is copied into the web app rather than
+shared or re-installed — `server/src/profiles/qr.ts` already existed, written
+rather than installed so that a client's number never goes to a free QR
+service. The studio needs the same thing in the browser, and the two
+workspaces share no source. A shared package means touching both tsconfigs and
+both builds for one file that implements a frozen standard; so it is copied,
+and `qr-parity.test.ts` fails the build if the two ever differ. The studio
+sends nothing anywhere, which is the point: the number being encoded is the
+agent's own.
+
+2026-10-31 — cards — `jspdf` and `svg2pdf.js` are the only new dependencies,
+and they are lazy — Named in the brief. They load on the first press of a
+download button, so the rest of the CRM does not carry a PDF writer it never
+uses. The QR library the brief also suggested was not installed, because we
+already have one.
