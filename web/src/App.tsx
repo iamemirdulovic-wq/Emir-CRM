@@ -64,14 +64,6 @@ export function App() {
             page sends you to /login when it sees that. */}
         <Route path="/setup" element={<Setup />} />
         <Route path="/change-password" element={<ChangePassword />} />
-        {/* The Business Card Studio. Public on purpose: it holds no CRM data,
-            everything stays in the browser, and the team should be able to
-            make a card from a phone without signing in first. */}
-        <Route
-          path="/tools/business-card"
-          element={<Suspense fallback={null}><BusinessCard /></Suspense>}
-        />
-
         {/* One shell around every signed-in screen, as the design has it. */}
         <Route
           element={
@@ -113,6 +105,17 @@ export function App() {
           <Route path="/automations" element={<Automations />} />
           <Route path="/settings" element={<Settings />} />
           {/* The design-system workbench. Owner only, deliberately not in the nav. */}
+          {/*
+            * The Business Card Studio lives inside the shell rather than on a
+            * page of its own. It was standalone at first — it holds no CRM
+            * data, so it could be — but an agent who opens it is in the middle
+            * of a working day, and a page with no way back to their leads is a
+            * page they have to use the browser's back button to escape.
+            */}
+          <Route
+            path="/tools/business-card"
+            element={<Suspense fallback={null}><BusinessCard /></Suspense>}
+          />
           <Route path="/dev/components" element={<Components />} />
         </Route>
 

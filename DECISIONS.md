@@ -955,3 +955,18 @@ rewritten.
 The operational consequence matters more than the error: **every push is a
 release to ten people, with no staging and no approval.** That is now the
 first thing `CLAUDE.md` says about this repository.
+
+2026-10-31 — cards — The studio moved inside the CRM shell, and the contact
+icons went white — Both from the owner using it. The studio was a standalone
+public page: defensible, since it holds no CRM data, but an agent who opens it
+is mid-shift and a page with no sidebar is a page you escape with the browser's
+back button. It is inside the shell now, at the same address, and the two links
+into it navigate rather than opening a tab.
+
+The icons were the better catch. Orange on Night is 4.9:1, which passes as a
+block of colour and fails as a 0.3 mm outline at 2.5 mm — on the first PDF he
+opened they had vanished into the card. They are the warm white of the text
+they label now, at 14:1, and the stroke went from 0.26 to 0.3 mm. The accent
+still carries on the first name and the logo, which have the area for it. The
+orange back keeps its Night icons for the same reason in reverse: dark on
+orange is 4.9:1 where white on orange is only 3.6:1.

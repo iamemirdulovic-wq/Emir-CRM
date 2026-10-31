@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Button } from '../design/forms.js';
+import { Link } from 'react-router-dom';
 import { Icon } from '../design/index.js';
 import { ErrorNote, Field, Input, Note, Panel, Spinner, useToast } from '../design/ui.js';
 import { FileDrop } from './FileDrop.js';
@@ -270,10 +271,10 @@ export function CompanySettings() {
       </Panel>
 
       <Panel span={4} index={2} icon="sparkles" title="Brand tools">
-        <a className="btn" href="/tools/business-card" target="_blank" rel="noreferrer">
+        <Link className="btn" to="/tools/business-card">
           <Icon name="sparkles" size={14} />
           Business card studio
-        </a>
+        </Link>
         <Note>
           Three homes.me card designs, filled in with anyone&apos;s details, downloaded as a
           print-ready PDF. Anyone on the team can open it — it keeps nothing and sends nothing.

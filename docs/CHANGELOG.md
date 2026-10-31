@@ -2,6 +2,22 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Card studio: inside the CRM, and icons you can actually see
+
+**Changed**
+- **The studio lives inside the app shell**, at the same address. It was a
+  standalone public page — it holds no CRM data, so it could be — but somebody
+  who opens it is in the middle of a working day and had no way back to their
+  leads except the browser's back button. The links from My profile and
+  Settings → Company now navigate inside the app instead of opening a tab.
+- **The contact icons on the dark back are white, not orange.** Orange on Night
+  is 4.9:1, which reads fine as a block of colour and disappears as a 0.3 mm
+  outline at 2.5 mm — on the first PDF the owner opened, the phone and email
+  icons had gone. They now match the text they label, at 14:1, and the stroke
+  went from 0.26 to 0.3 mm. The accent stays on the first name and the logo,
+  which have the area to carry it; the orange back keeps its dark icons,
+  because dark on orange is 4.9:1 and white on orange is only 3.6:1.
+
 ## Correction: it was deploying the whole time
 
 **Found**

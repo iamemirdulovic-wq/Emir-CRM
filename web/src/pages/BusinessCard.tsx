@@ -101,13 +101,10 @@ export function BusinessCard() {
   return (
     <div className="bc">
       <header className="bc-head">
-        <div>
-          <h1>Business cards</h1>
-          <p className="muted">
-            {welcomeName ? `Welcome back, ${welcomeName}. ` : ''}
-            Pick a design, fill in your details, download a file your printer can use.
-          </p>
-        </div>
+        <p className="muted">
+          {welcomeName ? `Welcome back, ${welcomeName}. ` : ''}
+          Pick a design, fill in your details, download a file your printer can use.
+        </p>
       </header>
 
       <ol className="bc-steps" aria-label="Progress">

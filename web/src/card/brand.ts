@@ -75,7 +75,20 @@ const NIGHT_FACE: Face = {
   lastName: INK.white,
   titleLine: '#9C918A',
   contactText: '#EDE6E1',
-  icons: INK.orange,
+  /*
+   * The same warm white as the text beside them, not the orange accent.
+   *
+   * Orange on Night is 4.9:1 — legible as a block of colour, and not legible
+   * as a 0.3 mm outline at 2.5 mm, which is what these are. Printed small on
+   * a dark card they disappeared; the owner spotted it on the first PDF he
+   * opened. White is 14:1 and the icons are labels, not decoration — the
+   * accent still carries on the first name and the logo, where it has enough
+   * area to read as orange.
+   *
+   * On the orange back the opposite holds, which is why that face keeps Night
+   * icons: dark on orange is 4.9:1 and white on orange is only 3.6:1.
+   */
+  icons: '#EDE6E1',
 };
 
 const LIGHT_FACE: Face = {

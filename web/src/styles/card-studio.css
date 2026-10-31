@@ -23,8 +23,10 @@
    class name broke the pipeline board once; a prefix is how a new file avoids
    joining in. */
 
-.bc{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
-.bc-head h1{margin:0 0 4px;font-size:26px;font-weight:700;color:var(--ink)}
+/* Inside the app shell now, which brings its own gutter — so this only sets
+   the reading width and the space under the last row. */
+.bc{max-width:1180px;margin:0 auto;padding:4px 0 56px}
+.bc-head{margin-bottom:4px}
 .bc-head p{margin:0;font-size:14px}
 
 .bc-steps{display:flex;gap:8px;list-style:none;margin:22px 0;padding:0;flex-wrap:wrap}

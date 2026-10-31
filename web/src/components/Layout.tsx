@@ -112,6 +112,7 @@ function titleFor(pathname: string): string {
      navigation, so there is no entry to take the heading from — and without
      this the page was headed with the product's name instead of its own. */
   if (pathname.startsWith('/profile')) return 'My profile';
+  if (pathname.startsWith('/tools/business-card')) return 'Business cards';
   if (pathname.startsWith('/dev/')) return 'Components';
   const entry = ENTRIES.find((item) => pathname.startsWith(item.to));
   return entry?.title ?? BRAND.name;

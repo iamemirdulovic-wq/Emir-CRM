@@ -163,7 +163,10 @@ function qrSvg(text: string, sizeMm: number, colour: string): string {
 /** A line icon, 2.5 mm, drawn to sit on the text's baseline. */
 function lineIcon(kind: 'phone' | 'mail' | 'globe' | 'pin', x: number, y: number, colour: string): string {
   const s = 2.5;
-  const common = `fill="none" stroke="${colour}" stroke-width="0.26" stroke-linecap="round" stroke-linejoin="round"`;
+  /* 0.3 rather than 0.26: a hairline that survives a screen can still vanish
+     into a dark card at print size, and these are the four lines a client
+     actually needs to read. */
+  const common = `fill="none" stroke="${colour}" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round"`;
   const g = (body: string) => `<g transform="translate(${x.toFixed(3)} ${(y - s * 0.78).toFixed(3)}) scale(${(s / 24).toFixed(5)})" ${common}>${body}</g>`;
   switch (kind) {
     case 'phone':
