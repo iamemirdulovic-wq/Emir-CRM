@@ -3,7 +3,7 @@ import { forbidden, notFound } from '../lib/errors.js';
 import { newId } from '../lib/ids.js';
 import { writeAudit, diffFields, type AuditActor } from '../audit/audit.js';
 import { addActivity, tagContact } from '../ingestion/ingest.js';
-import { canActOnOwner } from '../auth/scope.js';
+import { canActOnOwner, ownerPredicate } from '../auth/scope.js';
 import { normalizeEmail } from '../lib/email.js';
 import { parsePhone } from '../lib/phone.js';
 import { assignmentList } from '../lib/sql.js';
@@ -22,11 +22,41 @@ export const EDITABLE_CONTACT_FIELDS = [
 ] as const;
 export type EditableContactField = (typeof EDITABLE_CONTACT_FIELDS)[number];
 
+/**
+ * May this viewer open this person's page?
+ *
+ * Owning **the person or any of their enquiries** is enough, and the second
+ * half is the part that was missing. The CRM splits a lead in two on purpose —
+ * `contacts` is the person, `opportunities` is the enquiry — and only the
+ * enquiry is assigned. The person's owner is sticky, because a returning buyer
+ * is supposed to come back to the agent who knows them, so the moment a second
+ * enquiry is routed to somebody else the two owners disagree. That is normal,
+ * and every path produces it: `add-lead` fills the contact's owner only
+ * `WHERE owner_user_id IS NULL`, and imports and ingestion leave it null.
+ *
+ * Checking only the contact meant the server gave two different answers about
+ * one lead: My Leads listed it (it scopes on `opportunities.owner_user_id`, as
+ * every list does) and this threw "belongs to another agent" when the agent
+ * tapped it. Reported from the live CRM by the only agent on the team, about a
+ * lead that was his. The same check gates his notes, his inbox thread and his
+ * email, so the lead was not merely unopenable, it was unworkable.
+ *
+ * It is deliberately not widened further than that. An agent with no claim on
+ * either row still gets a 403, which the tests hold.
+ */
 export async function assertCanViewContact(contactId: string, visibleUserIds: string[] | null): Promise<void> {
   if (visibleUserIds === null) return;
   const row = await queryOne<{ owner_user_id: string | null }>('SELECT owner_user_id FROM contacts WHERE id = ?', [contactId]);
   if (!row) throw notFound('Contact not found');
-  if (!canActOnOwner(visibleUserIds, row.owner_user_id)) throw forbidden('This lead belongs to another agent');
+  if (canActOnOwner(visibleUserIds, row.owner_user_id)) return;
+
+  const scope = ownerPredicate('owner_user_id', visibleUserIds);
+  const theirs = await queryOne<{ id: string }>(
+    `SELECT id FROM opportunities
+      WHERE contact_id = ? AND deleted_at IS NULL AND ${scope.sql} LIMIT 1`,
+    [contactId, ...scope.params],
+  );
+  if (!theirs) throw forbidden('This lead belongs to another agent');
 }
 
 /** Everything the Contact 360 panel needs, in one round trip. */
