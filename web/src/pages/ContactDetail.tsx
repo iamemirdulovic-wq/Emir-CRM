@@ -281,6 +281,7 @@ export function ContactDetail() {
             contactId={contact.id}
             opportunityId={opportunity?.id ?? null}
             enquiryNote={contact.notes}
+            onLeadChanged={detail.reload}
           />
         </Panel>
 

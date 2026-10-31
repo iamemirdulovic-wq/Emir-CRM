@@ -50,10 +50,16 @@ const QUICK = [
 ];
 
 export function LeadNotes({
-  contactId, opportunityId, enquiryNote,
+  contactId, opportunityId, enquiryNote, onLeadChanged,
 }: {
   contactId: string;
   opportunityId: string | null;
+  /**
+   * Called when saving a note also moved the lead, so the page can redraw the
+   * stage. Without it the card behind the panel still says New Lead and the
+   * agent has to reload to believe the toast.
+   */
+  onLeadChanged?: () => void;
   /**
    * What the client themselves typed into the ad form. It arrives with the
    * lead and has never been shown on this page — which is a waste, because it
@@ -131,7 +137,7 @@ export function LeadNotes({
     if (!text && staged.length === 0) return;
     setSaving(true);
     try {
-      const created = await api.post<{ id: string }>(`/api/notes/${contactId}`, {
+      const created = await api.post<{ id: string; movedStage: { to: string } | null }>(`/api/notes/${contactId}`, {
         body: text || (staged.some((item) => item.seconds) ? '🎤 Voice note' : '📎 Attachment'),
         type,
         opportunityId,
@@ -155,7 +161,19 @@ export function LeadNotes({
       setShowRemind(false);
       setType('general');
       notes.reload();
-      toast(remind ? 'Noted, and you will be reminded' : 'Noted');
+
+      /*
+       * The note moved the lead, so say so. A stage that changes silently
+       * under an agent is one they stop trusting — and the first time they
+       * notice is in a report that disagrees with their memory.
+       */
+      if (created.movedStage) {
+        onLeadChanged?.();
+        toast(remind ? 'Noted — moved to Attempted Contact, and you will be reminded'
+          : 'Noted — moved to Attempted Contact');
+      } else {
+        toast(remind ? 'Noted, and you will be reminded' : 'Noted');
+      }
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'That did not save');
     } finally {

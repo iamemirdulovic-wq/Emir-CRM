@@ -12,6 +12,9 @@ import { execute, query, queryOne, type Executor, getPool } from '../db/client.j
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { notify } from '../messaging/notify.js';
 import { logger, errorContext } from '../lib/logger.js';
+import { moveStage, type MoveStageResult } from '../services/opportunities.js';
+import { stageAfterNote } from './note-stage.js';
+import type { Role } from '../auth/rbac.js';
 
 export const NOTE_TYPES = [
   'general', 'call_summary', 'viewing_feedback', 'budget', 'objection', 'next_step',
@@ -114,7 +117,7 @@ export async function addNote(
     /** When set, the note also becomes the lead's next step. */
     remindAt?: string | null;
   },
-): Promise<{ id: string; mentions: string[] }> {
+): Promise<{ id: string; mentions: string[]; movedStage: MoveStageResult | null }> {
   const body = input.body.trim();
   if (!body) throw Object.assign(new Error('A note needs something in it'), { status: 400 });
 
@@ -175,7 +178,55 @@ export async function addNote(
     after: { noteId: id, type: input.type ?? 'general', pinned: Boolean(input.pinned) },
   });
 
-  return { id, mentions };
+  /*
+   * A note is evidence that somebody already tried, so a lead still sitting in
+   * New Lead moves itself to Attempted Contact. `stageAfterNote` holds the
+   * limits and the reasons; everything beyond New Lead is left alone.
+   *
+   * It goes through `moveStage` rather than an UPDATE, so the move is recorded
+   * exactly like a move somebody made by hand — the activity on the timeline,
+   * the audit row, the lead-quality event to Meta. A stage that changed with no
+   * trail is a stage an agent cannot argue with.
+   *
+   * It never fails the note. The agent's words are the thing being saved; if
+   * the stage cannot follow, that is worth a log line and nothing more.
+   */
+  const movedStage = await maybeAdvanceAfterNote(actor, input.opportunityId ?? null)
+    .catch((err: unknown) => {
+      logger.warn('note saved, but the stage did not follow', errorContext(err));
+      return null;
+    });
+
+  return { id, mentions, movedStage };
+}
+
+/** New Lead → Attempted Contact, when a human writes a note on an open lead. */
+async function maybeAdvanceAfterNote(
+  actor: AuditActor,
+  opportunityId: string | null,
+): Promise<MoveStageResult | null> {
+  if (!opportunityId) return null;
+
+  const lead = await queryOne<{ stage_key: string; status: string }>(
+    'SELECT stage_key, status FROM opportunities WHERE id = ? AND deleted_at IS NULL',
+    [opportunityId],
+  );
+  if (!lead) return null;
+
+  const next = stageAfterNote({
+    stageKey: lead.stage_key,
+    status: lead.status,
+    authorRole: actor.role,
+  });
+  if (!next) return null;
+
+  return moveStage({
+    opportunityId,
+    to: next.to,
+    subStatus: next.subStatus,
+    actor: { ...actor, role: actor.role as Role },
+    actingUserId: actor.userId,
+  });
 }
 
 /**

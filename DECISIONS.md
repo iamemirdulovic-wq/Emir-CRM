@@ -827,3 +827,35 @@ five-minute rule — which is the single worst failure this product can have,
 because the screens all work. Found by reading `/health` on a real server:
 `"worker":"separate"`. §5 now names the variable and gives him a URL to check it
 in a browser, which is also how he can tell the CRM is up.
+
+2026-10-31 — leads — **A note moves a New Lead to Attempted Contact by itself**
+— Asked for by the team: writing down what was said is evidence the call was
+already made, and a stage somebody has to remember to drag is a stage that is
+wrong by Thursday, which makes every report built on it wrong too. The limits
+matter more than the rule, so they are in one pure function
+(`leads/note-stage.ts`) with the reasons beside them: only out of New Lead,
+only while the lead is open, never for the automation account. A note on a lead
+at Appointment Scheduled reading "client called to confirm Saturday" must not
+drag it backwards — that destroys information rather than recording it — and a
+note on a Won lead is history being written down, not a reopening. It goes
+through `moveStage`, not an UPDATE, so it writes the activity, the audit row
+and the Meta `contacted` quality event exactly like a move made by hand; a
+stage that changed with no trail is one an agent cannot argue with. The agent
+is told ("Noted — moved to Attempted Contact") because a card that moves
+silently is a card people stop trusting. If the move fails the note is still
+saved: the agent's words are the thing being protected.
+
+2026-10-31 — permissions — **Seeing a lead and opening it asked two different
+questions** — Reported from the live CRM with screenshots. My Leads scopes on
+`opportunities.owner_user_id`, as every list does; the lead page scoped on
+`contacts.owner_user_id`. They agree until a person already in the CRM gets a
+second enquiry assigned to somebody else, which is ordinary — the contact's
+owner is sticky on purpose so a returning buyer comes back to the agent who
+knows them, and `add-lead` only fills it `WHERE owner_user_id IS NULL`. The
+agent then saw the lead on his list and got "This lead belongs to another
+agent" on tapping it. The same check gates notes, the inbox thread and email,
+so the lead was not just unopenable, it was unworkable. Owning the person **or
+any of their enquiries** is now enough. The stickiness is deliberately left
+alone: with the page fixed, two agents each holding their own enquiry on one
+person is a sensible state, and stealing the contact to paper over it would
+take the person from the agent who owns them.

@@ -2,6 +2,41 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Two from the live CRM: a lead nobody could open, and notes that move the card
+
+**Fixed**
+- **"This lead belongs to another agent" — on the agent's own lead.** Reported
+  with screenshots: the only agent on the team saw a lead on My Leads and was
+  refused when he tapped it. Both answers came from the server and contradicted
+  each other, because they asked different questions — the list scopes on
+  `opportunities.owner_user_id`, as every list does, and the page scoped on
+  `contacts.owner_user_id`. Those agree until a person already in the CRM gets
+  a second enquiry assigned elsewhere, which is the ordinary case: the
+  contact's owner is sticky by design, and `add-lead` fills it only
+  `WHERE owner_user_id IS NULL`. The same check gates the notes panel, the
+  inbox thread and sending email, so the lead was not merely unopenable, it was
+  unworkable. Owning the person **or any of their enquiries** is now enough; an
+  agent with no claim on either is still refused, and both halves are held by
+  `lead-visibility.integration.test.ts`, which reproduces the contradiction
+  before it holds the fix.
+
+**Added**
+- **Writing a note moves a New Lead to Attempted Contact.** Asked for by the
+  team — the note is the evidence that the call was made, and a stage somebody
+  has to remember to drag is wrong by Thursday. It goes through `moveStage`
+  rather than an UPDATE, so it writes the activity, the audit row and the Meta
+  `contacted` quality event exactly like a move made by hand, and the agent is
+  told it happened rather than finding out later. The limits live in one pure
+  function with the reasoning beside them: only out of New Lead (a note on an
+  Appointment Scheduled lead must not drag it backwards), only while the lead
+  is open (a note on a Won deal is history, not a reopening), and never for the
+  automation account.
+
+**Verified**
+- 2,337 server tests and 367 web tests pass against a real MySQL 8, plus a
+  browser run as the agent on the exact shape from the screenshots: the lead
+  opens, the note saves, and the pill reads Attempted Contact.
+
 ## Handover — and the deploy that never ran
 
 **Fixed**

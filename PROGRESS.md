@@ -394,6 +394,16 @@ has none.
       no broken images, no console errors.** The 22 remaining small targets
       are checkboxes at their native size and links inside sentences
 
+## After the handover — reported from the live CRM
+
+- [x] A1 **"This lead belongs to another agent" on the agent's own lead.** The
+      list and the page were scoped on different owners. Reproduced in a test,
+      fixed, and checked in a browser as the agent: the lead opens
+- [x] A2 **A note moves a New Lead to Attempted Contact**, as the team asked —
+      through the real stage-move path, so the timeline, the audit log and the
+      Meta `contacted` event all follow. Only out of New Lead, only while the
+      lead is open, never from the system's own notes
+
 ## Step 17 — Final
 - [x] 17.1 Full test run green — **and the integration tests actually ran.**
       This machine has no MySQL and no Docker daemon, but it has apt:
