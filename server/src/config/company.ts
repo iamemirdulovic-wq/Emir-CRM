@@ -238,3 +238,36 @@ export async function companyDetails(): Promise<CompanyDetails> {
   );
   return companyFrom(Object.fromEntries(entries) as Partial<Record<CompanyField, string | null>>);
 }
+
+/**
+ * The company as the outside world sees it: the business card, the signature
+ * at the foot of a client email, the offer footer.
+ *
+ * It exists because two of those used to read a single `app_settings` row
+ * called `company` and pick `.name` out of its JSON — a shape nothing has
+ * written since the Company screen was built, which stores one setting per
+ * field. So both quietly ignored everything the owner typed and printed the
+ * hard-coded fallback instead. There was no error to notice: the card simply
+ * said the wrong company name forever.
+ */
+export function brandingFrom(company: CompanyDetails): {
+  companyName: string;
+  companyLegalName: string | null;
+  address: string | null;
+  licenceNo: string | null;
+  website: string | null;
+  logoUrl: string | null;
+} {
+  const legal = company.legalName.trim();
+  const shown = displayName(company);
+  return {
+    companyName: shown,
+    /* Only when it adds something: "Emigeo Homes (Emigeo Homes)" in a footer
+       is noise, and the legal name is the one that matters on a document. */
+    companyLegalName: legal && legal !== shown ? legal : null,
+    address: company.address.trim() || null,
+    licenceNo: company.licenceNo.trim() || null,
+    website: company.website.trim() || null,
+    logoUrl: company.logoUrl.trim() || null,
+  };
+}

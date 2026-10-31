@@ -63,8 +63,8 @@ function chips(value: unknown): string {
 
 /** The card itself. `url` is its own public address, for the QR. */
 export function renderCardHtml(profile: ProfileRow, company: string, url: string): string {
-  const photo = profile.photo_url && /^https?:\/\//.test(profile.photo_url)
-    ? `<img class="face" src="${escapeHtml(profile.photo_url)}" alt="" width="104" height="104">`
+  const photo = isSafePhotoUrl(profile.photo_url)
+    ? `<img class="face" src="${escapeHtml(profile.photo_url as string)}" alt="" width="104" height="104">`
     : `<div class="face initials">${escapeHtml(initialsOf(profile.name))}</div>`;
 
   return `<!doctype html>
@@ -158,6 +158,25 @@ export function renderCardHtml(profile: ProfileRow, company: string, url: string
 }
 
 export { notFoundPage, publicPhone, initialsOf };
+
+/**
+ * A photo this page is willing to load.
+ *
+ * `https://` for a photo hosted elsewhere, and a path beginning with a single
+ * `/` for one uploaded here — which is what the profile screen produces, and
+ * what this used to reject. The effect of rejecting it was quiet: the upload
+ * worked, the file served, and the card showed initials anyway.
+ *
+ * `//evil.example` is excluded deliberately: the browser reads that as a host,
+ * not a path, so it is an off-site URL wearing a path's clothes. Nothing else
+ * gets through, which keeps `javascript:` and `data:` out of an `src` on a
+ * page served to the public.
+ */
+export function isSafePhotoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (/^https:\/\//.test(url)) return true;
+  return url.startsWith('/') && !url.startsWith('//');
+}
 
 /** "Layla Hassan" → "LH", for the circle when there is no photograph. */
 function initialsOf(name: string): string {

@@ -396,6 +396,16 @@ has none.
 
 ## After the handover — reported from the live CRM
 
+- [x] A3 **The business card and client emails ignored Settings → Company.**
+      Both read a settings row nothing writes any more, so they printed a
+      hard-coded name whatever the owner typed. Fixed, with a check that fails
+      the build if anything reads the dead row again
+- [x] A4 **An agent can put a photo on their card.** The column and the
+      rendering existed; nothing could set it, so every card showed initials.
+      Upload on the profile screen, public image route, and the card's own
+      rule widened to accept a photo uploaded here rather than only an
+      off-site URL
+
 - [x] A1 **"This lead belongs to another agent" on the agent's own lead.** The
       list and the page were scoped on different owners. Reproduced in a test,
       fixed, and checked in a browser as the agent: the lead opens

@@ -6,6 +6,7 @@ import { buildVCard, vcardFilename } from '../../profiles/vcard.js';
 import { qrSvg } from '../../profiles/qr.js';
 import { loadPublicProfile } from '../../profiles/profiles.js';
 import { notFoundPage, publicPhone, renderCardHtml } from '../../profiles/card-html.js';
+import { companyDetails, displayName } from '../../config/company.js';
 
 /**
  * The business card a client opens.
@@ -71,14 +72,15 @@ cardRouter.get(
   }),
 );
 
+/**
+ * The name on the agent's card, from Settings → Company.
+ *
+ * This used to read an `app_settings` row called `company` and take `.name`
+ * from its JSON. Nothing writes that row — the Company screen stores one
+ * setting per field — so the card always fell through to the hard-coded name
+ * and silently ignored whatever the owner had typed. Reading the record the
+ * screen actually writes is the whole fix.
+ */
 async function companyName(): Promise<string> {
-  const row = await queryOne<{ value: string }>(
-    "SELECT value FROM app_settings WHERE `key` = 'company' LIMIT 1",
-  ).catch(() => null);
-  if (!row?.value) return 'Emigeo Homes';
-  try {
-    return (JSON.parse(row.value) as { name?: string }).name || 'Emigeo Homes';
-  } catch {
-    return 'Emigeo Homes';
-  }
+  return displayName(await companyDetails());
 }

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
+import { FileDrop } from '../components/FileDrop.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Button } from '../design/forms.js';
 import { Icon, SkeletonRows } from '../design/index.js';
 import type { IconName } from '../design/Icon.js';
 import {
-  Avatar, Chip, ErrorNote, Field, Panel, Select, TextArea, Toolbar, useToast,
+  Avatar, Chip, ErrorNote, Field, Note, Panel, Select, TextArea, Toolbar, useToast,
 } from '../design/ui.js';
 import { humanize } from '../lib/format.js';
 
@@ -101,6 +102,7 @@ export function Profile() {
 
   const [draft, setDraft] = useState<Partial<Profile> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   /* The draft starts as whatever is saved, once it has arrived. */
   useEffect(() => {
@@ -140,6 +142,32 @@ export function Profile() {
 
   const { profile, stats, badges, level, editable } = data.data;
   const cardUrl = `/card/${profile.slug}`;
+
+  async function uploadPhoto(file: File) {
+    setUploading(true);
+    try {
+      await api.upload<{ photoUrl: string }>(`/api/profiles/${profile.user_id}/photo`, file);
+      toast('Photo saved');
+      setReloadKey((n) => n + 1);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not upload that');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removePhoto() {
+    setUploading(true);
+    try {
+      await api.del(`/api/profiles/${profile.user_id}/photo`);
+      toast('Photo removed');
+      setReloadKey((n) => n + 1);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not remove that');
+    } finally {
+      setUploading(false);
+    }
+  }
   const earned = badges.filter((badge) => badge.earned);
   const locked = badges.filter((badge) => !badge.earned);
 
@@ -158,7 +186,11 @@ export function Profile() {
       <div className="dash">
         <Panel span={8} index={1} icon="user" title="Profile">
           <div className="profile-head">
-            <Avatar name={profile.name} size={64} />
+            {profile.photo_url ? (
+              <img className="profile-photo" src={profile.photo_url} alt={profile.name} width={64} height={64} />
+            ) : (
+              <Avatar name={profile.name} size={64} />
+            )}
             <div>
               <h2>{profile.name}</h2>
               <p className="muted">
@@ -273,6 +305,30 @@ export function Profile() {
 
           {editable && (
             <>
+              <div className="sec-t">Your photo</div>
+              {profile.photo_url ? (
+                <div className="co-logo">
+                  <img src={profile.photo_url} alt="Your photo" />
+                  <Button icon="trash-2" size="sm" loading={uploading} onClick={() => void removePhoto()}>
+                    Remove it
+                  </Button>
+                </div>
+              ) : (
+                <FileDrop
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple={false}
+                  icon="image-up"
+                  title="Add your photo"
+                  hint="PNG, JPG or WebP, up to 4 MB. A head-and-shoulders photo works best."
+                  disabled={uploading}
+                  onFiles={(files) => files[0] && void uploadPhoto(files[0])}
+                />
+              )}
+              <Note>
+                It is on your business card and at the bottom of every email you send a client.
+                Without one they see your initials.
+              </Note>
+
               <div className="sec-t">Your card</div>
               <label className="routing-switch">
                 <input

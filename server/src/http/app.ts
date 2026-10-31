@@ -43,7 +43,7 @@ import { startHeartbeat } from '../realtime/hub.js';
 import { emailRouter } from './routes/email.js';
 import { emailPublicRouter } from './routes/email-public.js';
 import { activityRouter } from './routes/activity.js';
-import { profilesRouter } from './routes/profiles.js';
+import { profilesRouter, publicProfileRouter } from './routes/profiles.js';
 import { cardRouter } from './routes/card.js';
 import { wallRouter } from './routes/wall.js';
 import { searchRouter } from './routes/search.js';
@@ -212,6 +212,11 @@ export function createApp(): Express {
   app.use('/api/my-leads', myLeadsRouter);
   app.use('/api/email', emailRouter);
   app.use('/api/activity', activityRouter);
+  /* The photo first, and unauthenticated: it is on a business card that
+     clients open and in the signature of every client email, exactly like the
+     company logo. The authenticated router below handles everything else, so
+     the only thing reachable without a session is the image itself. */
+  app.use('/api/profiles', publicProfileRouter);
   app.use('/api/profiles', profilesRouter);
   app.use('/api/wall', wallRouter);
   /* What the command palette asks: leads and projects, both fenced. */

@@ -2,6 +2,35 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The agent's own card — and the company name that never reached it
+
+**Fixed**
+- **The business card and the signature on every client email printed a
+  hard-coded company name.** Both read an `app_settings` row called `company`
+  and took `.name` from its JSON; nothing has written that row since the
+  Company screen was built, which stores one setting per field. The owner could
+  fill in Settings → Company, press Save, and the two things clients actually
+  see would go on saying the old name — with no error and no blank to notice,
+  because the fallback looked like a real answer. Both now read the record the
+  screen writes, through one `brandingFrom()` so they cannot drift apart again,
+  and `config/company-source.test.ts` fails the build if anything reads the
+  dead row.
+- **The card refused a photo uploaded to the CRM.** It only accepted
+  `https://`, and a photo uploaded here is a path on this server, so it fell
+  back to initials. Same-origin paths are accepted now; `//host`,
+  `javascript:` and `data:` are not, because this page is public and has no
+  session behind it.
+
+**Added**
+- **An agent can put a photo on their own business card.** `users.photo_url`
+  existed, the card rendered it, the email signature used it — and nothing in
+  the product could set it. There is now an upload on the profile screen, built
+  like the company logo: one file per person, 4 MB, rate-limited, with a `?v=`
+  so a replacement is not served from cache. The image route is public, because
+  a business card is opened by people who have no account; everything else on
+  that router still needs a session, and changing somebody else's photo is
+  owner and admin only.
+
 ## Two from the live CRM: a lead nobody could open, and notes that move the card
 
 **Fixed**

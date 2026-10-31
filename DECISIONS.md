@@ -859,3 +859,34 @@ any of their enquiries** is now enough. The stickiness is deliberately left
 alone: with the page fixed, two agents each holding their own enquiry on one
 person is a sensible state, and stealing the contact to paper over it would
 take the person from the agent who owns them.
+
+2026-10-31 — company — **The business card and every client email printed a
+hard-coded company name** — Both read an `app_settings` row called `company`
+and pulled `.name` out of its JSON. Nothing has written that row since the
+Company screen was built: it stores one setting per field
+(`COMPANY_LEGAL_NAME`, `COMPANY_TRADING_NAME`, …). So the owner could fill in
+Settings → Company, press Save, and the two things clients actually see would
+go on saying "Emigeo Homes" forever. No error, no blank, nothing to notice —
+the fallback was the bug's disguise. Both now read `companyDetails()`, and
+`brandingFrom()` is the one place that turns the record into what the outside
+world sees. `config/company-source.test.ts` fails the build if anything reads
+the dead row again.
+
+2026-10-31 — profiles — **An agent can now put a photo on their own card** —
+`users.photo_url` existed, the card rendered it and the email signature used
+it, and nothing in the product could set it: there was no upload anywhere, so
+every card showed initials. Added on the profile screen, built like the company
+logo — same size guard, same rate limit, one file per person, a `?v=` on the
+URL so a replacement is not served from cache. The image route is public and
+mounted before the auth middleware, because a business card is opened by people
+with no account, and only the image is: everything else on the profile router
+still needs a session, and changing somebody else's photo is still owner/admin
+only.
+
+2026-10-31 — profiles — The card refused a photo uploaded to the CRM itself —
+`renderCardHtml` only accepted `^https?://`, and an uploaded photo is a path on
+this server. So the upload above would have worked, served, and shown initials
+anyway. It now accepts a same-origin path as well; `//host` is still refused,
+because a browser reads that as a host rather than a path, and so are
+`javascript:` and `data:` — this page is served to the public with no session
+behind it.

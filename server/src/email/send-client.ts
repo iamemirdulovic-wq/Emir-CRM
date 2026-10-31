@@ -16,6 +16,7 @@
 import { randomUUID } from 'node:crypto';
 import { execute, queryOne } from '../db/client.js';
 import { env } from '../config/env.js';
+import { brandingFrom, companyDetails } from '../config/company.js';
 import { logger, errorContext } from '../lib/logger.js';
 import { maskEmail } from '../lib/redact.js';
 import { evaluateGuards, isRetryable } from '../workflows/guards.js';
@@ -78,29 +79,17 @@ async function loadSender(userId: string | null): Promise<Sender & { address: st
   };
 }
 
+/**
+ * The company block at the foot of a client email.
+ *
+ * Same bug as the business card had: this read an `app_settings` row called
+ * `company` and pulled `.name` out of its JSON, and nothing has written that
+ * row since the Company screen was built — it stores one setting per field. So
+ * every email to a client carried the hard-coded name no matter what the owner
+ * had saved, with nothing anywhere to say so.
+ */
 async function loadBranding(): Promise<Branding> {
-  const row = await queryOne<{ value: string }>(
-    "SELECT value FROM app_settings WHERE `key` = 'company' LIMIT 1",
-  ).catch(() => null);
-
-  const stored = (() => {
-    if (!row?.value) return {} as Record<string, string>;
-    try {
-      return JSON.parse(row.value) as Record<string, string>;
-    } catch {
-      return {} as Record<string, string>;
-    }
-  })();
-
-  return {
-    companyName: stored.name || 'Emigeo Homes',
-    companyLegalName: stored.legalName || null,
-    address: stored.address || null,
-    licenceNo: stored.licenceNo || null,
-    website: stored.website || null,
-    accent: stored.accent || null,
-    logoUrl: stored.logoUrl || null,
-  };
+  return { ...brandingFrom(await companyDetails()), accent: null };
 }
 
 /** What a template's placeholders become for this particular contact. */

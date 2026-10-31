@@ -1,5 +1,10 @@
 import { Router, type Request, type Response } from 'express';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { z } from 'zod';
+import { rateLimit } from '../middleware/rate-limit.js';
+import { badRequest } from '../../lib/errors.js';
+import { IMAGE_TYPES, baseContentType, extensionFor, insideUploadDir, uploadDir } from '../../lib/uploads.js';
 import { asyncHandler } from '../middleware/error.js';
 import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth,
@@ -155,6 +160,111 @@ profilesRouter.patch(
       throw forbidden('You can only change your own profile');
     }
     await updateProfile(actorFrom(req), userId, patchSchema.parse(req.body));
+    res.json({ ok: true });
+  }),
+);
+
+/* A photo is the first thing a client looks at on a business card, and until
+   now there was no way to put one there: the column existed, the card rendered
+   it, and nothing could set it. Agents fell back to their initials. */
+const photoLimit = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  message: 'Too many photo uploads in a short time. Please wait a minute.',
+});
+
+/** Four megabytes — a phone photo, not a print file. It is resized on the card. */
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+
+function photoDir(): string {
+  return uploadDir('profile-photos');
+}
+
+/** This person's photo on disk, whatever extension it was uploaded with. */
+async function findPhoto(userId: string): Promise<string | null> {
+  let names: string[];
+  try {
+    names = await readdir(photoDir());
+  } catch {
+    return null;
+  }
+  const match = names.find((name) => new RegExp(`^${userId}\\.(png|jpg|webp|gif)$`).test(name));
+  return match ? path.join(photoDir(), match) : null;
+}
+
+async function removePhotos(userId: string): Promise<void> {
+  const existing = await findPhoto(userId);
+  if (existing && insideUploadDir(existing)) await rm(existing, { force: true });
+}
+
+profilesRouter.post(
+  '/:userId/photo',
+  photoLimit,
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req);
+    const userId = String(req.params.userId);
+    if (userId !== me.id && me.role !== 'owner' && me.role !== 'admin') {
+      throw forbidden('You can only change your own photo');
+    }
+
+    const contentType = baseContentType(req.get('content-type') ?? '');
+    const extension = extensionFor(contentType, IMAGE_TYPES);
+    if (!extension || extension === '.pdf') {
+      throw badRequest(`${contentType || 'That file'} is not an image. PNG, JPG or WebP.`);
+    }
+
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > MAX_PHOTO_BYTES) throw badRequest('That photo is larger than 4 MB.');
+      chunks.push(chunk as Buffer);
+    }
+    if (size === 0) throw badRequest('That file is empty.');
+
+    await mkdir(photoDir(), { recursive: true });
+    /* One photo per person, so a replacement in another format does not leave
+       the old one on disk for the card to find first. */
+    await removePhotos(userId);
+    await writeFile(path.join(photoDir(), `${userId}${extension}`), Buffer.concat(chunks));
+
+    /* The version is what makes a browser — and a client's mail client —
+       fetch the new photo rather than the cached old one. */
+    const url = `/api/profiles/${userId}/photo?v=${Date.now()}`;
+    await updateProfile(actorFrom(req), userId, { photoUrl: url });
+    res.status(201).json({ photoUrl: url });
+  }),
+);
+
+/* Public by design, like the company logo: it is on a business card that
+   people without an account open, and in the signature of client emails. It
+   is registered on the public router below for that reason. */
+export const publicProfileRouter = Router();
+
+publicProfileRouter.get(
+  '/:userId/photo',
+  asyncHandler(async (req: Request, res: Response) => {
+    const file = await findPhoto(String(req.params.userId));
+    if (!file) throw notFound('No photo has been uploaded.');
+
+    const type = Object.entries(IMAGE_TYPES).find(([, ext]) => ext === path.extname(file))?.[0];
+    res.setHeader('Content-Type', type ?? 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Content-Disposition', 'inline');
+    res.send(await readFile(file));
+  }),
+);
+
+profilesRouter.delete(
+  '/:userId/photo',
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req);
+    const userId = String(req.params.userId);
+    if (userId !== me.id && me.role !== 'owner' && me.role !== 'admin') {
+      throw forbidden('You can only change your own photo');
+    }
+    await removePhotos(userId);
+    await updateProfile(actorFrom(req), userId, { photoUrl: null });
     res.json({ ok: true });
   }),
 );
