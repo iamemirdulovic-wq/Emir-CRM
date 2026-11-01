@@ -8,7 +8,7 @@
  *    .app-switch-slot so the sidebar already has its final proportions.
  */
 import { Fragment, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
 import { BrandLockup } from '../brand.js';
@@ -21,6 +21,39 @@ export interface NavItem {
   badge?: number;
   /** Matches child routes too, e.g. /contacts/42 highlighting Contacts. */
   end?: boolean;
+}
+
+
+/**
+ * Which nav item is the current screen.
+ *
+ * NavLink decides this from the path alone, and two items here share a path:
+ * My Leads is /leads and Follow-ups is /leads?tab=today. On the follow-ups
+ * screen both lit up, so the sidebar showed two current screens at once.
+ *
+ * An item carrying a query matches only when that query matches. An item
+ * without one yields to a sibling on the same path whose query does match,
+ * which is what makes My Leads go quiet while Follow-ups is open.
+ */
+export function navItemMatches(item: NavItem, nav: NavItem[], location: { pathname: string; search: string }): boolean {
+  const [path = '', query = ''] = item.to.split('?');
+  const samePath = item.end === false
+    ? location.pathname === path || location.pathname.startsWith(`${path}/`)
+    : location.pathname === path;
+  if (!samePath) return false;
+
+  const current = new URLSearchParams(location.search);
+  const matchesQuery = (q: string) => {
+    const want = new URLSearchParams(q);
+    for (const [key, value] of want) if (current.get(key) !== value) return false;
+    return true;
+  };
+
+  if (query) return matchesQuery(query);
+
+  const sibling = nav.find((other) => other !== item && other.to.startsWith(`${path}?`));
+  if (sibling && matchesQuery(sibling.to.split('?')[1] ?? '')) return false;
+  return true;
 }
 
 export interface ShellUser {
@@ -43,6 +76,12 @@ export interface AppShellProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    /**
+     * Where Enter goes when the screen underneath does not filter on the
+     * term. Without it the box did nothing at all on the Dashboard: no
+     * request, no results, no feedback.
+     */
+    onSubmit?: (value: string) => void;
   };
   /** The agent's "available for new leads" toggle; omit for non-agents. */
   availability?: {
@@ -99,6 +138,7 @@ export function AppShell({
   action,
   children,
 }: AppShellProps) {
+  const location = useLocation();
   const { appearance, cycle } = useAppearance();
   const phoneNav = mobileNav ?? nav.slice(0, 5);
   /* With a centre button the bar holds four links around it, not five. */
@@ -116,7 +156,8 @@ export function AppShell({
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => (isActive ? 'active' : undefined)}
+              className={navItemMatches(item, nav, location) ? 'active' : undefined}
+              aria-current={navItemMatches(item, nav, location) ? 'page' : undefined}
             >
               <Icon name={item.icon} />
               {item.label}
@@ -182,10 +223,27 @@ export function AppShell({
             <label className="search">
               <Icon name="search" />
               <span className="sr-only">Search</span>
+              {/*
+                * Named and marked so Chrome stops offering the signed-in
+                * account's email address here. It guesses from field shape,
+                * and an unnamed text box at the top of a page looks enough
+                * like a username field for it to try.
+                */}
               <input
                 type="search"
+                name="crm-search"
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
                 value={search.value}
                 onChange={(event) => search.onChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && search.onSubmit) {
+                    event.preventDefault();
+                    search.onSubmit(search.value);
+                  }
+                }}
                 placeholder={search.placeholder ?? 'Search leads, phone, project'}
               />
             </label>
@@ -223,7 +281,8 @@ export function AppShell({
             <NavLink
               to={item.to}
               end={item.end}
-              className={({ isActive }) => (isActive ? 'active' : undefined)}
+              className={navItemMatches(item, barItems, location) ? 'active' : undefined}
+              aria-current={navItemMatches(item, barItems, location) ? 'page' : undefined}
             >
               <Icon name={item.icon} />
               {item.label}

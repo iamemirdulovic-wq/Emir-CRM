@@ -21,9 +21,26 @@ import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
 import { env } from '../../config/env.js';
 import { recentWebsiteLeads, websiteConnection } from '../../services/integration-status.js';
+import { setupChecklist } from '../../services/setup-checklist.js';
 
 export const integrationsRouter = Router();
 integrationsRouter.use(requireAuth, blockUntilPasswordChanged);
+
+/**
+ * What is still not switched on, as one list.
+ *
+ * Owner and admin only. Each of these fails quietly and in its own corner —
+ * a send recorded as not sent, a workflow that never runs, a lead alert that
+ * only arrives if the CRM happens to be open — so the owner had no way to see
+ * that four separate things were waiting on them.
+ */
+integrationsRouter.get(
+  '/setup-checklist',
+  requireAdmin,
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await setupChecklist());
+  }),
+);
 
 /** Reading the state is a manager's business; changing it is not. */
 integrationsRouter.get(

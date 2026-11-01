@@ -93,6 +93,9 @@ export function Profile() {
   const { user } = useAuth();
   const toast = useToast();
   const who = userId ?? 'me';
+  /* Your own profile, reached from the sidebar, says "you" rather than
+     "they" — it read like somebody else's file. */
+  const isMine = !userId || userId === user?.id;
   const [reloadKey, setReloadKey] = useState(0);
   const data = useAsync<Response>(() => api.get(`/api/profiles/${who}`), [who, reloadKey]);
   const covers = useAsync<{ items: Array<{ key: string; name: string }> }>(
@@ -284,7 +287,7 @@ export function Profile() {
           )}
         </Panel>
 
-        <Panel span={4} index={2} icon="bar-chart-3" title="How they work">
+        <Panel span={4} index={2} icon="bar-chart-3" title={isMine ? 'How you work' : 'How they work'}>
           <div className="vat-big">
             <div>
               <small>Deals won</small>

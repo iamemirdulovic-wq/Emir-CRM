@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { requestPalette } from './CommandLayer.js';
 import { AskEmirAi } from './AskEmirAi.js';
 import { NewLeadCard } from './NewLeadCard.js';
 import { InstallPrompt } from './InstallPrompt.js';
@@ -24,14 +25,30 @@ import { CommandLayer } from './CommandLayer.js';
  * screen is showing.
  */
 
-const SearchContext = createContext<{ value: string; set: (value: string) => void }>({
+const SearchContext = createContext<{
+  value: string;
+  set: (value: string) => void;
+  /** Called by a screen that filters on the term; returns the release. */
+  claim: () => () => void;
+}>({
   value: '',
   set: () => undefined,
+  claim: () => () => undefined,
 });
 
-/** The top bar's search term. Screens that ignore it simply do not call this. */
+/**
+ * The top bar's search term.
+ *
+ * Calling this also claims the box, so the shell knows some screen is
+ * listening. On a screen that does not — the Dashboard, the Team Wall — the
+ * box used to swallow everything typed into it and send no request at all.
+ * Unclaimed, Enter now hands the text to the command palette, which already
+ * searches leads and projects properly.
+ */
 export function useShellSearch() {
-  return useContext(SearchContext);
+  const ctx = useContext(SearchContext);
+  useEffect(() => ctx.claim(), [ctx]);
+  return ctx;
 }
 
 interface Entry {
@@ -137,6 +154,13 @@ function Chrome() {
   const location = useLocation();
   const toast = useToast();
   const [search, setSearch] = useState('');
+  /* How many screens are filtering on the search term right now — zero on the
+     Dashboard, one on My Leads. */
+  const [searchClaims, setSearchClaims] = useState(0);
+  const claimSearch = useCallback(() => {
+    setSearchClaims((n) => n + 1);
+    return () => setSearchClaims((n) => n - 1);
+  }, []);
   const [soundOn, setSoundOn] = useState(soundEnabled);
   /* The Add lead button used to navigate to /contacts?new=1, which no
      screen read — it did nothing at all. */
@@ -241,7 +265,17 @@ function Chrome() {
       onSignOut={() => {
         void signOut().then(() => navigate('/login', { replace: true }));
       }}
-      search={{ value: search, onChange: setSearch }}
+      search={{
+        value: search,
+        onChange: setSearch,
+        /* Nothing on this screen filters on the term, so hand it to the
+           palette, which searches leads and projects properly. Without this
+           the box was decoration on the Dashboard. */
+        onSubmit: searchClaims === 0
+          ? (value) => { if (value.trim()) requestPalette(value.trim()); }
+          : undefined,
+        placeholder: searchClaims === 0 ? 'Search everything — press Enter' : undefined,
+      }}
       availability={availability}
       sound={{
         on: soundOn,
@@ -261,7 +295,7 @@ function Chrome() {
         </button>
       }
     >
-      <SearchContext.Provider value={{ value: search, set: setSearch }}>
+      <SearchContext.Provider value={{ value: search, set: setSearch, claim: claimSearch }}>
         {/*
           * One keyboard listener for the whole app, and the three things it
           * opens: Cmd+K, the shortcut list and the tour. It wraps the screen

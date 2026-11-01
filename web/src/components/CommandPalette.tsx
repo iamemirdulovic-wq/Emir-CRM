@@ -33,6 +33,8 @@ interface SearchHit {
 }
 
 export interface CommandPaletteProps {
+  /** Text the top-bar search handed over, when no screen claimed it. */
+  initialQuery?: string;
   open: boolean;
   onClose: () => void;
   role: Role;
@@ -42,7 +44,7 @@ export interface CommandPaletteProps {
   onRecents: (next: string[]) => void;
 }
 
-export function CommandPalette({ open, onClose, role, onCommand, recents, onRecents }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, role, onCommand, recents, onRecents, initialQuery }: CommandPaletteProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -57,13 +59,15 @@ export function CommandPalette({ open, onClose, role, onCommand, recents, onRece
 
   useEffect(() => {
     if (!open) return;
-    setQuery('');
+    /* Pre-filled when the top-bar search handed its text over, because the
+       screen underneath had no use for it. */
+    setQuery(initialQuery ?? '');
     setSelected(0);
     setHits({ leads: [], projects: [] });
     /* The input is mounted in the same commit, so focus on the next frame. */
     const timer = window.setTimeout(() => input.current?.focus(), 0);
     return () => window.clearTimeout(timer);
-  }, [open]);
+  }, [open, initialQuery]);
 
   useEffect(() => {
     if (!open) return;

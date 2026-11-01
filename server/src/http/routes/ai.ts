@@ -21,6 +21,7 @@ import { ask } from '../../ai/ask.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
+import { logger, errorContext } from '../../lib/logger.js';
 import { writeAudit } from '../../audit/audit.js';
 import { execute, query, queryOne } from '../../db/client.js';
 import { newId } from '../../lib/ids.js';
@@ -282,7 +283,30 @@ aiRouter.post(
       )).reverse()
       : [];
 
-    const result = await ask(body.question, { id: user.id, role: user.role }, history);
+    /*
+     * An agent cannot fix a Google API key, and should not be shown one.
+     *
+     * The setup errors are written for whoever can act on them — "check the
+     * Generative Language API is enabled on that project, and that billing
+     * is on" — and an agent who asks "which leads should I call first?" was
+     * getting that back verbatim. They are kept for the people who can do
+     * something about it and replaced for everybody else, with the real
+     * reason still logged on the server.
+     */
+    let result;
+    try {
+      result = await ask(body.question, { id: user.id, role: user.role }, history);
+    } catch (err) {
+      const canFixIt = user.role === 'owner' || user.role === 'admin';
+      if (canFixIt) throw err;
+      logger.warn('Emir AI failed for an agent', {
+        userId: user.id, ...errorContext(err),
+      });
+      throw badRequest(
+        'Emir AI is not switched on yet. Nothing you did — the office has to finish '
+        + 'setting it up. Everything else in the CRM works as normal.',
+      );
+    }
 
     if (!conversationId) {
       conversationId = newId();

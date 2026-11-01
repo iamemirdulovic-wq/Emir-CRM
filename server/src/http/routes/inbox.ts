@@ -84,6 +84,11 @@ inboxRouter.get(
               (SELECT m.body FROM messages m WHERE m.conversation_id = cv.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
               (SELECT m.channel FROM messages m WHERE m.conversation_id = cv.id ORDER BY m.created_at DESC LIMIT 1) AS last_channel,
               (SELECT m.direction FROM messages m WHERE m.conversation_id = cv.id ORDER BY m.created_at DESC LIMIT 1) AS last_direction,
+              -- Whether the last message actually went. A send that failed —
+              -- no SMTP configured, a WhatsApp template not approved — still
+              -- previewed as "You: Hello Fatima, thank you for..." in this
+              -- list, so a conversation nobody had answered looked answered.
+              (SELECT m.status FROM messages m WHERE m.conversation_id = cv.id ORDER BY m.created_at DESC LIMIT 1) AS last_status,
               (SELECT o.stage_key FROM opportunities o WHERE o.contact_id = cv.contact_id ORDER BY o.created_at DESC LIMIT 1) AS stage_key
          FROM conversations cv
          JOIN contacts c ON c.id = cv.contact_id

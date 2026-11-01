@@ -51,12 +51,26 @@ const LeadShortcuts = createContext<{ current: LeadShortcutHandlers | null } | n
  * again", not the command palette.
  */
 export interface Commands {
-  openPalette: () => void;
+  openPalette: (query?: string) => void;
   openHelp: () => void;
   startTour: () => void;
 }
 
 const CommandContext = createContext<Commands | null>(null);
+
+/*
+ * Opening the palette from above it in the tree.
+ *
+ * The top-bar search lives in AppShell, which renders CommandLayer as a
+ * child, so the context cannot reach it. Rather than restructure the shell
+ * for one call, the shell shouts and the layer listens.
+ */
+const PALETTE_REQUEST = 'emir:open-palette';
+
+/** Ask the command palette to open, optionally with text already in it. */
+export function requestPalette(query = ''): void {
+  window.dispatchEvent(new CustomEvent(PALETTE_REQUEST, { detail: query }));
+}
 
 export function useCommands(): Commands | null {
   return useContext(CommandContext);
@@ -103,6 +117,7 @@ export function CommandLayer({ role, onAddLead, onToggleSound, onSignOut, childr
   const { cycle } = useAppearance();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [tour, setTour] = useState<TourState>(EMPTY_TOUR);
   const [tourOpen, setTourOpen] = useState(false);
@@ -300,9 +315,21 @@ export function CommandLayer({ role, onAddLead, onToggleSound, onSignOut, childr
     writeRecents(next);
   }, []);
 
+  useEffect(() => {
+    const onRequest = (event: Event) => {
+      setPaletteQuery(typeof (event as CustomEvent).detail === 'string' ? (event as CustomEvent).detail : '');
+      setPaletteOpen(true);
+    };
+    window.addEventListener(PALETTE_REQUEST, onRequest);
+    return () => window.removeEventListener(PALETTE_REQUEST, onRequest);
+  }, []);
+
   const commands = useMemo<Commands>(
     () => ({
-      openPalette: () => setPaletteOpen(true),
+      openPalette: (query?: string) => {
+        setPaletteQuery(query ?? '');
+        setPaletteOpen(true);
+      },
       openHelp: () => setHelpOpen(true),
       startTour: () => {
         saveTour({ step: 0, doneAt: null, skipped: false });
@@ -318,6 +345,7 @@ export function CommandLayer({ role, onAddLead, onToggleSound, onSignOut, childr
       {children}
       <CommandPalette
         open={paletteOpen}
+        initialQuery={paletteQuery}
         onClose={() => setPaletteOpen(false)}
         role={role}
         onCommand={runCommand}

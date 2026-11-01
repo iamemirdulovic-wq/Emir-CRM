@@ -38,17 +38,36 @@ listsRouter.get(
         ORDER BY l.created_at DESC`,
     );
 
+    /*
+     * A smart list has no rows in list_members, so the subquery above counts
+     * zero for one — and the API said "0 members" about a list whose own page
+     * showed eleven, with its campaign reading "0 of 0". The real number comes
+     * from running the filter, which is what the list page does when you open
+     * it. One extra count per smart list, and there are tens of lists, not
+     * thousands.
+     */
+    const visible = await visibleUserIds(currentUser(_req));
+    const counted = await Promise.all(items.map(async (row) => {
+      if (row.kind !== 'smart') return Number(row.member_count ?? 0);
+      try {
+        const { total } = await listMembers(String(row.id), visible, { limit: 1 });
+        return total;
+      } catch {
+        /* A filter that no longer parses should not take the whole page down. */
+        return 0;
+      }
+    }));
+
     res.json({
-      items: items.map((row) => ({
+      items: items.map((row, i) => ({
         ...row,
-        // A smart list has no stored members, so its count comes from its
-        // filter when it is opened; the card shows the rule instead.
+        member_count: counted[i],
         summary:
           row.kind === 'smart'
             ? describeFilter(
                 (typeof row.filters === 'string' ? JSON.parse(row.filters) : row.filters) ?? {},
               )
-            : `${row.member_count} contacts`,
+            : `${counted[i]} contacts`,
       })),
     });
   }),

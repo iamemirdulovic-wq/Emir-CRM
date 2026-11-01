@@ -951,10 +951,22 @@ function WebsiteConnectionPanel({ health, onSaved }: { health: Health; onSaved: 
             label={ready ? 'Replace the shared secret' : 'Shared secret'}
             hint="Paste the one line the website team gave you. It is encrypted before it is stored, never shown again, and takes effect immediately — no restart."
           >
+            {/*
+              * autoComplete="off" is ignored by Chrome on a password field —
+              * it offered a saved password here, and saving that would have
+              * replaced the website's shared secret with somebody's login and
+              * stopped every website lead arriving. "new-password" is the
+              * value Chrome actually honours; the rest tell the common
+              * password managers to leave it alone too.
+              */}
             <input
               className="input"
               type="password"
-              autoComplete="off"
+              name="website-hmac-secret"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
+              data-form-type="other"
               spellCheck={false}
               placeholder={ready ? 'Leave blank to keep the current one' : 'Paste it here'}
               value={secretInput}

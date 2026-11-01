@@ -20,6 +20,7 @@ import { Offers } from './pages/Offers.js';
 import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
 import { Components } from './pages/Components.js';
+import { NotFound } from './pages/NotFound.js';
 import { MyLeads } from './pages/MyLeads.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
 import { ListDetail, Lists } from './pages/Lists.js';
@@ -122,7 +123,10 @@ export function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         {/* Keep the old board URL working for anyone who bookmarked it. */}
         <Route path="/board" element={<Navigate to="/pipeline" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Inside the shell, so a mistyped address still has the nav on it. */}
+        <Route element={<Layout />}>
+          <Route path="*" element={<NotFound />} />
+        </Route>
       </Routes>
     </AuthProvider>
   );

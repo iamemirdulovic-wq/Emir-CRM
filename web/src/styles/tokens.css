@@ -8,6 +8,11 @@
  */
 
 :root{
+  /* Light by default; the dark rules below flip it. Without this the
+     browser keeps drawing native scrollbars, date pickers and the page
+     gutter in light colours, which is why the scrollbars stayed bright
+     white over a dark theme. */
+  color-scheme:light;
   --bg:#EAF3F8;
   --glass:rgba(255,255,255,.58); --glass-2:rgba(255,255,255,.42); --glass-strong:rgba(255,255,255,.82);
   --glass-line:rgba(255,255,255,.75); --line:rgba(20,40,70,.10);
@@ -26,6 +31,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
+    color-scheme:dark;
     --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
     --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
     --surface-2:rgba(255,255,255,.06);
@@ -36,6 +42,7 @@
   }
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
   --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
   --surface-2:rgba(255,255,255,.06);

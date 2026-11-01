@@ -129,6 +129,20 @@ export function Inbox() {
                   <time>{ago(conversation.last_message_at)}</time>
                 </span>
                 <span className="l2">
+                  {/*
+                    * A send that failed used to read exactly like one that
+                    * worked — "You: Hello Fatima, thank you for..." — so a
+                    * client who had never been written to looked answered.
+                    * The failure is said first, in red, before the text that
+                    * did not go anywhere.
+                    */}
+                  {conversation.last_status === 'failed' && (
+                    <span className="thread-failed">
+                      <Icon name="alert-triangle" />
+                      Not sent
+                      {' · '}
+                    </span>
+                  )}
                   {conversation.last_direction === 'outbound' ? 'You: ' : ''}
                   {conversation.last_body ?? 'No messages yet'}
                 </span>

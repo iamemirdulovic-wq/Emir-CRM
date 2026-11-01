@@ -9,6 +9,7 @@ import { Avatar, duration, Empty, ErrorNote, Panel, Seg, Spinner } from '../desi
 import type { IconName } from '../design/Icon.js';
 import { DoNow } from '../components/DoNow.js';
 import { InsightCard } from '../components/InsightCard.js';
+import { SetupChecklist } from '../components/SetupChecklist.js';
 
 const RANGES = [
   { value: 7, label: '7D' },
@@ -99,6 +100,8 @@ export function Dashboard() {
   return (
     <>
       <ChartDefs />
+      {/* Before anything else: the parts of the CRM that are still off. */}
+      {isOwner && <SetupChecklist />}
       {isOwner ? <InsightCard /> : <DoNow />}
       <div className="dash">
         {kpiCards.map((kpi, i) => (

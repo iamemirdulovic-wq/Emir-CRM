@@ -65,11 +65,17 @@ async function searchLeads(q: string, visible: string[] | null, limit: number): 
     project_name: string | null;
     stage: string;
   }>(
+    /*
+     * The stage is read from o.stage_key, the column every other screen
+     * reads, rather than joined through o.stage_id. The two can disagree —
+     * search called a lead "New" while the board had it in Attempted
+     * Contact — and when they do, the one the rest of the CRM agrees on
+     * should win.
+     */
     `SELECT o.id AS opportunity_id, o.contact_id, c.full_name, c.phone_e164,
-            o.project_name, s.\`key\` AS stage
+            o.project_name, o.stage_key AS stage
        FROM opportunities o
        JOIN contacts c ON c.id = o.contact_id
-       JOIN pipeline_stages s ON s.id = o.stage_id
       WHERE o.deleted_at IS NULL AND ${scope.sql}
         AND (c.full_name LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?
              ${tail ? 'OR c.phone_e164 LIKE ?' : ''})
@@ -82,7 +88,9 @@ async function searchLeads(q: string, visible: string[] | null, limit: number): 
     id: row.opportunity_id,
     label: row.full_name?.trim() || row.phone_e164 || 'Unnamed lead',
     hint: [row.project_name, STAGE_WORDS[row.stage] ?? null].filter(Boolean).join(' · ') || null,
-    to: `/contacts/${row.contact_id}`,
+    /* Carries the enquiry, not just the person: a contact with two leads was
+       opened on whichever came back first. */
+    to: `/contacts/${row.contact_id}?lead=${row.opportunity_id}`,
   }));
 }
 

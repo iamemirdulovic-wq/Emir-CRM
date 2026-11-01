@@ -93,6 +93,8 @@ export type Conversation = {
   last_body: string | null;
   last_channel: string | null;
   last_direction: string | null;
+  /** 'failed' when the last message never went out. */
+  last_status: string | null;
   stage_key: StageKey | null;
 };
 
