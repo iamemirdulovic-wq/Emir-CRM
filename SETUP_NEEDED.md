@@ -184,15 +184,29 @@ Until they're approved, the old templates keep working — nothing breaks.
 The CRM can write and send emails to clients, but it needs an email service.
 It is free up to about 300 emails a day.
 
+**Use Brevo's SMTP, not its API key.** The CRM sends through two doors: client
+email can go either way, but its own alerts — "a lead arrived", "this lead is
+yours", task reminders — only go over SMTP. Set the API key alone and the
+client email works while every internal alert silently does not. SMTP makes
+both work from one set of details.
+
 1. Sign up at **https://www.brevo.com** (free plan is fine)
-2. Go to **SMTP & API → API Keys → Generate a new API key**, copy it
+2. Go to **SMTP & API → SMTP** and copy two things:
+   - your **SMTP login** (often something like `8a1b2c@smtp-brevo.com`)
+   - an **SMTP key** — press *Generate a new SMTP key* if there isn't one.
+     This is **not** the same as an API key, and the API key will not work here
 3. **hPanel → Websites → mycrm.emirdulovic.com → Advanced → Node.js → Environment
    variables**, add:
-   - `EMAIL_PROVIDER` = `brevo`
-   - `BREVO_API_KEY` = *(the key you copied)*
+   - `SMTP_HOST` = `smtp-relay.brevo.com`
+   - `SMTP_PORT` = `587`
+   - `SMTP_USER` = *(your SMTP login)*
+   - `SMTP_PASSWORD` = *(the SMTP key)*
    - `MAIL_FROM` = `noreply@homes.me`
    - `FEATURE_EMAIL_SENDING` = `true`
 4. **Save**, then **Restart**
+
+If nothing sends and the logs mention a timeout, the host may be blocking port
+587 — try `SMTP_PORT` = `2525`, which Brevo also accepts.
 
 `MAIL_FROM` is the address the CRM's own alerts come from — "a lead arrived",
 "this lead is yours", task reminders. Nobody should reply to those, which is
