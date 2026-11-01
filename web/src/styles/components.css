@@ -39,6 +39,22 @@
 .btn-primary:hover{background:var(--grad);filter:brightness(1.06)}
 .btn-wa{background:var(--wa);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(37,194,106,.3)}
 .btn-wa:hover{background:var(--wa);filter:brightness(1.06)}
+
+/* A contact who asked us to stop. The button still exists — there are real
+   reasons to ring back — but it reads as a stop rather than an invitation,
+   and pressing it opens the gate in LeadActions.tsx rather than the dialler. */
+.btn-blocked{background:color-mix(in srgb, var(--s-lost) 10%, transparent);color:var(--s-lost);
+  border-color:color-mix(in srgb, var(--s-lost) 28%, transparent);box-shadow:none}
+.btn-blocked:hover{filter:brightness(.97)}
+.dnc-gate-warn{font-size:13px;line-height:1.5;color:var(--s-lost);
+  background:color-mix(in srgb, var(--s-lost) 10%, transparent);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+
+/* The banner at the top of a lead page for the same contact. */
+.lead-dnc-banner{display:flex;gap:10px;align-items:flex-start;
+  background:color-mix(in srgb, var(--s-lost) 10%, transparent);color:var(--s-lost);
+  border:1px solid color-mix(in srgb, var(--s-lost) 24%, transparent);
+  border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.5}
+.lead-dnc-banner b{display:block;font-size:14px;margin-bottom:2px}
 .btn-block{width:100%;padding:13px}
 .hint{font-size:12.5px;color:var(--ink-3);margin-top:18px}
 .err{display:none;background:rgba(255,90,95,.12);color:#D92D3A;padding:10px 12px;border-radius:12px;font-size:13px;margin-bottom:14px}

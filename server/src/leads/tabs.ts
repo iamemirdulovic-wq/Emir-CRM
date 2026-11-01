@@ -21,11 +21,6 @@ export type LeadTab = (typeof LEAD_TABS)[number];
 /** Dubai is UTC+4 all year — no daylight saving to reason about. */
 const DUBAI = "'+04:00'";
 
-/** A lead is stale after this long with nobody reaching out. */
-export const OVERDUE_HOURS = 48;
-/** A brand-new lead is not overdue the second it arrives. */
-export const GRACE_HOURS = 2;
-
 export interface TabDefinition {
   label: string;
   /** SQL over `opportunities o`, already fenced for deleted and status. */
@@ -80,18 +75,25 @@ export const TABS: Record<LeadTab, TabDefinition> = {
   overdue: {
     label: 'Overdue',
     /*
-     * Two kinds of neglect, and both count. One: contacted, but not for two
-     * days. Two: never contacted at all and no longer brand new — the worse
-     * of the two, and the one a "last contact" filter alone would miss
-     * entirely, because NULL is not older than anything.
+     * Overdue means one thing across the whole CRM: you promised a time and
+     * the time has passed. The dashboard card, the Tasks list and this tab all
+     * read it the same way now.
+     *
+     * It used to mean "gone cold" here — no contact for 48 hours, or never
+     * contacted and more than two hours old. That is a fair thing to measure,
+     * but under the same name it made the product contradict itself: the
+     * dashboard said 2 overdue, this tab said 9, and Tasks said 94. Worse, a
+     * lead nobody had promised anything appeared here AND in "No next step",
+     * so the same neglect was counted twice and neither number could be
+     * trusted.
+     *
+     * A lead with no promise at all is not overdue, it is unplanned, and "No
+     * next step" is the tab built to catch it.
      */
-    where: `${OPEN} AND (
-              o.last_contact_at < DATE_SUB(NOW(3), INTERVAL ${OVERDUE_HOURS} HOUR)
-              OR (o.last_contact_at IS NULL AND o.created_at < DATE_SUB(NOW(3), INTERVAL ${GRACE_HOURS} HOUR))
-            )`,
-    orderBy: 'COALESCE(o.last_contact_at, o.created_at) ASC',
-    emptyTitle: 'Nobody has gone cold',
-    emptyHint: 'Everyone open has heard from you in the last two days.',
+    where: `${OPEN} AND o.next_step_at IS NOT NULL AND o.next_step_at < NOW(3)`,
+    orderBy: 'o.next_step_at ASC',
+    emptyTitle: 'Every follow-up is on time',
+    emptyHint: 'Nothing you promised has slipped past its time.',
   },
 
   no_next_step: {
@@ -144,24 +146,4 @@ export function urgencyOf(
 export function sameDubaiDay(a: Date, b: Date): boolean {
   const day = (date: Date) => Math.floor((date.getTime() + 4 * 60 * 60 * 1000) / 86_400_000);
   return day(a) === day(b);
-}
-
-/**
- * Has this lead gone quiet?
- *
- * Mirrors the `overdue` tab above in JavaScript, for the places that have a
- * row in hand rather than a query to run. The two must agree, which is why
- * the thresholds are shared constants rather than numbers typed twice.
- */
-export function isStale(
-  lastContactAt: Date | string | null,
-  createdAt: Date | string,
-  now: Date = new Date(),
-): boolean {
-  const created = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
-  if (!lastContactAt) {
-    return now.getTime() - created.getTime() > GRACE_HOURS * 60 * 60 * 1000;
-  }
-  const last = typeof lastContactAt === 'string' ? new Date(lastContactAt) : lastContactAt;
-  return now.getTime() - last.getTime() > OVERDUE_HOURS * 60 * 60 * 1000;
 }

@@ -137,10 +137,23 @@ export function LeadDrawer({
 
           <div className="drawer-foot">
             {card.phone_e164 ? (
-              <a className="btn" href={`tel:${card.phone_e164}`}>
-                <Icon name="phone" />
-                Call
-              </a>
+              /* A contact on the do-not-contact list is reached through the
+                 lead page, where the reason is recorded. */
+              card.dnc ? (
+                <Link
+                  className="btn btn-blocked"
+                  to={`/contacts/${card.contact_id}?lead=${card.id}`}
+                  onClick={onClose}
+                >
+                  <Icon name="ban" />
+                  Do not contact
+                </Link>
+              ) : (
+                <a className="btn" href={`tel:${card.phone_e164}`}>
+                  <Icon name="phone" />
+                  Call
+                </a>
+              )
             ) : (
               <button className="btn" type="button" disabled>
                 <Icon name="phone" />
@@ -158,7 +171,18 @@ export function LeadDrawer({
               <Icon name="message-circle" />
               WhatsApp
             </button>
-            <Link className="btn btn-primary" to={`/contacts/${card.contact_id}`} onClick={onClose}>
+            {/*
+              * Carries the opportunity, not just the person. One contact can
+              * have several enquiries, and the lead page opens the first one
+              * it finds — so Open on a Nad Al Sheba card landed on that
+              * person's New world lead, and Won or Lost pressed there would
+              * have closed the wrong one.
+              */}
+            <Link
+              className="btn btn-primary"
+              to={`/contacts/${card.contact_id}?lead=${card.id}`}
+              onClick={onClose}
+            >
               <Icon name="external-link" />
               Open
             </Link>

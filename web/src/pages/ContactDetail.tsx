@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -36,6 +36,7 @@ function activityColour(type: string): string {
  */
 export function ContactDetail() {
   const { id = '' } = useParams();
+  const [search] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
   const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${id}`), [id]);
@@ -98,7 +99,18 @@ export function ContactDetail() {
   if (!detail.data) return <Spinner />;
 
   const { contact, opportunities, activities, tasks, tags, consents } = detail.data;
-  const opportunity = opportunities[0];
+  /*
+   * Which enquiry this page is about.
+   *
+   * A person can have several — a villa in Nad Al Sheba and an apartment in
+   * New world — and this used to take whichever came back first. Open a card
+   * from the board and you could land on the other lead, where Won and Lost
+   * would close the wrong one. The board now says which lead it meant.
+   */
+  const wantedLeadId = search.get('lead');
+  const opportunity = (wantedLeadId
+    ? opportunities.find((o) => o.id === wantedLeadId)
+    : undefined) ?? opportunities[0];
   const style = stageStyle(opportunity?.stage_key);
   const source = sourceStyle((contact.first_source as string) ?? null);
   const openTasks = tasks.filter((task) => !task.completed_at);
@@ -121,6 +133,7 @@ export function ContactDetail() {
                 phone_e164: contact.phone_e164 ?? null,
                 full_name: contact.full_name ?? null,
                 project_name: (opportunity.project_name as string | null) ?? null,
+                dnc: contact.dnc,
               }}
               state={actions}
             />
@@ -133,6 +146,22 @@ export function ContactDetail() {
         </Link>
       </Toolbar>
       {opportunity && <LeadActionSheets state={actions} />}
+
+      {/*
+        * Said once, at the top, in red. It used to be a grey line most of the
+        * way down the side panel, under the tags — below the fold on a phone,
+        * and sitting above a Call button that still worked.
+        */}
+      {contact.dnc === 1 && (
+        <div className="lead-dnc-banner" role="alert">
+          <Icon name="ban" />
+          <div>
+            <b>They asked us not to contact them</b>
+            Automated messages are off. Call and WhatsApp will ask you to give a
+            reason first, and that reason is recorded against your name.
+          </div>
+        </div>
+      )}
 
       <EmailComposer
         open={emailOpen}

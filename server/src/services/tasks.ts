@@ -62,6 +62,16 @@ export interface TaskCounts {
  * `visible` is the viewer's scope from `visibleUserIds`: null means no
  * restriction. `scope` narrows further, so a manager can ask for just their own.
  */
+/**
+ * An open task: not done, and not dropped because its lead closed.
+ *
+ * Both halves matter. Marking a lead Won or Lost used to leave its tasks
+ * behind, so the team list filled with "Call the lead" on leads closed weeks
+ * earlier — permanently overdue, because nothing would ever complete them.
+ * Written once here so a new query cannot quietly forget the second half.
+ */
+export const OPEN_TASK = 't.completed_at IS NULL AND t.cancelled_at IS NULL';
+
 export async function listTasks(
   viewerId: string,
   visible: string[] | null,
@@ -73,9 +83,9 @@ export async function listTasks(
   const owner = ownerPredicate('t.assigned_user_id', ids);
 
   const WHERE: Record<TaskFilter, string> = {
-    open: 't.completed_at IS NULL',
-    overdue: 't.completed_at IS NULL AND t.due_at < NOW(3)',
-    today: `t.completed_at IS NULL AND ${DUBAI_DAY} = ${DUBAI_TODAY}`,
+    open: OPEN_TASK,
+    overdue: `${OPEN_TASK} AND t.due_at < NOW(3)`,
+    today: `${OPEN_TASK} AND ${DUBAI_DAY} = ${DUBAI_TODAY}`,
     done: 't.completed_at IS NOT NULL',
   };
 
@@ -100,9 +110,9 @@ export async function listTasks(
 
   const counts = await queryOne<TaskCounts>(
     `SELECT
-       SUM(CASE WHEN t.completed_at IS NULL AND t.due_at < NOW(3) THEN 1 ELSE 0 END) AS overdue,
-       SUM(CASE WHEN t.completed_at IS NULL AND ${DUBAI_DAY} = ${DUBAI_TODAY} THEN 1 ELSE 0 END) AS today,
-       SUM(CASE WHEN t.completed_at IS NULL THEN 1 ELSE 0 END) AS open,
+       SUM(CASE WHEN ${OPEN_TASK} AND t.due_at < NOW(3) THEN 1 ELSE 0 END) AS overdue,
+       SUM(CASE WHEN ${OPEN_TASK} AND ${DUBAI_DAY} = ${DUBAI_TODAY} THEN 1 ELSE 0 END) AS today,
+       SUM(CASE WHEN ${OPEN_TASK} THEN 1 ELSE 0 END) AS open,
        SUM(CASE WHEN t.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS done
      FROM tasks t WHERE ${owner.sql}`,
     owner.params,
@@ -158,7 +168,8 @@ export async function completeTask(
   // The IS NULL guard makes a double-tap on a phone a no-op rather than a
   // second audit entry with a different closer.
   await execute(
-    'UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ? WHERE id = ? AND completed_at IS NULL',
+    'UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ? '
+      + 'WHERE id = ? AND completed_at IS NULL AND cancelled_at IS NULL',
     [actor.userId, taskId],
     exec,
   );
@@ -388,5 +399,25 @@ export async function tasksInRange(
       LIMIT 2000`,
     [...owner.params, from, to],
     exec,
+  );
+}
+
+/**
+ * Drop the open tasks of a lead that has just closed.
+ *
+ * Cancelled rather than completed: nobody made these calls, and recording
+ * them as done would inflate every agent's numbers. Leaving them open was
+ * worse — they stayed overdue for ever, because a task on a closed lead is
+ * one nobody will ever tick.
+ */
+export async function cancelTasksForClosedLead(
+  opportunityId: string,
+  tx: Executor,
+): Promise<void> {
+  await execute(
+    `UPDATE tasks SET cancelled_at = NOW(3), cancelled_reason = 'lead_closed'
+      WHERE opportunity_id = ? AND completed_at IS NULL AND cancelled_at IS NULL`,
+    [opportunityId],
+    tx,
   );
 }

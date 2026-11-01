@@ -58,7 +58,7 @@ export async function sweepTaskReminders(
        FROM tasks t
        JOIN users u ON u.id = t.assigned_user_id
        LEFT JOIN contacts c ON c.id = t.contact_id
-      WHERE t.completed_at IS NULL
+      WHERE t.completed_at IS NULL AND t.cancelled_at IS NULL
         AND t.reminder_sent_at IS NULL
         AND t.due_at <= ?
         AND u.is_active = 1

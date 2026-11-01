@@ -269,15 +269,91 @@ function ReasonSheet({
   );
 }
 
+/**
+ * The do-not-contact gate.
+ *
+ * A contact on the DNC list used to get a lead page that said "They asked us
+ * not to contact them" above a live Call button and a plain wa.me link — which
+ * skipped consent, quiet hours and logging in one tap. Under UAE PDPL that is
+ * the wrong default, and a wa.me link sent to somebody who has asked us to
+ * stop is also how a WhatsApp business number gets reported and blocked.
+ *
+ * It is a gate, not a wall: there are real reasons to ring back, so the agent
+ * can go through by saying why. The reason is written to the audit log and the
+ * contact's timeline before the dialler opens.
+ */
+function DncGate({
+  contactId, pending, onClose,
+}: {
+  contactId: string;
+  pending: { channel: 'call' | 'whatsapp'; href: string } | null;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+
+  async function proceed() {
+    if (!pending || reason.trim().length < 3) return;
+    setBusy(true);
+    try {
+      await api.post(`/api/contacts/${contactId}/dnc-override`, {
+        channel: pending.channel, reason: reason.trim(),
+      });
+      /* Only open the dialler once the reason is recorded. If the write fails
+         the contact is not called, which is the safe way round. */
+      window.open(pending.href, pending.channel === 'whatsapp' ? '_blank' : '_self');
+      setReason('');
+      onClose();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not record the reason');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <BottomSheet open={pending !== null} title="They asked us not to contact them" onClose={onClose}>
+      <p className="dnc-gate-warn">
+        This contact is on the do-not-contact list. Contacting them anyway is recorded
+        against your name, with the reason you give.
+      </p>
+      <Field label="Why are you contacting them?">
+        <TextArea
+          value={reason}
+          onChange={(e) => setReason(e.currentTarget.value)}
+          placeholder="They rang back and asked for the payment plan"
+          rows={3}
+        />
+      </Field>
+      <Button
+        variant="primary" block icon="alert-triangle"
+        disabled={busy || reason.trim().length < 3}
+        onClick={() => void proceed()}
+      >
+        {pending?.channel === 'call' ? 'Call anyway' : 'Message anyway'}
+      </Button>
+      <Button block onClick={onClose}>Cancel</Button>
+    </BottomSheet>
+  );
+}
+
 /** The row of buttons itself, used on the list and on the lead page. */
 export function LeadActionBar({
   lead, state, compact,
 }: {
-  lead: { id: string; contact_id: string; phone_e164: string | null; full_name: string | null; project_name: string | null };
+  lead: {
+    id: string; contact_id: string; phone_e164: string | null;
+    full_name: string | null; project_name: string | null;
+    /** 1 or true when the contact has asked us to stop. */
+    dnc?: boolean | number | null;
+  };
   state: ReturnType<typeof useLeadActions>;
   compact?: boolean;
 }) {
   const { setSheet, run, busy } = state;
+  const dnc = Boolean(lead.dnc);
+  const [gate, setGate] = useState<{ channel: 'call' | 'whatsapp'; href: string } | null>(null);
   const tel = lead.phone_e164 ? `tel:${lead.phone_e164}` : null;
   const greeting = encodeURIComponent(
     `Hi ${(lead.full_name ?? '').split(' ')[0] || 'there'}, this is your advisor at Emigeo Homes 👋 `
@@ -288,7 +364,15 @@ export function LeadActionBar({
 
   return (
     <div className={compact ? 'lead-actions compact' : 'lead-actions'}>
-      {tel && (
+      {tel && (dnc ? (
+        <button
+          type="button" className="btn btn-blocked" data-lead-action="call"
+          onClick={() => setGate({ channel: 'call', href: tel })}
+        >
+          <Icon name="ban" />
+          {!compact && 'Call'}
+        </button>
+      ) : (
         <a
           className="btn btn-primary" href={tel}
           /* The keyboard shortcut presses this button rather than
@@ -305,8 +389,16 @@ export function LeadActionBar({
           <Icon name="phone" />
           {!compact && 'Call'}
         </a>
-      )}
-      {wa && (
+      ))}
+      {wa && (dnc ? (
+        <button
+          type="button" className="btn btn-blocked" data-lead-action="whatsapp"
+          onClick={() => setGate({ channel: 'whatsapp', href: wa })}
+        >
+          <Icon name="ban" />
+          {!compact && 'WhatsApp'}
+        </button>
+      ) : (
         <a
           className="btn btn-wa" href={wa} target="_blank" rel="noreferrer"
           data-lead-action="whatsapp"
@@ -315,7 +407,7 @@ export function LeadActionBar({
           <Icon name="message-circle" />
           {!compact && 'WhatsApp'}
         </a>
-      )}
+      ))}
       <Button icon="clock-3" disabled={busy} onClick={() => setSheet('next_step')}>
         {!compact && 'Call back'}
       </Button>
@@ -327,6 +419,7 @@ export function LeadActionBar({
           <Button variant="primary" icon="trophy" disabled={busy} onClick={() => setSheet('won')}>Won</Button>
         </>
       )}
+      <DncGate contactId={lead.contact_id} pending={gate} onClose={() => setGate(null)} />
     </div>
   );
 }

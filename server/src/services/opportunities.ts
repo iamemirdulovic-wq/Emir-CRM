@@ -3,6 +3,7 @@ import { notFound } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 import { writeAudit, diffFields, type AuditActor } from '../audit/audit.js';
 import { addActivity } from '../ingestion/ingest.js';
+import { cancelTasksForClosedLead } from './tasks.js';
 import { cancelJobs, enqueue } from '../jobs/queue.js';
 import { isPastAttemptedContact, type StageKey } from '../pipeline/stages.js';
 import { qualityEventFor, validateMove, type MoveRequest } from '../pipeline/moves.js';
@@ -154,6 +155,10 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
       ],
       tx,
     );
+
+    if (move.status === 'won' || move.status === 'lost') {
+      await cancelTasksForClosedLead(input.opportunityId, tx);
+    }
 
     await addActivity(tx, {
       contactId: current.contact_id,

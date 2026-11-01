@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  GRACE_HOURS, isLeadTab, isStale, LEAD_TABS, OVERDUE_HOURS, sameDubaiDay, TABS, urgencyOf,
+  isLeadTab, LEAD_TABS, sameDubaiDay, TABS, urgencyOf,
 } from './tabs.js';
 
 /**
@@ -54,35 +54,6 @@ describe('how urgent a promise looks', () => {
   it('knows which day two moments fall on in Dubai', () => {
     expect(sameDubaiDay(dubai(15, 0, 30), dubai(15, 23, 30))).toBe(true);
     expect(sameDubaiDay(dubai(15, 23, 30), dubai(16, 0, 30))).toBe(false);
-  });
-});
-
-/**
- * Overdue has two shapes, and the second is the one a naive "last contact"
- * filter misses: a lead nobody has *ever* rung has no last contact at all,
- * and NULL is not older than anything.
- */
-describe('deciding a lead has gone quiet', () => {
-  const now = new Date('2026-10-15T10:00:00Z');
-  const ago = (ms: number) => new Date(now.getTime() - ms);
-
-  it('is quiet once nobody has reached out for two days', () => {
-    expect(isStale(ago(hours(OVERDUE_HOURS + 1)), ago(hours(200)), now)).toBe(true);
-    expect(isStale(ago(hours(OVERDUE_HOURS - 1)), ago(hours(200)), now)).toBe(false);
-  });
-
-  it('is quiet when nobody has ever called and it is no longer brand new', () => {
-    expect(isStale(null, ago(hours(GRACE_HOURS + 1)), now)).toBe(true);
-  });
-
-  /* A lead that arrived ten minutes ago is not neglected. */
-  it('gives a brand-new lead its grace period', () => {
-    expect(isStale(null, ago(hours(GRACE_HOURS - 1)), now)).toBe(false);
-    expect(isStale(null, now, now)).toBe(false);
-  });
-
-  it('accepts the strings the database hands back', () => {
-    expect(isStale('2026-10-10T10:00:00Z', '2026-10-01T10:00:00Z', now)).toBe(true);
   });
 });
 

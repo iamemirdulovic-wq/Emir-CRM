@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto';
 import { execute, queryOne, withRetryingTransaction } from '../db/client.js';
 import { addActivity } from '../ingestion/ingest.js';
+import { cancelTasksForClosedLead } from '../services/tasks.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { recordFirstAction } from '../routing/assignments.js';
 import { logger, errorContext } from '../lib/logger.js';
@@ -181,6 +182,9 @@ export async function runLeadAction(
 
     if (closing) {
       sets.push('next_step_at = NULL', 'next_step_type = NULL', 'next_step_note = NULL');
+      /* And the tasks, which used to outlive the lead and sit overdue for
+         ever because nothing would ever tick them off. */
+      await cancelTasksForClosedLead(input.opportunityId, tx);
     } else if (chosen) {
       sets.push('next_step_type = ?', 'next_step_at = ?', 'next_step_note = ?');
       args.push(chosen.type, chosen.at, chosen.note?.slice(0, 255) ?? null);

@@ -13,8 +13,8 @@ import {
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { LIVE_CONTACT } from '../../auth/deleted.js';
 import { noteLeadViewed } from '../../auth/browsing.js';
-import { query, queryOne, execute } from '../../db/client.js';
-import { badRequest } from '../../lib/errors.js';
+import { query, queryOne, execute, getPool } from '../../db/client.js';
+import { badRequest, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import {
   assertCanViewContact,
@@ -25,6 +25,7 @@ import {
   updateContact,
 } from '../../services/contacts.js';
 import { writeAudit } from '../../audit/audit.js';
+import { addActivity } from '../../ingestion/ingest.js';
 import { findSuspectNames, repairNames } from '../../services/name-review.js';
 import { completeTask } from '../../services/tasks.js';
 
@@ -205,6 +206,66 @@ contactsRouter.post(
 
     await setDnc({ contactId, reason: body.reason, actor: actorFrom(req) });
     res.json({ ok: true });
+  }),
+);
+
+const overrideSchema = z.object({
+  channel: z.enum(['call', 'whatsapp']),
+  reason: z.string().trim().min(3).max(300),
+});
+
+/**
+ * Contacting somebody who asked us not to.
+ *
+ * There are legitimate reasons — they rang us back, they asked for a document,
+ * the flag was set by mistake — so the UI offers a way through rather than a
+ * dead end. What it does not offer is a quiet way through: the agent types a
+ * reason, and that reason is written to the audit log and onto the contact's
+ * own timeline before the dialler opens.
+ *
+ * Under UAE PDPL the defensible position is a record of who decided to make
+ * the call and why, which is exactly what this writes.
+ */
+contactsRouter.post(
+  '/:id/dnc-override',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const contactId = String(req.params.id);
+    await assertCanViewContact(contactId, await visibleUserIds(user));
+    const body = overrideSchema.parse(req.body);
+
+    const contact = await queryOne<{ dnc: number }>(
+      'SELECT dnc FROM contacts WHERE id = ?',
+      [contactId],
+    );
+    if (!contact) throw notFound('Contact not found');
+    /* Not an error worth blocking on — the flag may have been cleared in
+       another tab — but there is nothing to record either. */
+    if (!contact.dnc) {
+      res.json({ ok: true, logged: false });
+      return;
+    }
+
+    await addActivity(getPool(), {
+      contactId,
+      opportunityId: null,
+      userId: user.id,
+      type: 'contact.dnc_override',
+      title: `Contacted on ${body.channel} despite do-not-contact`,
+      body: body.reason,
+      meta: { channel: body.channel },
+    });
+
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'contact.dnc_override',
+      entityType: 'contact',
+      entityId: contactId,
+      before: null,
+      after: { channel: body.channel, reason: body.reason },
+    });
+
+    res.json({ ok: true, logged: true });
   }),
 );
 
