@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   alignDays,
+  dayString,
+  gaugeMax,
   ARRIVAL_DAYS,
   ARRIVAL_HOURS,
   buildArrivalGrid,
@@ -145,5 +147,43 @@ describe('sourceLabel', () => {
 
   it('degrades readably for a source it has not met', () => {
     expect(sourceLabel('portal_bayut')).toBe('portal bayut');
+  });
+});
+
+describe('dayString', () => {
+  /* The pool runs with dateStrings false, so a DATE() column comes back as a
+     JS Date. The old code did String(value).slice(0, 10) on it, which yields
+     "Sat Oct 31" — a key alignDays can never match. The whole dashboard read
+     zero because of it, so this test passes a real Date, not a string. */
+  it('reads a Date the way the driver actually returns one', () => {
+    expect(dayString(new Date('2026-10-31T00:00:00Z'))).toBe('2026-10-31');
+  });
+
+  it('still reads a plain string', () => {
+    expect(dayString('2026-10-31')).toBe('2026-10-31');
+  });
+
+  it('survives a late-evening Date without slipping a day', () => {
+    // The SQL has already shifted into Dubai time, so this must not shift again.
+    expect(dayString(new Date('2026-10-31T23:30:00Z'))).toBe('2026-10-31');
+  });
+
+  it('feeds alignDays keys that match', () => {
+    const rows = [{ date: dayString(new Date('2026-09-14T00:00:00Z')), value: 5 }];
+    expect(alignDays(rows, '2026-09-14', 1)).toEqual([{ date: '2026-09-14', value: 5 }]);
+  });
+});
+
+describe('gaugeMax', () => {
+  it('keeps the tight face while the team is inside target', () => {
+    expect(gaugeMax(24)).toBe(60);
+    expect(gaugeMax(null)).toBe(60);
+  });
+
+  it('grows past the median so the needle stays on the dial', () => {
+    // The reported case: a 2-hour median drawn on a 0-60s face.
+    expect(gaugeMax(7200)).toBe(7200);
+    expect(gaugeMax(5000)).toBeGreaterThanOrEqual(5000);
+    expect(gaugeMax(90)).toBe(120);
   });
 });

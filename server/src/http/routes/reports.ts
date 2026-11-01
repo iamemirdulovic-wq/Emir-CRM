@@ -66,7 +66,11 @@ reportsRouter.get(
          o.ad_id, o.ad_name,
          COUNT(*) AS leads,
          SUM(CASE WHEN o.sub_status <> 'invalid' OR o.sub_status IS NULL THEN 1 ELSE 0 END) AS valid_leads,
-         SUM(CASE WHEN o.first_touch_at IS NOT NULL OR o.stage_key <> 'new_lead' THEN 1 ELSE 0 END) AS contacted,
+         -- Contacted means somebody actually reached them. The "or it is not in
+         -- New" half of this used to count a lead closed as Lost without a
+         -- single call, which is how source quality reported almost every lead
+         -- contacted. first_touch_at is now set only by a real attempt.
+         SUM(CASE WHEN o.first_touch_at IS NOT NULL THEN 1 ELSE 0 END) AS contacted,
          SUM(CASE WHEN o.stage_key IN ('engaged_qualified','appointment_scheduled','deal_sent','won') THEN 1 ELSE 0 END) AS qualified,
          SUM(CASE WHEN o.stage_key IN ('appointment_scheduled','deal_sent','won') THEN 1 ELSE 0 END) AS appointments,
          SUM(CASE WHEN o.stage_key = 'appointment_scheduled' AND o.sub_status = 'showed' THEN 1 ELSE 0 END) AS shows,

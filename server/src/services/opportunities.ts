@@ -50,6 +50,38 @@ export type MoveStageResult = {
  * Move a card. Every move writes an activity and an audit entry, and maps the
  * new stage onto a lead-quality event for the ad platforms.
  */
+/**
+ * Stages that mean somebody actually reached the client.
+ *
+ * Deliberately not `lost`: closing a lead you never managed to reach is the
+ * commonest way a board fills with leads marked "contacted" that nobody ever
+ * rang. Deliberately not `new_lead` either, which is where they start.
+ */
+const CONTACT_STAGES = new Set([
+  'attempted_contact',
+  'engaged_qualified',
+  'appointment_scheduled',
+  'deal_sent',
+  'won',
+]);
+
+/**
+ * Does this stage move count as the first time we reached the client?
+ *
+ * Only when a person did it — the automation service account moves cards for
+ * follow-up steps and SLA reassignment, and counting those as contact is what
+ * produced a speed-to-lead median of exactly two hours, the follow-up timer.
+ */
+export function countsAsFirstTouch(
+  to: string,
+  status: string | null | undefined,
+  role: Role,
+): boolean {
+  if (role === 'automation') return false;
+  if (status === 'lost') return false;
+  return CONTACT_STAGES.has(to);
+}
+
 export async function moveStage(input: MoveStageInput): Promise<MoveStageResult> {
   return withRetryingTransaction(async (tx) => {
     const current = await queryOne<OpportunityRow & { contact_id: string }>(
@@ -92,13 +124,22 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
       status: move.status,
     };
 
+    /* `first_touch_at` is the clock behind speed-to-lead and the "contacted"
+       figure, so only a real attempt to reach the client may start it.
+       Treating any move off New as contact made marking a lead Lost count as
+       having spoken to them — which is how the funnel came to read "contacted
+       42 of 43" on a board where most leads had never been called — and let an
+       automated step two hours after assignment set the median to a flat
+       7,200s. See countsAsFirstTouch. */
+    const touched = countsAsFirstTouch(move.to, move.status, input.actor.role);
+
     await execute(
       `UPDATE opportunities
           SET stage_id = ?, stage_key = ?, sub_status = ?, status = ?,
               lost_reason = ?, lost_note = ?,
               stage_changed_at = NOW(3),
               closed_at = CASE WHEN ? IN ('won','lost') THEN NOW(3) ELSE NULL END,
-              first_touch_at = COALESCE(first_touch_at, CASE WHEN ? <> 'new_lead' THEN NOW(3) ELSE NULL END)
+              first_touch_at = COALESCE(first_touch_at, CASE WHEN ? THEN NOW(3) ELSE NULL END)
         WHERE id = ?`,
       [
         stage.id,
@@ -108,7 +149,7 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
         move.lostReason,
         move.lostNote,
         move.status,
-        move.to,
+        touched ? 1 : 0,
         input.opportunityId,
       ],
       tx,

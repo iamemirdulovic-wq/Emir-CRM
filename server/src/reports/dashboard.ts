@@ -67,9 +67,41 @@ export function percentage(part: number, whole: number): number {
   return Math.round((part / whole) * 100);
 }
 
+/**
+ * How far the speed-to-lead dial should read.
+ *
+ * Twice the target while the median is inside it, otherwise a round number
+ * above the median, so the needle always lands on the face.
+ */
+export function gaugeMax(medianSeconds: number | null): number {
+  const floor = SPEED_TO_LEAD_TARGET_SECONDS * 2;
+  if (medianSeconds === null || medianSeconds <= floor) return floor;
+  for (const step of [120, 300, 600, 1800, 3600, 7200, 14400, 43200, 86400]) {
+    if (medianSeconds <= step) return step;
+  }
+  return Math.ceil(medianSeconds / 86400) * 86400;
+}
+
 export interface DayCount {
   date: string;
   value: number;
+}
+
+/**
+ * A `YYYY-MM-DD` key from whatever the driver handed back.
+ *
+ * `dateStrings` is false on the pool, so a `DATE(...)` column arrives as a JS
+ * Date, and `String(d).slice(0, 10)` on one of those is `"Sat Oct 31"`. That
+ * key matches nothing in `alignDays`, so the leads-over-time chart, the
+ * new-leads KPI, the WhatsApp-reply percentage and `totalLeads` all read zero
+ * while the summary beside them read 43. One wrong slice, five wrong numbers.
+ *
+ * The Date is already Dubai wall-clock — the SQL added the offset before
+ * `DATE()` — so it is read back in UTC and not shifted a second time.
+ */
+export function dayString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
 }
 
 /**
@@ -336,7 +368,7 @@ export async function loadDashboard(
     perAgentTimes.set(row.user_id, list);
   }
 
-  const toDate = (value: unknown) => String(value).slice(0, 10);
+  const toDate = dayString;
   const current = alignDays(daily.map((r) => ({ date: toDate(r.date), value: Number(r.value) })), dayKey(to), days);
   const previous = alignDays(
     previousDaily.map((r) => ({ date: toDate(r.date), value: Number(r.value) })),
@@ -424,12 +456,19 @@ export async function loadDashboard(
       { label: 'Appointments', value: Number(totals.appointments ?? 0) },
       { label: 'Reservations', value: Number(totals.reservations ?? 0) },
     ],
-    speedToLead: {
-      medianSeconds: median(speedRows.map((r) => Number(r.seconds)).filter(Number.isFinite)),
-      targetSeconds: SPEED_TO_LEAD_TARGET_SECONDS,
-      maxSeconds: SPEED_TO_LEAD_TARGET_SECONDS * 2,
-      slaBreaches: Number(totals.sla_breaches ?? 0),
-    },
+    speedToLead: (() => {
+      const medianSeconds = median(speedRows.map((r) => Number(r.seconds)).filter(Number.isFinite));
+      return {
+        medianSeconds,
+        targetSeconds: SPEED_TO_LEAD_TARGET_SECONDS,
+        /* A fixed 0–60s face is right while the team is quick and useless the
+           moment it slips: a 2-hour median drew the needle off the dial
+           entirely. Grow the face to fit, so a bad number is readable as a bad
+           number rather than as a broken gauge. */
+        maxSeconds: gaugeMax(medianSeconds),
+        slaBreaches: Number(totals.sla_breaches ?? 0),
+      };
+    })(),
     arrivals: buildArrivalGrid(arrivals),
     leaderboard: visibleAgents
       .map((row) => ({

@@ -32,6 +32,7 @@ const KEPT = new Map([
   ['migrations', 'the ledger of what has been applied — truncating it would re-run every migration'],
   ['pipelines', 'seeded once by prepareTestDatabase; every test needs the default pipeline'],
   ['pipeline_stages', 'seeded with it — a test with no stages cannot move a lead anywhere'],
+  ['first_touch_repair', 'a one-off record of what migration 0026 changed, so the repair can be undone'],
 ]);
 
 function tablesInMigrations(): string[] {
@@ -42,7 +43,7 @@ function tablesInMigrations(): string[] {
 
   const found = new Set<string>();
   for (const file of sql) {
-    for (const match of file.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?`?([a-z_]+)`?/gi)) {
+    for (const match of file.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?`?([a-z_][a-z0-9_]*)`?/gi)) {
       found.add((match[1] as string).toLowerCase());
     }
   }
