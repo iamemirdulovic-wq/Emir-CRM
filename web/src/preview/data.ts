@@ -334,7 +334,7 @@ export type PreviewTask = {
 
 export const TASKS: PreviewTask[] = [
   { id: 't-1', type: 'call', title: 'Call back — asked for the payment plan', notes: 'Prefers a call after 6 PM.', priority: 'urgent', dueMinutesFromNow: -95, completed: false, leadId: 'o-1' },
-  { id: 't-2', type: 'call', title: 'Follow-up call (Workflow B, +2h)', notes: null, priority: 'normal', dueMinutesFromNow: -40, completed: false, leadId: 'o-3' },
+  { id: 't-2', type: 'call', title: 'Follow-up call (2 hours, no reply)', notes: null, priority: 'normal', dueMinutesFromNow: -40, completed: false, leadId: 'o-3' },
   { id: 't-3', type: 'whatsapp', title: 'Send the Saadiyat brochure', notes: null, priority: 'normal', dueMinutesFromNow: 55, completed: false, leadId: 'o-4' },
   { id: 't-4', type: 'meeting', title: 'Site visit — confirm the time', notes: 'Sales centre, Dubai Hills.', priority: 'high', dueMinutesFromNow: 220, completed: false, leadId: 'o-2' },
   { id: 't-5', type: 'email', title: 'Email the floor plans', notes: null, priority: 'low', dueMinutesFromNow: 1450, completed: false, leadId: 'o-5' },
@@ -344,7 +344,7 @@ export const TASKS: PreviewTask[] = [
 export const AUTOMATIONS = [
   {
     key: 'workflow_a',
-    name: 'Workflow A — Instant capture',
+    name: 'New lead — assign and welcome',
     description: 'Assign, send the welcome template and push the agent, inside 30 seconds.',
     isActive: true,
     runs: { running: 3, completed: 184, cancelled: 0, failed: 0 },
@@ -352,7 +352,7 @@ export const AUTOMATIONS = [
   },
   {
     key: 'workflow_b',
-    name: 'Workflow B — No-response follow-up',
+    name: 'No reply — chase for four days',
     description: '+2h, +24h, +72h templates and call tasks, then Lost at +96h. Cancels itself when the lead replies.',
     isActive: true,
     runs: { running: 11, completed: 92, cancelled: 41, failed: 1 },
@@ -360,7 +360,7 @@ export const AUTOMATIONS = [
   },
   {
     key: 'workflow_c',
-    name: 'Workflow C — Inbound WhatsApp routing',
+    name: 'They replied — route it',
     description: 'Reads intent, answers pricing from verified projects, sends the location or brochure, flags CALL_ME.',
     isActive: true,
     runs: { running: 0, completed: 311, cancelled: 2, failed: 0 },

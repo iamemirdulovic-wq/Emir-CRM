@@ -718,8 +718,8 @@ function PushPanel({ push }: { push: Health['push'] }) {
       {!push.configured && (
         <Note>
           Push is not switched on, so nobody gets a phone alert when a lead
-          arrives — they only see it when the CRM is open. See step 8 in
-          SETUP_NEEDED.md.
+          arrives — they only see it when the CRM is open. It needs the three
+          Firebase values adding to the hosting panel.
         </Note>
       )}
       {push.agentsWithoutDevice > 0 && (
@@ -919,12 +919,12 @@ function WebsiteConnectionPanel({ health, onSaved }: { health: Health; onSaved: 
       {site.lastEventAt && (
         <div className="kv">
           <span>Last one arrived</span>
-          <b>{new Date(site.lastEventAt).toLocaleString()}</b>
+          <b>{formatDateTime(site.lastEventAt)}</b>
         </div>
       )}
       {site.lastFailureAt && (
         <Note>
-          The last failure was {new Date(site.lastFailureAt).toLocaleString()}
+          The last failure was {formatDateTime(site.lastFailureAt)}
           {site.lastFailureReason ? `: ${site.lastFailureReason}` : '.'}
         </Note>
       )}
@@ -1010,7 +1010,7 @@ function WebsiteConnectionPanel({ health, onSaved }: { health: Health; onSaved: 
                   <td>{lead.public_ref ?? '—'}</td>
                   <td>{lead.site_project_name ?? '—'}</td>
                   <td>{lead.temperature ?? '—'}</td>
-                  <td>{new Date(lead.last_event_at).toLocaleString()}</td>
+                  <td>{formatDateTime(lead.last_event_at)}</td>
                 </tr>
               ))}
             </tbody>

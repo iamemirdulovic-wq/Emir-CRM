@@ -240,8 +240,20 @@ reportsRouter.get(
     const templates = await query(
       `SELECT name, language, status, rejected_reason FROM wa_templates WHERE status <> 'APPROVED' ORDER BY name`,
     );
+    /*
+     * The same question the Incoming screen answers: how many open leads have
+     * nobody. It used to count unresolved rows in unassigned_queue instead,
+     * and only two of the several paths that assign a lead mark that row
+     * resolved — so Health said five were waiting while Incoming said
+     * "Nothing waiting" and the notifications still nagged about leads that
+     * had been picked up days earlier. Counting the leads themselves cannot
+     * drift.
+     */
     const unassigned = await queryOne<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM unassigned_queue WHERE resolved_at IS NULL',
+      `SELECT COUNT(*) AS n FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id
+        WHERE o.status = 'open' AND o.owner_user_id IS NULL
+          AND o.deleted_at IS NULL AND c.deleted_at IS NULL`,
     );
     const unverifiedProjects = await queryOne<{ n: number }>(
       'SELECT COUNT(*) AS n FROM projects WHERE is_active = 1 AND verified_at IS NULL',

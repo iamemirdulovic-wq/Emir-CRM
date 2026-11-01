@@ -88,7 +88,7 @@ export function Automations() {
         ))}
 
         <Note>
-          Counts cover the last 7 days. &ldquo;Stopped early&rdquo; is normal: Workflow B cancels itself
+          Counts cover the last 7 days. &ldquo;Stopped early&rdquo; is normal: the chasing workflow cancels itself
           the moment a lead replies. Quiet hours, consent, the do-not-contact list and the
           three-messages-a-day cap apply to every automation here and cannot be switched off.
         </Note>

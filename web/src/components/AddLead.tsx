@@ -106,7 +106,21 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
     if (checkTimer.current) window.clearTimeout(checkTimer.current);
   }, []);
 
-  const step1Done = fullName.trim().length > 0 && (phone !== '' || email.trim() !== '') && phoneOk;
+  /**
+   * What is stopping this form, in the order a person fills it in.
+   *
+   * The Next button used to be disabled until the form was right, which says
+   * nothing at all: you press it, nothing happens, and the reason is
+   * invisible. It is enabled now and answers instead.
+   */
+  function whatIsMissing(): string | null {
+    if (fullName.trim().length === 0) return 'Give the lead a name first.';
+    if (phone === '' && email.trim() === '') {
+      return 'Add a phone number or an email — otherwise nobody can reach them.';
+    }
+    if (!phoneOk) return 'That phone number does not look right. Check the country code.';
+    return null;
+  }
 
   async function save() {
     setSaving(true);
@@ -159,7 +173,20 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
             <Button onClick={() => setStep((s) => (s - 1) as Step)}>Back</Button>
           )}
           {step < 3 ? (
-            <Button variant="primary" disabled={step === 1 && !step1Done} onClick={() => setStep((s) => (s + 1) as Step)}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (step === 1) {
+                  const missing = whatIsMissing();
+                  if (missing) {
+                    setProblem(missing);
+                    return;
+                  }
+                }
+                setProblem(null);
+                setStep((s) => (s + 1) as Step);
+              }}
+            >
               Next
             </Button>
           ) : (

@@ -137,9 +137,9 @@ export function PhoneAppPanel({ index = 0 }: { index?: number }) {
 
       {state === 'not-configured' && (
         <Note>
-          Notifications are not connected yet. The owner needs to add the
-          Firebase keys to the hosting panel — see
-          {' '}<code>docs/NOTIFICATIONS.md</code>.
+          Phone alerts are not switched on yet, so a new lead only shows while
+          the CRM is open. Nothing you can do about it — ask the office to
+          finish setting it up.
         </Note>
       )}
 

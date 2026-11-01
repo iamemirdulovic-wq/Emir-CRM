@@ -168,8 +168,8 @@ export async function completeTask(
   // The IS NULL guard makes a double-tap on a phone a no-op rather than a
   // second audit entry with a different closer.
   await execute(
-    'UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ? '
-      + 'WHERE id = ? AND completed_at IS NULL AND cancelled_at IS NULL',
+    `UPDATE tasks SET completed_at = NOW(3), completed_by_user_id = ?
+      WHERE id = ? AND completed_at IS NULL AND cancelled_at IS NULL`,
     [actor.userId, taskId],
     exec,
   );

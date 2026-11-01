@@ -58,9 +58,9 @@ async function seedTemplates(): Promise<void> {
 
 async function seedWorkflows(): Promise<void> {
   const workflows = [
-    { key: 'A_instant_capture', name: 'Workflow A — Instant capture', description: 'Assign, welcome on WhatsApp, push the agent, SLA at 5 minutes.' },
-    { key: 'B_no_response_followup', name: 'Workflow B — No-response follow-up', description: '+2h, +24h, +72h templates then Lost (unresponsive) at +96h.' },
-    { key: 'C_inbound_routing', name: 'Workflow C — Inbound WhatsApp routing', description: 'Cancel follow-ups, move to Engaged, resolve and route intent.' },
+    { key: 'A_instant_capture', name: 'New lead — assign and welcome', description: 'Picks an agent, sends the WhatsApp welcome, alerts their phone, and takes the lead back if nobody touches it within five minutes.' },
+    { key: 'B_no_response_followup', name: 'No reply — chase for four days', description: 'Follows up at 2 hours, 24 hours and 3 days, then marks the lead Lost as unresponsive. Stops the moment they reply.' },
+    { key: 'C_inbound_routing', name: 'They replied — route it', description: 'Cancels the chasing, moves the lead to Engaged, works out what they asked for and answers or hands it to the agent.' },
   ];
   for (const wf of workflows) {
     await execute(

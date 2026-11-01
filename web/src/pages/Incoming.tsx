@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { formatAedShort, humanize } from '../lib/format.js';
+import { formatAedShort, humanize, formatDateTime } from '../lib/format.js';
 import { Icon } from '../design/index.js';
 import { ago, Avatar, Empty, ErrorNote, Note, Panel, Score, Spinner, useToast } from '../design/ui.js';
 
@@ -181,7 +181,7 @@ export function Incoming() {
                       </span>
                     )}
                     {lead.score !== null && <Score value={lead.score} />}
-                    <span className="incoming-age" title={new Date(lead.arrivedAt).toLocaleString()}>
+                    <span className="incoming-age" title={formatDateTime(lead.arrivedAt)}>
                       {ago(lead.arrivedAt)}
                     </span>
                   </div>
