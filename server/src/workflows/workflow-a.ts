@@ -10,7 +10,7 @@ import { routingSettings } from '../routing/settings.js';
 import { parseClock, slaDeadline } from '../routing/hours.js';
 import { notify, notifyManagers } from '../messaging/notify.js';
 import { recordBounceForAlerting } from '../routing/storm.js';
-import { emailOwnersAboutLead } from '../routing/new-lead-email.js';
+import { emailOwnersAboutLead, emailAgentAboutLead } from '../routing/new-lead-email.js';
 import {
   bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
 } from '../routing/assignments.js';
@@ -93,6 +93,25 @@ export async function runWorkflowA(input: WorkflowAInput): Promise<WorkflowAResu
 
     await setStep(runId, 'push');
     const pushed = assignment.userId ? await notifyAgent(assignment.userId, input.contactId, input.opportunityId) : 0;
+
+    /*
+     * And by email, which is the only channel that reaches an agent who does
+     * not have the CRM open. The bell, the pop-up and the sound all need a
+     * live tab; push needs Firebase. Without this an agent was told nothing
+     * at all until they next signed in, by which time the five minutes had
+     * run and the lead had gone to somebody else.
+     *
+     * Never allowed to fail the workflow, for the same reason the owner email
+     * is not: the lead is assigned and the clock is set whatever the mail
+     * server does.
+     */
+    if (assignment.userId) {
+      void emailAgentAboutLead({
+        contactId: input.contactId,
+        opportunityId: input.opportunityId,
+        agentUserId: assignment.userId,
+      }).catch((err: unknown) => logger.warn('agent lead email failed', errorContext(err)));
+    }
 
     /*
      * The owners hear about it by email, because they are in a meeting or in

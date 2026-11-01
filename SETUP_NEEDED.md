@@ -186,11 +186,22 @@ It is free up to about 300 emails a day.
 
 1. Sign up at **https://www.brevo.com** (free plan is fine)
 2. Go to **SMTP & API → API Keys → Generate a new API key**, copy it
-3. **hPanel → Websites → crm.homes.me → Advanced → Node.js → Environment variables**, add:
+3. **hPanel → Websites → mycrm.emirdulovic.com → Advanced → Node.js → Environment
+   variables**, add:
    - `EMAIL_PROVIDER` = `brevo`
    - `BREVO_API_KEY` = *(the key you copied)*
+   - `MAIL_FROM` = `noreply@homes.me`
    - `FEATURE_EMAIL_SENDING` = `true`
 4. **Save**, then **Restart**
+
+`MAIL_FROM` is the address the CRM's own alerts come from — "a lead arrived",
+"this lead is yours", task reminders. Nobody should reply to those, which is
+why it is a noreply address.
+
+**Client email is different and is not affected by this.** An email an agent
+writes to a buyer goes out from that agent's own address with their name on
+it, so the client can reply to a person. That is deliberate: a client who
+replies to `noreply@` is a client nobody hears from again.
 
 Those are the exact names the CRM reads. A name that is nearly right is the
 same as nothing at all: the CRM starts, says email is not connected, and

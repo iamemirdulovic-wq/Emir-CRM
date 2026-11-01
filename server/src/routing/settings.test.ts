@@ -17,6 +17,7 @@ describe('reading the lead routing settings', () => {
       slaMinutes: '3', reminderMinutes: '1', autoAssign: '0', bounceToOwner: '1',
     })).toEqual({
       slaMinutes: 3, reminderMinutes: 1, autoAssign: false, bounceToOwner: true, emailOwnerOnNewLead: true,
+      emailAgentOnNewLead: true,
       quietHours: true, quietStart: '22:00', quietEnd: '08:00',
     });
   });
@@ -131,5 +132,28 @@ describe('the quiet hours', () => {
 
   it('can be switched off entirely', () => {
     expect(parseRoutingSettings({ quietHours: '0' }).quietHours).toBe(false);
+  });
+});
+
+/**
+ * The agent email is the only alert that reaches somebody who does not have
+ * the CRM open: the bell, the pop-up and the sound all need a live tab, and
+ * push needs Firebase. It defaults on for that reason, and an owner who turns
+ * it off should get silence rather than a half-working alert.
+ */
+describe('emailing the agent their new lead', () => {
+  it('is on unless somebody turns it off', () => {
+    expect(ROUTING_DEFAULTS.emailAgentOnNewLead).toBe(true);
+    expect(parseRoutingSettings({}).emailAgentOnNewLead).toBe(true);
+  });
+
+  it('can be turned off', () => {
+    expect(parseRoutingSettings({ emailAgentOnNewLead: '0' }).emailAgentOnNewLead).toBe(false);
+  });
+
+  it('is separate from the owner email', () => {
+    const settings = parseRoutingSettings({ emailOwnerOnNewLead: '0', emailAgentOnNewLead: '1' });
+    expect(settings.emailOwnerOnNewLead).toBe(false);
+    expect(settings.emailAgentOnNewLead).toBe(true);
   });
 });

@@ -44,6 +44,20 @@ export interface RoutingSettings {
    */
   emailOwnerOnNewLead: boolean;
   /**
+   * Email the agent the lead was given to.
+   *
+   * On, because without it an agent is only told while they have the CRM open
+   * in front of them — the bell, the pop-up and the sound all need an open
+   * tab, and push needs Firebase. An agent with the lead in their pocket and
+   * no email heard nothing at all until they next signed in, which is how a
+   * five-minute rule turns into luck.
+   *
+   * Email is not the fastest channel. A phone can hold mail for a quarter of
+   * an hour before fetching it, so this is the net rather than the alarm —
+   * but a net is a great deal better than nothing.
+   */
+  emailAgentOnNewLead: boolean;
+  /**
    * The hours when the five-minute clock does not run.
    *
    * A lead arriving at 03:10 still gets its WhatsApp inside thirty seconds —
@@ -67,6 +81,7 @@ export const ROUTING_DEFAULTS: RoutingSettings = {
   autoAssign: true,
   bounceToOwner: true,
   emailOwnerOnNewLead: true,
+  emailAgentOnNewLead: true,
   quietHours: true,
   quietStart: '22:00',
   quietEnd: '08:00',
@@ -96,6 +111,7 @@ export function parseRoutingSettings(raw: Partial<Record<keyof RoutingSettings, 
     autoAssign: bool(raw.autoAssign, ROUTING_DEFAULTS.autoAssign),
     bounceToOwner: bool(raw.bounceToOwner, ROUTING_DEFAULTS.bounceToOwner),
     emailOwnerOnNewLead: bool(raw.emailOwnerOnNewLead, ROUTING_DEFAULTS.emailOwnerOnNewLead),
+    emailAgentOnNewLead: bool(raw.emailAgentOnNewLead, ROUTING_DEFAULTS.emailAgentOnNewLead),
     quietHours: bool(raw.quietHours, ROUTING_DEFAULTS.quietHours),
     /* Read through the clock parser and written back as it understood them,
        so a value that would not parse never reaches the routing code. */
@@ -128,20 +144,21 @@ function clamp(value: number, low: number, high: number): number {
 export async function routingSettings(exec: Executor = getPool()): Promise<RoutingSettings> {
   const [
     slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
-    quietHours, quietStart, quietEnd,
+    emailAgentOnNewLead, quietHours, quietStart, quietEnd,
   ] = await Promise.all([
     setting('ROUTING_SLA_MINUTES', exec),
     setting('ROUTING_REMINDER_MINUTES', exec),
     setting('ROUTING_AUTO_ASSIGN', exec),
     setting('ROUTING_BOUNCE_TO_OWNER', exec),
     setting('ROUTING_EMAIL_OWNER_NEW_LEAD', exec),
+    setting('ROUTING_EMAIL_AGENT_NEW_LEAD', exec),
     setting('ROUTING_QUIET_HOURS', exec),
     setting('ROUTING_QUIET_START', exec),
     setting('ROUTING_QUIET_END', exec),
   ]);
   return parseRoutingSettings({
     slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
-    quietHours, quietStart, quietEnd,
+    emailAgentOnNewLead, quietHours, quietStart, quietEnd,
   });
 }
 
@@ -164,6 +181,7 @@ export async function saveRoutingSettings(
     autoAssign: String(patch.autoAssign ?? current.autoAssign),
     bounceToOwner: String(patch.bounceToOwner ?? current.bounceToOwner),
     emailOwnerOnNewLead: String(patch.emailOwnerOnNewLead ?? current.emailOwnerOnNewLead),
+    emailAgentOnNewLead: String(patch.emailAgentOnNewLead ?? current.emailAgentOnNewLead),
     quietHours: String(patch.quietHours ?? current.quietHours),
     quietStart: String(patch.quietStart ?? current.quietStart),
     quietEnd: String(patch.quietEnd ?? current.quietEnd),
@@ -185,6 +203,9 @@ export async function saveRoutingSettings(
   }
   if (next.emailOwnerOnNewLead !== current.emailOwnerOnNewLead) {
     await saveSetting(actor, 'ROUTING_EMAIL_OWNER_NEW_LEAD', next.emailOwnerOnNewLead ? '1' : '0', exec);
+  }
+  if (next.emailAgentOnNewLead !== current.emailAgentOnNewLead) {
+    await saveSetting(actor, 'ROUTING_EMAIL_AGENT_NEW_LEAD', next.emailAgentOnNewLead ? '1' : '0', exec);
   }
 
   if (next.quietHours !== current.quietHours) {

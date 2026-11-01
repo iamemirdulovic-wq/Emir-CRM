@@ -18,6 +18,7 @@ interface Routing {
   autoAssign: boolean;
   bounceToOwner: boolean;
   emailOwnerOnNewLead: boolean;
+  emailAgentOnNewLead: boolean;
   quietHours: boolean;
   quietStart: string;
   quietEnd: string;
@@ -104,6 +105,15 @@ export function RoutingSettings() {
         on={draft.emailOwnerOnNewLead}
         onChange={(on) => set('emailOwnerOnNewLead', on)}
         hint="Turn this off once the volume gets high — fifty leads a day is fifty emails."
+      />
+
+      <Switch
+        label="Email the agent their new lead"
+        on={draft.emailAgentOnNewLead}
+        onChange={(on) => set('emailAgentOnNewLead', on)}
+        hint={draft.emailAgentOnNewLead
+          ? 'The only alert that reaches an agent who does not have the CRM open. Leave this on until phone alerts are switched on.'
+          : 'An agent will only know about a new lead while they have the CRM open on a screen.'}
       />
 
       <Switch
