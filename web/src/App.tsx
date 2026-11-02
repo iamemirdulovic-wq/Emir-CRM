@@ -21,6 +21,7 @@ import { Automations } from './pages/Automations.js';
 import { Settings } from './pages/Settings.js';
 import { Components } from './pages/Components.js';
 import { NotFound } from './pages/NotFound.js';
+import { LoginLink } from './pages/LoginLink.js';
 import { MyLeads } from './pages/MyLeads.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
 import { ListDetail, Lists } from './pages/Lists.js';
@@ -61,6 +62,10 @@ export function App() {
             </PublicOnly>
           }
         />
+        {/* Where an emailed sign-in link lands. Not wrapped in PublicOnly:
+            following the link while already signed in should spend it and
+            land on the dashboard, not bounce without explanation. */}
+        <Route path="/login/link" element={<LoginLink />} />
         {/* First run only. The server refuses once an account exists, and the
             page sends you to /login when it sees that. */}
         <Route path="/setup" element={<Setup />} />

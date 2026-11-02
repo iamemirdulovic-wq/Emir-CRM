@@ -5,6 +5,30 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-02 — auth — **Sign-in links added beside passwords, not instead of
+them; owner and admin keep passwords** — Emir asked for magic links to replace
+passwords. Two things made a straight replacement the wrong build, and he chose
+this shape once they were on the table.
+
+First, a link needs working email, and email is not connected yet. Replacing
+password sign-in would have locked all ten people out of a live CRM 75 seconds
+after the push, with no way back in but a database edit.
+
+Second, even once email works, a CRM whose *only* door depends on email has no
+door at all on the day email breaks — and the person who would fix it is
+locked out with everyone else. So owner and admin never depend on it. That is
+not a permission they lack; it is the floor under the building.
+
+This overrides the `CLAUDE.md` LOGIN rule ("email + password login only. No
+OTP… no email reset flow"). The brief is Emir's and is not edited here; he
+changed the rule knowingly, in conversation, after being shown what it said.
+
+Mechanics: token never stored (SHA-256 only, as with sessions), single use
+enforced by `UPDATE … WHERE used_at IS NULL` and a row count rather than a
+read-then-write, fifteen minutes, a new request kills the old link, and the
+request endpoint answers identically whether or not the address exists so it
+cannot be used to enumerate staff.
+
 2026-10-30 — process — Work autonomously; do not stop to ask Emir — The master
 build prompt (Part B1) says so explicitly, overriding the "ASK ME FIRST" rule
 in `CLAUDE.md`. Every judgement call that rule would have surfaced is recorded

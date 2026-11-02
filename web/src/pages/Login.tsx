@@ -22,6 +22,11 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* The sign-in link flow, which lives beside the password rather than
+     replacing it: owners and admins keep passwords so somebody can always
+     get in on the day email itself is broken. */
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkSent, setLinkSent] = useState<string | null>(null);
 
   /*
    * A CRM that has just been deployed has no accounts, so every password here
@@ -42,6 +47,30 @@ export function Login() {
       cancelled = true;
     };
   }, [navigate]);
+
+  /**
+   * Ask for a one-time link.
+   *
+   * The answer is deliberately the same whether or not the address belongs to
+   * an account — otherwise this screen becomes a way to find out who works
+   * here, one guess at a time.
+   */
+  async function requestLink() {
+    setError(null);
+    if (!email.trim()) {
+      setError('Type your email address first.');
+      return;
+    }
+    setLinkBusy(true);
+    try {
+      const result = await api.post<{ message: string }>('/api/auth/magic-link', { email });
+      setLinkSent(result.message);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not send a sign-in link.');
+    } finally {
+      setLinkBusy(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -129,6 +158,24 @@ export function Login() {
             <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
               {busy ? `${t('signIn')}…` : t('signIn')}
             </button>
+
+            <div className="login-or"><span>or</span></div>
+
+            {linkSent ? (
+              <p className="login-link-sent" role="status">
+                {linkSent}
+              </p>
+            ) : (
+              <button
+                className="btn btn-block"
+                type="button"
+                disabled={linkBusy}
+                onClick={() => void requestLink()}
+              >
+                {linkBusy ? 'Sending…' : 'Email me a sign-in link'}
+              </button>
+            )}
+
             <p className="hint">{t('forgotPassword')}</p>
           </form>
         </div>

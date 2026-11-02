@@ -8,6 +8,8 @@ type AuthState = {
   user: CurrentUser | null;
   loading: boolean;
   signIn: (email: string, password: string, rememberMe: boolean) => Promise<CurrentUser>;
+  /** Spend a one-time sign-in link and start the session. */
+  signInWithLink: (token: string, rememberMe: boolean) => Promise<CurrentUser>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   can: (permission: string) => boolean;
@@ -64,6 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.user;
   }, []);
 
+  const signInWithLink = useCallback(async (token: string, rememberMe: boolean) => {
+    const response = await api.post<{ user: CurrentUser }>(
+      '/api/auth/magic-link/consume', { token, rememberMe },
+    );
+    setUser(response.user);
+    applyServerLocale(response.user.locale);
+    applyDirection();
+    return response.user;
+  }, []);
+
   const signOut = useCallback(async () => {
     await api.post('/api/auth/logout');
     setUser(null);
@@ -72,8 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const can = useCallback((permission: string) => user?.permissions.includes(permission) ?? false, [user]);
 
   const value = useMemo<AuthState>(
-    () => ({ user, loading, signIn, signOut, refresh, can }),
-    [user, loading, signIn, signOut, refresh, can],
+    () => ({ user, loading, signIn, signInWithLink, signOut, refresh, can }),
+    [user, loading, signIn, signInWithLink, signOut, refresh, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

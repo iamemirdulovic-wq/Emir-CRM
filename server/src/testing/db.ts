@@ -177,6 +177,7 @@ export const TRUNCATE_ORDER = [
   'suppressions',
   'inbound_events',
   'login_attempts',
+  'login_links',
   'sessions',
   'session_log',
   'notifications',
