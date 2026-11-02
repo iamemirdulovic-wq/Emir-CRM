@@ -179,61 +179,75 @@ Until they're approved, the old templates keep working — nothing breaks.
 
 ---
 
-## 🟡 7. Connect email sending (needed for client emails and campaigns)
+## 🟡 7. Connect email sending (needed for everything the CRM sends)
 
-The CRM can write and send emails to clients, but it needs an email service.
-It is free up to about 300 emails a day.
+Until this is done the CRM sends nothing at all — not the "this lead is yours"
+email to an agent, not the sign-in links, not a sales offer to a client. Each
+of those fails quietly, which is why the Dashboard now lists them.
 
-**Use Brevo's SMTP, not its API key.** The CRM sends through two doors: client
-email can go either way, but its own alerts — "a lead arrived", "this lead is
-yours", task reminders — only go over SMTP. Set the API key alone and the
-client email works while every internal alert silently does not. SMTP makes
-both work from one set of details.
+**We use Resend.** Brevo was the first choice and is still a fine service, but
+its signup requires an SMS code to a mobile and the code never arrived on a
+UAE number — a dead end with nothing on our side to fix. Resend needs no
+phone. Free covers 3,000 emails a month, which is far more than ten agents
+send.
 
-1. Sign up at **https://www.brevo.com** (free plan is fine)
-2. Go to **SMTP & API → SMTP** and copy two things:
-   - your **SMTP login** (often something like `8a1b2c@smtp-brevo.com`)
-   - an **SMTP key** — press *Generate a new SMTP key* if there isn't one.
-     This is **not** the same as an API key, and the API key will not work here
-3. **hPanel → Websites → mycrm.emirdulovic.com → Advanced → Node.js → Environment
-   variables**, add:
-   - `SMTP_HOST` = `smtp-relay.brevo.com`
-   - `SMTP_PORT` = `587`
-   - `SMTP_USER` = *(your SMTP login)*
-   - `SMTP_PASSWORD` = *(the SMTP key)*
-   - `MAIL_FROM` = `noreply@homes.me`
-   - `FEATURE_EMAIL_SENDING` = `true`
-4. **Save**, then **Restart**
+The CRM talks to it over SMTP, not the API. That matters: client email can go
+either way, but the CRM's own alerts only go over SMTP, so setting an API key
+alone would leave every internal alert silently dead.
 
-If nothing sends and the logs mention a timeout, the host may be blocking port
-587 — try `SMTP_PORT` = `2525`, which Brevo also accepts.
+### 1. Sign up
 
-`MAIL_FROM` is the address the CRM's own alerts come from — "a lead arrived",
-"this lead is yours", task reminders. Nobody should reply to those, which is
-why it is a noreply address.
+**https://resend.com/signup** — sign in with Google or GitHub.
 
-**Client email is different and is not affected by this.** An email an agent
-writes to a buyer goes out from that agent's own address with their name on
-it, so the client can reply to a person. That is deliberate: a client who
-replies to `noreply@` is a client nobody hears from again.
+### 2. Prove `homes.me` is yours
 
-Those are the exact names the CRM reads. A name that is nearly right is the
-same as nothing at all: the CRM starts, says email is not connected, and
-nothing goes out.
+This is the step that decides whether email lands in the inbox or in spam.
+Skip it and nothing else matters.
 
-**Then prove emails are yours** so they don't go to spam. In Brevo go to
-**Senders, Domains & Dedicated IPs → Domains → Add a domain** → enter
-`homes.me`. Brevo gives you three records to add:
+1. **Domains → Add Domain** → `homes.me`
+2. Resend shows three or four DNS records
+3. **hPanel → Domains → homes.me → DNS Zone** → add each one exactly as shown
+4. Back in Resend, press **Verify**
 
-1. **hPanel → Domains → homes.me → DNS Zone**
-2. Add each record Brevo shows you (they look like `brevo._domainkey`, an SPF
-   `TXT`, and a `DMARC` record) — copy the name and value exactly
-3. Back in Brevo, click **Verify**
+DNS can take an hour. Usually minutes.
 
-Until this is done, leave `EMAIL_TEST_MODE` = `true` and set
-`EMAIL_TEST_REDIRECT` to your own email. Every client email will come to you
-instead of going out, with the real recipient written into the subject, so you
-can check them safely.
+### 3. Make a key
+
+**API Keys → Create API Key** → name it `CRM` → copy it. It starts with `re_`
+and is shown once.
+
+### 4. Tell the CRM
+
+**hPanel → Websites → mycrm.emirdulovic.com → Advanced → Node.js → Environment
+variables**, add:
+
+- `SMTP_HOST` = `smtp.resend.com`
+- `SMTP_PORT` = `587`
+- `SMTP_USER` = `resend`
+- `SMTP_PASSWORD` = *(the `re_…` key)*
+- `MAIL_FROM` = `noreply@homes.me`
+- `FEATURE_EMAIL_SENDING` = `true`
+
+`SMTP_USER` is the literal word **resend** for every account — not your email
+address. That is not a typo.
+
+`MAIL_FROM` is the address the CRM's own alerts come from: "a lead arrived",
+"this lead is yours", sign-in links, task reminders. Nobody should reply to
+those, which is why it is a noreply address. **Client email is different and
+is not affected.** An email an agent writes to a buyer goes from that agent's
+own address so the client can reply to a person.
+
+Then **Save**, then **Restart**.
+
+### 5. Check it
+
+In the CRM: **Settings → Health → Send me a test email**. It sends one email to
+your own address and says plainly what happened — including the mail server's
+own error if it failed, which is what tells you whether the key or the domain
+is the problem.
+
+If the test email lands in spam, the domain is not verified yet. Go back to
+step 2.
 
 ---
 
