@@ -10,7 +10,9 @@ import { routingSettings } from '../routing/settings.js';
 import { parseClock, slaDeadline } from '../routing/hours.js';
 import { notify, notifyManagers } from '../messaging/notify.js';
 import { recordBounceForAlerting } from '../routing/storm.js';
-import { emailOwnersAboutLead, emailAgentAboutLead } from '../routing/new-lead-email.js';
+import {
+  emailOwnersAboutLead, emailAgentAboutLead, emailManagersAboutBreach,
+} from '../routing/new-lead-email.js';
 import {
   bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
 } from '../routing/assignments.js';
@@ -804,6 +806,35 @@ export async function runSlaCheck(input: {
 
   if (reassignedTo) {
     await notifyAgent(reassignedTo, input.contactId, input.opportunityId).catch(() => 0);
+    /*
+     * And by email, for the same reason the first agent gets one: notifyAgent
+     * is push, push needs Firebase, and without it the agent who inherits a
+     * lead is told exactly as little as the one who missed it. A lead handed
+     * to a second person in silence is the first silence happening twice.
+     */
+    void emailAgentAboutLead({
+      contactId: input.contactId,
+      opportunityId: input.opportunityId,
+      agentUserId: reassignedTo,
+    }).catch((err: unknown) => logger.warn('reassigned lead email failed', errorContext(err)));
+  }
+
+  /*
+   * And tell the managers a lead was dropped — the one thing on this path
+   * nobody was told by any channel that works. Behind the same storm guard
+   * as the bounce alert above: after an outage the worker runs a queue of
+   * expired timers in seconds, and forty emails in a minute is how a mailbox
+   * rule gets written that hides the next one.
+   */
+  const breachAlert = recordBounceForAlerting();
+  if (breachAlert.tell !== 'nothing') {
+    void emailManagersAboutBreach({
+      contactId: input.contactId,
+      opportunityId: input.opportunityId,
+      missedByUserId: input.assignedUserId,
+      reassignedToUserId: reassignedTo,
+      alsoWaiting: breachAlert.tell === 'summary' ? breachAlert.count : 0,
+    }).catch((err: unknown) => logger.warn('manager breach email failed', errorContext(err)));
   }
 
   return { breached: true, reassignedTo };

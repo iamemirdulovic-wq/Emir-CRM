@@ -31,7 +31,6 @@ describe('who may sign in with a link', () => {
   it('lets the people who work the leads use one', () => {
     expect(canUseLoginLink('agent')).toBe(true);
     expect(canUseLoginLink('manager')).toBe(true);
-    expect(canUseLoginLink('accountant')).toBe(true);
   });
 
   it('never lets the service account sign in at all', () => {

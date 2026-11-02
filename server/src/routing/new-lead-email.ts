@@ -230,3 +230,92 @@ function agentLeadHtml(input: {
 </table>
 </body></html>`;
 }
+
+/**
+ * Tell the managers a lead was dropped.
+ *
+ * The five-minute rule already reassigned it or put it back in Incoming, so
+ * this is not a call to action on the lead itself — it is the only way anyone
+ * finds out that the rule fired. Until now that event reached managers as an
+ * in-app notification and a push, and push does nothing without Firebase, so
+ * in practice a dropped lead was silent unless somebody happened to be
+ * looking at the bell.
+ *
+ * Owner, admin and manager, matching who `notifyManagers` tells, so the two
+ * channels never disagree about who is responsible for this.
+ */
+export async function emailManagersAboutBreach(input: {
+  contactId: string;
+  opportunityId: string;
+  missedByUserId: string | null;
+  reassignedToUserId: string | null;
+  /** More than zero when a backlog of timers fired together after an outage. */
+  alsoWaiting: number;
+}): Promise<{ sent: number }> {
+  const lead = await queryOne<LeadRow>(
+    `SELECT c.full_name, c.phone_e164, c.language,
+            o.project_name, o.budget_max_aed, o.source, o.lead_score
+       FROM opportunities o JOIN contacts c ON c.id = o.contact_id
+      WHERE o.id = ?`,
+    [input.opportunityId],
+  );
+  if (!lead) return { sent: 0 };
+
+  const recipients = await query<{ email: string; name: string }>(
+    `SELECT email, name FROM users
+      WHERE role IN ('owner','admin','manager') AND is_active = 1 AND email <> ''`,
+  );
+  if (recipients.length === 0) return { sent: 0 };
+
+  const nameOf = async (userId: string | null): Promise<string | null> => {
+    if (!userId) return null;
+    const row = await queryOne<{ name: string }>('SELECT name FROM users WHERE id = ?', [userId]);
+    return row?.name ?? null;
+  };
+  const missedBy = await nameOf(input.missedByUserId);
+  const nowWith = await nameOf(input.reassignedToUserId);
+
+  const name = lead.full_name ?? 'A lead';
+  const facts = [
+    lead.project_name,
+    budget(lead.budget_max_aed),
+    lead.source ? (SOURCES[lead.source] ?? lead.source.replace(/_/g, ' ')) : null,
+  ].filter(Boolean).join(' · ');
+
+  const whereNow = nowWith
+    ? `It has been reassigned to ${nowWith}, whose own five minutes are now running.`
+    : 'Nobody else was available, so it is waiting in Incoming for you to place.';
+
+  const link = `${env().APP_URL}/contacts/${input.contactId}?lead=${input.opportunityId}`;
+
+  const lines = [
+    `${name}${facts ? ` — ${facts}` : ''}`,
+    '',
+    missedBy
+      ? `${missedBy} did not touch it within five minutes.`
+      : 'It was not touched within five minutes.',
+    whereNow,
+    input.alsoWaiting > 1
+      ? `\n${input.alsoWaiting} leads ran out of time at once. That usually means the CRM was offline for a while rather than anything the team did.`
+      : null,
+    '',
+    `Open it: ${link}`,
+    '',
+    displayName(await companyDetails()),
+    PRODUCT_NAME,
+  ].filter((line) => line !== null);
+
+  let sent = 0;
+  for (const person of recipients) {
+    const result = await sendInternalEmail({
+      to: person.email,
+      subject: `Lead not picked up: ${name}${lead.project_name ? ` — ${lead.project_name}` : ''}`,
+      text: lines.join('\n'),
+    }).catch((err: unknown) => {
+      logger.warn('could not email a manager about an SLA breach', errorContext(err));
+      return { sent: false as const };
+    });
+    if (result.sent) sent += 1;
+  }
+  return { sent };
+}
