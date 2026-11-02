@@ -14,7 +14,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import {
-  actorFrom, blockUntilPasswordChanged, requireAdmin, requireAuth, requireManager,
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth, requireManager,
 } from '../middleware/auth.js';
 import { clearSecret, saveSecret, saveSetting } from '../../config/secrets.js';
 import { encryptionReady } from '../../lib/crypto.js';
@@ -22,6 +22,10 @@ import { badRequest } from '../../lib/errors.js';
 import { env } from '../../config/env.js';
 import { recentWebsiteLeads, websiteConnection } from '../../services/integration-status.js';
 import { setupChecklist } from '../../services/setup-checklist.js';
+import { sendInternalEmail } from '../../messaging/email/internal.js';
+import { queryOne } from '../../db/client.js';
+import { logger, errorContext } from '../../lib/logger.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 export const integrationsRouter = Router();
 integrationsRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -39,6 +43,67 @@ integrationsRouter.get(
   requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(await setupChecklist());
+  }),
+);
+
+/**
+ * Send the signed-in person a test email.
+ *
+ * Email is the one integration whose failure is completely silent: a wrong
+ * SMTP key, a port the host blocks, a domain not yet verified — all of them
+ * look exactly like "nothing happened". Without this the only way to find out
+ * was to create a real lead and watch, which is a poor way to test anything
+ * and worse on a live CRM with real clients in it.
+ *
+ * It sends only to the address of whoever pressed the button. Never to an
+ * address supplied in the request: that would be an open relay, and an open
+ * relay on an authenticated endpoint is still an open relay.
+ */
+integrationsRouter.post(
+  '/email-test',
+  requireAdmin,
+  rateLimit({
+    max: 6,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `email-test:${currentUser(req).id}`,
+    message: 'That is a lot of test emails. Give it a few minutes.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const me = await queryOne<{ email: string; name: string }>(
+      'SELECT email, name FROM users WHERE id = ?',
+      [user.id],
+    );
+    if (!me?.email) throw badRequest('Your own account has no email address on it.');
+
+    const now = new Date().toISOString();
+    const result = await sendInternalEmail({
+      to: me.email,
+      subject: 'Test email from your CRM',
+      text: [
+        `Hello ${me.name},`,
+        '',
+        'If you are reading this, the CRM can send email. That means new leads',
+        'will reach your agents, and sales offers will reach your clients.',
+        '',
+        `Sent at ${now}.`,
+      ].join('\n'),
+    }).catch((err: unknown) => {
+      logger.warn('test email failed', errorContext(err));
+      return {
+        sent: false as const,
+        reason: err instanceof Error ? err.message : 'unknown',
+      };
+    });
+
+    res.json({
+      sent: result.sent,
+      to: me.email,
+      /* The real reason, not a tidy one: "Invalid login: 535 Authentication
+         failed" is the sentence that tells somebody they pasted the API key
+         where the SMTP key goes. Admin-only, so it is safe to show. */
+      reason: result.sent ? null : (result.reason ?? 'unknown'),
+    });
   }),
 );
 

@@ -739,6 +739,62 @@ function PushPanel({ push }: { push: Health['push'] }) {
   );
 }
 
+/**
+ * Prove the CRM can send email, without creating a real lead to find out.
+ *
+ * Every way email fails looks the same from outside: a wrong SMTP key, a port
+ * the host blocks, a domain not yet verified — all of them are silence. This
+ * turns that silence into a sentence, and shows the mail server's own words,
+ * because "535 Authentication failed" is what tells somebody they pasted the
+ * API key where the SMTP key belongs.
+ */
+function EmailTestPanel() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ sent: boolean; to?: string; reason?: string | null } | null>(null);
+
+  async function send() {
+    setBusy(true);
+    setResult(null);
+    try {
+      setResult(await api.post<{ sent: boolean; to: string; reason: string | null }>(
+        '/api/integrations/email-test', {},
+      ));
+    } catch (err) {
+      setResult({ sent: false, reason: err instanceof ApiError ? err.message : 'Could not reach the server' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel span={6} index={1} icon="mail" title="Can we send email?">
+      <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 12 }}>
+        Sends one email to your own address. Nothing goes to a client, and no
+        lead is created.
+      </p>
+      <Button variant="primary" icon="send" loading={busy} onClick={() => void send()}>
+        Send me a test email
+      </Button>
+
+      {result?.sent && (
+        <Note>
+          Sent to <b>{result.to}</b>. If it does not arrive within a minute,
+          check the spam folder — that means the domain is not verified yet.
+        </Note>
+      )}
+      {result && !result.sent && (
+        <Note>
+          <b>Not sent.</b>
+          <br />
+          {result.reason === 'smtp_not_configured'
+            ? 'No mail server is set up yet. Add the SMTP details in the hosting panel and restart.'
+            : result.reason}
+        </Note>
+      )}
+    </Panel>
+  );
+}
+
 function HealthTab() {
   const health = useAsync<Health>(() => api.get('/api/reports/health'), []);
 
@@ -766,6 +822,7 @@ function HealthTab() {
   return (
     <div className="dash">
       <PushPanel push={data.push} />
+      <EmailTestPanel />
       <WebsiteConnectionPanel health={data} onSaved={health.reload} />
 
       <Panel span={6} index={0} icon="activity" title="Needs attention">
