@@ -15,7 +15,7 @@ import { PRODUCT_NAME } from '../config/constants.js';
 import { companyDetails, displayName } from '../config/company.js';
 import { routingSettings } from './settings.js';
 
-interface LeadRow {
+export interface LeadRow {
   full_name: string | null;
   phone_e164: string | null;
   language: string | null;
@@ -30,6 +30,16 @@ function budget(aed: number | null): string | null {
   if (!aed) return null;
   if (aed >= 1_000_000) return `AED ${(aed / 1_000_000).toFixed(aed % 1_000_000 === 0 ? 0 : 1)}M`;
   return `AED ${Math.round(aed / 1_000)}K`;
+}
+
+/** The three things that decide whether a lead is worth dropping everything for. */
+export function leadFacts(lead: LeadRow): [string, string][] {
+  const rows: [string, string][] = [];
+  if (lead.project_name) rows.push(['Project', lead.project_name]);
+  const b = budget(lead.budget_max_aed);
+  if (b) rows.push(['Budget', b]);
+  if (lead.source) rows.push(['Source', SOURCES[lead.source] ?? lead.source.replace(/_/g, ' ')]);
+  return rows;
 }
 
 const SOURCES: Record<string, string> = {
@@ -83,7 +93,6 @@ export async function emailOwnersAboutLead(input: {
 
   const lines = [
     `${name}${facts ? ` — ${facts}` : ''}`,
-    lead.phone_e164 ? `Phone: ${lead.phone_e164}` : null,
     lead.lead_score !== null ? `Score: ${lead.lead_score} of 100` : null,
     '',
     whereItWent,
@@ -100,6 +109,15 @@ export async function emailOwnersAboutLead(input: {
       to: person.email,
       subject: `New lead: ${name}${lead.project_name ? ` — ${lead.project_name}` : ''}`,
       text: lines.join('\n'),
+      html: leadCardHtml({
+        kicker: null,
+        name,
+        facts: leadFacts(lead),
+        score: lead.lead_score,
+        link,
+        action: 'Open the lead',
+        note: whereItWent,
+      }),
     }).catch((err: unknown) => {
       logger.warn('could not email an owner about a new lead', errorContext(err));
       return { sent: false as const };
@@ -162,19 +180,29 @@ export async function emailAgentAboutLead(input: {
   const text = [
     `${name} is yours.`,
     facts || null,
-    lead.phone_e164 ? `Call: ${lead.phone_e164}` : null,
     lead.lead_score !== null ? `Score: ${lead.lead_score} of 100` : null,
     '',
     'You have five minutes to touch this lead before it goes back to the pool.',
     '',
     `Open it: ${link}`,
+    '',
+    "The buyer's number is on the lead, not in this email.",
   ].filter((line) => line !== null).join('\n');
 
   const result = await sendInternalEmail({
     to: agent.email,
     subject: `New lead: ${name}${lead.project_name ? ` — ${lead.project_name}` : ''}`,
     text,
-    html: agentLeadHtml({ name, facts, link, phone: lead.phone_e164, score: lead.lead_score }),
+    html: leadCardHtml({
+      kicker: 'New lead, five minutes',
+      name,
+      facts: leadFacts(lead),
+      score: lead.lead_score,
+      link,
+      action: 'Open the lead',
+      note: 'Touch it within five minutes or it goes back to the pool and '
+        + 'somebody else gets it.',
+    }),
   }).catch((err: unknown) => {
     /* Never throw: a mail server having a bad minute must not stop the lead
        being assigned or the clock being set. */
@@ -185,46 +213,158 @@ export async function emailAgentAboutLead(input: {
   return { sent: result.sent };
 }
 
-/** One column, inline styles, no images — the only layout email clients agree on. */
-function agentLeadHtml(input: {
-  name: string;
-  facts: string;
-  link: string;
-  phone: string | null;
-  score: number | null;
-}): string {
-  const esc = (value: string) => value.replace(/[&<>"]/g, (ch) => (
+/* The CRM's teal, carried into a deep gradient so the mail looks like the
+   product rather than a system notice (Emir, Nov 3, 2026, pointing at
+   Instantly and respond.io: a dark ground, a white card floating on it).
+   Every gradient sits on top of a bgcolor, because Outlook's Word engine
+   ignores gradients and would otherwise paint the text on nothing. */
+const C = {
+  deep: '#0B2233', mid: '#0C4A5C', end: '#0E8099', teal: '#00AFC8',
+  card: '#FFFFFF', line: '#E3EBF2', rule: '#F0F5F9',
+  ink: '#0E1B2C', ink2: '#4A5B70', ink3: '#7E8DA0',
+  onDeep: '#FFFFFF', onDeepSoft: '#A8C6D6',
+};
+/* Single quotes around Segoe UI, not double. This string lands inside
+   style="..." attributes, so a double quote closes the attribute early and the
+   browser throws away everything after it: size, weight, colour, the lot, and
+   the mail arrives as 16px Times. Found by rendering it, not by reading it. */
+const FONT = "'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+function esc(value: string): string {
+  return value.replace(/[&<>"]/g, (ch) => (
     ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : '&quot;'
   ));
-  const call = input.phone
-    ? `<a href="tel:${esc(input.phone)}" style="display:inline-block;padding:12px 20px;border-radius:10px;
-         background:#ffffff;border:1px solid #D7DEE6;color:#0E1B2C;text-decoration:none;
-         font-weight:700;font-size:15px">Call ${esc(input.phone)}</a>`
+}
+
+/** Hot at 70, the same line the scorer and the pipeline draw. */
+function scoreBand(score: number): { label: string; ink: string; wash: string } {
+  if (score >= 70) return { label: 'Hot', ink: '#B5370B', wash: '#FFEDE5' };
+  if (score >= 40) return { label: 'Good', ink: '#00707F', wash: '#E2F6F9' };
+  return { label: 'Weak', ink: '#5C6B7C', wash: '#EEF2F6' };
+}
+
+/** Two letters standing in for a face, since an email cannot be trusted with images. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return (first + last).toUpperCase();
+}
+
+/**
+ * One lead, as a card on a deep ground.
+ *
+ * It carries no phone number, on purpose (Emir, Nov 3, 2026). An email is
+ * forwarded, synced to several devices and left open on screens, so the
+ * buyer's number stays in the CRM behind a login and the button is the way to
+ * it. The agent loses one tap and the number stops travelling.
+ *
+ * Tables and inline styles throughout: the only layout every mail client
+ * agrees on. No images either, so nothing waits on a remote load or breaks
+ * when a client blocks them; the avatar is two letters in a circle.
+ */
+export function leadCardHtml(input: {
+  kicker: string | null;
+  name: string;
+  facts: [string, string][];
+  score: number | null;
+  link: string;
+  action: string;
+  note: string;
+}): string {
+  const band = input.score === null ? null : scoreBand(input.score);
+
+  const kicker = input.kicker
+    ? `<tr><td align="center" style="padding:0 0 16px">
+         <span style="display:inline-block;padding:7px 15px;border-radius:999px;
+                      background:rgba(255,255,255,.14);color:${C.onDeep};
+                      font:700 11px/1 ${FONT};letter-spacing:.1em;text-transform:uppercase">
+           ${esc(input.kicker)}</span>
+       </td></tr>`
     : '';
 
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#EAF3F8">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EAF3F8">
-  <tr><td align="center" style="padding:24px 12px">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-           style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-      <tr><td style="background:#EE3D02;padding:14px 22px;color:#ffffff;font:700 15px/1.3 Helvetica,Arial,sans-serif">
-        New lead — five minutes
+  const score = band
+    ? `<span style="display:inline-block;margin-top:5px;padding:4px 10px;border-radius:999px;
+                    background:${band.wash};color:${band.ink};font:700 12px/1 ${FONT}">
+         ${band.label} &middot; ${input.score} of 100</span>`
+    : '';
+
+  const rows = input.facts.map(([label, value], i) => {
+    const edge = i === input.facts.length - 1 ? '' : `border-bottom:1px solid ${C.rule};`;
+    return `<tr>
+      <td style="padding:13px 0;${edge}font:400 13px/1.4 ${FONT};color:${C.ink3};white-space:nowrap">${esc(label)}</td>
+      <td align="right" style="padding:13px 0;${edge}font:600 14px/1.4 ${FONT};color:${C.ink}">${esc(value)}</td>
+    </tr>`;
+  }).join('');
+
+  const facts = input.facts.length
+    ? `<tr><td style="padding:4px 24px 0">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+       </td></tr>`
+    : '';
+
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="color-scheme" content="light only"></head>
+<body style="margin:0;padding:0;background:${C.end}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       bgcolor="${C.deep}"
+       style="background:${C.deep};background-image:linear-gradient(170deg,${C.deep} 0%,${C.mid} 58%,${C.end} 100%)">
+  <tr><td align="center" style="padding:34px 16px 40px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px">
+
+      <tr><td align="center" style="padding:0 0 22px;font:700 15px/1 ${FONT};color:${C.onDeep};letter-spacing:.01em">
+        ${esc(PRODUCT_NAME)}
       </td></tr>
-      <tr><td style="padding:22px;font-family:Helvetica,Arial,sans-serif;color:#0E1B2C">
-        <div style="font-size:21px;font-weight:700;line-height:1.25">${esc(input.name)}</div>
-        ${input.facts ? `<div style="font-size:15px;color:#4A5B70;margin-top:4px">${esc(input.facts)}</div>` : ''}
-        ${input.score !== null ? `<div style="font-size:13px;color:#4A5B70;margin-top:8px">Score ${input.score} of 100</div>` : ''}
-        <div style="font-size:14px;line-height:1.55;color:#4A5B70;margin:16px 0 20px">
-          This lead is yours. Touch it within five minutes or it goes back to the
-          pool and somebody else gets it.
-        </div>
-        <div>
-          <a href="${esc(input.link)}" style="display:inline-block;padding:12px 22px;border-radius:10px;
-             background:#EE3D02;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;
-             margin:0 8px 8px 0">Open the lead</a>
-          ${call}
-        </div>
+
+      ${kicker}
+
+      <tr><td style="background:${C.card};border-radius:20px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+          <tr><td style="padding:24px 24px 18px">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td width="52" valign="top">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="46">
+                    <tr><td align="center" height="46" bgcolor="#E2F6F9"
+                            style="width:46px;height:46px;border-radius:23px;
+                                   font:700 17px/46px ${FONT};color:#00707F">
+                      ${esc(initials(input.name))}
+                    </td></tr>
+                  </table>
+                </td>
+                <td valign="middle" style="padding-left:14px">
+                  <div style="font:700 21px/1.25 ${FONT};color:${C.ink};letter-spacing:-.012em">${esc(input.name)}</div>
+                  ${score}
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+
+          ${facts}
+
+          <tr><td style="padding:22px 24px 24px">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td align="center" bgcolor="${C.teal}" style="border-radius:13px">
+                <a href="${esc(input.link)}"
+                   style="display:block;padding:15px 22px;border-radius:13px;color:#ffffff;
+                          text-decoration:none;font:700 16px/1 ${FONT}">${esc(input.action)}</a>
+              </td></tr>
+            </table>
+          </td></tr>
+
+        </table>
       </td></tr>
+
+      <tr><td align="center" style="padding:20px 10px 0;font:400 13px/1.6 ${FONT};color:${C.onDeepSoft}">
+        ${esc(input.note)}
+      </td></tr>
+
+      <tr><td align="center" style="padding:14px 10px 0;font:400 12px/1.6 ${FONT};color:${C.onDeepSoft};opacity:.85">
+        The buyer's number is on the lead, not in this email.
+      </td></tr>
+
     </table>
   </td></tr>
 </table>
