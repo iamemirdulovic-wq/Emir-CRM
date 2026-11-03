@@ -206,10 +206,21 @@ Skip it and nothing else matters.
 
 1. **Domains → Add Domain** → `homes.me`
 2. Resend shows three or four DNS records
-3. **hPanel → Domains → homes.me → DNS Zone** → add each one exactly as shown
+3. Add each one exactly as shown **in Cloudflare**, not in Hostinger (see below)
 4. Back in Resend, press **Verify**
 
 DNS can take an hour. Usually minutes.
+
+**Where homes.me's DNS actually lives.** Not in hPanel. homes.me sits at
+Cloudflare, in the account `It@freedom.tm` (George's), zone
+`c8e750298c491378ae40237a9295d1b0`, on the nameservers archer and paige
+`.ns.cloudflare.com`. It is locked at Cloudflare Registrar until 28 Dec 2026
+and cannot use other nameservers, so it cannot be moved to Hostinger either.
+
+That means this one step needs either the Cloudflare login or George. Send him
+the records Resend shows and ask him to add them to the homes.me zone; it is a
+five minute job for whoever has access. Everything else in this section is
+yours alone and needs nobody.
 
 ### 3. Make a key
 
