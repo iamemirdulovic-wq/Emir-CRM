@@ -8,7 +8,7 @@
  *    .app-switch-slot so the sidebar already has its final proportions.
  */
 import { Fragment, type ReactNode } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
 import { BrandLockup } from '../brand.js';
@@ -24,6 +24,11 @@ export interface NavItem {
 }
 
 
+/* Link, not NavLink, on purpose. NavLink appends its own "active" class and
+   its own aria-current on top of whatever we pass, and it decides both from
+   the path alone: on /leads it lit My Leads and Follow-ups together, because
+   they share a path and differ only by ?tab=today. navItemMatches below is
+   the whole answer, so the link must not also have an opinion. */
 /**
  * Which nav item is the current screen.
  *
@@ -152,17 +157,16 @@ export function AppShell({
 
         <nav className="nav" aria-label="Primary">
           {nav.map((item) => (
-            <NavLink
+            <Link
               key={item.to}
               to={item.to}
-              end={item.end}
               className={navItemMatches(item, nav, location) ? 'active' : undefined}
               aria-current={navItemMatches(item, nav, location) ? 'page' : undefined}
             >
               <Icon name={item.icon} />
               {item.label}
               <Badge count={item.badge} />
-            </NavLink>
+            </Link>
           ))}
         </nav>
 
@@ -278,15 +282,14 @@ export function AppShell({
                 <span className="sr-only">{mobileAction.label}</span>
               </button>
             )}
-            <NavLink
+            <Link
               to={item.to}
-              end={item.end}
               className={navItemMatches(item, barItems, location) ? 'active' : undefined}
               aria-current={navItemMatches(item, barItems, location) ? 'page' : undefined}
             >
               <Icon name={item.icon} />
               {item.label}
-            </NavLink>
+            </Link>
           </Fragment>
         ))}
       </nav>
