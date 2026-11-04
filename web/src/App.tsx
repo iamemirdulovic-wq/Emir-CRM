@@ -24,8 +24,6 @@ import { NotFound } from './pages/NotFound.js';
 import { LoginLink } from './pages/LoginLink.js';
 import { MyLeads } from './pages/MyLeads.js';
 import { ImportDetailScreen, Imports, ImportWizard } from './pages/Imports.js';
-import { ListDetail, Lists } from './pages/Lists.js';
-import { CampaignDetailScreen, Campaigns, Dialler } from './pages/Campaigns.js';
 import { Incoming } from './pages/Incoming.js';
 import { Pool } from './pages/Pool.js';
 import { EmailCampaigns } from './pages/EmailCampaigns.js';
@@ -92,11 +90,19 @@ export function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/projects" element={<Library />} />
           <Route path="/offers" element={<Offers />} />
-          <Route path="/lists" element={<Lists />} />
-          <Route path="/lists/:id" element={<ListDetail />} />
-          <Route path="/campaigns" element={<Campaigns />} />
-          <Route path="/campaigns/:id" element={<CampaignDetailScreen />} />
-          <Route path="/campaigns/:id/dial" element={<Dialler />} />
+          {/*
+            * Lists and Campaigns are off the CRM (Emir, Nov 4, 2026: "here is
+            * 2 part we no need"). The addresses still answer, because they are
+            * in bookmarks and in links we already sent, and they land on the
+            * dashboard rather than on a screen nobody can reach from the menu.
+            * The screens, the API and the saved rows are all still here, so
+            * bringing them back is putting the nav entries back.
+            */}
+          <Route path="/lists" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/lists/:id" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/campaigns" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/campaigns/:id" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/campaigns/:id/dial" element={<Navigate to="/dashboard" replace />} />
           <Route path="/email-campaigns" element={<EmailCampaigns />} />
           <Route path="/wall" element={<Wall />} />
           <Route path="/profile" element={<Profile />} />

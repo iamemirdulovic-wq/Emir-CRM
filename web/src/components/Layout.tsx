@@ -88,8 +88,6 @@ const ENTRIES: Entry[] = [
   { to: '/pipeline', label: t('pipeline'), icon: 'kanban', title: t('pipeline'), phone: true },
   { to: '/inbox', label: t('inbox'), icon: 'message-circle', title: t('inbox'), phone: true },
   { to: '/tasks', label: t('tasks'), icon: 'check-square', title: t('tasks'), phone: true },
-  { to: '/lists', label: t('lists'), icon: 'list', title: t('lists') },
-  { to: '/campaigns', label: t('campaigns'), icon: 'megaphone', title: t('campaigns') },
   {
     to: '/email-campaigns',
     label: t('emailCampaigns'),

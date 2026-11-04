@@ -28,11 +28,13 @@ describe('matchScore', () => {
     expect(matchScore('lea', item())).not.toBeNull();
   });
 
+  /* Was the dialler until Lists and Campaigns came off the CRM on Nov 4, 2026;
+     the point is the same, that a keyword nobody sees still finds the screen. */
   it('finds an item by a keyword somebody would actually type', () => {
-    const dialler = STATIC_ITEMS.find((entry) => entry.id === 'page:campaigns') as PaletteItem;
-    expect(matchScore('dialler', dialler)).not.toBeNull();
-    expect(matchScore('dialer', dialler)).not.toBeNull();
-    expect(matchScore('calling', dialler)).not.toBeNull();
+    const incoming = STATIC_ITEMS.find((entry) => entry.id === 'page:incoming') as PaletteItem;
+    expect(matchScore('unassigned', incoming)).not.toBeNull();
+    expect(matchScore('queue', incoming)).not.toBeNull();
+    expect(matchScore('new leads', incoming)).not.toBeNull();
   });
 
   it('refuses to skip letters', () => {

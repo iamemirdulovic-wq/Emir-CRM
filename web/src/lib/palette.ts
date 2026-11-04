@@ -135,8 +135,6 @@ export const STATIC_ITEMS: PaletteItem[] = [
   { id: 'page:pipeline', kind: 'page', label: 'Pipeline', icon: 'kanban', to: '/pipeline', keywords: ['board', 'stages', 'kanban'], shortcut: 'G then P' },
   { id: 'page:inbox', kind: 'page', label: 'Inbox', icon: 'message-circle', to: '/inbox', keywords: ['whatsapp', 'messages', 'chat', 'email'], shortcut: 'G then M' },
   { id: 'page:tasks', kind: 'page', label: 'Tasks', icon: 'check-square', to: '/tasks', keywords: ['to do', 'reminders', 'calendar'], shortcut: 'G then T' },
-  { id: 'page:lists', kind: 'page', label: 'Lists', icon: 'list', to: '/lists', keywords: ['smart list', 'segment'] },
-  { id: 'page:campaigns', kind: 'page', label: 'Call campaigns', icon: 'megaphone', to: '/campaigns', keywords: ['dialler', 'dialer', 'calling', 'power dial'] },
   {
     id: 'page:email-campaigns',
     kind: 'page',
