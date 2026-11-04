@@ -27,6 +27,17 @@ All notable changes to the homes.me CRM, newest first. One entry per build phase
   with red-green colourblindness. Urgent moved from `#C2181B` to `#991B1B`:
   1.36:1 apart in brightness, 8.31:1 on white.
 
+**Dark mode, corrected after Emir looked at it**
+- *"What did you make for the night color? Dark color. It's very bad."* He
+  was right. I had tinted the dark theme's **surfaces** green — the field,
+  the panels, the sidebar and the four big blurred shapes behind everything
+  — so the whole screen read as swamp rather than as a dark CRM. The rule I
+  broke is the plain one: in a dark theme the colour belongs on the accent,
+  never on the furniture. Surfaces are neutral charcoal now and green
+  appears only on the button, the chart line, the gauge and the active row.
+- The muted grey came out at 4.18:1 against the new neutral panels, just
+  under standard; lifted to 5.03:1.
+
 **Deliberately unchanged**
 - **The stage colours.** New is blue, Attempted tan, Engaged cyan,
   Appointment purple, Won deep green, Lost red: six hues so the board can be

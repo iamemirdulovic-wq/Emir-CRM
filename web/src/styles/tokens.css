@@ -35,34 +35,34 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#0C1208; --glass:rgba(28,38,22,.55); --glass-2:rgba(28,38,22,.4); --glass-strong:rgba(32,44,25,.82);
+    --bg:#0E1012; --glass:rgba(28,31,34,.55); --glass-2:rgba(28,31,34,.4); --glass-strong:rgba(33,37,40,.82);
     --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
     --surface-2:rgba(255,255,255,.06);
-    --side-bg:rgba(32,44,25,.82);
-    --ink:#EAF3E0; --ink-2:#A9B5A0; --ink-3:#7E8A75; --side-ink:#A9B5A0;
+    --side-bg:rgba(33,37,40,.86);
+    --ink:#ECEFF1; --ink-2:#AEB4B9; --ink-3:#8D949A; --side-ink:#A9B5A0;
     /* Lime is legible on a near-black field, so the dark theme keeps the
        brand colour itself rather than the deep olive the light one needs. */
     --primary:#A8E63A; --primary-2:#A8E63A; --primary-ink:#11240A;
     --primary-soft:rgba(168,230,58,.16); --wa-soft:rgba(52,179,107,.18);
     --wa:#34B36B; --s-won:#5DBB8F; --hot:#FF6B6B;
     --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
-    --blob1:#20361A; --blob2:#27401C; --blob3:#1B2E16; --blob4:#2A4420;
+    --blob1:#1C2320; --blob2:#20262B; --blob3:#191D20; --blob4:#232A24;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-    --bg:#0C1208; --glass:rgba(28,38,22,.55); --glass-2:rgba(28,38,22,.4); --glass-strong:rgba(32,44,25,.82);
+    --bg:#0E1012; --glass:rgba(28,31,34,.55); --glass-2:rgba(28,31,34,.4); --glass-strong:rgba(33,37,40,.82);
   --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
   --surface-2:rgba(255,255,255,.06);
-  --side-bg:rgba(32,44,25,.82);
-  --ink:#EAF3E0; --ink-2:#A9B5A0; --ink-3:#7E8A75; --side-ink:#A9B5A0;
+  --side-bg:rgba(33,37,40,.86);
+  --ink:#ECEFF1; --ink-2:#AEB4B9; --ink-3:#8D949A; --side-ink:#A9B5A0;
   /* Lime is legible on a near-black field, so the dark theme keeps the
      brand colour itself rather than the deep olive the light one needs. */
   --primary:#A8E63A; --primary-2:#A8E63A; --primary-ink:#11240A;
   --primary-soft:rgba(168,230,58,.16); --wa-soft:rgba(52,179,107,.18);
   --wa:#34B36B; --s-won:#5DBB8F; --hot:#FF6B6B;
   --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
-  --blob1:#20361A; --blob2:#27401C; --blob3:#1B2E16; --blob4:#2A4420;
+  --blob1:#1C2320; --blob2:#20262B; --blob3:#191D20; --blob4:#232A24;
 }
 
 /* ===== v3: calm palette ===== */
@@ -78,8 +78,8 @@
   --blob1:#DCF4AF; --blob2:#EAF8D2; --blob3:#E2EFCE; --blob4:#D3EFBC;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#20361A;--blob2:#27401C;--blob3:#1B2E16;--blob4:#2A4420;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}}
-:root[data-theme="dark"]{--blob1:#20361A;--blob2:#27401C;--blob3:#1B2E16;--blob4:#2A4420;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}}
+:root[data-theme="dark"]{--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}
 
 /* Browsers without backdrop-filter get an opaque panel instead of a see-through one. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
@@ -98,11 +98,11 @@
 }
 @media (prefers-color-scheme:dark){
   :root[data-glass="off"]:not([data-theme="light"]){
-    --glass:rgba(20,28,16,.97); --glass-2:rgba(20,28,16,.94); --glass-strong:rgba(28,38,22,.99);
-    --surface-2:rgba(255,255,255,.07); --side-bg:rgba(28,38,22,.99);
+    --glass:rgba(22,25,27,.97); --glass-2:rgba(22,25,27,.94); --glass-strong:rgba(31,35,38,.99);
+    --surface-2:rgba(255,255,255,.07); --side-bg:rgba(31,35,38,.99);
   }
 }
 :root[data-theme="dark"][data-glass="off"]{
-  --glass:rgba(20,28,16,.97); --glass-2:rgba(20,28,16,.94); --glass-strong:rgba(28,38,22,.99);
-  --surface-2:rgba(255,255,255,.07); --side-bg:rgba(28,38,22,.99);
+  --glass:rgba(22,25,27,.97); --glass-2:rgba(22,25,27,.94); --glass-strong:rgba(31,35,38,.99);
+  --surface-2:rgba(255,255,255,.07); --side-bg:rgba(31,35,38,.99);
 }
