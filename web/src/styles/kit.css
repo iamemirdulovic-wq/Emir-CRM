@@ -183,7 +183,7 @@
 .ring-arc{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
 .ring-time{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 
-.ring.fine .ring-arc{stroke:var(--primary)}
+.ring.fine .ring-arc{stroke:var(--primary-2)}
 .ring.fine .ring-time{color:var(--ink)}
 .ring.soon .ring-arc{stroke:var(--s-att)}
 .ring.soon .ring-time{color:var(--s-att)}
@@ -313,8 +313,8 @@
 .bottom-add{flex:none;background:none;border:0;padding:0 4px;display:grid;place-items:center}
 .bottom-add-dot{display:grid;place-items:center;width:52px;height:52px;border-radius:999px;
   /* It lifts out of the bar, so the thumb finds it without looking. */
-  margin-top:-18px;background:var(--grad);color:#fff;
-  box-shadow:0 8px 20px rgba(0,150,210,.42),inset 0 1px 0 rgba(255,255,255,.35)}
+  margin-top:-18px;background:var(--grad);color:var(--primary-ink);
+  box-shadow:0 8px 20px rgba(118,184,22,.38),inset 0 1px 0 rgba(255,255,255,.35)}
 .bottom-add-dot svg{width:24px;height:24px;stroke-width:2.2}
 .bottom-add:active .bottom-add-dot{transform:scale(.94)}
 @media (prefers-reduced-motion:reduce){.bottom-add:active .bottom-add-dot{transform:none}}
@@ -585,7 +585,7 @@
   background:var(--primary-soft);color:var(--ink-2)}
 .note-tag.t-budget{background:rgba(52,199,89,.14);color:#2f9e4f}
 .note-tag.t-objection{background:rgba(255,149,0,.16);color:#b86b00}
-.note-tag.t-next_step{background:rgba(0,175,200,.14);color:var(--primary)}
+.note-tag.t-next_step{background:rgba(155,224,30,.16);color:var(--primary)}
 
 .note-body{margin:7px 0 0;white-space:pre-wrap;word-break:break-word;line-height:1.5}
 

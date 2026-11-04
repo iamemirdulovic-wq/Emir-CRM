@@ -46,7 +46,11 @@ const SOURCE_LABELS: Record<string, string> = {
  * progressively cooler and greyer, so the chart stays calm however many
  * sources appear.
  */
-const SOURCE_COLOURS = ['#0AA3BA', '#5CC4C9', '#9FB6C8', '#C9D6E0', '#8FB3A8', '#B9C4D6', '#D6DDE4'];
+/* Ordered so neighbouring slices never sit at the same brightness: the
+   weakest adjacent pair is 2.68:1, which is what lets a ring be read
+   rather than guessed. Going light-to-dark looks tidier in a list and
+   puts two near-identical greens side by side on the chart. */
+const SOURCE_COLOURS = ['#9BE01E', '#6E7F62', '#E3EBD6', '#4F7D0F', '#C6CFBC', '#2E5A12', '#76B816'];
 
 export function sourceLabel(source: string): string {
   return SOURCE_LABELS[source] ?? source.replace(/_/g, ' ');

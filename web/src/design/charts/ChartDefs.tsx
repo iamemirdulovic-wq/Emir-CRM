@@ -11,12 +11,12 @@ export function ChartDefs() {
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden focusable={false}>
       <defs>
         <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={{ stopColor: 'var(--primary)' }} stopOpacity=".25" />
-          <stop offset="1" style={{ stopColor: 'var(--primary)' }} stopOpacity="0" />
+          <stop offset="0" style={{ stopColor: 'var(--primary-2)' }} stopOpacity=".25" />
+          <stop offset="1" style={{ stopColor: 'var(--primary-2)' }} stopOpacity="0" />
         </linearGradient>
         <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={{ stopColor: 'var(--primary)' }} stopOpacity=".28" />
-          <stop offset="1" style={{ stopColor: 'var(--primary)' }} stopOpacity="0" />
+          <stop offset="0" style={{ stopColor: 'var(--primary-2)' }} stopOpacity=".28" />
+          <stop offset="1" style={{ stopColor: 'var(--primary-2)' }} stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>

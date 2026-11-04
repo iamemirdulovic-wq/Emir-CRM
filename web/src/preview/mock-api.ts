@@ -2205,8 +2205,8 @@ const ROUTES: Route[] = [
       },
       series,
       sources: [
-        { label: 'Meta forms', value: Math.round(total * 0.53), colour: '#0AA3BA' },
-        { label: 'Click-to-WhatsApp', value: Math.round(total * 0.24), colour: '#5CC4C9' },
+        { label: 'Meta forms', value: Math.round(total * 0.53), colour: '#9BE01E' },
+        { label: 'Click-to-WhatsApp', value: Math.round(total * 0.24), colour: '#6E7F62' },
         { label: 'Google Ads', value: Math.round(total * 0.13), colour: '#9FB6C8' },
         { label: 'Website', value: Math.round(total * 0.10), colour: '#C9D6E0' },
       ],

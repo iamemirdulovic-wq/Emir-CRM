@@ -21,6 +21,10 @@ img{max-width:100%}
 .glass,.side,.top,.panel,.kpi,.col,.inbox,.drawer,.newlead,.login-card,.chip,.bottom-nav{
   background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:1px solid var(--glass-line);box-shadow:var(--shadow)}
+/* The sidebar is the one surface with its own tint. Emir picked a soft mint
+   bar over the dark one, and tinting --glass instead would have taken every
+   panel on every screen with it. */
+.side,.bottom-nav{background:var(--side-bg)}
 
 /* Visually hidden, still read by screen readers. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

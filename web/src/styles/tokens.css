@@ -13,56 +13,73 @@
      gutter in light colours, which is why the scrollbars stayed bright
      white over a dark theme. */
   color-scheme:light;
-  --bg:#EAF3F8;
-  --glass:rgba(255,255,255,.58); --glass-2:rgba(255,255,255,.42); --glass-strong:rgba(255,255,255,.82);
-  --glass-line:rgba(255,255,255,.75); --line:rgba(20,40,70,.10);
-  --surface:var(--glass-strong); --surface-2:rgba(255,255,255,.55);
-  --ink:#0E1B2C; --ink-2:#4A5B70; --ink-3:#7E8DA0;
-  --primary:#00AFC8; --primary-2:#3D7BFF; --primary-soft:rgba(0,175,200,.13); --primary-ink:#FFFFFF;
-  --grad:linear-gradient(135deg,#00C6D8 0%,#2F8CFF 100%);
-  --side-ink:#3E4F66;
-  --s-new:#2F8CFF; --s-att:#FF9F43; --s-eng:#00BFA6; --s-apt:#8B6CFF; --s-deal:#FF5FA2; --s-won:#22C55E; --s-lost:#FF5A5F;
-  --wa:#25C26A; --wa-soft:rgba(37,194,106,.14); --hot:#FF6A3D;
+  --bg:#F2F5EE;
+  --glass:rgba(255,255,255,.66); --glass-2:rgba(255,255,255,.48); --glass-strong:rgba(255,255,255,.88);
+  --glass-line:rgba(255,255,255,.75); --line:rgba(20,30,15,.10);
+  --surface:var(--glass-strong); --surface-2:rgba(255,255,255,.60);
+  /* The sidebar is its own tint: Emir chose a soft mint bar over the black
+     one, and the bar is the only surface that differs from the panels. */
+  --side-bg:#EDF6DF;
+  --ink:#16181B; --ink-2:#4C5157; --ink-3:#5F656D;
+  --primary:#446D0D; --primary-2:#5F9612; --primary-soft:rgba(155,224,30,.20); --primary-ink:#11240A;
+  --grad:linear-gradient(135deg,#C3F53C 0%,#9BE01E 100%);
+  --side-ink:#454E3C;
+  --s-new:#2F8CFF; --s-att:#FF9F43; --s-eng:#00BFA6; --s-apt:#8B6CFF; --s-deal:#FF5FA2; --s-won:#17552F; --s-lost:#FF5A5F;
+  --wa:#15803D; --wa-soft:rgba(21,128,61,.14); --hot:#991B1B;
   --blur:saturate(180%) blur(22px);
-  --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 8px 30px rgba(15,50,90,.08);
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 8px 30px rgba(30,50,15,.08);
   --r-s:10px; --r-m:16px; --r-l:22px;
-  --blob1:#7FE3EE; --blob2:#9DB8FF; --blob3:#C7B6FF; --blob4:#B7F0DE;
+  --blob1:#D8F79A; --blob2:#E9FBC6; --blob3:#DCEFC2; --blob4:#CDEFB0;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Segoe UI","Noto Sans Arabic",Arial,sans-serif;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
+    --bg:#0C1208; --glass:rgba(28,38,22,.55); --glass-2:rgba(28,38,22,.4); --glass-strong:rgba(32,44,25,.82);
     --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
     --surface-2:rgba(255,255,255,.06);
-    --ink:#EAF4FF; --ink-2:#A7B7CC; --ink-3:#71839A; --side-ink:#A7B7CC;
-    --primary-soft:rgba(0,198,216,.16); --wa-soft:rgba(37,194,106,.18);
+    --side-bg:rgba(32,44,25,.82);
+    --ink:#EAF3E0; --ink-2:#A9B5A0; --ink-3:#7E8A75; --side-ink:#A9B5A0;
+    /* Lime is legible on a near-black field, so the dark theme keeps the
+       brand colour itself rather than the deep olive the light one needs. */
+    --primary:#A8E63A; --primary-2:#A8E63A; --primary-ink:#11240A;
+    --primary-soft:rgba(168,230,58,.16); --wa-soft:rgba(52,179,107,.18);
+    --wa:#34B36B; --s-won:#5DBB8F; --hot:#FF6B6B;
     --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
-    --blob1:#005C73; --blob2:#1B3A8C; --blob3:#3B2A7A; --blob4:#00584A;
+    --blob1:#20361A; --blob2:#27401C; --blob3:#1B2E16; --blob4:#2A4420;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#060D1A; --glass:rgba(22,32,52,.55); --glass-2:rgba(22,32,52,.4); --glass-strong:rgba(26,38,60,.82);
+    --bg:#0C1208; --glass:rgba(28,38,22,.55); --glass-2:rgba(28,38,22,.4); --glass-strong:rgba(32,44,25,.82);
   --glass-line:rgba(255,255,255,.10); --line:rgba(255,255,255,.08);
   --surface-2:rgba(255,255,255,.06);
-  --ink:#EAF4FF; --ink-2:#A7B7CC; --ink-3:#71839A; --side-ink:#A7B7CC;
-  --primary-soft:rgba(0,198,216,.16); --wa-soft:rgba(37,194,106,.18);
+  --side-bg:rgba(32,44,25,.82);
+  --ink:#EAF3E0; --ink-2:#A9B5A0; --ink-3:#7E8A75; --side-ink:#A9B5A0;
+  /* Lime is legible on a near-black field, so the dark theme keeps the
+     brand colour itself rather than the deep olive the light one needs. */
+  --primary:#A8E63A; --primary-2:#A8E63A; --primary-ink:#11240A;
+  --primary-soft:rgba(168,230,58,.16); --wa-soft:rgba(52,179,107,.18);
+  --wa:#34B36B; --s-won:#5DBB8F; --hot:#FF6B6B;
   --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 30px rgba(0,0,0,.35);
-  --blob1:#005C73; --blob2:#1B3A8C; --blob3:#3B2A7A; --blob4:#00584A;
+  --blob1:#20361A; --blob2:#27401C; --blob3:#1B2E16; --blob4:#2A4420;
 }
 
 /* ===== v3: calm palette ===== */
 :root{
-  --primary:#0AA3BA; --primary-soft:rgba(10,163,186,.12);
-  --grad:linear-gradient(180deg,#14B3C9,#0A98AF);
-  --s-new:#6FA8E8; --s-att:#C4A172; --s-eng:#4FBFC4; --s-apt:#9A93DB; --s-deal:#CF8FAE; --s-won:#5DBB8F; --s-lost:#D98A8A;
-  --wa:#34B36B; --hot:#E8794F;
-  --blob1:#BFE7EE; --blob2:#D6E0F2; --blob3:#E3E0F1; --blob4:#D9EEE8;
+  --primary:#446D0D; --primary-soft:rgba(155,224,30,.18);
+  --grad:linear-gradient(135deg,#C3F53C 0%,#9BE01E 100%);
+  --s-new:#6FA8E8; --s-att:#C4A172; --s-eng:#4FBFC4; --s-apt:#9A93DB; --s-deal:#CF8FAE; --s-won:#17552F; --s-lost:#D98A8A;
+  /* Urgent is a deep red, not a brighter one: #C2181B sat at exactly the
+     same brightness as the brand green, so to the ~8% of men with
+     red-green colourblindness an alarm and a brand mark looked alike.
+     This one is 1.36:1 apart in brightness and 8.31:1 on white. */
+  --wa:#15803D; --hot:#991B1B;
+  --blob1:#DCF4AF; --blob2:#EAF8D2; --blob3:#E2EFCE; --blob4:#D3EFBC;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#0B3A47;--blob2:#15223F;--blob3:#1E1B38;--blob4:#0C2E2A;--primary:#22C3D6}}
-:root[data-theme="dark"]{--blob1:#0B3A47;--blob2:#15223F;--blob3:#1E1B38;--blob4:#0C2E2A;--primary:#22C3D6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#20361A;--blob2:#27401C;--blob3:#1B2E16;--blob4:#2A4420;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}}
+:root[data-theme="dark"]{--blob1:#20361A;--blob2:#27401C;--blob3:#1B2E16;--blob4:#2A4420;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}
 
 /* Browsers without backdrop-filter get an opaque panel instead of a see-through one. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
@@ -77,15 +94,15 @@
 :root[data-glass="off"]{
   --blur:none;
   --glass:rgba(255,255,255,.94); --glass-2:rgba(255,255,255,.90); --glass-strong:rgba(255,255,255,.98);
-  --surface-2:rgba(240,246,251,.98);
+  --surface-2:rgba(244,249,238,.98); --side-bg:#EDF6DF;
 }
 @media (prefers-color-scheme:dark){
   :root[data-glass="off"]:not([data-theme="light"]){
-    --glass:rgba(17,26,44,.97); --glass-2:rgba(17,26,44,.94); --glass-strong:rgba(24,35,56,.99);
-    --surface-2:rgba(255,255,255,.07);
+    --glass:rgba(20,28,16,.97); --glass-2:rgba(20,28,16,.94); --glass-strong:rgba(28,38,22,.99);
+    --surface-2:rgba(255,255,255,.07); --side-bg:rgba(28,38,22,.99);
   }
 }
 :root[data-theme="dark"][data-glass="off"]{
-  --glass:rgba(17,26,44,.97); --glass-2:rgba(17,26,44,.94); --glass-strong:rgba(24,35,56,.99);
-  --surface-2:rgba(255,255,255,.07);
+  --glass:rgba(20,28,16,.97); --glass-2:rgba(20,28,16,.94); --glass-strong:rgba(28,38,22,.99);
+  --surface-2:rgba(255,255,255,.07); --side-bg:rgba(28,38,22,.99);
 }

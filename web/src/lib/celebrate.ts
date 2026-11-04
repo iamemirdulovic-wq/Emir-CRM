@@ -11,7 +11,7 @@ import { play } from './sound.js';
  * device to stop animating things has asked for this too.
  */
 
-const COLOURS = ['#00AFC8', '#3D7BFF', '#FF9F43', '#22C55E', '#FF5FA2', '#8B6CFF'];
+const COLOURS = ['#9BE01E', '#76B816', '#FF9F43', '#17552F', '#FF5FA2', '#8B6CFF'];
 
 interface Piece {
   x: number; y: number; vx: number; vy: number; rotation: number; spin: number;

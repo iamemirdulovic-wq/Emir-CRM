@@ -11,14 +11,14 @@
 /* LOGIN */
 #login{min-height:100vh;display:grid;place-items:center;padding:24px}
 .login-card{display:grid;grid-template-columns:1fr 1fr;width:min(940px,100%);border-radius:30px;overflow:hidden}
-.login-art{padding:40px;display:flex;flex-direction:column;justify-content:space-between;gap:28px;background:var(--grad);color:#fff;position:relative;overflow:hidden}
+.login-art{padding:40px;display:flex;flex-direction:column;justify-content:space-between;gap:28px;background:var(--grad);color:var(--primary-ink);position:relative;overflow:hidden}
 .login-art::after{content:"";position:absolute;width:320px;height:320px;border-radius:50%;right:-90px;bottom:-110px;background:rgba(255,255,255,.18);filter:blur(2px)}
 .login-art h2{font-size:34px;line-height:1.1;margin:0 0 10px;font-weight:700;letter-spacing:-.03em;max-width:340px}
 .login-art p{margin:0;opacity:.9;max-width:340px}
 .stripes{display:flex;gap:8px;align-items:flex-end;height:120px;position:relative;z-index:1}
 .stripes span{flex:1;border-radius:10px;background:rgba(255,255,255,.35)!important;border:1px solid rgba(255,255,255,.5)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.02em}
-.brand-mark{width:34px;height:34px;border-radius:11px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:16px;box-shadow:0 4px 14px rgba(0,175,200,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.brand-mark{width:34px;height:34px;border-radius:11px;background:var(--grad);display:grid;place-items:center;color:var(--primary-ink);font-size:16px;box-shadow:0 4px 14px rgba(118,184,22,.40),inset 0 1px 0 rgba(255,255,255,.5)}
 .login-art .brand-mark{background:rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
 .login-form{padding:40px;display:flex;align-items:center}
 .login-form form{width:100%}
@@ -35,7 +35,9 @@
 .check input{accent-color:var(--primary)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:10px 16px;font-weight:600;background:var(--surface-2);color:var(--ink);border:1px solid var(--glass-line);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
 .btn:hover{background:var(--glass-strong)}
-.btn-primary{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 6px 18px rgba(0,150,210,.35),inset 0 1px 0 rgba(255,255,255,.35)}
+/* Not #fff: white on the brand lime is 1.28:1 and simply cannot be read.
+   --primary-ink is the dark green that goes on top of --grad. */
+.btn-primary{background:var(--grad);color:var(--primary-ink);font-weight:700;border-color:transparent;box-shadow:0 6px 18px rgba(118,184,22,.32),inset 0 1px 0 rgba(255,255,255,.35)}
 .btn-primary:hover{background:var(--grad);filter:brightness(1.06)}
 .btn-wa{background:var(--wa);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(37,194,106,.3)}
 .btn-wa:hover{background:var(--wa);filter:brightness(1.06)}
@@ -73,7 +75,7 @@
   mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--side-ink);padding:10px 12px;border-radius:12px;font-weight:600;text-align:left;width:100%;transition:background .15s}
 .nav button:hover{background:var(--surface-2);color:var(--ink)}
-.nav button.active{background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(0,150,210,.3)}
+.nav button.active{background:var(--grad);color:var(--primary-ink);font-weight:700;box-shadow:0 6px 16px rgba(118,184,22,.28)}
 .nav .badge{margin-left:auto;background:var(--hot);color:#fff;font-size:11px;padding:1px 7px;border-radius:99px}
 .nav button.active .badge{background:rgba(255,255,255,.3)}
 .avail{display:flex;align-items:center;gap:8px;padding:10px 12px;margin:auto 0 10px;font-size:13px;color:var(--ink-2)}
@@ -183,7 +185,7 @@ tr:last-child td{border-bottom:0}
 /* PIPELINE */
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;font-weight:600;font-size:13px;color:var(--ink-2);box-shadow:none;cursor:pointer}
-.chip.on{background:var(--primary-soft);color:var(--primary);border-color:rgba(0,175,200,.35)}
+.chip.on{background:var(--primary-soft);color:var(--primary);border-color:rgba(118,184,22,.32)}
 .toolbar .right{margin-left:auto;display:flex;gap:8px}
 .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
 .col{flex:0 0 276px;border-radius:var(--r-l);display:flex;flex-direction:column;max-height:calc(100vh - 200px)}
@@ -246,7 +248,7 @@ tr:last-child td{border-bottom:0}
 .day{align-self:center;font-size:12px;color:var(--ink-3);background:var(--surface-2);border:1px solid var(--glass-line);padding:3px 11px;border-radius:99px}
 .bubble{max-width:72%;padding:9px 13px;border-radius:18px 18px 18px 6px;background:var(--glass-strong);border:1px solid var(--glass-line);box-shadow:0 2px 8px rgba(15,50,90,.05)}
 .bubble.out{align-self:flex-end;background:var(--wa);color:#fff;border-color:transparent;border-radius:18px 18px 6px 18px}
-.bubble.bot{align-self:flex-end;background:var(--grad);color:#fff;border-color:transparent;border-radius:18px 18px 6px 18px}
+.bubble.bot{align-self:flex-end;background:var(--grad);color:var(--primary-ink);border-color:transparent;border-radius:18px 18px 6px 18px}
 .bubble.email{align-self:flex-end;background:rgba(47,140,255,.14);color:var(--ink);border-radius:18px 18px 6px 18px}
 .bubble.note{align-self:center;background:rgba(255,200,40,.16);color:var(--ink);max-width:90%;box-shadow:none;border:1px dashed rgba(217,164,0,.5);border-radius:12px}
 .bubble .by{font-size:11px;font-weight:600;margin-bottom:3px;opacity:.8}
@@ -261,7 +263,7 @@ tr:last-child td{border-bottom:0}
 .composer textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:44px;max-height:120px;outline:none;background:var(--surface-2)}
 .composer textarea:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
 .composer textarea:disabled{opacity:.6}
-.tpl-picker{display:none;border:1px solid rgba(0,175,200,.35);border-radius:16px;padding:10px;margin-bottom:8px;background:var(--primary-soft)}
+.tpl-picker{display:none;border:1px solid rgba(118,184,22,.32);border-radius:16px;padding:10px;margin-bottom:8px;background:var(--primary-soft)}
 .tpl-picker.show{display:block}
 .tpl{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px;border-radius:12px;background:var(--glass-strong);margin-top:6px}
 .tpl small{display:block;color:var(--ink-3)}
@@ -275,7 +277,7 @@ tr:last-child td{border-bottom:0}
 .quick{display:flex;justify-content:center;gap:8px}
 .quick .icon-btn{width:36px;height:36px;border-radius:50%}
 .stage-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;font-weight:600;font-size:12px;color:#fff;background:var(--c);box-shadow:0 3px 10px color-mix(in srgb,var(--c) 40%,transparent)}
-.ai{margin:14px 0;padding:12px;border-radius:14px;background:linear-gradient(135deg,rgba(0,198,216,.14),rgba(61,123,255,.10));border:1px solid rgba(0,175,200,.25)}
+.ai{margin:14px 0;padding:12px;border-radius:14px;background:linear-gradient(135deg,rgba(155,224,30,.16),rgba(61,123,255,.10));border:1px solid rgba(118,184,22,.24)}
 .ai b{display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:4px;color:var(--primary)}
 .ai b svg{width:15px;height:15px}
 .ai p{margin:0;font-size:13px;color:var(--ink-2)}
@@ -364,12 +366,18 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 }
 
 /* ===== v3 component overrides ===== */
-.btn-primary,.nav button.active{background:var(--primary);box-shadow:0 4px 14px rgba(10,163,186,.28),inset 0 1px 0 rgba(255,255,255,.25)}
-.btn-primary:hover{background:var(--primary)}
+/* The brand fill is the lime gradient, not --primary. --primary is the green
+   that has to stay readable as text on a light panel (92 rules use it that
+   way), so it is a deep olive; using it as a button fill under --primary-ink
+   put dark text on a dark button at 1.67:1. The fill and the text colour are
+   two different jobs and now two different tokens. */
+.btn-primary,.nav button.active{background:var(--grad);box-shadow:0 4px 14px rgba(118,184,22,.30),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn-primary{color:var(--primary-ink)}
+.btn-primary:hover{background:var(--grad);filter:brightness(1.05)}
 .nav button.active{background:var(--glass-strong);color:var(--primary);box-shadow:0 2px 10px rgba(15,50,90,.08)}
 .nav button.active .badge{background:var(--hot)}
 .bubble.bot{background:var(--primary)}
-.login-art{background:linear-gradient(160deg,#0E2233,#0A5160 60%,#0AA3BA)}
+.login-art{background:linear-gradient(160deg,#0E2233,#0A5160 60%,var(--primary))}
 .brand-mark{background:var(--primary);box-shadow:0 4px 14px rgba(10,163,186,.35),inset 0 1px 0 rgba(255,255,255,.4)}
 /* The mark is now the homes.me icon, which brings its own square and its own
    colour. The tile behind it would show as a teal halo at the corners, and its
@@ -394,7 +402,7 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .kpi .val{font-variant-numeric:tabular-nums;font-size:32px;margin:8px 0 0}
 .kpi .foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
 .spark{width:96px;height:36px;overflow:visible}
-.spark path.l{fill:none;stroke:var(--primary);stroke-width:2;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s var(--ease) .3s forwards}
+.spark path.l{fill:none;stroke:var(--primary-2);stroke-width:2;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s var(--ease) .3s forwards}
 .spark path.a{fill:url(#sparkFill);opacity:0;animation:fade .8s ease 1s forwards}
 .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--glass-line);border-radius:10px;padding:2px;margin-left:auto}
 .seg button{border:0;background:none;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--ink-3)}
@@ -403,12 +411,12 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .chart-wrap svg{width:100%;height:100%;overflow:visible}
 .grid-l{stroke:var(--line);stroke-dasharray:3 5}
 .axis{fill:var(--ink-3);font-size:11px}
-.area-line{fill:none;stroke:var(--primary);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.area-line{fill:none;stroke:var(--primary-2);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .area-line.b{stroke:var(--ink-3);stroke-width:1.6;stroke-dasharray:4 5;opacity:.7}
 .drawn{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.6s var(--ease) forwards}
 .area-fill{opacity:0;animation:fade 1s ease .6s forwards}
 .cross{stroke:var(--ink-3);stroke-width:1;opacity:0;transition:opacity .15s}
-.dotc{fill:var(--glass-strong);stroke:var(--primary);stroke-width:2.5;opacity:0;transition:opacity .15s}
+.dotc{fill:var(--glass-strong);stroke:var(--primary-2);stroke-width:2.5;opacity:0;transition:opacity .15s}
 .tip{position:absolute;pointer-events:none;background:rgba(14,27,44,.86);color:#fff;padding:8px 10px;border-radius:10px;font-size:12px;white-space:nowrap;opacity:0;transform:translate(-50%,-115%);transition:opacity .15s;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .tip b{display:block;font-size:14px}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-3);margin-top:6px}
@@ -428,12 +436,12 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .src-list b{margin-left:auto;font-variant-numeric:tabular-nums}
 .gauge{width:100%;max-width:240px;display:block;margin:0 auto}
 .gauge .trk{fill:none;stroke:var(--line);stroke-width:14;stroke-linecap:round}
-.gauge .val{fill:none;stroke:var(--primary);stroke-width:14;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 1.6s var(--ease)}
+.gauge .val{fill:none;stroke:var(--primary-2);stroke-width:14;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 1.6s var(--ease)}
 .gauge-num{text-align:center;margin-top:-58px}
 .gauge-num b{font-size:34px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .gauge-num small{display:block;color:var(--ink-3);font-size:12px}
 .gauge-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-top:18px}
-.funnel-bar i{background:var(--primary)!important;width:0!important;transition:width 1.2s var(--ease)}
+.funnel-bar i{background:var(--primary-2)!important;width:0!important;transition:width 1.2s var(--ease)}
 .funnel-bar i.go{width:var(--w)!important}
 .funnel-row:nth-child(n) .funnel-bar i{opacity:calc(1 - var(--k) * .12)}
 .heat{display:grid;grid-template-columns:34px repeat(12,1fr);gap:4px;font-size:10.5px;color:var(--ink-3);align-items:center}
@@ -630,7 +638,7 @@ td.clip{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 /* ─────────────────────────────────────────────────────────────────────────
    BULK SELECTION
    ───────────────────────────────────────────────────────────────────────── */
-.bulkbar{display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;border-radius:16px;background:var(--primary-soft);border:1px solid rgba(0,175,200,.28)}
+.bulkbar{display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;border-radius:16px;background:var(--primary-soft);border:1px solid rgba(118,184,22,.26)}
 .bulkbar b{color:var(--primary);font-size:13.5px;margin-inline-end:auto}
 .bulkbar .btn{padding:7px 13px;font-size:13px}
 /* Destructive, so it reads as destructive rather than as another grey button. */
@@ -826,7 +834,7 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke-width:8;stroke-linecap:round}
 .ring .bg{stroke:var(--line)}
-.ring .fg{stroke:var(--primary);transition:stroke-dasharray .5s var(--ease)}
+.ring .fg{stroke:var(--primary-2);transition:stroke-dasharray .5s var(--ease)}
 .ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:17px}
 /* A field Emir AI filled, so the eye goes to what needs checking. */
 .input.filled{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,transparent),transparent),var(--surface-2);

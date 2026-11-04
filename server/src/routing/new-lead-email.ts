@@ -219,10 +219,13 @@ export async function emailAgentAboutLead(input: {
    Every gradient sits on top of a bgcolor, because Outlook's Word engine
    ignores gradients and would otherwise paint the text on nothing. */
 const C = {
-  deep: '#0B2233', mid: '#0C4A5C', end: '#0E8099', teal: '#00AFC8',
-  card: '#FFFFFF', line: '#E3EBF2', rule: '#F0F5F9',
-  ink: '#0E1B2C', ink2: '#4A5B70', ink3: '#7E8DA0',
-  onDeep: '#FFFFFF', onDeepSoft: '#A8C6D6',
+  deep: '#0B1407', mid: '#22310F', end: '#4F7D0F', teal: '#9BE01E',
+  card: '#FFFFFF', line: '#E4EBDC', rule: '#F2F6EC',
+  ink: '#16181B', ink2: '#4C5157', ink3: '#5F656D',
+  onDeep: '#FFFFFF', onDeepSoft: '#C2D4A6',
+  /* Text that sits ON the lime button. White on it is 1.61:1 and simply
+     cannot be read; this dark green is 10.2:1. */
+  onLime: '#11240A',
 };
 /* Single quotes around Segoe UI, not double. This string lands inside
    style="..." attributes, so a double quote closes the attribute early and the
@@ -348,7 +351,7 @@ export function leadCardHtml(input: {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr><td align="center" bgcolor="${C.teal}" style="border-radius:13px">
                 <a href="${esc(input.link)}"
-                   style="display:block;padding:15px 22px;border-radius:13px;color:#ffffff;
+                   style="display:block;padding:15px 22px;border-radius:13px;color:${C.onLime};
                           text-decoration:none;font:700 16px/1 ${FONT}">${esc(input.action)}</a>
               </td></tr>
             </table>

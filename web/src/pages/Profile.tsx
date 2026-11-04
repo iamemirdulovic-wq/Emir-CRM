@@ -200,7 +200,7 @@ export function Profile() {
                 /* Two layers: the cover on top, the gradient under it. An inline
                    backgroundImage replaces the stylesheet's, so the fallback has to
                    travel with it or a failed image leaves a blank band. */
-                backgroundImage: `url(/api/profiles/covers/${profile.cover_key}.svg), linear-gradient(135deg,#0B2233,#0C4A5C 55%,#00AFC8)`,
+                backgroundImage: `url(/api/profiles/covers/${profile.cover_key}.svg), linear-gradient(135deg,#0B1407,#3B5E0B 55%,#9BE01E)`,
               }}
               aria-hidden="true"
             />

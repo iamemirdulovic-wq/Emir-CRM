@@ -44,8 +44,8 @@ const AREA: AreaPoint[] = [
 }));
 
 const SOURCES = [
-  { label: 'Meta forms', value: 412, colour: '#0AA3BA' },
-  { label: 'Click-to-WhatsApp', value: 188, colour: '#5CC4C9' },
+  { label: 'Meta forms', value: 412, colour: '#9BE01E' },
+  { label: 'Click-to-WhatsApp', value: 188, colour: '#6E7F62' },
   { label: 'Google Ads', value: 96, colour: '#9FB6C8' },
   { label: 'Website', value: 74, colour: '#C9D6E0' },
 ];

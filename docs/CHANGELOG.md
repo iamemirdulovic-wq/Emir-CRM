@@ -2,6 +2,53 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The CRM goes green
+
+**Changed**
+- Emir did not like the teal, looked at three palettes on his own Dashboard
+  and chose the green with a **soft mint sidebar**. The whole CRM follows:
+  background, bar, buttons, charts, gauges, funnel bars, the welcome flow,
+  the confetti and the agent's new-lead email, in light and dark.
+
+**Three faults the contrast numbers caught, that looking would not have**
+- **The primary button came out dark-on-dark, at 1.67:1.** A later rule
+  replaced the lime gradient with flat `--primary`, and `--primary-ink` is
+  dark. The cause underneath: one token doing two jobs. `--primary` is used
+  as *text* in 92 rules and as a *fill* in 36, and no single green does
+  both — lime is unreadable as text, olive is lifeless as a fill. Fills now
+  take `--grad` (lime) with dark text; `--primary` stays the deep olive that
+  reads on a panel; `--primary-2` is the brighter green for drawn things,
+  chart lines, arcs and sparkline dots.
+- **White on lime is 1.28:1.** Every lime surface now carries
+  `--primary-ink`: the button, the active nav row, the login art, the AI
+  bubble, the phone's add button and the email's call to action.
+- **Urgent red and the brand green sat at exactly the same brightness.**
+  Different hues, so fine for most people and identical for the ~8% of men
+  with red-green colourblindness. Urgent moved from `#C2181B` to `#991B1B`:
+  1.36:1 apart in brightness, 8.31:1 on white.
+
+**Deliberately unchanged**
+- **The stage colours.** New is blue, Attempted tan, Engaged cyan,
+  Appointment purple, Won deep green, Lost red: six hues so the board can be
+  read at a glance. Painting them green would have broken what the board is
+  for.
+- **Won and WhatsApp** moved to deeper greens so they stay apart from the
+  brand lime (5.50:1 and 3.12:1) rather than merging into it.
+- **The donut's slices** were reordered to alternate light and dark; the
+  weakest neighbouring pair is now 2.68:1. Light-to-dark reads tidily in a
+  list and puts two near-identical greens side by side on a ring.
+
+**Still teal, awaiting Emir's decision**
+- The public business card, the client offer pages, the website lead form
+  and the client email layout. Those are what a buyer sees, and the choice
+  is green (match the CRM) or orange (match homes.me). My recommendation is
+  orange: a client's reference point is the website, not the CRM.
+
+**Checked**
+- Every text colour in the new palette at 4.5:1 or better, both themes.
+- 108 screens through the layout pass, nothing overflowing or clipped.
+- A browser sweep of five screens in both themes for leftover teal.
+
 ## The welcome, rebuilt around Emir's ten pictures
 
 **Changed**

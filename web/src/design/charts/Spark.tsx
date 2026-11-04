@@ -48,7 +48,7 @@ export function Spark({ values, label }: SparkProps) {
     >
       <path className="a" d={`${d} L${W} ${H} L0 ${H} Z`} />
       <path className="l" ref={lineRef} d={d} />
-      <circle cx={lastX} cy={lastY} r="3" fill="var(--primary)" />
+      <circle cx={lastX} cy={lastY} r="3" fill="var(--primary-2)" />
     </svg>
   );
 }
