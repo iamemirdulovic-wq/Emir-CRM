@@ -506,13 +506,20 @@ const PREFS_KEY = 'homes.preview.prefs';
 /* The server's onboarding questions, copied so the preview can show the flow
    with no server. If the real list changes, change this one too. */
 const PREVIEW_WELCOME_QUESTIONS = [
-  { id: 'goal_this_year', emoji: '\u{1F3AF}', prompt: 'What are you going after this year?', hint: 'One thing. The one that would make the year a good one.', kind: 'text', placeholder: 'My first AED 10M deal', maxLength: 280 },
-  { id: 'deals_per_month', emoji: '\u{1F91D}', prompt: 'Deals a month. What is your number?', hint: 'Not a promise. What you think you can do.', kind: 'number', min: 0, max: 100 },
-  { id: 'growth_view', emoji: '\u{1F4C8}', prompt: 'How big do you think homes.me can get?', hint: 'Say it however you like. Deals, people, a feeling.', kind: 'text', placeholder: 'Top three in Dubai off-plan within two years', maxLength: 280 },
-  { id: 'the_dream', emoji: '\u2728', prompt: 'What is the dream?', hint: 'Yours, not the company\u2019s.', kind: 'text', placeholder: 'A house for my mother, and a team of my own', maxLength: 280 },
-  { id: 'five_years', emoji: '\u{1F5FA}\uFE0F', prompt: 'Where are you in five years?', kind: 'text', placeholder: 'Running the Abu Dhabi desk', maxLength: 280 },
+  { id: 'goal_this_year', image: 'working', emoji: '\u{1F3AF}', prompt: 'What are you going after this year?', hint: 'One thing. The one that would make the year a good one.', kind: 'text', placeholder: 'My first AED 10M deal', maxLength: 280 },
+  { id: 'deals_per_month', image: 'keys', emoji: '\u{1F91D}', prompt: 'Deals a month. What is your number?', hint: 'Not a promise. What you think you can do.', kind: 'number', min: 0, max: 100 },
+  { id: 'growth_view', image: 'ideas', emoji: '\u{1F4C8}', prompt: 'How big do you think homes.me can get?', hint: 'Say it however you like. Deals, people, a feeling.', kind: 'text', placeholder: 'Top three in Dubai off-plan within two years', maxLength: 280 },
+  { id: 'the_dream', image: 'dream', emoji: '\u2728', prompt: 'What is the dream?', hint: 'Yours, not the company\u2019s.', kind: 'text', placeholder: 'A house for my mother, and a team of my own', maxLength: 280 },
+  { id: 'five_years', image: 'celebrate', emoji: '\u{1F5FA}\uFE0F', prompt: 'Where are you in five years?', kind: 'text', placeholder: 'Running the Abu Dhabi desk', maxLength: 280 },
 ];
 
+
+/* What the welcome has been told so far, for the length of a preview visit. */
+const previewWelcome: {
+  preferredName: string | null;
+  avatarSet: 'man' | 'woman' | null;
+  answers: Record<string, string>;
+} = { preferredName: null, avatarSet: null, answers: {} };
 
 const PREVIEW_PREFS: Record<string, string | null> = readPreviewPrefs();
 
@@ -1494,7 +1501,8 @@ const ROUTES: Route[] = [
    */
   { method: 'GET', pattern: /^\/api\/onboarding$/, handler: () => ({
     questions: PREVIEW_WELCOME_QUESTIONS,
-    preferredName: null,
+    preferredName: previewWelcome.preferredName,
+    avatarSet: previewWelcome.avatarSet,
     answers: {},
     completed: false,
     skipped: false,
@@ -1527,12 +1535,26 @@ const ROUTES: Route[] = [
       };
     }),
   }) },
-  { method: 'PUT', pattern: /^\/api\/onboarding$/, handler: ({ body }) => ({
-    preferredName: (body.preferredName as string) ?? null,
-    answers: (body.answers as Record<string, string>) ?? {},
-    completed: false,
-    skipped: Boolean(body.skip),
-  }) },
+  /* Held in memory so the whole flow can be walked: the name chosen on
+     step one and the character chosen on step two have to survive into the
+     questions, or every picture after it is the default one. */
+  { method: 'PUT', pattern: /^\/api\/onboarding$/, handler: ({ body }) => {
+    if (body.preferredName !== undefined) {
+      previewWelcome.preferredName = (body.preferredName as string) ?? null;
+    }
+    if (body.avatarSet !== undefined) {
+      const set = body.avatarSet === 'woman' ? 'woman' : body.avatarSet === 'man' ? 'man' : null;
+      previewWelcome.avatarSet = set;
+    }
+    Object.assign(previewWelcome.answers, (body.answers as Record<string, string>) ?? {});
+    return {
+      preferredName: previewWelcome.preferredName,
+      avatarSet: previewWelcome.avatarSet,
+      answers: previewWelcome.answers,
+      completed: false,
+      skipped: Boolean(body.skip),
+    };
+  } },
 
   /* The tour starts unseen in the preview, so it can be demonstrated. */
   { method: 'GET', pattern: /^\/api\/prefs$/, handler: () => ({ prefs: PREVIEW_PREFS }) },

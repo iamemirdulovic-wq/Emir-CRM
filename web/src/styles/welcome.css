@@ -6,6 +6,12 @@
  * the same reason the rest of this project prefixes: two stylesheets quietly
  * sharing a bare class name is what broke the pipeline board once.
  *
+ * The shape, from Emir's reference: a rounded card floating on a tinted
+ * field, split into a column of words on the left and a tall picture on the
+ * right. The picture is the point — he had ten of them drawn — so it gets
+ * real estate rather than a thumbnail, and on a phone it sits above the
+ * question instead of beside it.
+ *
  * All of the motion is decoration. Under prefers-reduced-motion everything
  * below settles into its finished position at once and nothing moves, which
  * is the rule for the whole CRM and matters more here than anywhere, because
@@ -17,7 +23,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: max(20px, env(safe-area-inset-left, 0px)) 20px;
+  padding: max(16px, env(safe-area-inset-left, 0px)) 16px;
   overflow: hidden auto;
   background:
     radial-gradient(90rem 50rem at 50% 120%, rgba(0, 175, 200, .30), transparent 62%),
@@ -26,7 +32,7 @@
   z-index: 50;
 }
 
-/* ---- The skyline and the money behind the card ---- */
+/* ---- The skyline and the money, behind the opening card only ---- */
 .wc-bg {
   position: absolute;
   inset: auto 0 0;
@@ -83,7 +89,7 @@
   100% { transform: translateY(-46vh) rotate(260deg); opacity: 0; }
 }
 
-/* ---- The card ---- */
+/* ---- The opening card ---- */
 .wc-stage { position: relative; width: 100%; max-width: 560px; }
 .wc-card {
   display: grid;
@@ -103,25 +109,113 @@
   to { opacity: 1; transform: none; }
 }
 
+/* ---- The two-column page ---- */
+.wc-page {
+  position: relative;
+  width: 100%;
+  max-width: 1120px;
+  max-height: calc(100dvh - 32px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 36%, 420px);
+  gap: clamp(20px, 3vw, 36px);
+  padding: clamp(20px, 3vw, 34px);
+  border-radius: 28px;
+  /* Tall enough that the picture is a picture. Capped against the viewport
+     above so a laptop in landscape never has to scroll the card itself. */
+  min-height: min(600px, calc(100dvh - 64px));
+  background: #fff;
+  color: #0E1B2C;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, .4);
+  overflow: hidden;
+}
+
+/* The name and character steps have no side picture, so the card narrows
+   instead of showing half of itself empty. */
+.wc-solo {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 780px;
+  min-height: min(540px, calc(100dvh - 64px));
+}
+
+.wc-left {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  overflow: auto;
+}
+/* The question sits in the middle of the column rather than sinking to the
+   top with the buttons stranded above a field of white. Auto margins rather
+   than `justify-content`, so an overflowing step still scrolls from its top. */
+.wc-left .wc-body { margin-block: auto; }
+
+.wc-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 700 19px/1 var(--sans, system-ui);
+  letter-spacing: -.02em;
+  color: #0E1B2C;
+}
+.wc-logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(140deg, #00AFC8, #0C4A5C);
+}
+.wc-logo svg { width: 17px; height: 17px; }
+
+/* The bar Emir asked for: one segment a step, filled behind you. */
+.wc-steps { display: grid; gap: 7px; }
+.wc-bars { display: flex; gap: 6px; }
+.wc-bars span {
+  height: 6px;
+  flex: 1;
+  border-radius: 999px;
+  background: #E2EBF0;
+  transition: background .35s ease;
+}
+.wc-bars span.done { background: #0C4A5C; }
+.wc-bars span.on { background: #00AFC8; }
+.wc-steps small { font-size: 12.5px; color: #7E8DA0; font-variant-numeric: tabular-nums; }
+
+.wc-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 6px;
+  animation: wc-enter .4s cubic-bezier(.2, .7, .3, 1) both;
+}
+
 .wc-mark { font: 700 30px/1 var(--sans, system-ui); letter-spacing: -.02em; }
 .wc-kicker {
   font: 700 11px/1 var(--sans, system-ui);
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, .72);
+  color: #0C4A5C;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .12);
+  background: #E6F6F9;
 }
 .wc-h1 {
   margin: 0;
-  font: 700 clamp(24px, 4.6vw, 34px)/1.2 var(--sans, system-ui);
-  letter-spacing: -.02em;
+  font: 700 clamp(24px, 3.4vw, 38px)/1.15 var(--sans, system-ui);
+  letter-spacing: -.025em;
   text-wrap: balance;
 }
-.wc-h1 span { color: #5BE2F5; }
-.wc-lede { margin: 0; font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, .82); }
-.wc-lede strong { color: #fff; }
+.wc-h1 span { color: #00AFC8; }
+.wc-lede { margin: 0; font-size: 15.5px; line-height: 1.6; color: #4A5B70; max-width: 46ch; }
+.wc-lede strong { color: #0E1B2C; }
+
+/* The opening card is on the dark field, so its words stay light. */
+.wc-card .wc-lede { color: rgba(255, 255, 255, .82); }
+.wc-card .wc-lede strong { color: #fff; }
+.wc-card .wc-skipline { color: rgba(255, 255, 255, .66); }
+.wc-card .wc-skipline:hover { color: #fff; }
 
 .wc-note {
   display: flex;
@@ -129,14 +223,14 @@
   gap: 8px;
   margin: 0;
   font-size: 13.5px;
-  color: rgba(255, 255, 255, .72);
+  color: #4A5B70;
   padding: 10px 13px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, .08);
+  background: #F2F7F9;
 }
-.wc-note svg { width: 16px; height: 16px; flex: none; }
+.wc-note svg { width: 16px; height: 16px; flex: none; color: #0C4A5C; }
 
-.wc-emoji { font-size: 42px; line-height: 1; }
+.wc-emoji { font-size: 38px; line-height: 1; }
 .wc-pop { animation: wc-pop .6s cubic-bezier(.2, 1.5, .4, 1) both; }
 @keyframes wc-pop {
   from { transform: scale(.3) rotate(-18deg); opacity: 0; }
@@ -145,47 +239,138 @@
 
 .wc-input {
   width: 100%;
+  max-width: 520px;
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, .22);
-  background: rgba(255, 255, 255, .1);
-  color: #fff;
+  border: 1px solid #D4E0E7;
+  background: #F7FAFB;
+  color: #0E1B2C;
   font: 400 16px/1.5 var(--sans, system-ui);
   outline: 0;
 }
-.wc-input::placeholder { color: rgba(255, 255, 255, .45); }
-.wc-input:focus { border-color: #5BE2F5; box-shadow: 0 0 0 4px rgba(91, 226, 245, .18); }
-.wc-area { resize: vertical; min-height: 92px; }
-.wc-input-n { max-width: 160px; font-size: 22px; font-weight: 700; }
+.wc-input::placeholder { color: #9FB0BE; }
+.wc-input:focus {
+  border-color: #00AFC8;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(0, 175, 200, .16);
+}
+.wc-area { resize: vertical; min-height: 96px; }
+.wc-input-n { max-width: 170px; font-size: 24px; font-weight: 700; }
 
-.wc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+/* Keep the opening card's one input readable on the dark field. */
+.wc-card .wc-input {
+  border-color: rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+}
+.wc-card .wc-input::placeholder { color: rgba(255, 255, 255, .45); }
+
+.wc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 2px; }
 .wc-skipline {
   border: 0;
   background: none;
   padding: 8px 2px;
-  color: rgba(255, 255, 255, .66);
+  color: #7E8DA0;
   font: 600 14px/1 var(--sans, system-ui);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.wc-skipline:hover { color: #fff; }
+.wc-skipline:hover { color: #0E1B2C; }
 
-.wc-dots { display: flex; gap: 7px; }
-.wc-dots span {
-  width: 26px;
-  height: 4px;
+/* Back is a real button here, the way the reference has it. */
+.wc-back {
+  padding: 11px 22px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .22);
-  transition: background .3s;
+  border: 1px solid #D4E0E7;
+  background: #fff;
+  color: #0E1B2C;
+  font: 600 14px/1 var(--sans, system-ui);
+  cursor: pointer;
 }
-.wc-dots span.on { background: #5BE2F5; }
+.wc-back:hover { border-color: #0E1B2C; }
 
-.wc-err { margin: 0; font-size: 13.5px; color: #FFC2AE; }
+.wc-err { margin: 0; font-size: 13.5px; color: #C2410C; }
 
-@media (max-width: 520px) {
-  .wc-card { gap: 14px; }
+/* ---- Choosing a character ---- */
+.wc-picks { display: flex; gap: 14px; flex-wrap: wrap; }
+.wc-pick {
+  position: relative;
+  width: clamp(130px, 20vw, 168px);
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  border-radius: 20px;
+  border: 2px solid #E2EBF0;
+  background: #F7FAFB;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.wc-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wc-pick:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(14, 27, 44, .16); }
+.wc-pick:hover, .wc-pick:focus-visible { border-color: #00AFC8; }
+.wc-pick.on { border-color: #00AFC8; }
+.wc-tick {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #00AFC8;
+  opacity: 0;
+  transform: scale(.6);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.wc-tick svg { width: 15px; height: 15px; }
+.wc-pick.on .wc-tick { opacity: 1; transform: none; }
+
+/* ---- The picture panel ---- */
+.wc-right {
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #FDF0DC, #F7D9B4);
+  min-height: 300px;
+}
+.wc-shot {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  display: block;
+  animation: wc-shot-in .45s cubic-bezier(.2, .7, .3, 1) both;
+}
+@keyframes wc-shot-in {
+  from { opacity: 0; transform: scale(1.03); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- Phone ---- */
+@media (max-width: 860px) {
+  .wc { padding: 10px; place-items: start center; }
+  .wc-page, .wc-solo {
+    grid-template-columns: 1fr;
+    max-height: none;
+    min-height: 0;
+    border-radius: 22px;
+    gap: 16px;
+  }
+  /* On a phone the column is the whole card, so centring it just pushes the
+     question under the fold. */
+  .wc-left .wc-body { margin-block: 0; }
+  /* Picture first: it is the thing that makes this feel like an arrival. */
+  .wc-right { order: -1; min-height: 0; height: clamp(180px, 30vh, 260px); }
+  .wc-shot { object-position: 50% 10%; }
+  .wc-left { overflow: visible; }
+  .wc-h1 { font-size: clamp(22px, 6vw, 28px); }
   .wc-coin { width: 26px; height: 26px; font-size: 7px; }
+}
+
+@media (max-width: 400px) {
+  .wc-pick { width: calc(50% - 7px); }
 }
 
 /*
@@ -196,5 +381,7 @@
 @media (prefers-reduced-motion: reduce) {
   .wc-sky-line path { stroke-dashoffset: 0; animation: none; }
   .wc-coin { animation: none; opacity: .9; bottom: 12%; }
-  .wc-in, .wc-pop { animation: none; }
+  .wc-in, .wc-pop, .wc-body, .wc-shot { animation: none; }
+  .wc-pick, .wc-tick { transition: none; }
+  .wc-pick:hover { transform: none; }
 }

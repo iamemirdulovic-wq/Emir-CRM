@@ -30,7 +30,7 @@ describeWithDb('a new agent’s welcome', () => {
   it('starts with nothing, and says so without a row', async () => {
     const agent = await createTestUser({ role: 'agent' });
     expect(await getOnboarding(agent.id)).toEqual({
-      preferredName: null, answers: {}, completed: false, skipped: false,
+      preferredName: null, avatarSet: null, answers: {}, completed: false, skipped: false,
     });
   });
 
@@ -112,6 +112,40 @@ describeWithDb('what the owner sees', () => {
     expect(mine?.preferredName).toBe('Mahi');
     expect(mine?.answers.deals_per_month).toBe('6');
     expect(mine?.completedAt).not.toBeNull();
+  });
+
+  /*
+   * Which set of illustrations the welcome shows. Stored as a choice of
+   * picture, not as a fact about the person: it decides which of two folders
+   * a JPEG is read from and nothing else in the CRM reads it.
+   */
+  it('remembers which character they picked', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await saveOnboarding(agent.id, { avatarSet: 'woman' });
+    expect((await getOnboarding(agent.id)).avatarSet).toBe('woman');
+  });
+
+  it('refuses anything that is not one of the two sets', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await saveOnboarding(agent.id, { avatarSet: 'robot' });
+    expect((await getOnboarding(agent.id)).avatarSet).toBeNull();
+  });
+
+  /* A later step must not wipe the picture chosen on an earlier one. */
+  it('leaves the character alone when a question is answered', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await saveOnboarding(agent.id, { avatarSet: 'man' });
+    await saveOnboarding(agent.id, { answers: { the_dream: 'A house for my mother' } });
+    const state = await getOnboarding(agent.id);
+    expect(state.avatarSet).toBe('man');
+    expect(state.answers.the_dream).toBe('A house for my mother');
+  });
+
+  it('lets somebody change their mind', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await saveOnboarding(agent.id, { avatarSet: 'man' });
+    await saveOnboarding(agent.id, { avatarSet: 'woman' });
+    expect((await getOnboarding(agent.id)).avatarSet).toBe('woman');
   });
 
   /* The service account is not a person and has nothing to say. */

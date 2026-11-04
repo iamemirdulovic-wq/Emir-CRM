@@ -26,11 +26,29 @@ export interface OnboardingQuestion {
   min?: number;
   max?: number;
   maxLength?: number;
+  /**
+   * Which of the five poses stands beside this question. The file is
+   * `/onboarding/{set}-{image}.webp`, where the set is the character the
+   * agent picked, so the mapping lives next to the wording it illustrates
+   * rather than in a second list in the web app that drifts from it.
+   */
+  image: OnboardingImage;
+}
+
+export type OnboardingImage = 'working' | 'ideas' | 'keys' | 'dream' | 'celebrate';
+
+/** The two sets of pictures. A choice of character, not a field about a person. */
+export const AVATAR_SETS = ['man', 'woman'] as const;
+export type AvatarSet = (typeof AVATAR_SETS)[number];
+
+export function cleanAvatarSet(value: unknown): AvatarSet | null {
+  return AVATAR_SETS.includes(value as AvatarSet) ? (value as AvatarSet) : null;
 }
 
 export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
   {
     id: 'goal_this_year',
+    image: 'working',
     emoji: '🎯',
     prompt: 'What are you going after this year?',
     hint: 'One thing. The one that would make the year a good one.',
@@ -40,6 +58,7 @@ export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'deals_per_month',
+    image: 'keys',
     emoji: '🤝',
     prompt: 'Deals a month. What is your number?',
     hint: 'Not a promise. What you think you can do.',
@@ -49,6 +68,7 @@ export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'growth_view',
+    image: 'ideas',
     emoji: '📈',
     prompt: 'How big do you think homes.me can get?',
     hint: 'Say it however you like. Deals, people, a feeling.',
@@ -58,6 +78,7 @@ export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'the_dream',
+    image: 'dream',
     emoji: '✨',
     prompt: 'What is the dream?',
     hint: 'Yours, not the company’s.',
@@ -67,6 +88,7 @@ export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'five_years',
+    image: 'celebrate',
     emoji: '🗺️',
     prompt: 'Where are you in five years?',
     kind: 'text',

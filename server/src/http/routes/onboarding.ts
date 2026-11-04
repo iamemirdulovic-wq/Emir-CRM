@@ -31,6 +31,9 @@ onboardingRouter.get(
 
 const saveSchema = z.object({
   preferredName: z.string().max(80).nullable().optional(),
+  /* Checked against the known sets in cleanAvatarSet, which is the only
+     thing that decides what is stored. */
+  avatarSet: z.string().max(16).nullable().optional(),
   /* Values arrive as strings or numbers and are cleaned against the question
      list in cleanAnswers, which is the only thing that decides what is kept. */
   answers: z.record(z.union([z.string(), z.number(), z.null()])).optional(),

@@ -1,6 +1,10 @@
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  ONBOARDING_QUESTIONS, QUESTION_IDS, cleanAnswers, isComplete,
+  AVATAR_SETS, ONBOARDING_QUESTIONS, QUESTION_IDS,
+  cleanAnswers, cleanAvatarSet, isComplete,
 } from './questions.js';
 
 /**
@@ -112,5 +116,50 @@ describe('knowing when they are finished', () => {
      a string for exactly this reason, so a zero still counts as answered. */
   it('counts a zero as an answer', () => {
     expect(isComplete({ ...all, deals_per_month: '0' })).toBe(true);
+  });
+});
+
+describe('the picture beside each question', () => {
+  /*
+   * Each question names the illustration that stands beside it. The picture
+   * is served from /onboarding/{set}-{image}.webp, so a name here that has no
+   * file is a blank panel on somebody's first morning, and nothing else would
+   * catch it.
+   */
+  it('names a picture that exists on disk, for both sets', () => {
+    /* Reads the folder rather than a list copied here, because a list copied
+       here agrees with itself while the file is missing. A question pointing
+       at a pose nobody drew is a blank panel on somebody's first morning,
+       and no type check or render test would say so. */
+    const dir = path.join(
+      path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..',
+      'web', 'public', 'onboarding',
+    );
+    const files = new Set(readdirSync(dir));
+    for (const question of ONBOARDING_QUESTIONS) {
+      for (const set of AVATAR_SETS) {
+        const wanted = `${set}-${question.image}.webp`;
+        expect(files, `${question.id} wants ${wanted}, which is not there`)
+          .toContain(wanted);
+      }
+    }
+  });
+
+  it('does not show the same picture twice', () => {
+    const used = ONBOARDING_QUESTIONS.map((q) => q.image);
+    expect(new Set(used).size).toBe(used.length);
+  });
+});
+
+describe('the character sets', () => {
+  it('takes the two that exist', () => {
+    expect(cleanAvatarSet('man')).toBe('man');
+    expect(cleanAvatarSet('woman')).toBe('woman');
+  });
+
+  it('refuses anything else, including nothing', () => {
+    for (const bad of ['robot', 'MAN', '', null, undefined, 7, {}]) {
+      expect(cleanAvatarSet(bad)).toBeNull();
+    }
   });
 });

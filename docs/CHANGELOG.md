@@ -2,6 +2,46 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The welcome, rebuilt around Emir's ten pictures
+
+**Changed**
+- **A two-column page**, from Emir's reference: the question and its answer
+  on the left under a segmented bar that fills as you go, a tall picture of
+  a person on the right. On a phone the picture goes on top, because it is
+  the thing that makes this feel like an arrival rather than a form.
+- **A new step after the name: "Which one is you?"** Emir supplied two
+  matching sets of illustrations — a man and a woman, in the same five poses
+  — and asked that each person see the one that looks like them. You tap a
+  picture; every screen after it uses that set.
+- **A pose per question**, so the picture means something rather than
+  decorating: at a laptop for the year's goal, holding keys for deals a
+  month, thinking for how big we can get, daydreaming for the dream, and
+  confetti for five years and for the thank-you.
+
+**A judgement call worth recording**
+- It is stored as **which set of pictures to show, not as a gender field.**
+  A gender column on a staff record is personal data under the UAE PDPL: it
+  would need a reason to exist, a retention rule and an answer to "who can
+  see it". Nothing in this CRM needs one. What the welcome needs is which of
+  two folders to read a JPEG from, and that is all `avatar_set` is. The step
+  can be skipped, and skipping it shows one of the two.
+
+**Weight**
+- The ten images arrived as 2.0 MB of JPEG. They ship as WebP at the size
+  they are actually displayed: **607 KB for all ten, and about 330 KB for
+  the set one person sees.** The next question's picture is fetched while
+  the current one is being answered, so the panel does not flash empty on a
+  phone.
+
+**Guarded**
+- `questions.test.ts` now reads `web/public/onboarding` and fails if a
+  question names a pose with no file, for either set. A list copied into the
+  test would agree with itself while the picture was missing; the only thing
+  that catches that is looking in the folder.
+
+**Migration**
+- `0033_onboarding_avatar.sql`. Additive, nullable.
+
 ## Faces on the team wall, everywhere rather than in one panel
 
 **Fixed**

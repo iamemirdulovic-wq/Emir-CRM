@@ -7,11 +7,15 @@
  * is the single exception and its route checks the role.
  */
 import { execute, query, queryOne, type Executor, getPool } from '../db/client.js';
-import { cleanAnswers, isComplete, type OnboardingQuestion } from './questions.js';
+import {
+  cleanAnswers, cleanAvatarSet, isComplete,
+  type AvatarSet, type OnboardingQuestion,
+} from './questions.js';
 
 export interface OnboardingRow {
   user_id: string;
   preferred_name: string | null;
+  avatar_set: string | null;
   answers: unknown;
   completed_at: Date | null;
   skipped_at: Date | null;
@@ -19,6 +23,8 @@ export interface OnboardingRow {
 
 export interface OnboardingState {
   preferredName: string | null;
+  /** Which set of illustrations the welcome shows. Null until they pick. */
+  avatarSet: AvatarSet | null;
   answers: Record<string, string>;
   completed: boolean;
   skipped: boolean;
@@ -39,12 +45,14 @@ export async function getOnboarding(
   exec: Executor = getPool(),
 ): Promise<OnboardingState> {
   const row = await queryOne<OnboardingRow>(
-    'SELECT user_id, preferred_name, answers, completed_at, skipped_at FROM user_onboarding WHERE user_id = ?',
+    `SELECT user_id, preferred_name, avatar_set, answers, completed_at, skipped_at
+       FROM user_onboarding WHERE user_id = ?`,
     [userId],
     exec,
   );
   return {
     preferredName: row?.preferred_name ?? null,
+    avatarSet: cleanAvatarSet(row?.avatar_set),
     answers: readAnswers(row?.answers),
     completed: Boolean(row?.completed_at),
     skipped: Boolean(row?.skipped_at),
@@ -61,7 +69,12 @@ export async function getOnboarding(
  */
 export async function saveOnboarding(
   userId: string,
-  input: { preferredName?: string | null; answers?: unknown; skip?: boolean },
+  input: {
+    preferredName?: string | null;
+    avatarSet?: unknown;
+    answers?: unknown;
+    skip?: boolean;
+  },
   exec: Executor = getPool(),
 ): Promise<OnboardingState> {
   const current = await getOnboarding(userId, exec);
@@ -69,23 +82,30 @@ export async function saveOnboarding(
   const name = input.preferredName === undefined
     ? current.preferredName
     : (input.preferredName?.trim().slice(0, 80) || null);
+  /* Left alone when the step is not the one being saved, so a later step
+     does not wipe the picture they already chose. */
+  const avatarSet = input.avatarSet === undefined
+    ? current.avatarSet
+    : cleanAvatarSet(input.avatarSet);
 
   const done = isComplete(answers);
   const skipped = done ? false : (input.skip ?? current.skipped);
 
   await execute(
-    `INSERT INTO user_onboarding (user_id, preferred_name, answers, completed_at, skipped_at)
-     VALUES (?, ?, ?, ${done ? 'NOW(3)' : 'NULL'}, ${skipped ? 'NOW(3)' : 'NULL'})
+    `INSERT INTO user_onboarding
+       (user_id, preferred_name, avatar_set, answers, completed_at, skipped_at)
+     VALUES (?, ?, ?, ?, ${done ? 'NOW(3)' : 'NULL'}, ${skipped ? 'NOW(3)' : 'NULL'})
      ON DUPLICATE KEY UPDATE
        preferred_name = VALUES(preferred_name),
+       avatar_set     = VALUES(avatar_set),
        answers        = VALUES(answers),
        completed_at   = ${done ? 'COALESCE(completed_at, NOW(3))' : 'NULL'},
        skipped_at     = ${skipped ? 'COALESCE(skipped_at, NOW(3))' : 'NULL'}`,
-    [userId, name, JSON.stringify(answers)],
+    [userId, name, avatarSet, JSON.stringify(answers)],
     exec,
   );
 
-  return { preferredName: name, answers, completed: done, skipped };
+  return { preferredName: name, avatarSet, answers, completed: done, skipped };
 }
 
 export interface AgentWelcome {
