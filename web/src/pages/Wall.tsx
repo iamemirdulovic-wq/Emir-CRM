@@ -25,6 +25,7 @@ interface Post {
   id: string;
   author_id: string | null;
   author_name: string | null;
+  author_photo_url: string | null;
   kind: string;
   body: string | null;
   /* A JSON column, so whatever is in the row. Read through asMedia(), never
@@ -40,8 +41,8 @@ interface Post {
 }
 
 interface Sidebar {
-  leaderboard: Array<{ id: string; name: string; points: number }>;
-  online: Array<{ id: string; name: string }>;
+  leaderboard: Array<{ id: string; name: string; photo_url: string | null; points: number }>;
+  online: Array<{ id: string; name: string; photo_url: string | null }>;
   me: {
     points: number;
     level: { level: number; name: string; points: number; from: number; next: number | null; progress: number };
@@ -142,6 +143,11 @@ export function Wall() {
 
   const refresh = () => setReloadKey((n) => n + 1);
 
+  /* Your own face on the composer. Taken from the team list this page
+     already loads rather than added to the session, which is read on every
+     request in the whole CRM and is not the place for a decoration. */
+  const myPhoto = team.data?.items.find((mate) => mate.id === user?.id)?.photoUrl ?? undefined;
+
   async function attach(files: FileList | null) {
     const picked = Array.from(files ?? []).slice(0, 4);
     if (!picked.length) return;
@@ -204,7 +210,7 @@ export function Wall() {
       <div className="wall">
         <div className="wall-feed">
           <div className="wall-compose">
-            <Avatar name={user?.name ?? '?'} />
+            <Avatar name={user?.name ?? '?'} src={myPhoto} />
             <TextArea
               rows={2}
               value={body}
@@ -350,7 +356,7 @@ export function Wall() {
                   {side.data.leaderboard.map((row, index) => (
                     <li key={row.id} className={row.id === user?.id ? 'me' : undefined}>
                       <span className="rank">{index + 1}</span>
-                      <Avatar name={row.name} size={26} />
+                      <Avatar name={row.name} src={row.photo_url ?? undefined} size={26} />
                       <Link to={`/profile/${row.id}`}>{row.name}</Link>
                       <b>{row.points}</b>
                     </li>
@@ -379,7 +385,7 @@ export function Wall() {
                 <div className="online">
                   {side.data.online.map((person) => (
                     <span key={person.id} title={person.name}>
-                      <Avatar name={person.name} size={28} />
+                      <Avatar name={person.name} src={person.photo_url ?? undefined} size={28} />
                     </span>
                   ))}
                 </div>
@@ -527,7 +533,13 @@ function PostCard({
       <header>
         {auto
           ? <span className="auto-icon"><Icon name={auto.icon} size={16} /></span>
-          : <Avatar name={post.author_name ?? '?'} size={34} />}
+          : (
+            <Avatar
+              name={post.author_name ?? '?'}
+              src={post.author_photo_url ?? undefined}
+              size={34}
+            />
+          )}
         <span className="who">
           <b>{post.author_name ?? 'Emigeo Homes'}</b>
           <time dateTime={post.created_at}>{relativeTime(post.created_at)}</time>

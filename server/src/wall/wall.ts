@@ -21,6 +21,10 @@ export interface WallPostRow {
   id: string;
   author_id: string | null;
   author_name: string | null;
+  /* So a post shows the person's face, the same as every other list of
+     people on this screen. Null for the CRM's own announcements, which
+     have no author and draw their own icon. */
+  author_photo_url: string | null;
   kind: string;
   body: string | null;
   media: unknown;
@@ -135,7 +139,8 @@ export interface FeedPost extends WallPostRow {
 
 export async function feed(viewerId: string, limit = 30, before?: string): Promise<FeedPost[]> {
   const posts = await query<WallPostRow>(
-    `SELECT p.id, p.author_id, u.name AS author_name, p.kind, p.body, p.media, p.poll,
+    `SELECT p.id, p.author_id, u.name AS author_name, u.photo_url AS author_photo_url,
+            p.kind, p.body, p.media, p.poll,
             p.subject_type, p.subject_id, p.show_value, p.pinned_at, p.created_at
        FROM wall_posts p
        LEFT JOIN users u ON u.id = p.author_id

@@ -303,19 +303,22 @@ wallRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
 
-    const board = await query<{ id: string; name: string; points: number }>(
-      `SELECT u.id, u.name, COALESCE(SUM(x.points), 0) AS points
+    /* photo_url on both, so every list of people on this screen shows the
+       same faces. Without it the leaderboard drew initials beside a panel
+       drawing photographs of the same five people. */
+    const board = await query<{ id: string; name: string; photo_url: string | null; points: number }>(
+      `SELECT u.id, u.name, u.photo_url, COALESCE(SUM(x.points), 0) AS points
          FROM users u
          LEFT JOIN xp_events x ON x.user_id = u.id
           AND x.created_at > DATE_SUB(NOW(3), INTERVAL 30 DAY)
         WHERE u.is_active = 1 AND u.role <> 'automation'
-        GROUP BY u.id, u.name
+        GROUP BY u.id, u.name, u.photo_url
         ORDER BY points DESC, u.name
         LIMIT 10`,
     );
 
-    const online = await query<{ id: string; name: string }>(
-      `SELECT DISTINCT u.id, u.name
+    const online = await query<{ id: string; name: string; photo_url: string | null }>(
+      `SELECT DISTINCT u.id, u.name, u.photo_url
          FROM users u JOIN sessions s ON s.user_id = u.id
         WHERE u.is_active = 1 AND s.expires_at > NOW(3)
           AND s.last_seen_at > DATE_SUB(NOW(3), INTERVAL 2 MINUTE)

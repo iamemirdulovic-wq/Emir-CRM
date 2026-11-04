@@ -2,6 +2,22 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Faces on the team wall, everywhere rather than in one panel
+
+**Fixed**
+- Emir, looking at the live site: *"why have down pic, why dont have last 3
+  dayes pic"*. The new "Most posts this week" panel drew people's
+  photographs; the leaderboard above it, the post cards, the composer and
+  "On now" drew initials for the same people on the same screen. He could
+  see his own face in one list and "ED" in the one above it.
+- Mine: I added the photo to the panel I was building and did not look at
+  what it now sat next to. `photo_url` is now on the feed query, the
+  leaderboard and the online list, and every avatar on the wall takes it —
+  a face where somebody has uploaded one, initials where they have not.
+- The composer takes yours from the team list the page already loads,
+  rather than adding a column to the session, which is read on every
+  request in the CRM and is not the place for a decoration.
+
 ## Settings > Profiles: what the team wrote
 
 **Added**

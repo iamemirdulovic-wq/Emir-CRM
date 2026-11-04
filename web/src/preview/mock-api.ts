@@ -358,6 +358,18 @@ const PREVIEW_TITLES: Record<string, string> = {
 
 const PREVIEW_CALLED: Record<string, string> = { 'u-yousef': 'Yas' };
 
+/*
+ * Who has uploaded a photo. Deliberately not everybody: the live CRM is a
+ * mix, and a preview where every avatar is a photograph hides the case that
+ * matters — initials and a face side by side in the same list.
+ */
+const PREVIEW_PHOTOS: Record<string, string> = {
+  'u-owner': '/preview/face-1.svg',
+  'u-layla': '/preview/face-2.svg',
+  'u-yousef': '/preview/face-3.svg',
+};
+const photoOf = (id: string | null): string | null => (id ? PREVIEW_PHOTOS[id] ?? null : null);
+
 /* Blank fields, in the words the profile page uses for them. */
 const PREVIEW_MISSING: Record<string, string[]> = {
   'u-owner': [],
@@ -422,7 +434,8 @@ const PREVIEW_HEADLINES: Record<string, string> = {
 /* ── Team wall ────────────────────────────────────────────────────────── */
 
 interface PreviewWallPost {
-  id: string; author_id: string | null; author_name: string | null; kind: string;
+  id: string; author_id: string | null; author_name: string | null;
+  author_photo_url?: string | null; kind: string;
   body: string | null; media?: unknown; poll: unknown; show_value: number;
   pinned_at: string | null; created_at: string;
   reactions: Array<{ emoji: string; count: number; mine: boolean }>;
@@ -439,7 +452,8 @@ const WALL_POSTS: PreviewWallPost[] = [
     comments: [], commentCount: 0,
   },
   {
-    id: 'wp-2', author_id: 'u2', author_name: 'Layla Hassan', kind: 'deal_won',
+    id: 'wp-2', author_id: 'u2', author_name: 'Layla Hassan',
+    author_photo_url: '/preview/face-2.svg', kind: 'deal_won',
     body: 'Layla Hassan just closed a deal at Emaar Beachfront.',
     poll: null, show_value: 0, pinned_at: null, created_at: ago(190),
     reactions: [{ emoji: '🎉', count: 7, mine: true }, { emoji: '💪', count: 2, mine: false }],
@@ -450,7 +464,8 @@ const WALL_POSTS: PreviewWallPost[] = [
     commentCount: 2,
   },
   {
-    id: 'wp-5', author_id: 'u2', author_name: 'Layla Hassan', kind: 'post',
+    id: 'wp-5', author_id: 'u2', author_name: 'Layla Hassan',
+    author_photo_url: '/preview/face-2.svg', kind: 'post',
     body: 'Site visit this morning at Beachfront. Tower is at 62% and the show apartment is open — worth taking buyers.',
     media: [
       { id: 'pm-1', url: '/preview/wall-1.svg', kind: 'image', name: 'Tower at dusk' },
@@ -1500,7 +1515,7 @@ const ROUTES: Route[] = [
         role: u.role,
         isActive: u.is_active === 1,
         jobTitle: PREVIEW_TITLES[u.id] ?? null,
-        photoUrl: null,
+        photoUrl: photoOf(u.id),
         headline: PREVIEW_HEADLINES[u.id] ?? null,
         profileFilled: 8 - missing.length,
         profileTotal: 8,
@@ -1578,14 +1593,14 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/wall\/kudos$/, handler: () => ({ left: 3 }) },
   { method: 'GET', pattern: /^\/api\/wall\/sidebar$/, handler: () => ({
     leaderboard: [
-      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', points: 418 },
-      { id: OWNER.id, name: OWNER.name, points: 377 },
-      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', points: 265 },
-      { id: USERS[3]?.id ?? 'u4', name: 'Raj Mehta', points: 191 },
+      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', photo_url: photoOf(USERS[1]?.id ?? null), points: 418 },
+      { id: OWNER.id, name: OWNER.name, photo_url: photoOf(OWNER.id), points: 377 },
+      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', photo_url: photoOf(USERS[2]?.id ?? null), points: 265 },
+      { id: USERS[3]?.id ?? 'u4', name: 'Raj Mehta', photo_url: null, points: 191 },
     ],
     online: [
-      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan' },
-      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad' },
+      { id: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', photo_url: photoOf(USERS[1]?.id ?? null) },
+      { id: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', photo_url: photoOf(USERS[2]?.id ?? null) },
     ],
     me: {
       points: 377,
@@ -1600,9 +1615,9 @@ const ROUTES: Route[] = [
      place does not disagree with itself across two panels. */
   { method: 'GET', pattern: /^\/api\/wall\/top-posters$/, handler: () => ({
     items: [
-      { id: 'u-layla', name: 'Layla Hassan', photo_url: null, posts: 6 },
-      { id: 'u-omar', name: 'Omar Farouk', photo_url: null, posts: 4 },
-      { id: 'u-priya', name: 'Priya Nair', photo_url: null, posts: 2 },
+      { id: 'u-layla', name: 'Layla Hassan', photo_url: photoOf('u-layla'), posts: 6 },
+      { id: 'u-omar', name: 'Omar Farouk', photo_url: photoOf('u-omar'), posts: 4 },
+      { id: 'u-priya', name: 'Priya Nair', photo_url: photoOf('u-priya'), posts: 2 },
     ],
   }) },
   { method: 'GET', pattern: /^\/api\/wall\/team$/, handler: () => ({
@@ -1611,7 +1626,7 @@ const ROUTES: Route[] = [
       name: u.name,
       role: u.role,
       jobTitle: PREVIEW_TITLES[u.id] ?? null,
-      photoUrl: null,
+      photoUrl: photoOf(u.id),
       headline: PREVIEW_HEADLINES[u.id] ?? null,
       /* The real endpoint reads agent_profiles, which is what the person
          typed about themselves, not the routing codes on the users row. */
