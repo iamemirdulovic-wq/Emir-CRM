@@ -479,3 +479,33 @@ deploys this app. See `DECISIONS.md`, 31 Oct.)
       `app_secrets` were all leaking rows into whichever test ran next. All
       added; `testing/reset-complete.test.ts` now checks the list against the
       migrations, so the next new table is a decision rather than an oversight
+
+## Step 18 — The welcome, the profile, the wall and the owner's view (D18, Nov 4 2026)
+- [x] 18.1 **First-sign-in welcome.** A skyline drawn in SVG, coins, their
+      name, then five questions. Skippable in one tap at every step, and it
+      says before the first question that the owner will read the answers —
+      answers somebody thought were private, quoted back later, is how a team
+      learns not to write anything honest in a CRM. Every step saves, so a
+      dropped connection on question four loses question four
+- [x] 18.2 `user_onboarding`. "Finish later" is its own column, so it is a
+      different state from never having been asked and only one of them nags
+- [x] 18.3 **Profile page redesigned** around a cover and an overlapping
+      photo, with the name on the panel below rather than on the cover, where
+      it was dark text on a dark picture
+- [x] 18.4 **Pictures and GIFs on a wall post.** `wall_media`, an upload
+      route, four to a post. The column has always held descriptors; what was
+      missing was a way to get a file onto the server
+- [x] 18.5 Emoji button on the composer, ten of them, one row on a phone
+- [x] 18.6 **Most posts this week** in the wall sidebar — people's own posts,
+      not the CRM's announcements
+- [x] 18.7 **A team tab** on the wall: name, role, title, headline, languages
+      and what they sell, searchable. The working half of a person only. No
+      birthday, no home country, no personal number: a directory is read by
+      everyone, so it holds what helps you pass a lead to the right colleague
+      and nothing more
+- [x] 18.8 **Settings → Profiles**, owner and admin only: every person's
+      completeness as a percentage, the blank fields named, and their welcome
+      answers. Checked in a browser that an agent sees no such tab
+- [x] 18.9 `jsx-escapes.test.ts` — `placeholder="floor\u2026"` in a JSX
+      attribute renders those six characters, while `{'floor\u2026'}` one line
+      away works. It had slipped through twice. The check reads the source

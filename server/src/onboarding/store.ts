@@ -95,9 +95,63 @@ export interface AgentWelcome {
   email: string;
   role: string;
   isActive: boolean;
+  jobTitle: string | null;
+  photoUrl: string | null;
+  headline: string | null;
+  /** Of the fields a client actually sees, how many are filled in. */
+  profileFilled: number;
+  profileTotal: number;
+  /** The empty ones, in the words the profile page uses for them. */
+  profileMissing: string[];
   answers: Record<string, string>;
   completedAt: Date | null;
   skippedAt: Date | null;
+}
+
+/*
+ * What counts as a finished profile.
+ *
+ * Only the fields a client sees on a business card or an offer. WhatsApp and
+ * the social links are extras — chasing somebody for an Instagram handle is
+ * how a completeness number stops meaning anything.
+ */
+const PROFILE_FIELDS: Array<{ label: string; of: (row: ProfileBits) => unknown }> = [
+  { label: 'photo', of: (row) => row.photo_url },
+  { label: 'job title', of: (row) => row.job_title },
+  { label: 'headline', of: (row) => row.headline },
+  { label: 'about them', of: (row) => row.bio },
+  { label: 'languages', of: (row) => jsonList(row.languages).length || null },
+  { label: 'what they sell', of: (row) => jsonList(row.specialities).length || null },
+  { label: 'phone for clients', of: (row) => row.public_phone },
+  { label: 'email for clients', of: (row) => row.public_email },
+];
+
+interface ProfileBits {
+  job_title: string | null;
+  photo_url: string | null;
+  headline: string | null;
+  bio: string | null;
+  languages: unknown;
+  specialities: unknown;
+  public_phone: string | null;
+  public_email: string | null;
+}
+
+/* A JSON column, so it arrives parsed, as a string, or as null. */
+function jsonList(value: unknown): string[] {
+  const raw = typeof value === 'string'
+    ? ((): unknown => { try { return JSON.parse(value); } catch { return []; } })()
+    : value;
+  return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
+}
+
+function missingFrom(row: ProfileBits): string[] {
+  return PROFILE_FIELDS
+    .filter((field) => {
+      const value = field.of(row);
+      return value === null || value === undefined || value === '';
+    })
+    .map((field) => field.label);
 }
 
 /**
@@ -107,32 +161,44 @@ export interface AgentWelcome {
  * most of what the screen is for. The route checks the role; this does not.
  */
 export async function listForOwner(exec: Executor = getPool()): Promise<AgentWelcome[]> {
-  const rows = await query<{
+  const rows = await query<ProfileBits & {
     id: string; name: string; email: string; role: string; is_active: number;
     preferred_name: string | null; answers: unknown;
     completed_at: Date | null; skipped_at: Date | null;
   }>(
-    `SELECT u.id, u.name, u.email, u.role, u.is_active,
+    `SELECT u.id, u.name, u.email, u.role, u.is_active, u.job_title, u.photo_url,
+            p.headline, p.bio, p.languages, p.specialities,
+            p.public_phone, p.public_email,
             o.preferred_name, o.answers, o.completed_at, o.skipped_at
        FROM users u
        LEFT JOIN user_onboarding o ON o.user_id = u.id
+       LEFT JOIN agent_profiles p ON p.user_id = u.id
       WHERE u.role <> 'automation'
       ORDER BY u.is_active DESC, o.completed_at IS NULL, u.name`,
     [],
     exec,
   );
 
-  return rows.map((row) => ({
-    userId: row.id,
-    name: row.name,
-    preferredName: row.preferred_name,
-    email: row.email,
-    role: row.role,
-    isActive: row.is_active === 1,
-    answers: readAnswers(row.answers),
-    completedAt: row.completed_at,
-    skippedAt: row.skipped_at,
-  }));
+  return rows.map((row) => {
+    const missing = missingFrom(row);
+    return {
+      userId: row.id,
+      name: row.name,
+      preferredName: row.preferred_name,
+      email: row.email,
+      role: row.role,
+      isActive: row.is_active === 1,
+      jobTitle: row.job_title,
+      photoUrl: row.photo_url,
+      headline: row.headline,
+      profileFilled: PROFILE_FIELDS.length - missing.length,
+      profileTotal: PROFILE_FIELDS.length,
+      profileMissing: missing,
+      answers: readAnswers(row.answers),
+      completedAt: row.completed_at,
+      skippedAt: row.skipped_at,
+    };
+  });
 }
 
 export type { OnboardingQuestion };

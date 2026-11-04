@@ -207,6 +207,7 @@ export const TRUNCATE_ORDER = [
   // Step 14 — preferences and what the AI has been asked.
   'user_prefs',
   'user_onboarding',
+  'wall_media',
   'ai_usage',
   'ai_knowledge_versions',
   'ai_knowledge',

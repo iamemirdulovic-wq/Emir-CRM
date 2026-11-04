@@ -988,9 +988,12 @@
 .wall-feed{display:flex;flex-direction:column;gap:12px;min-width:0}
 
 .wall-compose{
-  display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;
+  display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;
   padding:13px;border-radius:var(--r-m);border:1px solid var(--line);
   background:linear-gradient(var(--glass),var(--glass)),var(--bg)}
+/* The pictures and the buttons sit under the box, across both columns, so
+   they line up with the text rather than with the avatar. */
+.wall-thumbs,.wall-tools{grid-column:1/-1}
 /* Two lines on a laptop. On a phone the placeholder wraps to three and
    the last of it was cut off by the box. */
 .wall-compose textarea{resize:vertical;min-height:46px}
@@ -1060,6 +1063,149 @@
 .leaderboard li b{font-variant-numeric:tabular-nums;color:var(--primary)}
 
 .online{display:flex;flex-wrap:wrap;gap:6px}
+
+/* What is attached, before it is posted ---------------------------------- */
+
+.wall-thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.wall-thumb{position:relative;width:74px;height:74px;border-radius:12px;overflow:hidden;
+  border:1px solid var(--line);background:var(--surface-2)}
+.wall-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.wall-thumb-x{
+  position:absolute;top:3px;right:3px;width:21px;height:21px;border:0;cursor:pointer;
+  display:grid;place-items:center;border-radius:99px;color:#fff;background:rgba(10,22,38,.72)}
+.wall-thumb-x:hover{background:var(--s-lost)}
+.wall-thumb-x svg{width:12px;height:12px}
+
+.wall-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wall-tools > .btn{margin-inline-start:auto}
+.wall-tool{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:99px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface-2);font:inherit;font-size:13px;
+  font-weight:600;color:var(--ink-2)}
+.wall-tool:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.wall-tool:disabled{opacity:.5;cursor:default}
+.wall-tool svg{width:16px;height:16px}
+
+.wall-emoji-wrap{position:relative}
+/* Opens downwards: upwards it sat on top of the box you are typing in, which
+   is the one thing it must not cover. The composer is at the top of the feed,
+   so there is always room under it. */
+.wall-emoji-pop{
+  position:absolute;top:calc(100% + 7px);inset-inline-start:0;z-index:4;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:7px;
+  border-radius:14px;border:1px solid var(--line);background:var(--surface);
+  box-shadow:var(--shadow)}
+.wall-emoji-pop button{
+  width:32px;height:32px;border:0;border-radius:9px;background:none;cursor:pointer;font-size:19px;
+  line-height:1}
+.wall-emoji-pop button:hover{background:var(--surface-2)}
+
+/* Pictures in a post ----------------------------------------------------- */
+
+.wall-pics{display:grid;gap:4px;margin-top:11px;border-radius:12px;overflow:hidden}
+.wall-pics[data-n="2"],.wall-pics[data-n="4"]{grid-template-columns:1fr 1fr}
+.wall-pics[data-n="3"]{grid-template-columns:1fr 1fr 1fr}
+.wall-pic{padding:0;border:0;background:var(--surface-2);cursor:zoom-in;display:block;line-height:0}
+.wall-pic img{width:100%;display:block;object-fit:cover;max-height:420px}
+/* Two or more and they are tiles, so they need a shared height or the row
+   ends up ragged. One fills the width and keeps its own shape. */
+.wall-pics:not([data-n="1"]) .wall-pic img{height:170px}
+
+.wall-lightbox{
+  position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:24px;cursor:zoom-out;
+  background:rgba(6,13,26,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  animation:kit-fade .15s ease}
+.wall-lightbox img{max-width:100%;max-height:100%;border-radius:14px;display:block}
+.wall-lightbox-x{
+  position:absolute;top:16px;right:16px;width:38px;height:38px;border:0;cursor:pointer;
+  display:grid;place-items:center;border-radius:99px;color:#fff;background:rgba(255,255,255,.16)}
+.wall-lightbox-x:hover{background:rgba(255,255,255,.28)}
+
+/* The team tab ----------------------------------------------------------- */
+
+.team-tab{display:flex;flex-direction:column;gap:14px}
+.team-find{position:relative;max-width:420px}
+.team-find svg{position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);
+  color:var(--ink-3);pointer-events:none}
+.team-find .input{width:100%;padding-inline-start:36px}
+
+.team-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.teammate{
+  display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;
+  padding:20px 16px 18px;border-radius:var(--r-m);border:1px solid var(--line);
+  text-decoration:none;color:inherit;
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg);
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.teammate:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:var(--shadow)}
+.teammate > b{font-size:15px;margin-top:6px}
+.teammate-role{font-size:12.5px;color:var(--primary);font-weight:600}
+.teammate-line{margin:4px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.teammate-tags{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-3);
+  margin-top:2px}
+.teammate-tags svg{flex:none;color:var(--ink-3)}
+
+@media (prefers-reduced-motion:reduce){
+  .teammate{transition:none}
+  .teammate:hover{transform:none}
+  .wall-lightbox{animation:none}
+}
+
+/* Settings > Profiles: everybody's profile and welcome answers ----------- */
+
+.tp-find{position:relative;display:inline-flex;align-items:center;min-width:min(280px,60vw)}
+.tp-find svg{position:absolute;inset-inline-start:12px;color:var(--ink-3);pointer-events:none}
+.tp-find .input{width:100%;padding-inline-start:36px}
+
+.tp-lede{margin:0;font-size:13.5px;line-height:1.6}
+.tp-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+
+.tp-head{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.tp-who{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.tp-who > b{font-size:15px}
+.tp-who .muted{font-size:12.5px}
+.tp-called{font-weight:400;color:var(--ink-3);font-size:13px}
+.tp-headline{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+
+.tp-state{
+  padding:4px 11px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;
+  background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.tp-ok{background:rgba(93,187,143,.16);color:var(--s-won);border-color:transparent}
+.tp-part{background:var(--primary-soft);color:var(--primary);border-color:transparent}
+.tp-skip{background:rgba(196,161,114,.18);color:var(--s-att);border-color:transparent}
+
+/* The profile bar. A number and a line, not a doughnut: it has to be read at
+   a glance down a list of ten people. */
+.tp-ring{position:relative;display:flex;flex-direction:column;width:76px;padding-bottom:7px}
+.tp-ring b{font-size:14px;font-variant-numeric:tabular-nums}
+.tp-ring small{font-size:10.5px;color:var(--ink-3)}
+.tp-ring::before,.tp-ring i{
+  content:"";position:absolute;bottom:0;inset-inline-start:0;height:4px;border-radius:99px}
+.tp-ring::before{width:100%;background:var(--line)}
+.tp-ring i{background:var(--grad)}
+
+.tp-missing{
+  display:flex;align-items:center;gap:7px;margin:11px 0 0;font-size:12.5px;color:var(--ink-2)}
+.tp-missing svg{flex:none;color:var(--s-att)}
+
+.tp-toggle{
+  display:flex;align-items:center;gap:7px;margin-top:11px;padding:7px 0;width:100%;
+  border:0;background:none;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;
+  color:var(--primary);text-align:start}
+.tp-toggle small{margin-inline-start:auto;font-weight:400}
+.tp-toggle svg{flex:none}
+
+.tp-answers{
+  margin:4px 0 0;padding:13px 15px;display:flex;flex-direction:column;gap:13px;
+  border-radius:var(--r-m);background:var(--surface-2)}
+.tp-answers dt{
+  display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--ink-3)}
+.tp-answers dd{margin:5px 0 0;font-size:14.5px;line-height:1.55;white-space:pre-wrap}
+
+@media (max-width:620px){
+  .tp-find{min-width:100%}
+  .tp-ring{width:100%;order:4}
+  .tp-head > .btn{order:5;margin-inline-start:auto}
+}
 
 /* ── Keyboard: the palette, the shortcut sheet, the tour ───────────────── */
 

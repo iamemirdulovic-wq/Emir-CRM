@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import {
   closeTestDatabase, createTestUser, describeWithDb, prepareTestDatabase, resetTables,
 } from '../testing/db.js';
+import { execute } from '../db/client.js';
 import { getOnboarding, listForOwner, saveOnboarding } from './store.js';
 import { QUESTION_IDS } from './questions.js';
 
@@ -117,5 +118,52 @@ describeWithDb('what the owner sees', () => {
   it('leaves the automation account out', async () => {
     await createTestUser({ role: 'automation' });
     expect((await listForOwner()).every((r) => r.role !== 'automation')).toBe(true);
+  });
+
+  /*
+   * The same list carries how finished each profile is, so the owner's screen
+   * is one call. It counts only the fields a client sees on a card or an
+   * offer: chasing somebody for an Instagram handle is how a completeness
+   * number stops meaning anything.
+   */
+  it('counts an untouched profile as nothing filled in', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const mine = (await listForOwner()).find((r) => r.userId === agent.id);
+    expect(mine?.profileTotal).toBe(8);
+    expect(mine?.profileFilled).toBe(0);
+    expect(mine?.profileMissing).toContain('photo');
+    expect(mine?.profileMissing).toContain('languages');
+  });
+
+  it('counts what they have filled in, and names what is left', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await execute(
+      'UPDATE users SET job_title = ?, photo_url = ? WHERE id = ?',
+      ['Senior consultant', '/api/profiles/photo/x', agent.id],
+    );
+    await execute(
+      `INSERT INTO agent_profiles (user_id, slug, headline, bio, languages, specialities,
+                                   public_phone, public_email)
+       VALUES (?, ?, ?, NULL, ?, ?, '+971500000000', NULL)`,
+      [agent.id, `slug-${agent.id.slice(0, 8)}`, 'Beachfront and Harbour',
+        JSON.stringify(['English', 'Arabic']), JSON.stringify(['Emaar Beachfront'])],
+    );
+
+    const mine = (await listForOwner()).find((r) => r.userId === agent.id);
+    expect(mine?.jobTitle).toBe('Senior consultant');
+    expect(mine?.headline).toBe('Beachfront and Harbour');
+    expect(mine?.profileFilled).toBe(6);
+    expect(mine?.profileMissing.sort()).toEqual(['about them', 'email for clients']);
+  });
+
+  /* An empty JSON list is not a filled-in field, however it was stored. */
+  it('does not count an empty languages list as filled in', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await execute(
+      'INSERT INTO agent_profiles (user_id, slug, languages) VALUES (?, ?, ?)',
+      [agent.id, `slug-${agent.id.slice(0, 8)}`, JSON.stringify([])],
+    );
+    const mine = (await listForOwner()).find((r) => r.userId === agent.id);
+    expect(mine?.profileMissing).toContain('languages');
   });
 });

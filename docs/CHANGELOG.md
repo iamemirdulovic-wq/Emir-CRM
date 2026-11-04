@@ -2,6 +2,72 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Settings > Profiles: what the team wrote
+
+**Added**
+- **One screen for the owner and admins** with every person's profile and
+  every person's welcome answers. Per person: how finished their profile is
+  as a percentage, **which fields are still blank by name**, where they got
+  to in the welcome (Answered / Part way / Skipped / Not started), and their
+  answers under the questions they were asked. Filters for Everyone,
+  Answered and Still waiting, plus a search over name and email.
+- **Completeness counts only what a client sees** — photo, job title,
+  headline, about them, languages, what they sell, and the phone and email
+  for clients. WhatsApp and the social links are extras: chasing somebody for
+  an Instagram handle is how a completeness number stops meaning anything.
+- The screen says in one line that everyone is told on their first sign-in
+  that these answers are read. It is the promise being kept, not a surprise.
+
+**Permissions**
+- Owner and admin. `/api/onboarding/all` already refused anyone else; the tab
+  is hidden as a convenience, not as the control. An agent opening Settings
+  sees "You" and nothing more, which is what it checked in the browser.
+
+## Team wall: pictures, GIFs, emoji, and who everybody is
+
+**Added**
+- **Pictures and GIFs on a post.** `wall_posts.media` has held a list of
+  descriptors since the wall was built and the API has always accepted them;
+  there was simply no way to get a file onto the server. There is now:
+  `POST /api/wall/media` (JPEG, PNG, WebP, GIF, up to four a post), a
+  `wall_media` row per file, and `GET /api/wall/media/:id` to serve it back.
+  A GIF is an ordinary `<img>`, so it animates with nothing extra.
+- **An emoji button** on the composer: ten, enough to fit one row on a phone,
+  inserted at the end of what is typed.
+- **Most posts this week** in the sidebar, the last seven days, people's own
+  posts only — the CRM's automatic announcements are not somebody's posting.
+- **A team tab** beside the wall, with a search box over names, languages and
+  projects. It shows the working half of a person only: name, role, job
+  title, headline, languages, what they sell. Birthdays, home country and
+  phone numbers stay on the profile the person chose to fill in. A directory
+  is read by everyone, so it holds what helps you hand a lead to the right
+  colleague and nothing else.
+- **`Avatar` now takes a photo**, with the initials underneath it.
+
+**Found while checking it**
+- **`alt=""` does not hide a broken photo.** The first version put the image
+  over the initials and relied on an empty alt; with a size set in CSS,
+  Chrome still paints a small broken-image icon in the corner of the circle,
+  over the name. The markup read correctly, TypeScript was happy and every
+  test passed — breaking one in a real browser is the only reason it was
+  found. `Avatar` now drops an image that fails, remembering which url
+  failed so a later photo still gets its own try. `avatar.test.ts` keeps the
+  handler from being quietly deleted.
+
+**Guarded**
+- **`jsx-escapes.test.ts`** — a backslash escape inside a JSX attribute is not
+  an escape. `placeholder="the floor\u2026"` renders those six characters,
+  while `{'Adding\u2026'}` one line away is a real string literal and works.
+  TypeScript is happy either way and every test passes, which is why this has
+  now slipped through twice. The check reads the source and names the line.
+- **`Wall.media.test.ts`** — the media column is JSON, so it is whatever is in
+  the row. Only a path on our own origin is rendered: an `<img>` pointed at
+  `https://somebody-else/track.gif` tells that site who opened the post, from
+  where and on what device, with nobody having clicked anything.
+
+**Migration**
+- `0032_wall_media.sql`. Additive.
+
 ## Card studio: inside the CRM, and icons you can actually see
 
 **Changed**

@@ -18,8 +18,10 @@ import { AiKnowledgeTab } from '../components/AiKnowledge.js';
 import { PhoneAppPanel } from '../components/PhoneApp.js';
 import { RoutingSettings } from '../components/RoutingSettings.js';
 import { CompanySettings } from '../components/CompanySettings.js';
+import { TeamProfiles } from '../components/TeamProfiles.js';
 
-type Tab = 'profile' | 'company' | 'team' | 'teams' | 'routing' | 'templates' | 'ai' | 'health';
+type Tab = 'profile' | 'company' | 'team' | 'people' | 'teams' | 'routing'
+  | 'templates' | 'ai' | 'health';
 
 const ROLES: Role[] = ['owner', 'admin', 'manager', 'agent', 'automation'];
 
@@ -43,7 +45,8 @@ export function Settings() {
   const tabs: {
     value: Tab;
     label: string;
-    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity' | 'sparkles' | 'timer' | 'building';
+    icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity'
+      | 'sparkles' | 'timer' | 'building' | 'id-card';
   }[] = [
     { value: 'profile', label: 'You', icon: 'user' },
     /*
@@ -53,6 +56,12 @@ export function Settings() {
      */
     ...(can('users:manage') ? ([{ value: 'company' as const, label: 'Company', icon: 'building' as const }]) : []),
     ...(can('users:manage') ? ([{ value: 'team' as const, label: t('team'), icon: 'users' as const }]) : []),
+    /* What the team wrote about themselves, and their welcome answers.
+       Owner and admin: the server refuses /api/onboarding/all to anyone
+       else, and the agents are told in the flow that this is read. */
+    ...(can('users:manage')
+      ? ([{ value: 'people' as const, label: 'Profiles', icon: 'id-card' as const }])
+      : []),
     ...(isManager ? ([{ value: 'teams' as const, label: 'Desks', icon: 'users-round' as const }]) : []),
     /* Routing decides what happens to every lead, so it is the owner's
        alone — the server refuses a PATCH from anyone else either way. */
@@ -81,6 +90,7 @@ export function Settings() {
       {tab === 'profile' && <ProfileTab />}
       {tab === 'company' && <CompanySettings />}
       {tab === 'team' && <TeamTab />}
+      {tab === 'people' && <TeamProfiles />}
       {tab === 'teams' && <DesksTab />}
       {tab === 'routing' && <RoutingSettings />}
       {tab === 'templates' && <TemplatesTab />}

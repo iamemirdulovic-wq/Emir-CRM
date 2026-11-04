@@ -374,6 +374,18 @@ Emir AI also has a spending limit, `AI_MONTHLY_CAP_USD`, which starts at **5
 dollars a month** and is checked before each request rather than after. Raise
 it in the environment variables when you want more.
 
+### Searching for a GIF on the team wall — not built
+
+To be straight about this one, because it is the one thing from 4 November
+that is not finished: an agent can **post** a GIF by picking the file, the
+same way they post a photo, and it animates. What there is no button for is
+**searching** a GIF library from inside the composer.
+
+That needs a free account with Giphy or Tenor and an API key. I did not open
+an account in your name. When you want it: make the account, put the key in
+the hosting panel, and tell me — the search box is about an hour's work once
+the key exists.
+
 ---
 
 ## One last thing — check nothing broke on 29 October

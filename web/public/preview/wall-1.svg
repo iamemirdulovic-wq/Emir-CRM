@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Tower at dusk">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B2233"/><stop offset=".55" stop-color="#0C4A5C"/><stop offset="1" stop-color="#E9A93B"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9FE7F3" stop-opacity=".85"/><stop offset="1" stop-color="#0E8099" stop-opacity=".9"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#sky)"/>
+  <circle cx="620" cy="470" r="46" fill="#FFD894" opacity=".75"/>
+  <g fill="url(#glass)">
+    <path d="M120 600V300l60-26 60 26v300z"/>
+    <path d="M300 600V200l50-22 50 22v400z"/>
+    <path d="M460 600V340l44-18 44 18v260z"/>
+    <path d="M600 600V380l38-16 38 16v220z"/>
+  </g>
+  <g fill="#061826" opacity=".5"><rect y="540" width="800" height="60"/></g>
+  <g fill="#FFE38A" opacity=".55">
+    <rect x="140" y="330" width="8" height="12"/><rect x="160" y="360" width="8" height="12"/>
+    <rect x="200" y="330" width="8" height="12"/><rect x="320" y="240" width="8" height="12"/>
+    <rect x="340" y="280" width="8" height="12"/><rect x="370" y="240" width="8" height="12"/>
+    <rect x="480" y="380" width="8" height="12"/><rect x="510" y="410" width="8" height="12"/>
+    <rect x="620" y="420" width="8" height="12"/>
+  </g>
+</svg>

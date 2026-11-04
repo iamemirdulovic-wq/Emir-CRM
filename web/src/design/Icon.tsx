@@ -31,7 +31,7 @@ import {
   LogOut, Mail, MapPin, Megaphone, Menu, MessageCircle, MessageSquare, MessageSquareHeart,
   Mic, Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOutgoing, PieChart, Play,
   PencilLine, Pin, Plus, Quote, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
-  Share2, Shield, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Square, SquarePen, Stamp, Stethoscope, Star, StickyNote, Sun, Target,
+  Share2, Shield, ShieldCheck, ShoppingBag, Smartphone, Smile, Sparkles, Square, SquarePen, Stamp, Stethoscope, Star, StickyNote, Sun, Target,
   Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, UserCheck, UserPlus,
   Undo2, UserX, Users, UsersRound, Wallet, X, Zap,
 } from 'lucide-react';
@@ -69,7 +69,7 @@ const ICONS = {
   'pin': Pin, 'play': Play, 'plus': Plus, 'quote': Quote, 'radar': Radar, 'radio': Radio, 'receipt': Receipt,
   'refresh-cw': RefreshCw, 'repeat': Repeat, 'save': Save, 'scale': Scale,
   'scan-line': ScanLine, 'search': Search, 'send': Send, 'settings': Settings, 'shield': Shield,
-  'share-2': Share2, 'smartphone': Smartphone,
+  'share-2': Share2, 'smartphone': Smartphone, 'smile': Smile,
   'shield-check': ShieldCheck, 'shopping-bag': ShoppingBag, 'sparkles': Sparkles, 'square': Square, 'stethoscope': Stethoscope,
   'square-pen': SquarePen, 'stamp': Stamp, 'star': Star, 'sticky-note': StickyNote, 'sun': Sun,
   'target': Target, 'timer': Timer, 'toggle-left': ToggleLeft, 'trash-2': Trash2,

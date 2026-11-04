@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Show apartment">
+  <defs>
+    <linearGradient id="room" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F3F7F9"/><stop offset="1" stop-color="#D8E6EC"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#room)"/>
+  <rect x="70" y="80" width="300" height="260" rx="6" fill="#AAE7F3" opacity=".8"/>
+  <rect x="70" y="80" width="300" height="260" rx="6" fill="none" stroke="#0C4A5C" stroke-width="7"/>
+  <line x1="220" y1="80" x2="220" y2="340" stroke="#0C4A5C" stroke-width="5"/>
+  <rect x="440" y="150" width="280" height="190" rx="10" fill="#00AFC8" opacity=".25"/>
+  <rect x="100" y="420" width="600" height="26" rx="8" fill="#0C4A5C" opacity=".2"/>
+  <rect x="140" y="446" width="26" height="80" fill="#0C4A5C" opacity=".2"/>
+  <rect x="634" y="446" width="26" height="80" fill="#0C4A5C" opacity=".2"/>
+  <rect x="440" y="360" width="280" height="22" rx="8" fill="#0E8099" opacity=".3"/>
+  <circle cx="610" cy="100" r="34" fill="#E9A93B" opacity=".6"/>
+  <rect y="540" width="800" height="60" fill="#0C4A5C" opacity=".12"/>
+</svg>

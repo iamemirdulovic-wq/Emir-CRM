@@ -10,6 +10,12 @@ import {
   addComment, createPost, deletePost, feed, giveKudos, kudosLeft, pinPost, pointsFor, toggleReaction,
 } from '../../wall/wall.js';
 import { levelFromPoints, streakFrom } from '../../wall/xp.js';
+import { findWallMedia, saveWallMedia, WALL_IMAGE_TYPES } from '../../wall/media.js';
+import { decodeFilename } from './tasks.js';
+import { rateLimit } from '../middleware/rate-limit.js';
+import { env } from '../../config/env.js';
+import { badRequest } from '../../lib/errors.js';
+import { createReadStream } from 'node:fs';
 import { BADGES } from '../../profiles/badges.js';
 
 /**
@@ -20,6 +26,67 @@ import { BADGES } from '../../profiles/badges.js';
  */
 export const wallRouter = Router();
 wallRouter.use(requireAuth, blockUntilPasswordChanged);
+
+const mediaLimit = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  keyFor: (req) => `wall-media:${currentUser(req).id}`,
+  message: 'Too many uploads in a short time. Please wait a minute.',
+});
+
+/**
+ * Put a picture or a GIF on the server, and get back the descriptor that goes
+ * in a post's media list.
+ *
+ * The body is the file itself with its name and type in headers, the same
+ * shape task attachments and imports use: no multipart parser, and the
+ * request is not buffered twice.
+ */
+wallRouter.post(
+  '/media',
+  mediaLimit,
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const contentType = (req.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    if (!WALL_IMAGE_TYPES[contentType]) {
+      throw badRequest(`${contentType || 'That file'} cannot go on the wall. JPEG, PNG, WebP or GIF.`);
+    }
+
+    const limit = env().MAX_ATTACHMENT_MB * 1024 * 1024;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > limit) throw badRequest(`That file is larger than the ${env().MAX_ATTACHMENT_MB} MB limit`);
+      chunks.push(chunk as Buffer);
+    }
+
+    /* The same decoder every other upload in this CRM uses: it survives a
+       malformed percent-sequence and strips the control characters, rather
+       than throwing a 500 at somebody whose phone named a file oddly. */
+    const filename = decodeFilename(req.get('x-filename'));
+
+    res.status(201).json(await saveWallMedia({
+      filename: filename === 'attachment' ? 'image' : filename,
+      contentType,
+      body: Buffer.concat(chunks),
+      uploadedByUserId: user.id,
+    }));
+  }),
+);
+
+/** Serve one back. Everybody signed in can see the wall, so no extra check. */
+wallRouter.get(
+  '/media/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const row = await findWallMedia(String(req.params.id));
+    if (!row) throw notFound('That image is no longer here');
+    res.type(row.content_type);
+    /* Immutable: the id names the bytes, and the bytes never change. */
+    res.set('Cache-Control', 'private, max-age=31536000, immutable');
+    createReadStream(row.storage_path).pipe(res);
+  }),
+);
 
 wallRouter.get(
   '/',
@@ -159,6 +226,78 @@ wallRouter.post(
  * The leaderboard, who is on, what is coming up, and how many thank-yous
  * the viewer has left. One request, because four would mean four spinners.
  */
+/**
+ * Who is actually posting.
+ *
+ * Deliberately not the XP leaderboard beside it: that counts deals and calls,
+ * this counts turning up on the wall. A quiet closer and a loud newcomer are
+ * two different kinds of good and the floor should see both.
+ */
+wallRouter.get(
+  '/top-posters',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const items = await query<{ id: string; name: string; photo_url: string | null; posts: number }>(
+      `SELECT u.id, u.name, u.photo_url, COUNT(*) AS posts
+         FROM wall_posts p
+         JOIN users u ON u.id = p.author_id
+        WHERE p.deleted_at IS NULL
+          AND p.kind = 'post'
+          AND p.created_at > DATE_SUB(NOW(3), INTERVAL 7 DAY)
+        GROUP BY u.id, u.name, u.photo_url
+        ORDER BY posts DESC, u.name
+        LIMIT 5`,
+    );
+    res.json({ items: items.map((row) => ({ ...row, posts: Number(row.posts) })) });
+  }),
+);
+
+/**
+ * The floor, as people.
+ *
+ * Work details only, on purpose (Emir, Nov 4, 2026: "of coures not mean,
+ * where is from, not burtdhay day date, mean also shoild pricevacy"). What a
+ * colleague needs to know to hand a lead to the right person: what they do,
+ * what they sell, what they speak. No birthday, no home city, no personal
+ * number, no email. Anyone who wants to reach them has the CRM.
+ */
+wallRouter.get(
+  '/team',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const items = await query<{
+      id: string; name: string; role: string; job_title: string | null;
+      photo_url: string | null; headline: string | null;
+      languages: unknown; specialities: unknown;
+    }>(
+      `SELECT u.id, u.name, u.role, u.job_title, u.photo_url,
+              a.headline, a.languages, a.specialities
+         FROM users u
+         LEFT JOIN agent_profiles a ON a.user_id = u.id
+        WHERE u.is_active = 1 AND u.role <> 'automation'
+        ORDER BY u.name`,
+    );
+
+    const list = (value: unknown): string[] => {
+      const raw = typeof value === 'string' ? ((): unknown => {
+        try { return JSON.parse(value); } catch { return []; }
+      })() : value;
+      return Array.isArray(raw) ? raw.map(String).filter(Boolean).slice(0, 8) : [];
+    };
+
+    res.json({
+      items: items.map((row) => ({
+        id: row.id,
+        name: row.name,
+        role: row.role,
+        jobTitle: row.job_title,
+        photoUrl: row.photo_url,
+        headline: row.headline,
+        languages: list(row.languages),
+        specialities: list(row.specialities),
+      })),
+    });
+  }),
+);
+
 wallRouter.get(
   '/sidebar',
   asyncHandler(async (req: Request, res: Response) => {

@@ -14,9 +14,26 @@ import type { StageKey } from '../lib/types.js';
 
 /* ── Identity ─────────────────────────────────────────────────────────── */
 
+/**
+ * Somebody's face, or their initials when there is no photo.
+ *
+ * `src` is optional on purpose: most people in this CRM have not uploaded a
+ * picture, and the coloured initials are the normal case rather than the
+ * fallback.
+ *
+ * A photo that fails to load is dropped rather than left in place. `alt=""`
+ * is not enough on its own: with a size set in CSS, Chrome still paints a
+ * small broken-image glyph in the corner of the circle, over the initials —
+ * which is what it did here, and the only way to find that out was to break
+ * one in a browser and look. Remembering the url that failed, rather than a
+ * boolean, means a later photo gets its own try.
+ */
 export function Avatar({
-  name, size, colour, className,
-}: { name: string | null; size?: number; colour?: string; className?: string }) {
+  name, size, colour, className, src,
+}: {
+  name: string | null; size?: number; colour?: string; className?: string; src?: string;
+}) {
+  const [failed, setFailed] = useState<string | null>(null);
   const seed = name ?? '?';
   return (
     <span
@@ -28,6 +45,7 @@ export function Avatar({
       aria-hidden
     >
       {initials(name)}
+      {src && failed !== src && <img src={src} alt="" onError={() => setFailed(src)} />}
     </span>
   );
 }

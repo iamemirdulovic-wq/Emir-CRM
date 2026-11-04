@@ -346,12 +346,85 @@ Emigeo Homes Real Estate LLC · Dubai, UAE · Licence 1120345</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
+/* What people have written about themselves, for the team tab. Only the
+   working half of a person: that is all the real endpoint returns. */
+const PREVIEW_TITLES: Record<string, string> = {
+  'u-owner': 'Founder',
+  'u-layla': 'Senior property consultant',
+  'u-omar': 'Property consultant',
+  'u-priya': 'Property consultant',
+  'u-yousef': 'Sales manager',
+};
+
+const PREVIEW_CALLED: Record<string, string> = { 'u-yousef': 'Yas' };
+
+/* Blank fields, in the words the profile page uses for them. */
+const PREVIEW_MISSING: Record<string, string[]> = {
+  'u-owner': [],
+  'u-layla': ['photo'],
+  'u-omar': ['photo', 'about them'],
+  'u-priya': ['photo', 'about them', 'headline', 'phone for clients', 'email for clients'],
+  'u-yousef': ['about them'],
+};
+
+const PREVIEW_ANSWERS: Record<string, Record<string, string>> = {
+  'u-layla': {
+    goal_this_year: 'My first AED 10M deal, and to stop losing the ones that go quiet after the brochure.',
+    deals_per_month: '3',
+    growth_view: 'Top three in Dubai off-plan within two years. We are faster than the big ones.',
+    the_dream: 'A house for my mother in Beirut, and a team of my own here.',
+    five_years: 'Running the Beachfront desk with four people under me.',
+  },
+  'u-omar': {
+    goal_this_year: 'Thirty reservations. Last year I did nineteen and half of those came in December.',
+    deals_per_month: '2',
+    growth_view: 'Twice the size if we keep the Arabic desk properly staffed.',
+    the_dream: 'My own brokerage one day. Learning how it is run first.',
+    five_years: 'Partner somewhere, or running my own small office in Abu Dhabi.',
+  },
+  'u-yousef': {
+    goal_this_year: 'Get every agent on the desk to a deal a month. That is the whole job.',
+    deals_per_month: '1',
+    growth_view: 'We can double if the lead quality holds. The people are not the problem.',
+    the_dream: 'A desk that runs itself without me checking the board at midnight.',
+    five_years: 'Head of sales, and a second office in Abu Dhabi.',
+  },
+  /* Part way through: three of five. */
+  'u-priya': {
+    goal_this_year: 'Learn the market properly and close my first deal.',
+    deals_per_month: '1',
+    growth_view: 'No idea yet, I only started three weeks ago.',
+  },
+};
+
+const PREVIEW_SPEAKS: Record<string, string[]> = {
+  'u-owner': ['English', 'Bosnian'],
+  'u-layla': ['English', 'Arabic'],
+  'u-omar': ['Arabic', 'English'],
+  'u-priya': ['English', 'Hindi', 'Malayalam'],
+  'u-yousef': ['English', 'Arabic'],
+};
+
+const PREVIEW_SELLS: Record<string, string[]> = {
+  'u-layla': ['Emaar Beachfront', 'Dubai Harbour'],
+  'u-omar': ['Damac Lagoons', 'Dubailand'],
+  'u-priya': ['Studios', 'One-beds'],
+  'u-yousef': ['Dubai desk'],
+};
+
+const PREVIEW_HEADLINES: Record<string, string> = {
+  'u-layla': 'Beachfront and Dubai Harbour. Arabic and English.',
+  'u-omar': 'Lagoons and Dubailand. Arabic first.',
+  'u-priya': 'First-time investors, studios and one-beds.',
+  'u-yousef': 'Looks after the Dubai desk.',
+};
+
 /* ── Team wall ────────────────────────────────────────────────────────── */
 
 interface PreviewWallPost {
   id: string; author_id: string | null; author_name: string | null; kind: string;
-  body: string | null; poll: unknown; show_value: number; pinned_at: string | null;
-  created_at: string;
+  body: string | null; media?: unknown; poll: unknown; show_value: number;
+  pinned_at: string | null; created_at: string;
   reactions: Array<{ emoji: string; count: number; mine: boolean }>;
   comments: Array<{ id: string; author_name: string | null; body: string; created_at: string }>;
   commentCount: number;
@@ -375,6 +448,18 @@ const WALL_POSTS: PreviewWallPost[] = [
       { id: 'wc-2', author_name: 'Emir Dulovic', body: 'Excellent. The payment plan did it.', created_at: ago(170) },
     ],
     commentCount: 2,
+  },
+  {
+    id: 'wp-5', author_id: 'u2', author_name: 'Layla Hassan', kind: 'post',
+    body: 'Site visit this morning at Beachfront. Tower is at 62% and the show apartment is open — worth taking buyers.',
+    media: [
+      { id: 'pm-1', url: '/preview/wall-1.svg', kind: 'image', name: 'Tower at dusk' },
+      { id: 'pm-2', url: '/preview/wall-2.svg', kind: 'image', name: 'Show apartment' },
+    ],
+    poll: null, show_value: 0, pinned_at: null, created_at: ago(240),
+    reactions: [{ emoji: '🔥', count: 5, mine: false }, { emoji: '👏', count: 2, mine: true }],
+    comments: [{ id: 'wc-4', author_name: 'Raj Mehta', body: 'Taking two couples Saturday.', created_at: ago(80) }],
+    commentCount: 1,
   },
   {
     id: 'wp-3', author_id: 'u3', author_name: 'Omar Haddad', kind: 'post',
@@ -1399,6 +1484,34 @@ const ROUTES: Route[] = [
     completed: false,
     skipped: false,
   }) },
+  /* The owner's view. Written out rather than derived, because the point of
+     the preview is to show the three states side by side: finished, part way
+     and never started. */
+  { method: 'GET', pattern: /^\/api\/onboarding\/all$/, handler: () => ({
+    questions: PREVIEW_WELCOME_QUESTIONS,
+    items: USERS.filter((u) => u.role !== 'automation').map((u) => {
+      const said = PREVIEW_ANSWERS[u.id] ?? {};
+      const missing = PREVIEW_MISSING[u.id] ?? [];
+      return {
+        userId: u.id,
+        name: u.name,
+        preferredName: PREVIEW_CALLED[u.id] ?? null,
+        email: u.email,
+        role: u.role,
+        isActive: u.is_active === 1,
+        jobTitle: PREVIEW_TITLES[u.id] ?? null,
+        photoUrl: null,
+        headline: PREVIEW_HEADLINES[u.id] ?? null,
+        profileFilled: 8 - missing.length,
+        profileTotal: 8,
+        profileMissing: missing,
+        answers: said,
+        completedAt: Object.keys(said).length === PREVIEW_WELCOME_QUESTIONS.length
+          ? ago(60 * 24 * 3) : null,
+        skippedAt: u.id === 'u-priya' ? ago(60 * 24) : null,
+      };
+    }),
+  }) },
   { method: 'PUT', pattern: /^\/api\/onboarding$/, handler: ({ body }) => ({
     preferredName: (body.preferredName as string) ?? null,
     answers: (body.answers as Record<string, string>) ?? {},
@@ -1482,6 +1595,32 @@ const ROUTES: Route[] = [
       badges: ['first_deal', 'fast_hands', 'week_streak', 'tidy_desk'],
     },
     badgeCount: 10,
+  }) },
+  /* Built from USERS rather than written out again, so a name changed in one
+     place does not disagree with itself across two panels. */
+  { method: 'GET', pattern: /^\/api\/wall\/top-posters$/, handler: () => ({
+    items: [
+      { id: 'u-layla', name: 'Layla Hassan', photo_url: null, posts: 6 },
+      { id: 'u-omar', name: 'Omar Farouk', photo_url: null, posts: 4 },
+      { id: 'u-priya', name: 'Priya Nair', photo_url: null, posts: 2 },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/wall\/team$/, handler: () => ({
+    items: USERS.filter((u) => u.is_active).map((u) => ({
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      jobTitle: PREVIEW_TITLES[u.id] ?? null,
+      photoUrl: null,
+      headline: PREVIEW_HEADLINES[u.id] ?? null,
+      /* The real endpoint reads agent_profiles, which is what the person
+         typed about themselves, not the routing codes on the users row. */
+      languages: PREVIEW_SPEAKS[u.id] ?? [],
+      specialities: PREVIEW_SELLS[u.id] ?? [],
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/wall\/media$/, handler: () => ({
+    id: 'pm-new', url: '/preview/wall-1.svg', kind: 'image', name: 'Picture',
   }) },
   { method: 'GET', pattern: /^\/api\/wall\/unseen-badges$/, handler: () => ({ items: [] }) },
   { method: 'POST', pattern: /^\/api\/wall\/unseen-badges\/seen$/, handler: () => ({ ok: true }) },
