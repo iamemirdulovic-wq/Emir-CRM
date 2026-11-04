@@ -57,8 +57,16 @@ describe('the styling survives the HTML', () => {
     expect(html).not.toContain('"Segoe UI"');
   });
 
+  /*
+   * Any colour, not a particular one. What is being proved is that the size
+   * and the colour are still inside the SAME style attribute as the font —
+   * `[^"]*` is the whole point, because a stray double quote is what ends the
+   * attribute early. Pinning the hex made this fail the day the palette went
+   * green, which is a false alarm: the styling was fine, the ink had simply
+   * changed. A guard that cries wolf on a repaint is a guard people delete.
+   */
   it('keeps the size and the colour in the same attribute as the font', () => {
-    expect(card()).toMatch(/font:700 21px\/1\.25 [^"]*;color:#0E1B2C/);
+    expect(card()).toMatch(/font:700 21px\/1\.25 [^"]*;color:#[0-9A-Fa-f]{6}/);
   });
 });
 
