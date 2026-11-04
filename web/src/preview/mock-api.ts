@@ -403,6 +403,17 @@ const WALL_POSTS: PreviewWallPost[] = [
  */
 const PREFS_KEY = 'homes.preview.prefs';
 
+/* The server's onboarding questions, copied so the preview can show the flow
+   with no server. If the real list changes, change this one too. */
+const PREVIEW_WELCOME_QUESTIONS = [
+  { id: 'goal_this_year', emoji: '\u{1F3AF}', prompt: 'What are you going after this year?', hint: 'One thing. The one that would make the year a good one.', kind: 'text', placeholder: 'My first AED 10M deal', maxLength: 280 },
+  { id: 'deals_per_month', emoji: '\u{1F91D}', prompt: 'Deals a month. What is your number?', hint: 'Not a promise. What you think you can do.', kind: 'number', min: 0, max: 100 },
+  { id: 'growth_view', emoji: '\u{1F4C8}', prompt: 'How big do you think homes.me can get?', hint: 'Say it however you like. Deals, people, a feeling.', kind: 'text', placeholder: 'Top three in Dubai off-plan within two years', maxLength: 280 },
+  { id: 'the_dream', emoji: '\u2728', prompt: 'What is the dream?', hint: 'Yours, not the company\u2019s.', kind: 'text', placeholder: 'A house for my mother, and a team of my own', maxLength: 280 },
+  { id: 'five_years', emoji: '\u{1F5FA}\uFE0F', prompt: 'Where are you in five years?', kind: 'text', placeholder: 'Running the Abu Dhabi desk', maxLength: 280 },
+];
+
+
 const PREVIEW_PREFS: Record<string, string | null> = readPreviewPrefs();
 
 function readPreviewPrefs(): Record<string, string | null> {
@@ -1375,6 +1386,25 @@ const ROUTES: Route[] = [
 
     return { leads, projects };
   } },
+
+  /*
+   * The welcome. Starts unanswered in the preview so the whole thing can be
+   * walked through, and the questions are the server's list copied here,
+   * because the preview has no server to ask.
+   */
+  { method: 'GET', pattern: /^\/api\/onboarding$/, handler: () => ({
+    questions: PREVIEW_WELCOME_QUESTIONS,
+    preferredName: null,
+    answers: {},
+    completed: false,
+    skipped: false,
+  }) },
+  { method: 'PUT', pattern: /^\/api\/onboarding$/, handler: ({ body }) => ({
+    preferredName: (body.preferredName as string) ?? null,
+    answers: (body.answers as Record<string, string>) ?? {},
+    completed: false,
+    skipped: Boolean(body.skip),
+  }) },
 
   /* The tour starts unseen in the preview, so it can be demonstrated. */
   { method: 'GET', pattern: /^\/api\/prefs$/, handler: () => ({ prefs: PREVIEW_PREFS }) },

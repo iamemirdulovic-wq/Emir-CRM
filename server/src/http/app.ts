@@ -49,6 +49,7 @@ import { wallRouter } from './routes/wall.js';
 import { searchRouter } from './routes/search.js';
 import { companyRouter } from './routes/company.js';
 import { prefsRouter } from './routes/prefs.js';
+import { onboardingRouter } from './routes/onboarding.js';
 
 /**
  * Webhook routes need the exact bytes that were signed, so we stash the raw
@@ -222,6 +223,7 @@ export function createApp(): Express {
   /* What the command palette asks: leads and projects, both fenced. */
   app.use('/api/search', searchRouter);
   app.use('/api/prefs', prefsRouter);
+  app.use('/api/onboarding', onboardingRouter);
   /* The company as it introduces itself to a client. Its logo route is
      public, because it is in the footer of every email we send. */
   app.use('/api/company', companyRouter);

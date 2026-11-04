@@ -5,6 +5,7 @@ import { Layout } from './components/Layout.js';
 import { Spinner } from './design/ui.js';
 import { Login } from './pages/Login.js';
 import { Setup } from './pages/Setup.js';
+import { Welcome } from './pages/Welcome.js';
 /* Lazy, and deliberately so: the studio pulls in a PDF writer, and nobody
    opening the pipeline should pay for it. */
 const BusinessCard = lazy(() => import('./pages/BusinessCard.js').then((m) => ({ default: m.BusinessCard })));
@@ -38,6 +39,10 @@ function Protected({ children }: { children: ReactNode }) {
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
+  /* First sign-in, and they have neither finished the welcome nor put it off.
+     Before the shell renders, so nobody sees the dashboard flash past on
+     their first morning. */
+  if (user.needsWelcome) return <Navigate to="/welcome" replace />;
   return <>{children}</>;
 }
 
@@ -68,6 +73,9 @@ export function App() {
             page sends you to /login when it sees that. */}
         <Route path="/setup" element={<Setup />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        {/* Full screen, outside the shell. Not wrapped in Protected: Protected
+            is what sends people here, so wrapping it would loop. */}
+        <Route path="/welcome" element={<Welcome />} />
         {/* One shell around every signed-in screen, as the design has it. */}
         <Route
           element={

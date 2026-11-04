@@ -8,6 +8,8 @@ export type CurrentUser = {
   locale: string;
   availability: 'available' | 'busy' | 'off';
   mustChangePassword: boolean;
+  /** First sign-in and they have neither finished the welcome nor put it off. */
+  needsWelcome?: boolean;
   permissions: string[];
 };
 

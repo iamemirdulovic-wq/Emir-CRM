@@ -1,0 +1,200 @@
+/*
+ * The first-sign-in welcome.
+ *
+ * Full screen, outside the app shell, so it reads as arriving somewhere
+ * rather than as another panel in the CRM. Every class is prefixed wc- for
+ * the same reason the rest of this project prefixes: two stylesheets quietly
+ * sharing a bare class name is what broke the pipeline board once.
+ *
+ * All of the motion is decoration. Under prefers-reduced-motion everything
+ * below settles into its finished position at once and nothing moves, which
+ * is the rule for the whole CRM and matters more here than anywhere, because
+ * this is the one screen built almost entirely out of movement.
+ */
+
+.wc {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-left, 0px)) 20px;
+  overflow: hidden auto;
+  background:
+    radial-gradient(90rem 50rem at 50% 120%, rgba(0, 175, 200, .30), transparent 62%),
+    linear-gradient(170deg, #061826 0%, #0A3344 58%, #0C5366 100%);
+  color: #fff;
+  z-index: 50;
+}
+
+/* ---- The skyline and the money behind the card ---- */
+.wc-bg {
+  position: absolute;
+  inset: auto 0 0;
+  height: min(42vh, 260px);
+  pointer-events: none;
+  opacity: .5;
+}
+.wc-sky {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 100%;
+  color: rgba(170, 231, 243, .85);
+}
+/* Each tower draws itself in. One long dash, pulled back to nothing, let out
+   over three seconds. */
+.wc-sky-line path {
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+  animation: wc-draw 3s cubic-bezier(.22, .68, .32, 1) forwards;
+}
+.wc-sky-line path:nth-child(2) { animation-delay: .12s; }
+.wc-sky-line path:nth-child(3) { animation-delay: .05s; }
+.wc-sky-line path:nth-child(4) { animation-delay: .22s; }
+.wc-sky-line path:nth-child(5) { animation-delay: .3s; }
+.wc-sky-line path:nth-child(6) { animation-delay: .38s; }
+.wc-sky-line path:nth-child(7) { animation-delay: .46s; }
+.wc-sky-line path:nth-child(8) { animation-delay: .54s; }
+@keyframes wc-draw { to { stroke-dashoffset: 0; } }
+
+.wc-coins { position: absolute; inset: 0; }
+.wc-coin {
+  position: absolute;
+  bottom: -40px;
+  left: calc(8% + var(--i) * 11%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font: 700 8px/1 var(--sans, system-ui);
+  letter-spacing: .04em;
+  color: #6B4A05;
+  background: linear-gradient(145deg, #FFE38A, #E9A93B 62%, #C98A20);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
+  opacity: 0;
+  animation: wc-rise 5.5s ease-in infinite;
+  animation-delay: calc(var(--i) * .55s);
+}
+@keyframes wc-rise {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  12% { opacity: .95; }
+  78% { opacity: .95; }
+  100% { transform: translateY(-46vh) rotate(260deg); opacity: 0; }
+}
+
+/* ---- The card ---- */
+.wc-stage { position: relative; width: 100%; max-width: 560px; }
+.wc-card {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+  padding: clamp(24px, 5vw, 40px);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .16);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .35);
+}
+.wc-in { animation: wc-enter .5s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes wc-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.wc-mark { font: 700 30px/1 var(--sans, system-ui); letter-spacing: -.02em; }
+.wc-kicker {
+  font: 700 11px/1 var(--sans, system-ui);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .72);
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+}
+.wc-h1 {
+  margin: 0;
+  font: 700 clamp(24px, 4.6vw, 34px)/1.2 var(--sans, system-ui);
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.wc-h1 span { color: #5BE2F5; }
+.wc-lede { margin: 0; font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, .82); }
+.wc-lede strong { color: #fff; }
+
+.wc-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, .72);
+  padding: 10px 13px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .08);
+}
+.wc-note svg { width: 16px; height: 16px; flex: none; }
+
+.wc-emoji { font-size: 42px; line-height: 1; }
+.wc-pop { animation: wc-pop .6s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes wc-pop {
+  from { transform: scale(.3) rotate(-18deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.wc-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  font: 400 16px/1.5 var(--sans, system-ui);
+  outline: 0;
+}
+.wc-input::placeholder { color: rgba(255, 255, 255, .45); }
+.wc-input:focus { border-color: #5BE2F5; box-shadow: 0 0 0 4px rgba(91, 226, 245, .18); }
+.wc-area { resize: vertical; min-height: 92px; }
+.wc-input-n { max-width: 160px; font-size: 22px; font-weight: 700; }
+
+.wc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.wc-skipline {
+  border: 0;
+  background: none;
+  padding: 8px 2px;
+  color: rgba(255, 255, 255, .66);
+  font: 600 14px/1 var(--sans, system-ui);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.wc-skipline:hover { color: #fff; }
+
+.wc-dots { display: flex; gap: 7px; }
+.wc-dots span {
+  width: 26px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .22);
+  transition: background .3s;
+}
+.wc-dots span.on { background: #5BE2F5; }
+
+.wc-err { margin: 0; font-size: 13.5px; color: #FFC2AE; }
+
+@media (max-width: 520px) {
+  .wc-card { gap: 14px; }
+  .wc-coin { width: 26px; height: 26px; font-size: 7px; }
+}
+
+/*
+ * The whole screen is movement, so this block is the one that decides whether
+ * it is usable for somebody who cannot take it. Everything lands where it
+ * would have finished, instantly, and the coins stop entirely.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .wc-sky-line path { stroke-dashoffset: 0; animation: none; }
+  .wc-coin { animation: none; opacity: .9; bottom: 12%; }
+  .wc-in, .wc-pop { animation: none; }
+}

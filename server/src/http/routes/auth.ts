@@ -9,6 +9,7 @@ import { assertPasswordPolicy, hashPassword, verifyPassword } from '../../auth/p
 import { createSession, destroySession, destroyAllSessionsForUser } from '../../auth/sessions.js';
 import { clearFailures, getLockState, isIpRateLimited, recordLoginAttempt, registerFailure } from '../../auth/lockout.js';
 import { permissionsFor, type Role } from '../../auth/rbac.js';
+import { getOnboarding } from '../../onboarding/store.js';
 import { writeAudit } from '../../audit/audit.js';
 import { actorFrom, clientIp, currentUser, requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/error.js';
@@ -341,6 +342,13 @@ authRouter.get(
   requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
+    /* One extra read per app load, which is what it costs to know whether to
+       show the welcome. Asked here rather than from the screen itself so the
+       redirect happens before anything else renders and nobody sees the
+       dashboard flash past on their first morning. */
+    const welcome = user.role === 'automation'
+      ? { completed: true, skipped: true }
+      : await getOnboarding(user.id);
     res.json({
       user: {
         id: user.id,
@@ -350,6 +358,7 @@ authRouter.get(
         locale: user.locale,
         availability: user.availability,
         mustChangePassword: user.mustChangePassword,
+        needsWelcome: !welcome.completed && !welcome.skipped,
         permissions: permissionsFor(user.role),
       },
     });

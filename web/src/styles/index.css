@@ -9,3 +9,5 @@
 @import './kit.css';
 @import './animations.css';
 @import './card-studio.css';
+/* The first-sign-in welcome: full screen, outside the shell. */
+@import './welcome.css';

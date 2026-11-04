@@ -206,6 +206,7 @@ export const TRUNCATE_ORDER = [
   'agent_profiles',
   // Step 14 — preferences and what the AI has been asked.
   'user_prefs',
+  'user_onboarding',
   'ai_usage',
   'ai_knowledge_versions',
   'ai_knowledge',
