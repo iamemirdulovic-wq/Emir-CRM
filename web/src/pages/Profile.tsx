@@ -188,21 +188,49 @@ export function Profile() {
 
       <div className="dash">
         <Panel span={8} index={1} icon="user" title="Profile">
-          <div className="profile-head">
-            {profile.photo_url ? (
-              <img className="profile-photo" src={profile.photo_url} alt={profile.name} width={64} height={64} />
-            ) : (
-              <Avatar name={profile.name} size={64} />
-            )}
-            <div>
-              <h2>{profile.name}</h2>
-              <p className="muted">
-                {profile.job_title ?? humanize(profile.role)}
-                {profile.brn ? ` · BRN ${profile.brn}` : ''}
-              </p>
-              <span className="level-pill">
-                {level.level} · {level.earned} of {level.of} badges
+          {/*
+            * The same cover the business card uses, served by the card's own
+            * renderer, with the photo sitting over its edge. An agent who
+            * picks "Marina at dusk" sees the same picture in both places.
+            */}
+          <div className="profile-hero">
+            <div
+              className="profile-cover"
+              style={{
+                /* Two layers: the cover on top, the gradient under it. An inline
+                   backgroundImage replaces the stylesheet's, so the fallback has to
+                   travel with it or a failed image leaves a blank band. */
+                backgroundImage: `url(/api/profiles/covers/${profile.cover_key}.svg), linear-gradient(135deg,#0B2233,#0C4A5C 55%,#00AFC8)`,
+              }}
+              aria-hidden="true"
+            />
+            <div className="profile-ident">
+              <span className="profile-ring">
+                {profile.photo_url ? (
+                  <img className="profile-photo" src={profile.photo_url} alt={profile.name} width={96} height={96} />
+                ) : (
+                  <Avatar name={profile.name} size={96} />
+                )}
               </span>
+              <div className="profile-who">
+                <h2>{profile.name}</h2>
+                <p className="muted">
+                  {profile.job_title ?? humanize(profile.role)}
+                  {profile.brn ? ` · BRN ${profile.brn}` : ''}
+                </p>
+                {profile.headline && <p className="profile-line">{profile.headline}</p>}
+                <div className="profile-tags">
+                  <span className="level-pill">
+                    {level.level} · {level.earned} of {level.of} badges
+                  </span>
+                  {asList(profile.languages).map((item) => (
+                    <span className="profile-tag" key={`lang-${item}`}>{item}</span>
+                  ))}
+                  {asList(profile.specialities).map((item) => (
+                    <span className="profile-tag profile-tag-sell" key={`sell-${item}`}>{item}</span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

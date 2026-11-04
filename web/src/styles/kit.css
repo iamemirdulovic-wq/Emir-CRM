@@ -914,6 +914,30 @@
    Agent profile
    --------------------------------------------------------------------------- */
 
+/* The profile hero: the business card's own cover, with the photo over its
+   edge. Only the photo overlaps; the name sits below on the panel, because
+   dark text on a dark cover is unreadable and a cover light enough for dark
+   text is not a cover. Prefixed profile- like the rest of this block. */
+.profile-hero{margin-bottom:18px}
+/* The gradient under the cover is not a placeholder: it is what shows if the
+   image fails, which it will on a slow connection and does in the no-server
+   preview. A header that falls back to white looks broken. */
+.profile-cover{height:clamp(88px,15vw,132px);border-radius:14px;background-color:#123047;background-size:cover;background-position:center}
+.profile-ident{display:flex;gap:16px;align-items:flex-start;padding:0 2px}
+/* Only this rises. 46px of a 96px photo sits on the cover. */
+.profile-ring{flex:none;margin-top:-46px;border-radius:50%;padding:4px;background:var(--surface,#fff);line-height:0;box-shadow:0 6px 18px rgba(15,50,90,.16)}
+.profile-ring img{border-radius:50%;display:block;object-fit:cover}
+.profile-who{min-width:0;padding-top:12px}
+.profile-who h2{margin:0;font-size:21px}
+.profile-who p{margin:2px 0 0;font-size:13px}
+.profile-line{margin:6px 0 0;font-size:13.5px;color:var(--ink-2)}
+.profile-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.profile-tag{font-size:12px;font-weight:600;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--glass-line);border-radius:999px;padding:4px 10px}
+.profile-tag-sell{color:var(--primary);background:var(--primary-soft);border-color:transparent}
+@media (max-width:560px){
+  .profile-ident{flex-direction:column;gap:6px}
+  .profile-who{padding-top:2px}
+}
 .profile-head{display:flex;gap:14px;align-items:center;margin-bottom:16px}
 .profile-head h2{margin:0;font-size:19px}
 .profile-head p{margin:2px 0 6px;font-size:13px}

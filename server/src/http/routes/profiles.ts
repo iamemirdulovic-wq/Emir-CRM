@@ -14,7 +14,7 @@ import { query, queryOne } from '../../db/client.js';
 import {
   getOrCreateProfile, loadProfile, profileStats, updateProfile,
 } from '../../profiles/profiles.js';
-import { COVERS } from '../../profiles/covers.js';
+import { COVERS, renderCover } from '../../profiles/covers.js';
 import { badgesFor, levelFor, type BadgeStats } from '../../profiles/badges.js';
 
 /**
@@ -94,6 +94,25 @@ profilesRouter.get(
   '/covers',
   asyncHandler(async (_req: Request, res: Response) => {
     res.json({ items: COVERS.map(({ key, name }) => ({ key, name })) });
+  }),
+);
+
+/**
+ * One cover, as an image.
+ *
+ * The profile page shows the same cover the business card does, and this is
+ * how it gets it: the card's own renderer, served as SVG, rather than the six
+ * gradients written out a second time in CSS where they would drift. A couple
+ * of kilobytes, cached for a day, and an unknown key falls back to the first
+ * cover rather than 404ing a page's header.
+ */
+profilesRouter.get(
+  '/covers/:key.svg',
+  asyncHandler(async (req: Request, res: Response) => {
+    const key = String(req.params.key ?? '');
+    res.type('image/svg+xml');
+    res.set('Cache-Control', 'private, max-age=86400');
+    res.send(renderCover(key, 1200, 320));
   }),
 );
 
