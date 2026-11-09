@@ -1614,3 +1614,27 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   .checkin{align-items:flex-start}
   .att-hours{grid-template-columns:1fr 1fr}
 }
+
+/* Inviting several people at once ---------------------------------------- */
+.invite{display:flex;flex-direction:column;gap:14px;margin-bottom:18px;
+  padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}
+.invite textarea.input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;
+  line-height:1.7;resize:vertical}
+.invite-lede{margin:0;font-size:13.5px;line-height:1.6}
+.invite-opts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.invite-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.invite-head b{font-size:15.5px}
+.invite-actions{display:flex;gap:10px;flex-wrap:wrap}
+/* The handover list: one line a person, the password in a face you can read
+   a letter at a time down a phone. */
+.invite-sheet{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;background:var(--surface)}
+.invite-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:9px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+.invite-row:last-child{border-bottom:0}
+.invite-row span{flex:1;min-width:180px;color:var(--ink-2)}
+.invite-row code{font-size:15px;letter-spacing:.05em;color:var(--ink);font-weight:600}
+.invite-sent{display:inline-flex;align-items:center;gap:4px;font-style:normal;
+  font-size:11.5px;color:var(--wa)}
+.invite-skipped{font-size:13px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
+.invite-skipped b{color:var(--ink-2);font-weight:600}

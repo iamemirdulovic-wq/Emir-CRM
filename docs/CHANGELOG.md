@@ -2,6 +2,42 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Inviting the team, and the email that tells them how we work
+
+Nine agents joined on one day. Creating them one form at a time is nine
+chances to mistype a role, and a wrong role is somebody seeing the whole
+team's leads.
+
+- **Settings → Team → Invite several.** Paste the addresses, pick the role
+  once, and it creates an account each. The passwords come back once, in a
+  list with a Copy button, to be handed over on WhatsApp or in person.
+- Only an address is asked for. There is no name to ask for yet, and an
+  invented one is worse than an obvious placeholder: `tej@homes.me` becomes
+  *Tej*, and each person fixes their own on first sign-in in the welcome flow
+  that already asks who they are.
+- **The welcome email** carries the sign-in and the five things Emir asks of
+  everyone: open the CRM every day; mark that you are in each morning (and
+  what the office Wi-Fi has to do with it); answer a new lead inside five
+  minutes, and what happens after five; your manager reads every lead; and the
+  CRM is still being built, so say what is broken. It ends *Close more, earn
+  more.*
+- The email ships as plain text as well as HTML, because this one carries a
+  password and a mail client that blocks HTML must not deliver a blank message
+  with somebody's only credential inside it. No unsubscribe and no tracking
+  pixel: it is a staff email, and nobody unsubscribes from being told how to
+  log in to their own job.
+- When email is not connected the invite says so plainly and the list is still
+  there to copy. Nothing is lost and nothing is silently not sent.
+
+**What it refuses, with a test each:** a second account on an address that
+already has one (and it does not touch the existing password), a repeat inside
+one paste, a line that is not an address, the owner role handed out from a
+textarea, and anybody below admin using it at all. The temporary password is
+returned once and never reaches the audit log — there is a test that greps the
+log for it.
+
+23 new tests, 12 of them against a real database.
+
 ## The sign-in page, with the team on it
 
 Emir sent a reference and a folder of 3D images of the homes.me team in the

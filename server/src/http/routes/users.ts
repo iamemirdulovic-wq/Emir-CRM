@@ -13,6 +13,7 @@ import { destroyAllSessionsForUser } from '../../auth/sessions.js';
 import { writeAudit, diffFields } from '../../audit/audit.js';
 import { returnLeadsToIncoming } from '../../routing/handover.js';
 import { env } from '../../config/env.js';
+import { sendWelcomeEmail } from '../../users/welcome-email.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -120,6 +121,105 @@ usersRouter.post(
 
     // Returned once so the admin can hand it over; never stored in plain text.
     res.status(201).json({ id, email, temporaryPassword: temporary });
+  }),
+);
+
+/*
+ * Nine people joined at once, and doing that one form at a time is how a role
+ * gets mistyped on the seventh.
+ *
+ * A name is not asked for: there isn't one to ask for yet, and a wrong name is
+ * worse than an obvious placeholder. The part before the @ is capitalised and
+ * everybody fixes their own on first sign-in, in the welcome flow that already
+ * asks them who they are.
+ */
+const inviteSchema = z.object({
+  emails: z.array(z.string().min(3).max(255)).min(1).max(50),
+  role: z.enum(ROLES),
+  managerId: z.string().max(36).nullable().optional(),
+  /** Off by default: nothing leaves the building unless it was asked for. */
+  sendEmail: z.boolean().optional(),
+});
+
+/** "tej@homes.me" -> "Tej", until they tell us otherwise. */
+function nameFromEmail(email: string): string {
+  const local = email.split('@')[0] ?? email;
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || email;
+}
+
+export interface InviteResult {
+  email: string;
+  status: 'created' | 'already_exists' | 'invalid';
+  /** Shown once, to be handed over. Never stored in plain text or audited. */
+  temporaryPassword?: string;
+  emailSent?: boolean;
+  emailReason?: string;
+}
+
+usersRouter.post(
+  '/invite',
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = inviteSchema.parse(req.body);
+    /* An owner is not something you hand out in bulk. */
+    if (body.role === 'owner') throw badRequest('Invite people as admin, manager or agent, not owner');
+
+    const results: InviteResult[] = [];
+    const seen = new Set<string>();
+
+    for (const raw of body.emails) {
+      const email = normalizeEmail(raw);
+      if (!email || seen.has(email)) {
+        results.push({ email: raw.trim(), status: 'invalid' });
+        continue;
+      }
+      seen.add(email);
+
+      const existing = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [email]);
+      if (existing) {
+        results.push({ email, status: 'already_exists' });
+        continue;
+      }
+
+      const temporary = generateTemporaryPassword();
+      const { hash, algo } = await hashPassword(temporary);
+      const id = newId();
+      const name = nameFromEmail(email);
+
+      await execute(
+        `INSERT INTO users (id, name, email, role, password_hash, password_algo, must_change_password,
+                            is_active, manager_id, routing_weight, locale)
+         VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, 10, 'en')`,
+        [id, name, email, body.role, hash, algo, body.managerId ?? null],
+      );
+
+      await writeAudit({
+        actor: actorFrom(req),
+        action: 'user.created',
+        entityType: 'user',
+        entityId: id,
+        // The password is never written here, the same as the single create.
+        after: { name, email, role: body.role, via: 'invite' },
+      });
+
+      const result: InviteResult = { email, status: 'created', temporaryPassword: temporary };
+      if (body.sendEmail) {
+        const sent = await sendWelcomeEmail({ name, email, temporaryPassword: temporary });
+        result.emailSent = sent.sent;
+        if (!sent.sent) result.emailReason = sent.reason;
+      }
+      results.push(result);
+    }
+
+    res.status(201).json({
+      results,
+      created: results.filter((r) => r.status === 'created').length,
+      skipped: results.filter((r) => r.status !== 'created').length,
+    });
   }),
 );
 

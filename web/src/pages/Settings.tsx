@@ -20,6 +20,7 @@ import { RoutingSettings } from '../components/RoutingSettings.js';
 import { CompanySettings } from '../components/CompanySettings.js';
 import { TeamProfiles } from '../components/TeamProfiles.js';
 import { AttendanceSettings } from '../components/AttendanceSettings.js';
+import { InviteTeam } from '../components/InviteTeam.js';
 
 type Tab = 'profile' | 'company' | 'team' | 'people' | 'teams' | 'routing'
   | 'attendance' | 'templates' | 'ai' | 'health';
@@ -266,6 +267,7 @@ function TeamTab() {
   const list = useAsync<{ items: UserRow[] }>(() => api.get('/api/users'), []);
   const [credential, setCredential] = useState<{ email: string; password: string } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   async function resetPassword(row: UserRow) {
     try {
@@ -298,11 +300,17 @@ function TeamTab() {
         icon="users"
         title={t('team')}
         action={
-          <button type="button" className="link" onClick={() => setCreating(true)}>
-            Add a user
-          </button>
+          <>
+            <button type="button" className="link" onClick={() => setInviting((on) => !on)}>
+              Invite several
+            </button>
+            <button type="button" className="link" onClick={() => setCreating(true)}>
+              Add a user
+            </button>
+          </>
         }
       >
+        {inviting && <InviteTeam onDone={() => list.reload()} />}
         {credential && (
           <div className="inv-calc" style={{ marginBottom: 14 }}>
             <b>Temporary password for {credential.email}</b>

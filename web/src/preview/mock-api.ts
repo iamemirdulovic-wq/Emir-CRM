@@ -1818,6 +1818,31 @@ const ROUTES: Route[] = [
     });
     return { id, email: body.email, temporaryPassword: 'Tmp7xKqR2vLm!7' };
   } },
+  { method: 'POST', pattern: /^\/api\/users\/invite$/, handler: ({ body }) => {
+    const emails = Array.isArray(body.emails) ? (body.emails as string[]) : [];
+    const sendEmail = body.sendEmail === true;
+    const seen = new Set<string>();
+    const results = emails.map((raw) => {
+      const email = String(raw).trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { email: String(raw).trim(), status: 'invalid' };
+      if (seen.has(email) || USERS.some((u) => u.email === email)) return { email, status: 'already_exists' };
+      seen.add(email);
+      /* A fixed-shape fake, so the preview looks like the real handover list
+         without ever showing something that would work anywhere. */
+      const pw = `Tmp${email.slice(0, 2).toUpperCase()}${(email.length * 7) % 97}qR!`;
+      return {
+        email, status: 'created', temporaryPassword: pw,
+        /* The preview has no mail server, which is what an unconfigured CRM
+           looks like too. */
+        ...(sendEmail ? { emailSent: false, emailReason: 'smtp_not_configured' } : {}),
+      };
+    });
+    return {
+      results,
+      created: results.filter((r) => r.status === 'created').length,
+      skipped: results.filter((r) => r.status !== 'created').length,
+    };
+  } },
   { method: 'POST', pattern: /^\/api\/users\/([^/]+)\/reset-password$/, handler: () => ({ temporaryPassword: 'Tmp7xKqR2vLm!7' }) },
   { method: 'POST', pattern: /^\/api\/users\/([^/]+)\/unlock$/, handler: () => ({ ok: true }) },
   { method: 'POST', pattern: /^\/api\/users\/me\/push-tokens$/, handler: () => ({ ok: true }) },
