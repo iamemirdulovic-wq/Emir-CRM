@@ -10,11 +10,21 @@
 
 /* LOGIN */
 #login{min-height:100vh;display:grid;place-items:center;padding:24px}
-.login-card{display:grid;grid-template-columns:1fr 1fr;width:min(940px,100%);border-radius:30px;overflow:hidden}
-.login-art{padding:40px;display:flex;flex-direction:column;justify-content:space-between;gap:28px;background:var(--grad);color:var(--primary-ink);position:relative;overflow:hidden}
-.login-art::after{content:"";position:absolute;width:320px;height:320px;border-radius:50%;right:-90px;bottom:-110px;background:rgba(255,255,255,.18);filter:blur(2px)}
-.login-art h2{font-size:34px;line-height:1.1;margin:0 0 10px;font-weight:700;letter-spacing:-.03em;max-width:340px}
-.login-art p{margin:0;opacity:.9;max-width:340px}
+.login-card{display:grid;grid-template-columns:1fr 1fr;width:min(1040px,100%);border-radius:30px;overflow:hidden}
+/*
+ * The art panel is a photograph of the team now, not a gradient.
+ *
+ * The image is positioned absolutely rather than sized at 100%: in a grid
+ * cell whose height comes from the form beside it, a percentage height has
+ * nothing to resolve against and the picture collapses.
+ */
+.login-art{padding:0;position:relative;overflow:hidden;background:var(--grad);min-height:430px}
+.login-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 22%}
+.login-art-said{position:absolute;inset:auto 0 0 0;padding:34px 32px 30px;color:#fff;
+  background:linear-gradient(to top,rgba(8,18,5,.94) 0%,rgba(8,18,5,.74) 46%,rgba(8,18,5,0) 100%)}
+.login-art-said h2{font-size:30px;line-height:1.12;margin:0 0 8px;font-weight:700;
+  letter-spacing:-.03em;color:#fff;max-width:13ch;text-wrap:balance}
+.login-art-said p{margin:0;font-size:14.5px;line-height:1.5;color:rgba(255,255,255,.84);max-width:32ch}
 .stripes{display:flex;gap:8px;align-items:flex-end;height:120px;position:relative;z-index:1}
 .stripes span{flex:1;border-radius:10px;background:rgba(255,255,255,.35)!important;border:1px solid rgba(255,255,255,.5)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.02em}
@@ -22,6 +32,7 @@
 .login-art .brand-mark{background:rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
 .login-form{padding:40px;display:flex;align-items:center}
 .login-form form{width:100%}
+.login-form .brand{margin-bottom:22px}
 .login-form h1{font-size:28px;margin:0 0 6px;letter-spacing:-.03em}
 .login-form .sub{color:var(--ink-2);margin:0 0 26px}
 .field{display:block;margin-bottom:14px}
@@ -335,9 +346,14 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 @media (max-width:760px){
   #login{padding:14px}
   .login-card{grid-template-columns:1fr;border-radius:24px}
-  .login-art{padding:24px}
+  /* A short band across the top. A portrait crop at this shape shows three
+     foreheads, so the wide cut is swapped in and the words move to the form,
+     which has room for them. */
+  .login-art{padding:0;min-height:0;height:184px}
+  .login-art img{object-position:50% 28%}
+  .login-art-said{display:none}
   .stripes{height:56px}
-  .login-art h2{font-size:24px}
+  .login-art-said h2{font-size:22px}
   .login-form{padding:24px}
   .side{display:none}
   .main{margin-left:0;padding:0 10px}

@@ -62,6 +62,8 @@ const STRINGS = {
     pipeline: 'Pipeline',
     automations: 'Automations',
     settings: 'Settings',
+    /* The heading greets; the button still says what it does. */
+    welcomeBack: 'Welcome back',
     signInSubtitle: 'Use the email and password your admin gave you.',
     signInHeadline: 'Every lead answered in seconds.',
     signInBlurb:
@@ -123,6 +125,7 @@ const STRINGS = {
     pipeline: 'المسار',
     automations: 'الأتمتة',
     settings: 'الإعدادات',
+    welcomeBack: 'أهلاً بعودتك',
     signInSubtitle: 'استخدم البريد الإلكتروني وكلمة المرور من المسؤول.',
     signInHeadline: 'كل عميل يحصل على رد خلال ثوانٍ.',
     signInBlurb: 'عملاء ميتا وجوجل والموقع وواتساب في لوحة واحدة، مع صندوق وارد واحد لفريقك.',

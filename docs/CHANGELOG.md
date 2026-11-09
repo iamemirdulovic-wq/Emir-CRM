@@ -2,6 +2,32 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The sign-in page, with the team on it
+
+Emir sent a reference and a folder of 3D images of the homes.me team in the
+Dubai office, logo on the wall, Burj in the window. The teal gradient panel is
+gone and the photograph is the page.
+
+- **Two cuts of the picture, not one scaled.** The tall 1200x1600 is drawn for
+  a side panel; on a phone that panel becomes a 184px band across the top,
+  where a portrait crop shows three foreheads, so the 16:9 standing shot is
+  swapped in with `<source media>`. The browser picks on the panel's shape,
+  not the screen's.
+- The headline sits in a gradient scrim over the picture, white on near-black,
+  and is hidden on the phone band where there is no room for it — the form's
+  own heading carries the words there.
+- **"Welcome back"** replaces "Sign in" as the heading. The button still says
+  what it does.
+- The logo moved to the form side, which survives the phone crop.
+- Everything the page already did is untouched: the sign-in link, "keep me
+  signed in", the first-run redirect to /setup, the same-answer-either-way
+  reply when somebody asks for a link.
+
+**The preview could not show this screen at all.** It boots signed in, so
+`/login` bounced to the Dashboard on every load. `emir.previewSignedOut` in
+localStorage now holds it on the login page — the one screen the preview
+existed to show and could not.
+
 ## Your own face in the corner, and sign-out asks first
 
 - **The sidebar showed initials to everybody**, including people who had

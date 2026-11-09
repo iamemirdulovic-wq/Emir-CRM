@@ -90,26 +90,30 @@ export function Login() {
   return (
     <section id="login">
       <div className="login-card">
+        {/*
+          * The team, in the office, with the logo on the wall behind them.
+          *
+          * Two cuts of the same picture rather than one scaled down: the tall
+          * one is drawn for this panel, and on a phone the panel becomes a
+          * short band across the top, where a portrait crop would show three
+          * foreheads. The browser picks by the panel's own shape, not the
+          * screen's, which is what `media` here is for.
+          */}
         <div className="login-art">
-          <BrandLockup />
-          <div>
+          <picture>
+            <source media="(max-width: 760px)" srcSet="/brand/team-wide.webp" />
+            <img src="/brand/team-portrait.webp" alt="" width={1200} height={1600} />
+          </picture>
+          <div className="login-art-said">
             <h2>{t('signInHeadline')}</h2>
             <p>{t('signInBlurb')}</p>
-          </div>
-          {/* The stripes are the pipeline in miniature, in stage order. */}
-          <div className="stripes" aria-hidden="true">
-            <span style={{ background: 'var(--s-new)', height: '100%' }} />
-            <span style={{ background: 'var(--s-att)', height: '78%' }} />
-            <span style={{ background: 'var(--s-eng)', height: '58%' }} />
-            <span style={{ background: 'var(--s-apt)', height: '40%' }} />
-            <span style={{ background: 'var(--s-deal)', height: '26%' }} />
-            <span style={{ background: 'var(--s-won)', height: '16%' }} />
           </div>
         </div>
 
         <div className="login-form">
           <form onSubmit={onSubmit} noValidate>
-            <h1>{t('signIn')}</h1>
+            <BrandLockup />
+            <h1>{t('welcomeBack')}</h1>
             <p className="sub">{t('signInSubtitle')}</p>
 
             {error && (

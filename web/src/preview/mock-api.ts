@@ -42,7 +42,20 @@ const PERMISSIONS = [
 ];
 
 /** The preview always starts signed in — an empty login screen demonstrates nothing. */
-const session = { signedIn: true, locale: 'en' };
+const session = {
+  /*
+   * Signed in, unless somebody asked not to be.
+   *
+   * The preview exists to show screens, and until this flag the login screen
+   * was the one screen it could not show: every load reset this to true and
+   * /login bounced straight to the Dashboard. Set
+   * `localStorage['emir.previewSignedOut'] = '1'` to look at it.
+   */
+  signedIn: (() => {
+    try { return localStorage.getItem('emir.previewSignedOut') !== '1'; } catch { return true; }
+  })(),
+  locale: 'en',
+};
 
 const routing = {
   slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
