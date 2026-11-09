@@ -1650,3 +1650,4 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   .access{grid-template-columns:minmax(0,1fr)}
   .access-art{max-width:320px;margin-inline:auto}
 }
+.access-foot{font-size:12.5px;line-height:1.55;margin-top:6px}

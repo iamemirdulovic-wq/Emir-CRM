@@ -144,6 +144,39 @@ export function AccessCardModal({ access, onClose }: { access: Access; onClose: 
     }
   }
 
+  /**
+   * Their own mail app, filled in.
+   *
+   * `mailto:` is handled by the operating system — nothing is uploaded — so
+   * this works today, with no SMTP and no DNS, and the message goes out from
+   * Emir's own address rather than from a server nobody has set up yet. It is
+   * plain text; the designed version is what the CRM sends once email is
+   * connected.
+   */
+  function openEmail() {
+    const subject = encodeURIComponent('Your homes.me CRM is ready');
+    const body = encodeURIComponent(accessCardText(access));
+    window.location.href = `mailto:${access.email}?subject=${subject}&body=${body}`;
+  }
+
+  /**
+   * Copy, then open WhatsApp for them to paste into.
+   *
+   * Deliberately NOT a wa.me/?text= link. That puts the password in a URL on
+   * Meta's servers on the way to the app, and a credential should not take a
+   * detour through a third party to travel between two people in the same
+   * office. One paste is a fair price.
+   */
+  async function openWhatsApp() {
+    try {
+      await navigator.clipboard.writeText(accessCardText(access));
+      toast('Copied. Pick their chat and paste — one-to-one, not the group.');
+    } catch {
+      toast('Could not copy. Select the words below and copy them by hand.');
+    }
+    window.open('https://web.whatsapp.com/', '_blank', 'noopener');
+  }
+
   async function copyText() {
     try {
       await navigator.clipboard.writeText(accessCardText(access));
@@ -170,7 +203,16 @@ export function AccessCardModal({ access, onClose }: { access: Access; onClose: 
           <Button variant="primary" icon="image-up" loading={busy} onClick={() => void savePng()}>
             Save the picture
           </Button>
+          <Button icon="message-circle" onClick={() => void openWhatsApp()}>
+            Copy &amp; open WhatsApp
+          </Button>
+          <Button icon="mail" onClick={openEmail}>Open in your email app</Button>
           <Button icon="copy" onClick={() => void copyText()}>Copy as words</Button>
+          <p className="muted access-foot">
+            The email opens in your own mail app and goes from your address.
+            Once homes.me email is connected the CRM sends the designed one
+            itself, to everybody at once.
+          </p>
         </div>
       </div>
     </Modal>

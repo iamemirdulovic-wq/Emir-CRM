@@ -30,6 +30,19 @@ things that matter on day one.
 The name on it is capitalised the same way the server capitalises the account
 name, so the card and the account agree — "Tej", not "tej".
 
+**Both ways out, today.** Emir wants these sent by email *and* WhatsApp, and
+neither channel is connected. So the card offers what works with nothing
+configured: **Open in your email app** builds a `mailto:` the operating system
+hands to Gmail or Outlook, filled in and addressed, sent from Emir's own
+address; **Copy & open WhatsApp** copies the words and opens WhatsApp Web to
+paste into.
+
+That second one is deliberately *not* a `wa.me/?text=` link, which is the
+obvious way to do it. That form puts the password in a URL on Meta's servers
+on the way to the app, and a credential should not take a detour through a
+third party to travel between two people in the same office. One paste is a
+fair price.
+
 ## Inviting the team, and the email that tells them how we work
 
 Nine agents joined on one day. Creating them one form at a time is nine
