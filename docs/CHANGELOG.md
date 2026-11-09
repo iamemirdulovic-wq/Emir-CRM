@@ -2,6 +2,24 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Reset password now hands you something you can send
+
+Emir had five accounts whose passwords he had never seen — they are shown once
+when the account is made, and that moment had passed. *"I don't know their
+password, so how can I send it to them?"*
+
+**Reset password** has always made a new one. It printed it into a small box
+with a Done button, which answers "what is it" and not the question people
+actually have, which is "how do I get it to them". It opens the handover card
+now: the picture, **Copy & open WhatsApp**, **Open in your email app**, and
+**Copy as words** — the same four ways out as a new invite.
+
+**A reset is not a welcome.** The card knows the difference: "A new password,
+Tej — your old one has stopped working" rather than "Welcome, your CRM is
+ready", and the three day-one rules are dropped, because they are noise to
+somebody who has been using it for a week. The card is shorter to match, in
+the picture and in the words.
+
 ## The role was a pill nobody could change
 
 Emir created five of the new team as **Admin** rather than Agent, and then

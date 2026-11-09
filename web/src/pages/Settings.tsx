@@ -21,6 +21,7 @@ import { CompanySettings } from '../components/CompanySettings.js';
 import { TeamProfiles } from '../components/TeamProfiles.js';
 import { AttendanceSettings } from '../components/AttendanceSettings.js';
 import { InviteTeam } from '../components/InviteTeam.js';
+import { AccessCardModal, type Access } from '../components/AccessCard.js';
 
 type Tab = 'profile' | 'company' | 'team' | 'people' | 'teams' | 'routing'
   | 'attendance' | 'templates' | 'ai' | 'health';
@@ -265,15 +266,27 @@ function GettingAround() {
 function TeamTab() {
   const toast = useToast();
   const list = useAsync<{ items: UserRow[] }>(() => api.get('/api/users'), []);
-  const [credential, setCredential] = useState<{ email: string; password: string } | null>(null);
+  /*
+   * A reset opens the same handover card the invite does.
+   *
+   * It used to print the password into a small box with a Done button, which
+   * was fine when the only question was "what is it". The question people
+   * actually have is "how do I get it to them" — Emir had five accounts whose
+   * passwords he had never seen and no way to send anybody anything.
+   */
+  const [credential, setCredential] = useState<Access | null>(null);
   const [creating, setCreating] = useState(false);
   const [inviting, setInviting] = useState(false);
 
   async function resetPassword(row: UserRow) {
     try {
       const result = await api.post<{ temporaryPassword: string }>(`/api/users/${row.id}/reset-password`);
-      // Shown once, here, and never emailed: there is no reset flow by design.
-      setCredential({ email: row.email, password: result.temporaryPassword });
+      /* Shown once, here. There is no reset-by-email flow by design, so this
+         is the only moment the password exists in readable form. */
+      setCredential({
+        name: row.name, email: row.email,
+        password: result.temporaryPassword, url: 'crm.homes.me', kind: 'reset',
+      });
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Could not reset the password');
     }
@@ -325,19 +338,7 @@ function TeamTab() {
       >
         {inviting && <InviteTeam onDone={() => list.reload()} />}
         {credential && (
-          <div className="inv-calc" style={{ marginBottom: 14 }}>
-            <b>Temporary password for {credential.email}</b>
-            <p className="muted" style={{ fontSize: 13 }}>
-              Shown once. Hand it over in person or by phone — never by email. They must change it at
-              their next sign-in.
-            </p>
-            <code style={{ fontSize: 18, letterSpacing: '.04em' }}>{credential.password}</code>
-            <div style={{ marginTop: 10 }}>
-              <button type="button" className="btn" onClick={() => setCredential(null)}>
-                Done
-              </button>
-            </div>
-          </div>
+          <AccessCardModal access={credential} onClose={() => setCredential(null)} />
         )}
 
         {creating && <NewUser onDone={() => { setCreating(false); list.reload(); }} onCredential={setCredential} />}
@@ -434,7 +435,7 @@ function NewUser({
   onDone, onCredential,
 }: {
   onDone: () => void;
-  onCredential: (credential: { email: string; password: string }) => void;
+  onCredential: (credential: Access) => void;
 }) {
   const toast = useToast();
   const [name, setName] = useState('');
@@ -446,7 +447,7 @@ function NewUser({
     setBusy(true);
     try {
       const result = await api.post<{ temporaryPassword: string }>('/api/users', { name, email, role });
-      onCredential({ email, password: result.temporaryPassword });
+      onCredential({ name, email, password: result.temporaryPassword, url: 'crm.homes.me' });
       onDone();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Could not create the user');

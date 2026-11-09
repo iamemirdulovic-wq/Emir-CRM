@@ -24,6 +24,12 @@ export interface Access {
   email: string;
   password: string;
   url: string;
+  /**
+   * A reset is not a welcome. "Your CRM is ready" to somebody who has had it
+   * a week reads as a mistake, and the three day-one rules are noise to
+   * someone who already knows them.
+   */
+  kind?: 'new' | 'reset';
 }
 
 /* 90 × 126mm, which rasterises to roughly 1060 × 1490 — a portrait image that
@@ -31,7 +37,9 @@ export interface Access {
 const W_MM = 90;
 const H_MM = 126;
 const VB_W = 900;
-const VB_H = 1260;
+/* A reset card stops after the sign-in box, so it is shorter. */
+const VB_H_NEW = 1260;
+const VB_H_RESET = 940;
 
 const RULES: Array<[string, string]> = [
   ['Open it every day', 'If it is not in the CRM, it did not happen.'],
@@ -48,8 +56,11 @@ function esc(value: string): string {
 
 export function accessCardSvg(access: Access): string {
   const first = esc(access.name.split(' ')[0] ?? access.name);
+  const reset = access.kind === 'reset';
+  const vbH = reset ? VB_H_RESET : VB_H_NEW;
+  const footY = reset ? 790 : 1104;
 
-  const rules = RULES.map(([title, detail], i) => {
+  const rules = reset ? '' : RULES.map(([title, detail], i) => {
     const y = 806 + i * 118;
     return `
       <rect x="64" y="${y - 30}" width="40" height="40" rx="13" fill="#EDF6DF"/>
@@ -59,9 +70,9 @@ export function accessCardSvg(access: Access): string {
       <text x="124" y="${y + 30}" font-size="21" fill="#5F656D">${esc(detail)}</text>`;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" width="${VB_W}" height="${VB_H}">
-  <rect width="${VB_W}" height="${VB_H}" fill="#F2F5EE"/>
-  <rect x="26" y="26" width="${VB_W - 52}" height="${VB_H - 52}" rx="40" fill="#FFFFFF"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${vbH}" width="${VB_W}" height="${vbH}">
+  <rect width="${VB_W}" height="${vbH}" fill="#F2F5EE"/>
+  <rect x="26" y="26" width="${VB_W - 52}" height="${vbH - 52}" rx="40" fill="#FFFFFF"/>
 
   <!-- The mark, drawn rather than linked, so the image needs nothing else -->
   <rect x="64" y="74" width="62" height="62" rx="17" fill="#F1511B"/>
@@ -71,9 +82,12 @@ export function accessCardSvg(access: Access): string {
         stroke-linecap="round"/>
   <text x="142" y="118" font-size="30" font-weight="700" fill="#16181B">homes.me</text>
 
-  <text x="64" y="212" font-size="44" font-weight="700" fill="#16181B">Welcome, ${first}.</text>
-  <text x="64" y="258" font-size="23" fill="#5F656D">Your CRM is ready — leads, WhatsApp,</text>
-  <text x="64" y="290" font-size="23" fill="#5F656D">email and every project in one place.</text>
+  <text x="64" y="212" font-size="44" font-weight="700" fill="#16181B">${
+    reset ? `A new password, ${first}.` : `Welcome, ${first}.`}</text>
+  <text x="64" y="258" font-size="23" fill="#5F656D">${
+    reset ? 'Your old one has stopped working.' : 'Your CRM is ready — leads, WhatsApp,'}</text>
+  <text x="64" y="290" font-size="23" fill="#5F656D">${
+    reset ? 'Use this one, then choose your own.' : 'email and every project in one place.'}</text>
 
   <rect x="56" y="330" width="${VB_W - 112}" height="326" rx="26" fill="#F7FAF2" stroke="#E2E6DF"/>
   <text x="88" y="378" font-size="18" font-weight="600" fill="#6B7466"
@@ -95,9 +109,9 @@ export function accessCardSvg(access: Access): string {
 
   ${rules}
 
-  <line x1="64" y1="1104" x2="${VB_W - 64}" y2="1104" stroke="#E2E6DF" stroke-width="2"/>
-  <text x="64" y="1152" font-size="27" font-weight="700" fill="#2F5208">Close more, earn more.</text>
-  <text x="64" y="1192" font-size="20" fill="#868D93">Anything broken or missing — tell me.</text>
+  <line x1="64" y1="${footY}" x2="${VB_W - 64}" y2="${footY}" stroke="#E2E6DF" stroke-width="2"/>
+  <text x="64" y="${footY + 48}" font-size="27" font-weight="700" fill="#2F5208">Close more, earn more.</text>
+  <text x="64" y="${footY + 88}" font-size="20" fill="#868D93">Anything broken or missing — tell me.</text>
 </svg>`;
 }
 
@@ -107,7 +121,9 @@ export function accessCardText(access: Access): string {
   return [
     `Hey ${first} 👋`,
     '',
-    'Your homes.me CRM is ready.',
+    access.kind === 'reset'
+      ? 'Your homes.me CRM password has been reset.'
+      : 'Your homes.me CRM is ready.',
     '',
     access.url,
     `Email: ${access.email}`,
@@ -115,8 +131,8 @@ export function accessCardText(access: Access): string {
     '',
     'It will ask you to pick your own password straight away. Do that, then delete this message.',
     '',
-    ...RULES.map(([title, detail]) => `• ${title} — ${detail}`),
-    '',
+    ...(access.kind === 'reset' ? [] : RULES.map(([title, detail]) => `• ${title} — ${detail}`)),
+    ...(access.kind === 'reset' ? [] : ['']),
     'It is still being built, so if anything is broken or missing, tell me. Yallah 🚀',
   ].join('\n');
 }
@@ -130,7 +146,8 @@ export function AccessCardModal({ access, onClose }: { access: Access; onClose: 
     setBusy(true);
     try {
       const withPoppins = withFonts(svg, await poppinsStyleBlock());
-      const blob = await rasterise(withPoppins, W_MM, H_MM, 1, null);
+      const tall = access.kind === 'reset' ? H_MM * (VB_H_RESET / VB_H_NEW) : H_MM;
+      const blob = await rasterise(withPoppins, W_MM, tall, 1, null);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
