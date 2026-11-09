@@ -74,6 +74,19 @@ Sunday closed.
   every one. They are two upright lines now — letter over number — with a
   rule down the first of each month.
 
+**Spacing, after Emir looked at it on the live site**
+- At seven days the table was stretching to the panel, which put a hundred
+  pixels between one square and the next and a hole beside the names. Fixed
+  columns now, so seven days is a compact block and ninety days scrolls, with
+  the same rhythm in both. A rule and a wider gap before the four totals.
+- The summary card and the grid were flush against each other — the two panels
+  had no gap at all. Every other screen in the CRM wraps its panels in `.dash`,
+  which carries the 14px between them; attendance did not. Both the screen and
+  the Settings tab do now.
+- On a phone the name column was taking half the width and leaving four days
+  on screen. It narrows and truncates there; the grid is what the screen is
+  for.
+
 **Checks**
 - 28 new tests, 18 of them against a real MySQL: the office address lets you
   in and any other refuses, working outside is allowed from anywhere, a

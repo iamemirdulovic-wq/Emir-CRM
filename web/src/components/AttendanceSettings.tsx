@@ -55,8 +55,8 @@ export function AttendanceSettings() {
   const known = s.officeIps.includes(s.yourIp ?? '');
 
   return (
-    <>
-      <Panel index={0} icon="wifi" title="The office network">
+    <div className="dash">
+      <Panel span={12} index={0} icon="wifi" title="The office network">
         <p className="muted att-lede">
           Checking in only works from these addresses. Everything else sees the
           “working outside” button instead.
@@ -145,7 +145,7 @@ export function AttendanceSettings() {
         </label>
       </Panel>
 
-      <Panel index={1} icon="clock-3" title="Duty hours">
+      <Panel span={12} index={1} icon="clock-3" title="Duty hours">
         <div className="att-hours">
           <Field label="Opens">
             <input type="time" className="input" value={s.start}
@@ -196,6 +196,6 @@ export function AttendanceSettings() {
           A closed day is never counted against anyone.
         </small>
       </Panel>
-    </>
+    </div>
   );
 }

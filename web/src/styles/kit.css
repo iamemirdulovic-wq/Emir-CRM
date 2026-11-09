@@ -1501,8 +1501,19 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
 .att-panel{padding-inline:0}
 /* The grid scrolls sideways rather than squeezing: ninety days will not fit
    any screen, and a squashed square is unreadable. */
-.att-scroll{overflow-x:auto;padding-inline:15px}
-.att-grid{border-collapse:collapse;width:max-content;min-width:100%}
+.att-scroll{overflow-x:auto;padding-inline:18px}
+/*
+ * One rhythm whatever the range.
+ *
+ * It used to be `min-width:100%`, which stretched the table to the panel. At
+ * ninety days that does nothing, but at seven it put a hundred pixels between
+ * one square and the next and left a hole beside the names. Fixed columns
+ * instead: seven days is a tidy block at the left and ninety days scrolls,
+ * and the spacing is the same in both.
+ */
+.att-grid{border-collapse:collapse;width:max-content}
+.att-grid td:not(.att-who):not(.att-sum),
+.att-grid th:not(.att-who):not(.att-sum){width:28px}
 /* Two stacked lines, never rotated: a sideways label is taller than its own
    row and the scrolling box clipped the top off every one. */
 .att-grid th{font-size:10px;font-weight:600;color:var(--ink-3);padding:0 0 7px;
@@ -1521,22 +1532,34 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   background:none;border-radius:8px;cursor:pointer}
 .att-cell:hover{background:var(--surface-2)}
 .att-cell:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+
+/* Wide enough that a long name does not push the first day across, and a
+   clear step before the squares begin. */
+.att-grid .att-who{text-align:start;min-width:188px;padding-inline-end:26px;
+  position:sticky;left:0;z-index:1;background:var(--surface)}
+.att-grid td.att-who a{display:flex;align-items:center;gap:9px;color:inherit;
+  text-decoration:none;font-size:13.5px;white-space:nowrap}
+.att-grid td.att-who a:hover{color:var(--primary)}
+.att-grid .att-sum{padding-inline-start:14px;font-size:13px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3)}
+/* The totals are not days, so they get a rule and a wider gap before them. */
+.att-grid .att-sum-first{padding-inline-start:26px;box-shadow:inset 1px 0 0 var(--line)}
+.att-grid td.att-sum b{color:var(--ink)}
+
 /* On a phone there is no hover, so pressing a square is the only way to see
    the time and the place — it has to be a target a thumb actually hits. */
 @media (max-width:760px){
   .att-cell{width:30px;height:30px;border-radius:10px}
   .att-dot{width:16px;height:16px}
+  .att-grid td:not(.att-who):not(.att-sum),
+  .att-grid th:not(.att-who):not(.att-sum){width:34px}
+  /* A desktop name column would take half a phone and leave four days on
+     screen. The name truncates; the grid is what the screen is for. */
+  .att-grid .att-who{min-width:0;max-width:132px;padding-inline-end:12px}
   .att-grid td.att-who a{min-height:30px}
+  .att-grid td.att-who a span{overflow:hidden;text-overflow:ellipsis}
+  .att-grid .att-sum-first{padding-inline-start:16px}
 }
-
-.att-grid .att-who{text-align:start;padding-inline-end:16px;position:sticky;left:0;z-index:1;
-  background:var(--surface)}
-.att-grid td.att-who a{display:flex;align-items:center;gap:9px;color:inherit;
-  text-decoration:none;font-size:13.5px;white-space:nowrap}
-.att-grid td.att-who a:hover{color:var(--primary)}
-.att-grid .att-sum{padding-inline-start:12px;font-size:13px;
-  font-variant-numeric:tabular-nums;color:var(--ink-3)}
-.att-grid td.att-sum b{color:var(--ink)}
 
 .att-foot{display:flex;align-items:center;gap:8px;margin:12px 15px 0;
   font-size:12.5px;color:var(--ink-3);min-height:20px}

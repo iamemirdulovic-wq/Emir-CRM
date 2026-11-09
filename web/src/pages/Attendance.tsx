@@ -164,8 +164,10 @@ export function Attendance() {
       )}
 
       {data && data.people.length > 0 && (
-        <>
-          <Panel index={0} icon="calendar-check" title={`${from} to ${to}`}>
+        /* `.dash` is what carries the 14px between panels everywhere else in
+           the CRM. Without it the summary card and the grid sit flush. */
+        <div className="dash">
+          <Panel span={12} index={0} icon="calendar-check" title={`${from} to ${to}`}>
             <div className="att-totals">
               <span><b>{totals.people}</b> people</span>
               <span className="att-t-missing"><b>{totals.absent}</b> days not in</span>
@@ -179,7 +181,7 @@ export function Attendance() {
             </div>
           </Panel>
 
-          <Panel index={1} className="att-panel">
+          <Panel span={12} index={1} className="att-panel">
             <div className="att-scroll">
               <table className="att-grid">
                 <thead>
@@ -197,7 +199,7 @@ export function Attendance() {
                         <span className="att-dn">{dayNumber(d.date)}</span>
                       </th>
                     ))}
-                    <th className="att-sum">In</th>
+                    <th className="att-sum att-sum-first">In</th>
                     <th className="att-sum">Out</th>
                     <th className="att-sum">Late</th>
                     <th className="att-sum">Missed</th>
@@ -233,7 +235,7 @@ export function Attendance() {
                           </td>
                         );
                       })}
-                      <td className="att-sum"><b>{person.inOffice}</b></td>
+                      <td className="att-sum att-sum-first"><b>{person.inOffice}</b></td>
                       <td className="att-sum">{person.outside}</td>
                       <td className="att-sum att-t-late">{person.late || ''}</td>
                       <td className="att-sum att-t-missing">{person.absent || ''}</td>
@@ -260,7 +262,7 @@ export function Attendance() {
               )}
             </p>
           </Panel>
-        </>
+        </div>
       )}
     </>
   );
