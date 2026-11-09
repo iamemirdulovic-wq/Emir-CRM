@@ -21,6 +21,11 @@ export type InternalEmail = {
   subject: string;
   text: string;
   html?: string;
+  /**
+   * Overrides MAIL_REPLY_TO for this one message. Set it on anything that
+   * invites an answer, so a noreply@ sender does not swallow it.
+   */
+  replyTo?: string;
 };
 
 export type InternalEmailResult = { sent: boolean; reason?: string };
@@ -47,6 +52,9 @@ export async function sendInternalEmail(message: InternalEmail): Promise<Interna
       subject: message.subject,
       text: message.text,
       ...(message.html ? { html: message.html } : {}),
+      ...((message.replyTo ?? cfg.MAIL_REPLY_TO)
+        ? { replyTo: message.replyTo ?? cfg.MAIL_REPLY_TO }
+        : {}),
     });
     logger.info('internal email sent', { to: maskEmail(message.to), subject: message.subject });
     return { sent: true };

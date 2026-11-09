@@ -138,6 +138,15 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().optional(),
+  /**
+   * Where a reply to a staff email goes.
+   *
+   * MAIL_FROM is allowed to be a noreply@ address — it should be, for alerts
+   * nobody answers. But the welcome email ends by asking people to say what is
+   * broken, and an invitation to reply that bounces is worse than not asking.
+   * Set this to an address a person actually reads.
+   */
+  MAIL_REPLY_TO: z.string().optional(),
   MAIL_REPLY_DOMAIN: z.string().optional(),
 
   /*
