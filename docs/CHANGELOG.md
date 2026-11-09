@@ -2,6 +2,27 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The role was a pill nobody could change
+
+Emir created five of the new team as **Admin** rather than Agent, and then
+found there was no way to correct it — the Role column in Settings → Team was
+a read-only pill, and the only actions on a row were *Reset password* and
+*Deactivate*. The only route back was to delete the accounts and start again.
+
+The server has accepted a role change the whole time. Nothing ever asked for
+one. The Role column is a dropdown now: Agent · Manager · Admin, changed in
+place, taking effect at once.
+
+**Owner is not in the list.** It stays a pill on an owner's row and cannot be
+set from the table. Owner can remove other owners and export everything; it is
+not a thing to hand over from a dropdown in a table, for the same reason the
+bulk invite refuses it.
+
+Why this matters more than the five accounts: **Admin sees every lead in the
+company**, manages integrations and can export. Five agents holding that was
+the actual problem, and it is now two clicks to fix rather than nine accounts
+to delete and recreate.
+
 ## The handover card, and the address is crm.homes.me
 
 **The address.** Emir: *"crm.homes.me is our main address, not

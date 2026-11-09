@@ -279,6 +279,19 @@ function TeamTab() {
     }
   }
 
+  async function changeRole(row: UserRow, role: Role) {
+    if (role === row.role) return;
+    try {
+      await api.patch(`/api/users/${row.id}`, { role });
+      list.reload();
+      /* "an agent", "an admin", but "a manager". */
+      toast(`${row.name} is now ${/^[aeiou]/.test(role) ? 'an' : 'a'} ${role}`);
+    } catch (err) {
+      list.reload();
+      toast(err instanceof Error ? err.message : 'Could not change the role');
+    }
+  }
+
   async function setActive(row: UserRow, isActive: boolean) {
     try {
       await api.patch(`/api/users/${row.id}`, { isActive });
@@ -354,7 +367,29 @@ function TeamTab() {
                     </div>
                   </td>
                   <td>
-                    <span className="pill info">{humanize(row.role)}</span>
+                    {/*
+                      * The role was a read-only pill, so five people created as
+                      * Admin by mistake could only be fixed by deleting them and
+                      * starting again. The server has taken a role change all
+                      * along; nothing ever asked for one.
+                      *
+                      * Owner is not in the list: it is not a thing to hand over
+                      * from a dropdown in a table, and an owner row stays a pill.
+                      */}
+                    {row.role === 'owner' ? (
+                      <span className="pill info">{humanize(row.role)}</span>
+                    ) : (
+                      <select
+                        className="input rolepick"
+                        value={row.role}
+                        aria-label={`Role for ${row.name}`}
+                        onChange={(event) => void changeRole(row, event.target.value as Role)}
+                      >
+                        <option value="agent">Agent</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    )}
                   </td>
                   <td>
                     {row.is_active === 1 ? (

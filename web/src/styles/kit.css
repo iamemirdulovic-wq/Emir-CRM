@@ -1651,3 +1651,6 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   .access-art{max-width:320px;margin-inline:auto}
 }
 .access-foot{font-size:12.5px;line-height:1.55;margin-top:6px}
+/* The role, changeable in place — it used to be a pill nobody could edit. */
+.rolepick{height:30px;padding:0 26px 0 10px;font-size:12.5px;font-weight:600;
+  border-radius:99px;min-width:106px;background-position:right 8px center}
