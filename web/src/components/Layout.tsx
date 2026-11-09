@@ -13,6 +13,7 @@ import { t } from '../lib/i18n.js';
 import { useAsync } from '../lib/hooks.js';
 import { AppShell, Icon, type NavItem } from '../design/index.js';
 import { ToastHost, useToast } from '../design/ui.js';
+import { ConfirmDialog } from '../design/feedback.js';
 import { avatarColour, initials } from '../design/stages.js';
 import type { Conversation, Role, TasksResponse } from '../lib/types.js';
 import { BRAND } from '../brand.js';
@@ -248,6 +249,18 @@ function Chrome() {
     [user, refresh, toast],
   );
 
+  /*
+   * Signing out is one click away from the sidebar and the command palette,
+   * and it ends the session on the server — there is no undo, and whoever did
+   * it by accident has to find their password again. So it asks first.
+   */
+  const [leaving, setLeaving] = useState(false);
+  const askToSignOut = useCallback(() => setLeaving(true), []);
+  const reallySignOut = useCallback(() => {
+    setLeaving(false);
+    void signOut().then(() => navigate('/login', { replace: true }));
+  }, [signOut, navigate]);
+
   if (!user) return null;
 
   // Only agents are in the assignment rotation, so only they get the switch.
@@ -266,10 +279,9 @@ function Chrome() {
         role: user.role.replace(/^\w/, (c) => c.toUpperCase()),
         initials: initials(user.name),
         colour: avatarColour(user.id),
+        photoUrl: user.photoUrl ?? null,
       }}
-      onSignOut={() => {
-        void signOut().then(() => navigate('/login', { replace: true }));
-      }}
+      onSignOut={askToSignOut}
       search={{
         value: search,
         onChange: setSearch,
@@ -316,12 +328,19 @@ function Chrome() {
             setSoundOn(next);
             if (next) play('notify');
           }}
-          onSignOut={() => {
-            void signOut().then(() => navigate('/login', { replace: true }));
-          }}
+          onSignOut={askToSignOut}
         >
           <Outlet />
         </CommandLayer>
+        <ConfirmDialog
+          open={leaving}
+          title="Sign out?"
+          body={'You will need your email and password to get back in.'}
+          confirmLabel="Sign out"
+          cancelLabel="Stay signed in"
+          onConfirm={reallySignOut}
+          onCancel={() => setLeaving(false)}
+        />
         {/*
           * On every screen, because an agent looking at yesterday's pipeline
           * still has five minutes to accept the lead that just landed. It

@@ -357,6 +357,7 @@ authRouter.get(
         role: user.role,
         locale: user.locale,
         availability: user.availability,
+        photoUrl: user.photoUrl,
         mustChangePassword: user.mustChangePassword,
         needsWelcome: !welcome.completed && !welcome.skipped,
         permissions: permissionsFor(user.role),

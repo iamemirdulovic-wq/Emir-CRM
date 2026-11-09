@@ -12,6 +12,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
 import { BrandLockup } from '../brand.js';
+import { Avatar } from './ui.js';
 
 export interface NavItem {
   to: string;
@@ -68,6 +69,8 @@ export interface ShellUser {
   initials: string;
   /** A stage token such as var(--s-apt); a default is used when omitted. */
   colour?: string;
+  /** Their photo. Falls back to the initials when absent or broken. */
+  photoUrl?: string | null;
 }
 
 export interface AppShellProps {
@@ -236,9 +239,20 @@ export function AppShell({
           {/* The name is the way to one's own profile — the place everybody
               already looks for it, and one fewer item in the navigation. */}
           <Link className="side-me" to="/profile" title="Your profile">
-            <div className="avatar" style={{ background: user.colour ?? 'var(--s-apt)' }}>
-              {user.initials}
-            </div>
+            {/*
+              * Their face if they have uploaded one. The initials used to be
+              * shown to everybody, photo or not.
+              *
+              * This is the shared Avatar rather than a bare <img>: a photo
+              * that fails to load paints the browser's broken-image glyph
+              * straight over the initials underneath it, and Avatar is where
+              * that is already handled.
+              */}
+            <Avatar
+              name={user.name}
+              src={user.photoUrl ?? undefined}
+              colour={user.colour ?? 'var(--s-apt)'}
+            />
             <div className="who">
               <span>{user.name}</span>
               <small>{user.role}</small>

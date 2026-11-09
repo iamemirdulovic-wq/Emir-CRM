@@ -7,6 +7,8 @@ export type CurrentUser = {
   role: Role;
   locale: string;
   availability: 'available' | 'busy' | 'off';
+  /** Their own photo, so the shell shows a face rather than initials. */
+  photoUrl?: string | null;
   mustChangePassword: boolean;
   /** First sign-in and they have neither finished the welcome nor put it off. */
   needsWelcome?: boolean;

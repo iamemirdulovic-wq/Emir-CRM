@@ -152,6 +152,9 @@ const currentUser = () => {
     role: as.role,
     locale: session.locale,
     availability: 'available' as const,
+    /* The real /api/auth/me carries this, so the preview must too, or the
+       sidebar shows initials here and a face in production. */
+    photoUrl: photoOf(as.id),
     mustChangePassword: false,
     permissions: as.role === 'owner' || as.role === 'admin' ? PERMISSIONS : AGENT_PERMISSIONS,
   };

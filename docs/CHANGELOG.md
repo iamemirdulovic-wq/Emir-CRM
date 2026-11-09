@@ -2,6 +2,25 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Your own face in the corner, and sign-out asks first
+
+- **The sidebar showed initials to everybody**, including people who had
+  uploaded a photo — the photo was only ever read on the profile screen. The
+  signed-in user now carries `photo_url` from the session query through
+  `/api/auth/me` to the shell. It uses the shared `Avatar`, not a bare `<img>`,
+  because a photo that fails to load paints the browser's broken-image glyph
+  over the initials underneath — which is a bug this repo has already had once.
+- **Signing out asks first.** It was one click from the sidebar and from the
+  command palette, it ends the session on the server, there is no undo, and
+  whoever did it by accident has to find their password again. *Stay signed in*
+  or *Sign out*.
+- The name in the sidebar footer was already a link to the profile; it now
+  shows the face above it.
+
+**One thing the guards caught.** The sign-out hooks went in below
+`if (!user) return null`, and `hook-order.test.ts` failed — a hook after an
+early return is a real React fault, not a style point. Moved above it.
+
 ## A white sidebar, a highlight that slides, and the right time of day
 
 - **The sidebar is white.** Emir asked for it, and the active row could not
