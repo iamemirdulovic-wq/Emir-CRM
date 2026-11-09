@@ -509,3 +509,45 @@ deploys this app. See `DECISIONS.md`, 31 Oct.)
 - [x] 18.9 `jsx-escapes.test.ts` — `placeholder="floor\u2026"` in a JSX
       attribute renders those six characters, while `{'floor\u2026'}` one line
       away works. It had slipped through twice. The check reads the source
+
+## Step 19 — Office attendance, on the office Wi-Fi (D19, Nov 9 2026)
+- [x] 19.1 **The morning card** on the Dashboard: *Good morning · you are on
+      the office Wi-Fi · starts 10:00* and one button, **I am here**. One tap,
+      then a tick and the time
+- [x] 19.2 **Working outside** instead, off the network — a sales centre, a
+      viewing — which asks where they are and is never late and never absent.
+      The whole reason this is not just a Wi-Fi detector
+- [x] 19.3 **The Attendance screen**, owner and admin only. 7, 30 or 90 days,
+      one row a person, one square a day, because *who is not turning up* is a
+      shape rather than a number. Checked in a browser that an agent has no
+      such nav row
+- [x] 19.4 Pressing a square names the person, the day, the time and the
+      place — on a phone there is no hover, and the time is the point
+- [x] 19.5 **Settings → Attendance**, owner only: the address the server sees
+      this browser on, with **Add this one**, so nobody has to find or type an
+      IP. Two Wi-Fi lines, because the office has two
+- [x] 19.6 Hours, Saturday hours, grace minutes and closed days all editable
+      without a deploy. 10:00–19:00, Sat 11:00–15:00, Sunday closed
+- [x] 19.7 Off until an address is saved. An empty list refuses everybody
+      rather than waving everybody through
+- [x] 19.8 **The address is read from the right of `X-Forwarded-For`,** not
+      the left as everywhere else. The leftmost entry is the honest client
+      address and is also the one a client can write itself — which would have
+      meant checking in from home with a header
+- [x] 19.9 `::ffff:203.0.113.10` is the same machine as `203.0.113.10`. As
+      strings they never match, and the office would have had a button that
+      refused everybody with no clue why
+- [x] 19.10 One row a day, first tap wins. A double tap is not two arrivals
+- [x] 19.11 Days filed under the Dubai date, not the UTC one, or a tap at
+      half past midnight lands on the previous day's row
+- [x] 19.12 **Two colour faults the numbers caught.** In dark mode *working
+      outside* and *not in* were at 1.00:1 — identical brightness, opposite
+      meanings; in light *late* and *working outside* were 1.15:1. Attendance
+      has its own four values now, every filled pair ≥1.78:1 apart and ≥2.95:1
+      on the panel, and *working outside* is a **ring**, so it is told apart by
+      shape and never by colour alone
+- [x] 19.13 Day labels were sideways and the scroll box cut the top off every
+      one. Two upright lines now, letter over number, with a rule down the
+      first of each month
+- [x] 19.14 28 tests, 18 against a real MySQL. `/attendance` added to the
+      polish route list; clean over 112 screens

@@ -24,6 +24,7 @@ import { contactsRouter } from './routes/contacts.js';
 import { pipelineRouter } from './routes/pipeline.js';
 import { inboxRouter } from './routes/inbox.js';
 import { usersRouter } from './routes/users.js';
+import { attendanceRouter } from './routes/attendance.js';
 import { projectsRouter } from './routes/projects.js';
 import { libraryRouter } from './routes/library.js';
 import { aiRouter } from './routes/ai.js';
@@ -194,6 +195,7 @@ export function createApp(): Express {
   app.use('/api/pipeline', pipelineRouter);
   app.use('/api/inbox', inboxRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/attendance', attendanceRouter);
   app.use('/api/projects', projectsRouter);
   /*
    * The library sits on its own path rather than under /api/projects: that

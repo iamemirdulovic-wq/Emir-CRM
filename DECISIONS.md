@@ -5,6 +5,44 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-09 — attendance — **The office address is read from the RIGHT of
+`X-Forwarded-For`; everywhere else in this codebase reads the LEFT** — Do not
+"fix" this into a call to `clientIp()`.
+
+`clientIp()` takes the leftmost entry, which is the correct and honest thing
+for an audit log: it is the address the client says it has. But anybody can
+send that header. For an audit line a forged address is a lie in a record; for
+attendance it is a man at home tapping *I'm here* and being counted as in the
+office, which is the one thing this feature exists to prevent. The rightmost
+entry is the address our own proxy actually observed, and a client cannot
+write it.
+
+The cost is that attendance breaks if a second proxy is ever put in front of
+the first — it would then see the inner proxy's address, not the office's. If
+that happens, the fix is to count hops, not to switch to the leftmost entry.
+
+2026-11-09 — attendance — **"Working outside" is a ring, not a coloured
+square** — The four states were first drawn as four filled squares using the
+pipeline's stage colours. Measured, two pairs were at the same brightness: in
+dark mode *working outside* and *not in* were 1.00:1 — identical — and in
+light mode *late* and *working outside* were 1.15:1. Those are 14px squares
+side by side, and *working outside* and *not in* mean opposite things about a
+person's day.
+
+Attendance now has its own four values, spread deliberately so every pair of
+the filled states is at least 1.78:1 apart in both themes. On top of that
+*working outside* is drawn as a ring, so it is told apart by shape and never
+by colour alone. If someone later wants it filled in "to match", that is the
+reason not to.
+
+2026-11-09 — attendance — **Attendance is off until an office address is
+saved, and an empty address list refuses everybody** — The other way round —
+an empty list meaning "no restriction" — is the configuration mistake that
+turns the feature into a button anybody can press from anywhere, silently, on
+the day somebody deletes the last address. Refusing is visible and harmless;
+the Settings page says plainly that nothing is asked of anybody until an
+address is added.
+
 2026-11-02 — auth — **Sign-in links added beside passwords, not instead of
 them; owner and admin keep passwords** — Emir asked for magic links to replace
 passwords. Two things made a straight replacement the wrong build, and he chose

@@ -10,6 +10,7 @@ import type { IconName } from '../design/Icon.js';
 import { DoNow } from '../components/DoNow.js';
 import { InsightCard } from '../components/InsightCard.js';
 import { SetupChecklist } from '../components/SetupChecklist.js';
+import { CheckIn } from '../components/CheckIn.js';
 
 const RANGES = [
   { value: 7, label: '7D' },
@@ -100,6 +101,8 @@ export function Dashboard() {
   return (
     <>
       <ChartDefs />
+      {/* The first thing in the morning, and gone for the rest of the day. */}
+      <CheckIn />
       {/* Before anything else: the parts of the CRM that are still off. */}
       {isOwner && <SetupChecklist />}
       {isOwner ? <InsightCard /> : <DoNow />}

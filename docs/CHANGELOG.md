@@ -2,6 +2,91 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Office attendance, on the office Wi-Fi
+
+Emir asked for a way to see who actually comes in: *"if somebody is come to
+our office, Wi-Fi range, like morning, ten, they should at least put our CRM
+like they are here."* Duty hours are 10:00–19:00, Saturday 11:00–15:00,
+Sunday closed.
+
+**What an agent sees**
+- A card at the top of the Dashboard, before the first lead of the day:
+  **Good morning · you are on the office Wi-Fi · starts 10:00** and one
+  button, **I am here**. After the tap it collapses to a tick and the time.
+- Off the office network the same card offers **Working outside** instead,
+  which asks where they are — a developer's sales centre, a viewing — and
+  that is never counted as late or as an absence. It is the whole reason the
+  feature does not just measure the Wi-Fi.
+- The card hides itself entirely when attendance is switched off or the
+  office is closed that day.
+
+**What the owner sees**
+- A new **Attendance** screen, owner and admin only, over 7, 30 or 90 days.
+  One row a person, one square a day, because *who is not turning up* is a
+  shape you see rather than a number you read.
+- A square is one of four: in the office, in but late, working outside, or
+  not in. Closed days and days still to come are left blank and never count
+  against anybody.
+- Pressing a square names the person, the day, the time and the place. Per
+  person, the counts: in, out, late, missed.
+
+**Where the rules live**
+- **Settings → Attendance**, owner only. It shows the address the server
+  sees this browser arriving from, with an **Add this one** button, so Emir
+  standing in the office never has to find or type the number — and when the
+  line's address changes, which on a UAE broadband line it will, the fix is
+  two taps. Two Wi-Fi lines are supported because the office has two.
+- Hours, Saturday hours, the grace minutes and the closed days are all
+  editable without a deploy.
+- Attendance stays **off** until an address is saved. An empty list refuses
+  everybody rather than waving everybody through.
+
+**Things that were decided rather than assumed**
+- **The address is read from the right-hand end of `X-Forwarded-For`, not the
+  left.** Everywhere else in this codebase `clientIp()` takes the leftmost
+  entry, which is the honest client address but is also the one a client can
+  write themselves. For attendance that would mean anybody could send a
+  header and check in from home, so this one route takes the address the
+  proxy actually saw.
+- `::ffff:203.0.113.10` is the same machine as `203.0.113.10`. Comparing
+  those as strings never matches, and the office would have had a button
+  that refused everybody with no clue why.
+- One row a day, `ON DUPLICATE KEY UPDATE id = id`: the first tap wins, so a
+  double tap is not two arrivals and a change of mind does not rewrite the
+  morning.
+- A tap at half past midnight Dubai is still the previous UTC day. Days are
+  filed under the Dubai date, or somebody's Tuesday lands on Monday's row.
+- It is a nudge, not a lock, and the Settings page says so: a VPN into the
+  office would still get through. Every check-in records the address it came
+  from so a day that looks wrong can be checked.
+
+**Two faults the contrast numbers caught**
+- **In dark mode "working outside" and "not in" were at 1.00:1** — identical
+  brightness, for two states that mean opposite things. In light mode "late"
+  and "working outside" were 1.15:1. The stage palette was being borrowed for
+  squares that sit side by side at 14px, which it was never picked for.
+- Attendance now has its own four values, spread deliberately across the
+  usable brightness range: every pair of the three filled states is at least
+  1.78:1 apart in both themes, and each is at least 2.95:1 on the panel. On
+  top of that **"working outside" is drawn as a ring rather than a filled
+  square**, so it is told apart by shape and never by colour alone.
+- The day labels were turned sideways and the scrolling box cut the top off
+  every one. They are two upright lines now — letter over number — with a
+  rule down the first of each month.
+
+**Checks**
+- 28 new tests, 18 of them against a real MySQL: the office address lets you
+  in and any other refuses, working outside is allowed from anywhere, a
+  closed day and a future day are not absences, a deactivated person leaves
+  the grid, and one person cannot see into another's day.
+- Server 2563 tests pass, web 435, and `npm run polish` is clean over 112
+  screens with `/attendance` added to its route list.
+
+**Emir still has to**
+- Open Settings → Attendance **while on the office Wi-Fi** and press *Add
+  this one*, then do the same on the second Wi-Fi line, then switch
+  *Ask everyone to check in* on. Until then nobody is asked anything.
+
 ## The CRM goes green
 
 **Changed**

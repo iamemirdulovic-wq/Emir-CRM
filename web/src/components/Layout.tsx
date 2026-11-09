@@ -113,6 +113,13 @@ const ENTRIES: Entry[] = [
     title: t('teamActivity'),
     roles: ['owner', 'admin', 'manager'],
   },
+  {
+    to: '/attendance',
+    label: 'Attendance',
+    icon: 'calendar-check',
+    title: 'Attendance',
+    roles: ['owner', 'admin'],
+  },
   { to: '/audit', label: t('auditLog'), icon: 'shield', title: t('auditLog'), roles: ['owner'] },
   { to: '/settings', label: t('settings'), icon: 'settings', title: t('settings'), phone: true },
 ];

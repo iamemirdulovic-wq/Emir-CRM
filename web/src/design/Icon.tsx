@@ -32,7 +32,7 @@ import {
   Mic, Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOutgoing, PieChart, Play,
   PencilLine, Pin, Plus, Quote, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
   Share2, Shield, ShieldCheck, ShoppingBag, Smartphone, Smile, Sparkles, Square, SquarePen, Stamp, Stethoscope, Star, StickyNote, Sun, Target,
-  Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, UserCheck, UserPlus,
+  Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, Wifi, UserCheck, UserPlus,
   Undo2, UserX, Users, UsersRound, Wallet, X, Zap,
 } from 'lucide-react';
 
@@ -75,7 +75,7 @@ const ICONS = {
   'target': Target, 'timer': Timer, 'toggle-left': ToggleLeft, 'trash-2': Trash2,
   'trending-up': TrendingUp, 'trophy': Trophy, 'umbrella': Umbrella, 'upload': Upload,
   'user': User, 'user-check': UserCheck, 'user-plus': UserPlus, 'user-x': UserX, 'users': Users,
-  'users-round': UsersRound, 'wallet': Wallet, 'x': X, 'zap': Zap,
+  'users-round': UsersRound, 'wallet': Wallet, 'wifi': Wifi, 'x': X, 'zap': Zap,
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -431,6 +431,100 @@ const PREVIEW_HEADLINES: Record<string, string> = {
   'u-yousef': 'Looks after the Dubai desk.',
 };
 
+/*
+ * Attendance, for the preview. The owner is shown on the office Wi-Fi so the
+ * card's main state is the one on screen; a month of plausible days follows,
+ * with one person who is often out and one who misses days, because a grid
+ * where everybody is perfect shows nothing.
+ */
+const previewAttendance = {
+  marked: null as 'office' | 'outside' | null,
+  at: null as string | null,
+  note: null as string | null,
+  settings: {
+    enabled: true,
+    officeIps: ['203.0.113.10'],
+    start: '10:00',
+    end: '19:00',
+    satStart: '11:00',
+    satEnd: '15:00',
+    closedDays: [0],
+    graceMinutes: 10,
+  },
+  today(): Record<string, unknown> {
+    return {
+      closed: false,
+      marked: previewAttendance.marked,
+      markedAt: previewAttendance.at,
+      wasLate: false,
+      note: previewAttendance.note,
+      onOfficeNetwork: true,
+      seenIp: '203.0.113.10',
+      enabled: true,
+      startsAt: '10:00',
+    };
+  },
+};
+
+function previewMonth(query: URLSearchParams): Record<string, unknown> {
+  /* Honour the range the chips ask for, so 7 / 30 / 90 days actually differ. */
+  const to = query.get('to') ?? new Date(Date.now() + 4 * 3_600_000).toISOString().slice(0, 10);
+  const from = query.get('from') ?? to;
+  const last = Date.parse(`${to}T00:00:00Z`);
+  const span = Math.min(
+    120,
+    Math.max(1, Math.round((last - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1),
+  );
+
+  const dates: Array<{ date: string; closed: boolean }> = [];
+  for (let i = span - 1; i >= 0; i -= 1) {
+    const at = new Date(last - i * 86_400_000);
+    dates.push({ date: at.toISOString().slice(0, 10), closed: at.getUTCDay() === 0 });
+  }
+
+  /* A fixed pattern per person rather than Math.random, so the grid looks the
+     same every time somebody opens the preview. */
+  const shape: Array<[string, string, number, number]> = [
+    ['u-layla', 'Layla Hassan', 0, 7],
+    ['u-omar', 'Omar Farouk', 1, 5],
+    ['u-priya', 'Priya Nair', 2, 4],
+    ['u-yousef', 'Yousef Karim', 3, 9],
+  ];
+
+  return {
+    from: dates[0]?.date,
+    to: dates[dates.length - 1]?.date,
+    dates,
+    people: shape.map(([id, name, offset, every]) => {
+      let inOffice = 0; let outside = 0; let late = 0; let absent = 0;
+      const days = dates.map((d, i) => {
+        if (d.closed) return { date: d.date, kind: null, at: null, late: false, note: null };
+        const n = i + offset;
+        if (n % every === 0) {
+          outside += 1;
+          return {
+            date: d.date, kind: 'outside', at: `${d.date}T05:50:00Z`,
+            late: false, note: 'Emaar sales centre',
+          };
+        }
+        if (n % 11 === 0) { absent += 1; return { date: d.date, kind: null, at: null, late: false, note: null }; }
+        const isLate = n % 6 === 0;
+        inOffice += 1;
+        if (isLate) late += 1;
+        return {
+          date: d.date, kind: 'office',
+          at: `${d.date}T0${isLate ? '6:4' : '5:5'}0:00Z`,
+          late: isLate, note: null,
+        };
+      });
+      return {
+        userId: id, name, role: 'agent', photoUrl: photoOf(id),
+        days, inOffice, outside, late, absent,
+      };
+    }),
+  };
+}
+
 /* ── Team wall ────────────────────────────────────────────────────────── */
 
 interface PreviewWallPost {
@@ -1510,6 +1604,31 @@ const ROUTES: Route[] = [
   /* The owner's view. Written out rather than derived, because the point of
      the preview is to show the three states side by side: finished, part way
      and never started. */
+  // --- attendance ----------------------------------------------------------
+  /* Held in memory so the preview can be walked: tap "I am here" and the card
+     changes, the way it does on the real thing. */
+  { method: 'GET', pattern: /^\/api\/attendance\/today$/, handler: () => previewAttendance.today() },
+  { method: 'POST', pattern: /^\/api\/attendance\/check-in$/, handler: () => {
+    previewAttendance.marked = 'office';
+    previewAttendance.at = new Date().toISOString();
+    previewAttendance.note = null;
+    return previewAttendance.today();
+  } },
+  { method: 'POST', pattern: /^\/api\/attendance\/outside$/, handler: ({ body }) => {
+    previewAttendance.marked = 'outside';
+    previewAttendance.at = new Date().toISOString();
+    previewAttendance.note = String(body.note ?? '');
+    return previewAttendance.today();
+  } },
+  { method: 'GET', pattern: /^\/api\/attendance\/month/, handler: ({ query }) => previewMonth(query) },
+  { method: 'GET', pattern: /^\/api\/attendance\/settings$/, handler: () => ({
+    ...previewAttendance.settings, yourIp: '203.0.113.10',
+  }) },
+  { method: 'PUT', pattern: /^\/api\/attendance\/settings$/, handler: ({ body }) => {
+    Object.assign(previewAttendance.settings, body);
+    return { ...previewAttendance.settings, yourIp: '203.0.113.10' };
+  } },
+
   { method: 'GET', pattern: /^\/api\/onboarding\/all$/, handler: () => ({
     questions: PREVIEW_WELCOME_QUESTIONS,
     items: USERS.filter((u) => u.role !== 'automation').map((u) => {

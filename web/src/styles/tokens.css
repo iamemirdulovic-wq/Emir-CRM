@@ -75,11 +75,20 @@
      red-green colourblindness an alarm and a brand mark looked alike.
      This one is 1.36:1 apart in brightness and 8.31:1 on white. */
   --wa:#15803D; --hot:#991B1B;
+  /* Attendance squares. Their own four values rather than borrowed stage
+     colours, because these six sit side by side at 14px and the stage palette
+     put two of them at the same brightness: in light mode "late" and "working
+     outside" were 1.15:1 apart, and in dark mode "working outside" and "not
+     in" were 1.00:1 — identical, for two states that mean opposite things.
+     Each is now at least 3:1 on the panel, and "working outside" is drawn as
+     a ring rather than a filled square, so it is told apart by shape and not
+     by colour alone. */
+  --att-in:#44700D; --att-late:#C98A12; --att-out:#2F6ACB; --att-miss:#7A0F0F;
   --blob1:#DCF4AF; --blob2:#EAF8D2; --blob3:#E2EFCE; --blob4:#D3EFBC;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}}
-:root[data-theme="dark"]{--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B;--att-in:#A8E63A;--att-late:#D4912E;--att-out:#7FB3FF;--att-miss:#C14343}}
+:root[data-theme="dark"]{--blob1:#1C2320;--blob2:#20262B;--blob3:#191D20;--blob4:#232A24;--primary:#A8E63A;--s-won:#5DBB8F;--wa:#34B36B;--hot:#FF6B6B;--att-in:#A8E63A;--att-late:#D4912E;--att-out:#7FB3FF;--att-miss:#C14343}
 
 /* Browsers without backdrop-filter get an opaque panel instead of a see-through one. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){

@@ -331,7 +331,41 @@ all work exactly the same.
 
 ---
 
-## 🟡 10. Put the lead form on homes.me
+## 🟢 10. Switch attendance on (two minutes, in the office)
+
+Nobody is asked to check in until you do this, so the Dashboard looks exactly
+as it does today until you finish step 4.
+
+**Do this sitting in the office, on the office Wi-Fi.**
+
+1. **Settings → Attendance.** At the top it shows the address the CRM sees you
+   arriving from right now
+2. Press **Add this one**
+3. Connect your laptop or phone to the **second office Wi-Fi**, reload the
+   page, and press **Add this one** again. If the number is the same, both
+   lines share one connection and once is enough
+4. Tick **Ask everyone to check in**
+
+That is it. From the next morning everyone sees a **I am here** button at the
+top of their Dashboard, and you get the **Attendance** screen in the sidebar.
+
+**Hours** are already set to yours — 10:00 to 19:00, Saturday 11:00 to 15:00,
+Sunday closed, and someone counts as late after 10 minutes. All of it is on
+that same page if you want to change it.
+
+**If the address ever changes** — a router restart or a line change can do it,
+and on an ordinary UAE broadband line it will eventually — people will suddenly
+see *Working outside* instead of *I am here*. The fix is the same two taps:
+open the page in the office and press **Add this one**. Delete the old number
+with the ✕ beside it.
+
+**What it is and is not.** It stops somebody tapping *I'm here* from home. It
+is not a lock — a VPN into the office would still get through. Every check-in
+records the address it came from, so a day that looks wrong can be checked.
+
+---
+
+## 🟡 11. Put the lead form on homes.me
 
 So enquiries from your website land in the CRM automatically.
 
@@ -343,7 +377,7 @@ The snippet carries its own key, so no one else can post leads into your CRM.
 
 ---
 
-## ⚪ 11. Things that are built but switched off
+## ⚪ 12. Things that are built but switched off
 
 These are finished and waiting for a key. Nothing is broken; agents don't see
 them at all until they're on.

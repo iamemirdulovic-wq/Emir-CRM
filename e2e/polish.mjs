@@ -51,7 +51,7 @@ const ROUTES = [
   ['/offers', 'offers'], ['/imports', 'imports'], ['/imports/new', 'import-wizard'],
   ['/imports/im-1', 'import-detail'], ['/pool', 'pool'], ['/automations', 'automations'],
   ['/team-activity', 'team-activity'], ['/audit', 'audit'], ['/profile', 'profile'],
-  ['/settings', 'settings'], ['/dev/components', 'components'],
+  ['/settings', 'settings'], ['/attendance', 'attendance'], ['/dev/components', 'components'],
 ];
 
 const VIEWPORTS = [['desktop', 1440, 1000], ['mobile', 390, 844]];

@@ -208,6 +208,7 @@ export const TRUNCATE_ORDER = [
   'user_prefs',
   'user_onboarding',
   'wall_media',
+  'attendance',
   'ai_usage',
   'ai_knowledge_versions',
   'ai_knowledge',

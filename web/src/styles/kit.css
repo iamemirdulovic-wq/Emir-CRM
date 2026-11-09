@@ -1442,3 +1442,152 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   .note-row-actions{gap:18px}
   .note-row-actions button{min-height:32px;padding:0 2px}
 }
+
+/* ── Attendance ─────────────────────────────────────────────────────────── */
+
+/*
+ * The morning card. One decision wide on purpose: a card with a form on it
+ * is a card people learn to scroll past.
+ */
+.checkin{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 16px;margin-bottom:12px;border-radius:var(--r-m);
+  border:1px solid var(--line);
+  background:linear-gradient(var(--glass),var(--glass)),var(--bg)}
+.checkin-said{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.checkin-said > b{font-size:15px}
+.checkin-said small{font-size:12.5px;color:var(--ink-3)}
+.checkin.done{border-color:color-mix(in srgb,var(--primary) 35%,var(--line))}
+.checkin.done.away{border-color:color-mix(in srgb,var(--s-att) 45%,var(--line))}
+.checkin-tick{
+  display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:999px;
+  background:var(--primary-soft);color:var(--primary)}
+.checkin.away .checkin-tick{background:rgba(196,161,114,.18);color:var(--s-att)}
+.checkin-late{
+  margin-inline-start:8px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;
+  background:rgba(153,27,27,.12);color:var(--hot)}
+.checkin-away{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.checkin-away .input{min-width:min(240px,60vw)}
+.checkin-cancel{
+  border:0;background:none;padding:8px 2px;cursor:pointer;color:var(--ink-3);
+  font:inherit;font-size:13.5px;text-decoration:underline;text-underline-offset:3px}
+.checkin-err{margin:0;flex-basis:100%;font-size:13px;color:var(--hot)}
+
+/* The owner's grid ------------------------------------------------------- */
+
+.att-totals{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2)}
+.att-totals b{font-size:17px;color:var(--ink);margin-inline-end:5px;
+  font-variant-numeric:tabular-nums}
+.att-t-missing b,.att-t-missing{color:var(--hot)}
+.att-t-late b,.att-t-late{color:var(--s-att)}
+.att-t-outside b{color:var(--ink)}
+
+.att-key{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--ink-3)}
+.att-key span{display:inline-flex;align-items:center;gap:7px}
+
+/* One square a day. 14px is small enough that thirty of them fit a laptop
+   without scrolling, and large enough to aim at on a phone. */
+.att-dot{display:inline-block;width:14px;height:14px;border-radius:5px;flex:none;
+  background:var(--line)}
+.att-dot.in{background:var(--att-in)}
+.att-dot.late{background:var(--att-late)}
+/* A ring, not a fill: at 14px, colour alone put "working outside" and "not in"
+   at the same brightness in dark mode, and they mean opposite things. */
+.att-dot.outside{background:transparent;box-shadow:inset 0 0 0 3px var(--att-out)}
+.att-dot.missing{background:var(--att-miss)}
+.att-dot.closed{background:transparent;border:1px dashed var(--line)}
+.att-dot.ahead{background:var(--surface-2)}
+
+.att-panel{padding-inline:0}
+/* The grid scrolls sideways rather than squeezing: ninety days will not fit
+   any screen, and a squashed square is unreadable. */
+.att-scroll{overflow-x:auto;padding-inline:15px}
+.att-grid{border-collapse:collapse;width:max-content;min-width:100%}
+/* Two stacked lines, never rotated: a sideways label is taller than its own
+   row and the scrolling box clipped the top off every one. */
+.att-grid th{font-size:10px;font-weight:600;color:var(--ink-3);padding:0 0 7px;
+  text-align:center;white-space:nowrap;vertical-align:bottom}
+.att-grid th span{display:block;line-height:1.25}
+.att-grid .att-dn{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.att-grid td{padding:1px 0;text-align:center}
+.att-grid .att-closed-head,
+.att-grid .att-closed-head .att-dn{color:color-mix(in srgb,var(--ink-3) 55%,transparent)}
+/* Where one month ends and the next begins. */
+.att-grid .att-m1{box-shadow:inset 1px 0 0 var(--line)}
+
+/* The square itself is 14px, but the thing you press is 22px, which is the
+   difference between tapping a day and tapping the one beside it. */
+.att-cell{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;
+  background:none;border-radius:8px;cursor:pointer}
+.att-cell:hover{background:var(--surface-2)}
+.att-cell:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+/* On a phone there is no hover, so pressing a square is the only way to see
+   the time and the place — it has to be a target a thumb actually hits. */
+@media (max-width:760px){
+  .att-cell{width:30px;height:30px;border-radius:10px}
+  .att-dot{width:16px;height:16px}
+  .att-grid td.att-who a{min-height:30px}
+}
+
+.att-grid .att-who{text-align:start;padding-inline-end:16px;position:sticky;left:0;z-index:1;
+  background:var(--surface)}
+.att-grid td.att-who a{display:flex;align-items:center;gap:9px;color:inherit;
+  text-decoration:none;font-size:13.5px;white-space:nowrap}
+.att-grid td.att-who a:hover{color:var(--primary)}
+.att-grid .att-sum{padding-inline-start:12px;font-size:13px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.att-grid td.att-sum b{color:var(--ink)}
+
+.att-foot{display:flex;align-items:center;gap:8px;margin:12px 15px 0;
+  font-size:12.5px;color:var(--ink-3);min-height:20px}
+.att-foot svg{flex:none}
+.att-foot b{color:var(--ink);font-weight:650}
+
+/* Settings --------------------------------------------------------------- */
+
+.att-lede{margin:0 0 12px;font-size:13.5px;line-height:1.6}
+
+/* What the server sees you from, which is the only number that matters. */
+.att-here{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:13px 15px;border-radius:var(--r-m);background:var(--surface-2);
+  border:1px solid var(--line)}
+.att-here.known{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+.att-here > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.att-here b{font-size:16px;font-variant-numeric:tabular-nums}
+.att-here small{font-size:12.5px;color:var(--ink-3)}
+.att-here-dot{display:grid;place-items:center;width:32px;height:32px;flex:none;
+  border-radius:999px;background:var(--glass-strong);color:var(--ink-3)}
+.att-here.known .att-here-dot{background:var(--primary-soft);color:var(--primary)}
+
+.att-ips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.att-ip{display:inline-flex;align-items:center;gap:7px;padding:6px 8px 6px 12px;
+  border-radius:99px;border:1px solid var(--line);background:var(--surface-2);
+  font-size:13.5px;font-variant-numeric:tabular-nums}
+.att-ip em{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--primary)}
+.att-ip button{display:grid;place-items:center;width:20px;height:20px;border:0;
+  border-radius:99px;background:none;cursor:pointer;color:var(--ink-3)}
+.att-ip button:hover{background:var(--line);color:var(--hot)}
+.att-ip button svg{width:13px;height:13px}
+
+.att-add{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.att-add .input{flex:1;min-width:min(260px,100%)}
+
+.att-switch{display:flex;align-items:center;gap:10px;margin-top:14px;
+  font-size:14px;cursor:pointer}
+.att-switch input{width:17px;height:17px;accent-color:var(--primary)}
+.att-switch small{color:var(--ink-3)}
+
+.att-hours{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+.att-days{display:flex;gap:7px;flex-wrap:wrap}
+.att-day{padding:8px 13px;border-radius:99px;border:1px solid var(--line);
+  background:var(--surface-2);cursor:pointer;font:inherit;font-size:13px;
+  font-weight:600;color:var(--ink-2)}
+.att-day:hover{border-color:var(--primary)}
+.att-day.off{background:var(--hot);border-color:transparent;color:#fff}
+
+@media (max-width:620px){
+  .checkin{align-items:flex-start}
+  .att-hours{grid-template-columns:1fr 1fr}
+}

@@ -29,6 +29,7 @@ import { Incoming } from './pages/Incoming.js';
 import { Pool } from './pages/Pool.js';
 import { EmailCampaigns } from './pages/EmailCampaigns.js';
 import { TeamActivity } from './pages/TeamActivity.js';
+import { Attendance } from './pages/Attendance.js';
 import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
@@ -116,6 +117,7 @@ export function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:userId" element={<Profile />} />
           <Route path="/team-activity" element={<TeamActivity />} />
+          <Route path="/attendance" element={<Attendance />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/imports" element={<Imports />} />
           <Route path="/imports/new" element={<ImportWizard />} />

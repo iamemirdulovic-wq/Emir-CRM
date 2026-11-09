@@ -815,8 +815,8 @@ Then `docs/CHANGELOG.md` for the detail of a particular day.
   this repo written before 31 Oct say crm.homes.me; they are describing a move
   that was planned and never made.
 - **Shape.** An npm-workspaces monorepo: `server/` (Express + TypeScript, ESM,
-  `mysql2`, Zod on every endpoint) and `web/` (React + Vite). 24 migrations,
-  86 tables, 36 route files, 26 screens.
+  `mysql2`, Zod on every endpoint) and `web/` (React + Vite). 34 migrations,
+  92 tables, 38 route files, 31 screens.
 - **The worker runs inside the API process.** There is no cron job to install:
   the 5-minute SLA timer, the reminders, the follow-ups and the imports are all
   jobs in the `jobs` table, polled in-process. That is a deliberate choice for
@@ -824,14 +824,15 @@ Then `docs/CHANGELOG.md` for the detail of a particular day.
 - **Nothing reaches a real client until a key is set.** WhatsApp, email, push,
   Meta and Google each stay off and silent without their credentials, and a
   WhatsApp message that could not be sent is recorded as *not sent* rather than
-  shown as sent. `SETUP_NEEDED.md` §11 lists which variable turns on what.
+  shown as sent. `SETUP_NEEDED.md` §12 lists which variable turns on what.
 
 ## What is built, and what is not
 
 Built: login and roles, lead capture and dedupe, the 5-minute rule, the
 pipeline, My Leads, Contact 360, notes, bulk import, client email and
 campaigns, dashboards and reports, agent profiles, the Team Wall, the command
-palette and tour, owner settings, the project library and sales offers.
+palette and tour, owner settings, the project library, sales offers and
+office attendance.
 
 **Not built: Emir Books.** It was taken out of scope for this build and no part
 of it is wired up — there is no CRM | Books switcher, and `web/src/styles/books.css`

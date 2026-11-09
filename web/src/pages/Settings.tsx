@@ -19,9 +19,10 @@ import { PhoneAppPanel } from '../components/PhoneApp.js';
 import { RoutingSettings } from '../components/RoutingSettings.js';
 import { CompanySettings } from '../components/CompanySettings.js';
 import { TeamProfiles } from '../components/TeamProfiles.js';
+import { AttendanceSettings } from '../components/AttendanceSettings.js';
 
 type Tab = 'profile' | 'company' | 'team' | 'people' | 'teams' | 'routing'
-  | 'templates' | 'ai' | 'health';
+  | 'attendance' | 'templates' | 'ai' | 'health';
 
 const ROLES: Role[] = ['owner', 'admin', 'manager', 'agent', 'automation'];
 
@@ -46,7 +47,7 @@ export function Settings() {
     value: Tab;
     label: string;
     icon: 'user' | 'users' | 'users-round' | 'layout-template' | 'activity'
-      | 'sparkles' | 'timer' | 'building' | 'id-card';
+      | 'sparkles' | 'timer' | 'building' | 'id-card' | 'calendar-check';
   }[] = [
     { value: 'profile', label: 'You', icon: 'user' },
     /*
@@ -66,7 +67,12 @@ export function Settings() {
     /* Routing decides what happens to every lead, so it is the owner's
        alone — the server refuses a PATCH from anyone else either way. */
     ...(user?.role === 'owner'
-      ? ([{ value: 'routing' as const, label: 'Lead routing', icon: 'timer' as const }])
+      ? ([
+          { value: 'routing' as const, label: 'Lead routing', icon: 'timer' as const },
+          /* Owner only: this decides who is asked to check in and from where,
+             and the server refuses the save to anybody else. */
+          { value: 'attendance' as const, label: 'Attendance', icon: 'calendar-check' as const },
+        ])
       : []),
     ...(isManager
       ? ([
@@ -93,6 +99,7 @@ export function Settings() {
       {tab === 'people' && <TeamProfiles />}
       {tab === 'teams' && <DesksTab />}
       {tab === 'routing' && <RoutingSettings />}
+      {tab === 'attendance' && <AttendanceSettings />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'ai' && <AiKnowledgeTab />}
       {tab === 'health' && <HealthTab />}

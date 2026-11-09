@@ -38,6 +38,15 @@ export type SettingName =
   | 'ROUTING_QUIET_HOURS'
   | 'ROUTING_QUIET_START'
   | 'ROUTING_QUIET_END'
+  /* Office attendance — see attendance/settings.ts. Owner-only. */
+  | 'ATT_ENABLED'
+  | 'ATT_OFFICE_IPS'
+  | 'ATT_START'
+  | 'ATT_END'
+  | 'ATT_SAT_START'
+  | 'ATT_SAT_END'
+  | 'ATT_CLOSED_DAYS'
+  | 'ATT_GRACE_MINUTES'
   /* The company as it introduces itself to a client — see config/company.ts.
      These used to be constants in the source; they reach every WhatsApp
      footer, every email signature, the business card and every offer. */
