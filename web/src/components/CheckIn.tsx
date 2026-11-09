@@ -32,6 +32,29 @@ interface DayState {
   startsAt: string | null;
 }
 
+/**
+ * The same three-part greeting the Dashboard below it uses, on the same Dubai
+ * clock. It said "Good morning" at any hour, which read as a bug sitting two
+ * lines above "Good afternoon, Test" — and it is one.
+ */
+function greeting(now: Date = new Date()): string {
+  const hour = new Date(now.getTime() + 4 * 60 * 60 * 1000).getUTCHours();
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+/** Minutes past midnight, Dubai, for "is the start time already behind us". */
+function dubaiMinutes(now: Date = new Date()): number {
+  const at = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+  return at.getUTCHours() * 60 + at.getUTCMinutes();
+}
+
+function startedAlready(startsAt: string | null): boolean {
+  if (!startsAt) return false;
+  const [h, m] = startsAt.split(':').map(Number);
+  if (Number.isNaN(h as number) || Number.isNaN(m as number)) return false;
+  return dubaiMinutes() > (h as number) * 60 + (m as number);
+}
+
 function clockOf(iso: string | null): string {
   if (!iso) return '';
   const at = new Date(iso);
@@ -93,10 +116,15 @@ export function CheckIn() {
   return (
     <div className="checkin">
       <div className="checkin-said">
-        <b>Good morning</b>
+        <b>{greeting()}</b>
         <small>
           {day.onOfficeNetwork
-            ? `You are on the office Wi-Fi${day.startsAt ? ` · starts ${day.startsAt}` : ''}`
+            ? `You are on the office Wi-Fi${day.startsAt
+              ? startedAlready(day.startsAt)
+                /* Saying "starts 10:00" at two in the afternoon is not news. */
+                ? ` · the day started at ${day.startsAt}`
+                : ` · starts ${day.startsAt}`
+              : ''}`
             : 'You are not on the office Wi-Fi'}
         </small>
       </div>

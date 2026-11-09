@@ -19,7 +19,7 @@
   --surface:var(--glass-strong); --surface-2:rgba(255,255,255,.60);
   /* The sidebar is its own tint: Emir chose a soft mint bar over the black
      one, and the bar is the only surface that differs from the panels. */
-  --side-bg:#EDF6DF;
+  --side-bg:#FFFFFF;
   --ink:#16181B; --ink-2:#4C5157; --ink-3:#5F656D;
   --primary:#446D0D; --primary-2:#5F9612; --primary-soft:rgba(155,224,30,.20); --primary-ink:#11240A;
   --grad:linear-gradient(135deg,#C3F53C 0%,#9BE01E 100%);
@@ -103,7 +103,7 @@
 :root[data-glass="off"]{
   --blur:none;
   --glass:rgba(255,255,255,.94); --glass-2:rgba(255,255,255,.90); --glass-strong:rgba(255,255,255,.98);
-  --surface-2:rgba(244,249,238,.98); --side-bg:#EDF6DF;
+  --surface-2:rgba(244,249,238,.98); --side-bg:#FFFFFF;
 }
 @media (prefers-color-scheme:dark){
   :root[data-glass="off"]:not([data-theme="light"]){

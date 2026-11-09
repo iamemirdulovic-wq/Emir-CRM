@@ -2,6 +2,22 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## A white sidebar, a highlight that slides, and the right time of day
+
+- **The sidebar is white.** Emir asked for it, and the active row could not
+  stay white with it — a white pill on a white column is no pill at all. The
+  current screen is a soft green tint with green text: 6.11:1 on white, and
+  10.33:1 in dark, where the sidebar stays charcoal.
+- **The highlight slides between rows** rather than jumping. It is one element
+  measured against the active link and moved, because a background painted on
+  each row can only fade, never travel. It does not slide on the first paint,
+  and it does not move at all under *reduce motion*.
+- **"Good morning" at two in the afternoon.** The check-in card said it at any
+  hour, two lines above the Dashboard's own "Good afternoon, Test". It now uses
+  the same three-part greeting on the same Dubai clock, and once the start time
+  has passed it says *"the day started at 10:00"* rather than *"starts 10:00"*,
+  which at 14:30 was not news.
+
 ## The CRM now says when attendance is off
 
 Emir opened an agent's account looking for the check-in button and there was

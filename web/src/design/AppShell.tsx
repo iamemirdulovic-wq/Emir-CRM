@@ -7,7 +7,7 @@
  *  - The CRM | Books switcher is not built yet. Its footprint is reserved by
  *    .app-switch-slot so the sidebar already has its final proportions.
  */
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon.js';
 import { useAppearance, type Appearance } from './theme.js';
@@ -145,6 +145,32 @@ export function AppShell({
 }: AppShellProps) {
   const location = useLocation();
   const { appearance, cycle } = useAppearance();
+
+  /*
+   * The highlight behind the current nav row is one element that slides,
+   * rather than a background painted on whichever row is active. Measuring
+   * the active link and moving a single pill is the only way to get motion
+   * between two rows; a per-row background can only fade.
+   *
+   * `ready` is what stops it sliding up from the top of the sidebar on the
+   * first paint — the transition is only switched on after it has been put
+   * in the right place once.
+   */
+  const navRef = useRef<HTMLElement | null>(null);
+  const [pill, setPill] = useState<{ top: number; height: number } | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const active = navRef.current?.querySelector<HTMLElement>('a.active');
+    setPill(active ? { top: active.offsetTop, height: active.offsetHeight } : null);
+  }, [location.pathname, location.search, nav]);
+
+  useEffect(() => {
+    if (!pill || ready) return;
+    /* One frame after the first placement, so the move to it is not animated. */
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [pill, ready]);
   const phoneNav = mobileNav ?? nav.slice(0, 5);
   /* With a centre button the bar holds four links around it, not five. */
   const barItems = mobileAction ? phoneNav.slice(0, 4) : phoneNav;
@@ -155,7 +181,12 @@ export function AppShell({
       <aside className="side">
         <BrandLockup />
 
-        <nav className="nav" aria-label="Primary">
+        <nav className={ready ? 'nav ready' : 'nav'} aria-label="Primary" ref={navRef}>
+          <span
+            className={pill ? 'nav-pill on' : 'nav-pill'}
+            aria-hidden="true"
+            style={pill ? { transform: `translateY(${pill.top}px)`, height: pill.height } : undefined}
+          />
           {nav.map((item) => (
             <Link
               key={item.to}

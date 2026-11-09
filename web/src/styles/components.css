@@ -571,7 +571,24 @@ tbody tr:hover{background:var(--surface-2)}
  */
 .nav a{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--side-ink);padding:10px 12px;border-radius:12px;font-weight:600;text-align:left;width:100%;transition:background .15s;text-decoration:none}
 .nav a:hover{background:var(--surface-2);color:var(--ink)}
-.nav a.active{background:var(--glass-strong);color:var(--primary);box-shadow:0 2px 10px rgba(15,50,90,.08)}
+/*
+ * The highlight is one element that slides, not a background on each row.
+ *
+ * It also cannot stay white: the sidebar is white now, and a white pill on a
+ * white column is no pill at all. It is a soft green tint, and the row on top
+ * of it is transparent so the two never fight.
+ */
+.nav{position:relative}
+.nav-pill{position:absolute;left:0;right:0;top:0;height:0;border-radius:12px;
+  background:var(--primary-soft);box-shadow:0 2px 10px rgba(68,109,13,.10);
+  pointer-events:none;opacity:0;z-index:0}
+.nav-pill.on{opacity:1}
+.nav.ready .nav-pill{transition:transform .34s var(--ease),height .34s var(--ease),opacity .2s linear}
+.nav a{position:relative;z-index:1}
+.nav a.active{background:transparent;color:var(--primary);box-shadow:none;font-weight:700}
+/* The hover tint would sit on top of the pill on the row it is already on. */
+.nav a.active:hover{background:transparent;color:var(--primary)}
+@media (prefers-reduced-motion:reduce){.nav.ready .nav-pill{transition:none}}
 .nav a.active .badge{background:var(--hot)}
 .bottom-nav a{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--ink-3);padding:5px;border-radius:14px;text-decoration:none}
 .bottom-nav a.active{color:var(--primary);background:var(--primary-soft)}
