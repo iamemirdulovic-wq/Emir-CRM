@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -40,7 +40,16 @@ const APPEARANCES: { value: Appearance; label: string; icon: 'monitor' | 'sun' |
  */
 export function Settings() {
   const { user, can } = useAuth();
-  const [tab, setTab] = useState<Tab>('profile');
+  /*
+   * The tab lives in the URL, not in state.
+   *
+   * It used to be `useState('profile')`, which quietly ignored `?tab=`, so
+   * every link that promised a particular tab — the setup checklist's four,
+   * among others — dropped the owner on "You" instead and left them to find
+   * the rest themselves. Reading it from the URL also means refreshing keeps
+   * the tab and the back button works.
+   */
+  const [params, setParams] = useSearchParams();
 
   const isManager = user?.role === 'manager' || user?.role === 'admin' || user?.role === 'owner';
   const tabs: {
@@ -82,6 +91,14 @@ export function Settings() {
         ])
       : []),
   ];
+
+  const asked = params.get('tab');
+  /* Only a tab this role actually has: the server refuses the data anyway,
+     but a hand-typed `?tab=routing` should not render an agent a dead panel. */
+  const tab: Tab = tabs.some((item) => item.value === asked) ? (asked as Tab) : 'profile';
+  const setTab = (next: Tab) => {
+    setParams(next === 'profile' ? {} : { tab: next }, { replace: true });
+  };
 
   return (
     <>

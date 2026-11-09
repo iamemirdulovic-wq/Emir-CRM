@@ -18,9 +18,10 @@
 import { getPool, queryOne, type Executor } from '../db/client.js';
 import { secret } from '../config/secrets.js';
 import { env } from '../config/env.js';
+import { attendanceSettings } from '../attendance/settings.js';
 
 export interface SetupItem {
-  key: 'email' | 'whatsapp' | 'push' | 'ai';
+  key: 'email' | 'whatsapp' | 'push' | 'ai' | 'attendance';
   /** What it is, in the owner's words. */
   title: string;
   /** What does not work while it is off. */
@@ -66,6 +67,15 @@ export async function setupChecklist(exec: Executor = getPool()): Promise<SetupC
 
   const geminiKey = Boolean(await secret('GEMINI_API_KEY', exec));
 
+  /*
+   * Attendance hides itself completely until an owner saves an office address
+   * and ticks the switch — which is correct, but it meant the owner could
+   * build the thing, open an agent's dashboard, find nothing and have no way
+   * to know why. It fails silently like the rest of this list, so it belongs
+   * on this list.
+   */
+  const attendance = await attendanceSettings(exec);
+
   const items: SetupItem[] = [
     {
       key: 'email',
@@ -96,6 +106,15 @@ export async function setupChecklist(exec: Executor = getPool()): Promise<SetupC
       consequence: 'Every question comes back as an error, for everyone.',
       ready: geminiKey,
       to: '/settings?tab=ai',
+    },
+    {
+      key: 'attendance',
+      title: 'Attendance',
+      consequence: attendance.officeIps.length === 0
+        ? 'Nobody is asked to check in. Add the office Wi-Fi address from a computer in the office.'
+        : 'The office address is saved but the switch is off, so nobody is asked to check in.',
+      ready: attendance.enabled,
+      to: '/settings?tab=attendance',
     },
   ];
 

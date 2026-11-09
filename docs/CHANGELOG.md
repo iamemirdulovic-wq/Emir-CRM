@@ -2,6 +2,28 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The CRM now says when attendance is off
+
+Emir opened an agent's account looking for the check-in button and there was
+nothing there. He was right to ask. Attendance hides itself completely until
+an owner saves an office address and ticks the switch — which is correct, and
+was also completely silent.
+
+- **Attendance is on the "not switched on yet" list** on the owner's dashboard
+  now, beside email, WhatsApp templates, push and Emir AI. It reads *"Nobody is
+  asked to check in"* when no address is saved, and *"the switch is off"* once
+  one is, because the fix is different in each case. Pressing it goes straight
+  to the right tab.
+- **Those links never worked.** Settings kept its tab in `useState('profile')`
+  and ignored `?tab=` entirely, so every row on that checklist — all four that
+  existed before this one — dropped the owner on "You" and left them to find
+  the rest. The tab comes from the URL now, so the links land, refreshing keeps
+  the tab, and the back button works. A tab the viewer's role does not have
+  falls back rather than rendering a dead panel.
+- Four tests, against a real database: attendance appears, it is not ready out
+  of the box, the two reasons read differently, it stops nagging once it is on,
+  and every row's link names a tab.
+
 ## Office attendance, on the office Wi-Fi
 
 Emir asked for a way to see who actually comes in: *"if somebody is come to
