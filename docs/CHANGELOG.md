@@ -2,6 +2,34 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The handover card, and the address is crm.homes.me
+
+**The address.** Emir: *"crm.homes.me is our main address, not
+mycrm.emirdulovic.com."* This file said the opposite, flatly — "a move that
+was planned and never made". It was made. `CLAUDE.md` is corrected, the
+domain-move item in `SETUP_NEEDED.md` is marked done, and the welcome email's
+test now expects `crm.homes.me`. Older documents keep the old address; they
+are history, not instructions.
+
+**The handover card.** Email to @homes.me is not connected, so the nine
+sign-ins go out on WhatsApp — and a wall of plain text with a password in the
+middle of it is easy to skim past and easy to get wrong. Every created row in
+the invite result now has a **Card** button: the same design as the welcome
+email, as a picture, with the person's address, their password, and the three
+things that matter on day one.
+
+- **Save the picture** writes a PNG, roughly 1060 × 1490, which fills a phone
+  screen in WhatsApp without being cropped.
+- **Copy as words** gives the same thing as text, for anyone who would rather
+  paste than send an image.
+- It is drawn as SVG and rasterised through the path the business card already
+  uses, fonts and all, rather than adding a library to photograph the DOM.
+- The card says on its face what to do with it: send it on their own chat,
+  never in the team group.
+
+The name on it is capitalised the same way the server capitalises the account
+name, so the card and the account agree — "Tej", not "tej".
+
 ## Inviting the team, and the email that tells them how we work
 
 Nine agents joined on one day. Creating them one form at a time is nine

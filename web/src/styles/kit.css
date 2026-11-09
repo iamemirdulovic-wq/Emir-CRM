@@ -1638,3 +1638,15 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   font-size:11.5px;color:var(--wa)}
 .invite-skipped{font-size:13px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
 .invite-skipped b{color:var(--ink-2);font-weight:600}
+
+/* The handover card ------------------------------------------------------- */
+.access{display:grid;gap:18px;grid-template-columns:minmax(0,300px) minmax(0,1fr);align-items:start}
+.access-art{border-radius:16px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:0 10px 28px rgba(16,24,12,.12);background:#fff}
+.access-art svg{display:block;width:100%;height:auto}
+.access-side{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.access-side p{margin:0 0 4px;font-size:13.5px;line-height:1.6}
+@media (max-width:760px){
+  .access{grid-template-columns:minmax(0,1fr)}
+  .access-art{max-width:320px;margin-inline:auto}
+}

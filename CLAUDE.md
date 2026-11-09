@@ -799,10 +799,10 @@ Then `docs/CHANGELOG.md` for the detail of a particular day.
 ## What is actually running
 
 - **Name and address.** The company is **Emigeo Homes Real Estate**, the brand
-  is **homes.me**, and the CRM runs at **mycrm.emirdulovic.com**, used daily by
+  is **homes.me**, and the CRM runs at **crm.homes.me**, used daily by
   about ten people.
 - **Every push is a release.** Hostinger's own GitHub integration watches this
-  branch and deploys it to **mycrm.emirdulovic.com** in about 75 seconds. There
+  branch and deploys it to **crm.homes.me** in about 75 seconds. There
   is no staging and no approval step: a commit pushed is a commit ten people
   are using. That is the single most important fact about this repository.
 - **`.github/workflows/deploy.yml` is not how it deploys.** It fires on a
@@ -810,10 +810,15 @@ Then `docs/CHANGELOG.md` for the detail of a particular day.
   as "nothing has ever deployed" and told the owner so, repeatedly, while
   Hostinger was deploying every commit by another route. **Check the hosting
   panel before drawing any conclusion about what is live** — hPanel → Websites
-  → mycrm.emirdulovic.com → Deployments lists every release.
-- **The address is `mycrm.emirdulovic.com`, not crm.homes.me.** Documents in
-  this repo written before 31 Oct say crm.homes.me; they are describing a move
-  that was planned and never made.
+  → the site → Deployments lists every release. The panel may still list it
+  under its old name, `mycrm.emirdulovic.com`.
+- **The address is `crm.homes.me`.** Emir confirmed it on 9 Nov, and his own
+  screenshots show the browser on `crm.homes.me/login`. For most of the build
+  it was `mycrm.emirdulovic.com`, and this file said so flatly — "a move that
+  was planned and never made". The move was made. `mycrm.emirdulovic.com` may
+  still answer; `crm.homes.me` is the one to write down, put in `APP_URL`, and
+  give to a new agent. Older documents in this repo still carry the old one;
+  they are history, not instructions.
 - **Shape.** An npm-workspaces monorepo: `server/` (Express + TypeScript, ESM,
   `mysql2`, Zod on every endpoint) and `web/` (React + Vite). 34 migrations,
   92 tables, 38 route files, 31 screens.

@@ -68,7 +68,7 @@ cannot reach the database.
 
 ---
 
-## 🔴 3. Point the CRM at its new address
+## ✅ 3. Point the CRM at its new address — done
 
 The CRM now lives at **crm.homes.me**, but it still tells Meta, Google and
 your website to use the old address.

@@ -19,6 +19,7 @@ import { api, ApiError } from '../lib/api.js';
 import { Button } from '../design/forms.js';
 import { Icon } from '../design/index.js';
 import { Field, Note, useToast } from '../design/ui.js';
+import { AccessCardModal, type Access } from './AccessCard.js';
 
 type Role = 'admin' | 'manager' | 'agent';
 
@@ -28,6 +29,15 @@ interface Result {
   temporaryPassword?: string;
   emailSent?: boolean;
   emailReason?: string;
+}
+
+/** Mirrors `nameFromEmail` on the server, so the card and the account agree. */
+function titleCase(local: string): string {
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || local;
 }
 
 const WHY: Record<Result['status'], string> = {
@@ -43,6 +53,8 @@ export function InviteTeam({ onDone }: { onDone: () => void }) {
   const [sendEmail, setSendEmail] = useState(true);
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[] | null>(null);
+  /* The card is how these actually get handed over while email is off. */
+  const [showing, setShowing] = useState<Access | null>(null);
 
   /* One address per line, but a pasted column from a spreadsheet arrives with
      commas and spaces in it just as often. */
@@ -97,6 +109,20 @@ export function InviteTeam({ onDone }: { onDone: () => void }) {
                   <span>{r.email}</span>
                   <code>{r.temporaryPassword}</code>
                   {r.emailSent === true && <em className="invite-sent"><Icon name="check" size={13} /> emailed</em>}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => setShowing({
+                      /* The same name the server gave the account:
+                         "tej@homes.me" -> "Tej", not "tej". */
+                      name: titleCase(r.email.split('@')[0] ?? r.email),
+                      email: r.email,
+                      password: r.temporaryPassword ?? '',
+                      url: 'crm.homes.me',
+                    })}
+                  >
+                    Card
+                  </button>
                 </div>
               ))}
             </div>
@@ -115,6 +141,8 @@ export function InviteTeam({ onDone }: { onDone: () => void }) {
             send it yourself.
           </Note>
         )}
+
+        {showing && <AccessCardModal access={showing} onClose={() => setShowing(null)} />}
 
         {results.some((r) => r.status !== 'created') && (
           <div className="invite-skipped">

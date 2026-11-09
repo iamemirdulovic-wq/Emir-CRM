@@ -14,7 +14,7 @@ describe('the welcome email itself', () => {
     email: 'tej@homes.me',
     temporaryPassword: 'Swift-Harbour-4821',
   };
-  const html = welcomeEmailHtml(input, 'homes.me', 'https://mycrm.emirdulovic.com/login');
+  const html = welcomeEmailHtml(input, 'homes.me', 'https://crm.homes.me/login');
 
   it('greets them by their first name only', () => {
     expect(html).toContain('Welcome to the CRM, Tej.');
@@ -24,7 +24,7 @@ describe('the welcome email itself', () => {
   it('carries the address, the password and a way in', () => {
     expect(html).toContain('tej@homes.me');
     expect(html).toContain('Swift-Harbour-4821');
-    expect(html).toContain('https://mycrm.emirdulovic.com/login');
+    expect(html).toContain('https://crm.homes.me/login');
   });
 
   it('tells them to change it and delete the email', () => {
