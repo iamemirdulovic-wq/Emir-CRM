@@ -208,6 +208,9 @@ export async function saveRoutingSettings(
 
   // Only what actually moved, so the audit log reads as a list of decisions
   // rather than four rows every time someone opens the screen.
+  if (next.slaEnabled !== current.slaEnabled) {
+    await saveSetting(actor, 'ROUTING_SLA_ENABLED', next.slaEnabled ? '1' : '0', exec);
+  }
   if (next.slaMinutes !== current.slaMinutes) {
     await saveSetting(actor, 'ROUTING_SLA_MINUTES', String(next.slaMinutes), exec);
   }
