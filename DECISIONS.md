@@ -5,6 +5,51 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-10 — leads — **The five-minute clock is opt-in, and never runs on a
+lead somebody kept for themselves** — It used to start on every lead a manager
+or owner handed to an agent.
+
+The rule exists to protect a stranger who filled in a form and is sitting
+there waiting, and it works by taking the lead off whoever is holding it. A
+lead the owner typed in and gave to a named agent is not waiting for anybody,
+so the clock could only undo the decision he had just made; and on a lead he
+assigned to himself there was nobody to take it from at all. Emir: "it should
+be only me, as owner and admin, who gives a lead that timer, not every lead."
+
+Chosen as Hot or Normal at the moment of assigning. Normal is the default.
+
+2026-11-10 — leads — **A missed lead goes back to whoever gave it out, not to
+the next agent in the round-robin** — Only when a person handed it over.
+
+The round-robin is right for a lead the CRM assigned by itself: nobody chose
+that agent, so any other will do. It is wrong for a hand-over, where the owner
+read the lead and picked somebody — passing it to a third person replaces his
+judgement with a lottery while he carries on believing the first agent has it.
+
+The two cases are told apart by `lead_assignments.assigned_by_user_id`, which
+is NULL for every automatic assignment. A giver who has since been deactivated
+falls back to the old behaviour.
+
+2026-11-10 — leads — **A lead you add and keep counts as contacted** — It goes
+in with `last_contact_at`, `first_touch_at` and an activity.
+
+Emir added a lead, kept it, and the card told him "nobody has spoken to them
+yet" about a conversation he had just had. Recording the touch is the honest
+fix and repairs the untouched counts and speed-to-lead at the same time,
+rather than hiding one message on one card. A lead handed to somebody else is
+still uncontacted, because that agent really has not rung them.
+
+2026-11-10 — assignment — **Split by exact number is not offered as a saved
+rule on the Teams page** — That method is written into the
+`assignment_rules.method` ENUM.
+
+Widening an ENUM needs `ALTER ... MODIFY`, which `migrations.safety.test.ts`
+refuses, and correctly: this database is migrated unattended on every push.
+`split_count` is a choice made when a batch is shared out rather than a
+standing rule, so it travels in the request body and never reaches that
+column. If a saved rule ever needs it, add a new nullable column rather than
+touching the ENUM.
+
 2026-11-09 — attendance — **The office address is read from the RIGHT of
 `X-Forwarded-For`; everywhere else in this codebase reads the LEFT** — Do not
 "fix" this into a call to `clientIp()`.

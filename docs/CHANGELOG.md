@@ -2,6 +2,48 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Three doors a lead comes in by
+
+Emir set out how leads should reach the CRM, and the rules differ by who put
+the lead there. He adds it and gives it to an agent: that one can carry the
+five-minute clock, and he chooses Hot or Normal as he assigns. An agent adds
+their own lead: no clock, nobody takes it off them. A bulk import: never a
+clock, which was already true.
+
+Three things changed to match.
+
+**Hot or Normal, at the moment of assigning.** Two cards rather than a
+tick-box, with the consequence written on each. Normal is the default. Neither
+appears on an unassigned lead or one you keep yourself, because a clock takes
+a lead off its holder and there is nobody to take it from.
+
+**A missed lead goes back to whoever gave it out,** instead of to the next
+agent in the round-robin. The round-robin stays for leads the CRM assigned
+itself — nobody chose that agent — but a hand-over returns to the person who
+made the decision, with the relationship, a note in the history and a message
+saying why.
+
+**A lead you add and keep counts as contacted.** "Call them, today — nobody
+has spoken to them yet" was appearing on leads their owner had just come off
+the phone to. It now records the touch, which fixes the untouched counts and
+speed-to-lead with it. The rule underneath was wrong in every case it could
+fire: a New Lead only reaches the stage rules once somebody has reached out,
+so it asks for a follow-up after two quiet days instead.
+
+## Sharing a batch out by number
+
+*"We have 9 people, we have more than 600 leads, we can give 500, like this."*
+
+Percentages could not say that — nobody knows what share of 637 leads makes
+100 each, and the answer moves every time another row is imported. **By exact
+number** takes a count per agent with a running total against the file, and
+leaves whatever nobody asked for in the pool rather than spreading it over
+everybody to make the sum come out.
+
+Three places build the distributor's input field by field, and all three would
+have dropped the new numbers in silence; the integration test runs a real file
+through the import worker and counts the rows, which is what caught it.
+
 ## Bulk import had no door
 
 Emir: *"Where is the upload for leads? I cannot upload bulk."*
