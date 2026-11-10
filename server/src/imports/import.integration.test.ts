@@ -442,11 +442,20 @@ describeWithDb('bulk import (integration)', () => {
   });
 
   /*
-   * The clean-up for the leads already on a clock when the switch went away.
-   * Migration 0036 cancels them; this proves it cancels the right ones and
-   * leaves a lead that came from an ad alone.
+   * No imported lead is ever left waiting to be taken away.
+   *
+   * This was briefly a migration (0036) that cancelled the timers already
+   * queued when the "treat these as new leads" switch went away. It was
+   * withdrawn on 10 Nov: the join it needed -- `import_rows.opportunity_id`
+   * against `payload ->> '$.opportunityId'` -- cannot use an index on the
+   * jobs side, so on the live database it was a long, locking UPDATE at
+   * boot, and the site answered 503 while it ran. By then Emir had deleted
+   * every lead in the CRM, so there was nothing left for it to cancel.
+   *
+   * The invariant it was protecting still holds, and is still worth saying
+   * out loud, so the assertion stays.
    */
-  it('the migration has called off the timers on imported leads', async () => {
+  it('leaves no imported lead waiting to be taken away', async () => {
     const stuck = await query<{ id: string }>(
       `SELECT j.id FROM jobs j
          JOIN import_rows ir ON ir.opportunity_id = j.payload ->> '$.opportunityId'

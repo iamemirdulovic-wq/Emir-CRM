@@ -359,6 +359,34 @@ export async function loadBoard(params: {
   }
 
   const limit = Math.min(params.limitPerStage ?? 50, 200);
+
+  /*
+   * When the clock on a lead actually runs out, read from the job that will
+   * do it -- not worked out on the card.
+   *
+   * The board used to draw a countdown on every lead sitting in New Lead,
+   * five minutes after it was created, whether or not any timer existed.
+   * Emir imported 47 leads and watched 47 countdowns he had not asked for,
+   * on leads nothing was going to bounce. A clock on screen has to mean a
+   * clock that is running, so a lead with no armed job shows nothing.
+   *
+   * One query for the whole board, not one per card. The first version asked
+   * per card, and `payload ->> '$.opportunityId'` cannot use an index, so a
+   * seven-stage board was up to 350 scans of `jobs` -- every time anybody
+   * opened the pipeline. Ten people refreshing took the site down twice on
+   * 10 Nov. This reads only the pending rows (`idx_job_claim` starts with
+   * `status`), of which there are a handful, and pairs them up in memory.
+   */
+  const armed = new Map<string, Date>();
+  for (const job of await query<{ oid: string | null; due: Date }>(
+    `SELECT payload ->> '$.opportunityId' AS oid, MIN(run_at) AS due
+       FROM jobs
+      WHERE status = 'pending' AND type = 'workflow.a.sla_check'
+      GROUP BY oid`,
+  )) {
+    if (job.oid) armed.set(job.oid, job.due);
+  }
+
   const board = [];
 
   for (const stage of stages) {
@@ -369,26 +397,7 @@ export async function loadBoard(params: {
               o.lead_score, o.source, o.campaign_name, o.created_at, o.stage_changed_at, o.sla_breached,
               c.id AS contact_id, c.full_name, c.phone_e164, c.wa_id, c.email, c.language,
               c.last_inbound_at, c.dnc,
-              u.name AS owner_name,
-              /*
-               * When the clock on this lead actually runs out, read from the
-               * job that will do it -- not worked out on the card.
-               *
-               * The board used to draw a countdown on every lead sitting in
-               * New Lead, five minutes after it was created, whether or not
-               * any timer existed. Emir imported 47 leads and watched 47
-               * countdowns he had not asked for, on leads nothing was going
-               * to bounce. A clock on screen has to mean a clock that is
-               * running, so this is NULL when nothing is armed and the card
-               * shows nothing.
-               */
-              (SELECT j.run_at
-                 FROM jobs j
-                WHERE j.type = 'workflow.a.sla_check'
-                  AND j.status = 'pending'
-                  AND j.payload ->> '$.opportunityId' = o.id
-                ORDER BY j.run_at ASC
-                LIMIT 1) AS sla_due_at
+              u.name AS owner_name
          FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id
          LEFT JOIN users u ON u.id = o.owner_user_id
@@ -402,6 +411,8 @@ export async function loadBoard(params: {
         WHERE ${where.join(' AND ')} AND o.stage_key = ?`,
       stageArgs,
     );
+    for (const card of cards) card.sla_due_at = armed.get(String(card.id)) ?? null;
+
     board.push({
       stageKey: stage.key,
       stageName: stage.name,
