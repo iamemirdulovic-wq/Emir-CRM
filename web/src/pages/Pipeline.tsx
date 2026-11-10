@@ -219,11 +219,16 @@ function BoardCard({
 }) {
   const style = stageStyle(card.stage_key);
   const source = sourceStyle(card.source);
-  // Workflow A reassigns at five minutes, so the card counts down to that.
-  const slaDeadline =
-    card.sla_breached === 1 || card.stage_key !== 'new_lead'
-      ? null
-      : new Date(new Date(card.created_at).getTime() + 5 * 60 * 1000).toISOString();
+  /*
+   * The deadline the server says is really armed, not one worked out here.
+   *
+   * This used to be `created_at + 5 minutes` for every unbreached lead in
+   * New Lead, which drew a countdown whether or not a timer existed and
+   * ignored the owner's own setting. Emir imported 47 leads and watched 47
+   * clocks tick down on leads nothing was going to take away from anybody.
+   * `sla_due_at` is read from the pending job, so no job means no clock.
+   */
+  const slaDeadline = card.sla_breached === 1 ? null : (card.sla_due_at ?? null);
   const countdown = useCountdown(slaDeadline);
   const rawBudget = budgetLabel(card.budget_min_aed, card.budget_max_aed, card.budget_band);
   const budget = rawBudget === '—' ? null : rawBudget;
