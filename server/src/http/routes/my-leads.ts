@@ -117,25 +117,35 @@ const SELECT = `
  * going back to the list and finding their place again after every single
  * call, which is forty detours a day.
  *
- * Oldest first among the ones still open and still theirs, skipping the lead
+ * Oldest first among the open leads this person can see, skipping the one
  * they are on. Oldest because that is the one going coldest, which is the
- * same order Incoming uses and the same order an agent would pick by hand.
+ * order Incoming uses and the order an agent would pick by hand.
+ *
+ * Scoped with `visibleUserIds`, the same rule as the list itself, and not
+ * `owner_user_id = me`. I wrote it the narrow way first and the button
+ * simply never appeared for Emir: an owner personally holds almost no leads,
+ * so "the next one of mine" was empty every time while the screen behind it
+ * showed hundreds. An agent still gets only their own, because that is what
+ * `visibleUserIds` returns for an agent.
  */
 myLeadsRouter.get(
   '/:id/next',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
     const here = String(req.params.id);
+    const visible = await visibleUserIds(user);
+    const scope = ownerPredicate('o.owner_user_id', visible);
 
     const next = await queryOne<{ id: string; contact_id: string; full_name: string | null }>(
       `SELECT o.id, o.contact_id, c.full_name
          FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
-        WHERE o.owner_user_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
+        WHERE ${scope.sql} AND o.status = 'open' AND o.deleted_at IS NULL
+          AND o.owner_user_id IS NOT NULL
           AND o.id <> ?
         ORDER BY o.created_at ASC
         LIMIT 1`,
-      [user.id, here],
+      [...scope.params, here],
     );
 
     /* Null rather than a 404: "nothing left" is an answer the button shows,
