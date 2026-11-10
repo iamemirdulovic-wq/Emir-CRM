@@ -1,6 +1,6 @@
 import { execute, queryOne, query, withRetryingTransaction } from '../db/client.js';
 import { notFound } from '../lib/errors.js';
-import { logger } from '../lib/logger.js';
+import { logger, errorContext } from '../lib/logger.js';
 import { writeAudit, diffFields, type AuditActor } from '../audit/audit.js';
 import { addActivity } from '../ingestion/ingest.js';
 import { cancelTasksForClosedLead } from './tasks.js';
@@ -305,6 +305,34 @@ export async function reassign(input: ReassignInput): Promise<void> {
 }
 
 /** Board data: one column per stage, cards scoped to what the viewer may see. */
+/**
+ * Which leads actually have a five-minute clock running, by opportunity.
+ *
+ * Never throws. The countdown is a nicety; the board is somebody's working
+ * day. On 10 Nov the pipeline answered "Internal server error" and took the
+ * whole page with it, so if this cannot be read the board is served without
+ * countdowns and the reason goes to the log.
+ *
+ * `GROUP BY` repeats the expression rather than using the alias: grouping by
+ * an alias is a MySQL extension, and the live database is not necessarily
+ * the MySQL 8 this is tested against.
+ */
+async function armedClocks(): Promise<Map<string, Date>> {
+  const armed = new Map<string, Date>();
+  try {
+    const rows = await query<{ oid: string | null; due: Date }>(
+      `SELECT JSON_UNQUOTE(JSON_EXTRACT(payload, '$.opportunityId')) AS oid, MIN(run_at) AS due
+         FROM jobs
+        WHERE status = 'pending' AND type = 'workflow.a.sla_check'
+        GROUP BY JSON_UNQUOTE(JSON_EXTRACT(payload, '$.opportunityId'))`,
+    );
+    for (const row of rows) if (row.oid) armed.set(row.oid, row.due);
+  } catch (err: unknown) {
+    logger.warn('could not read the armed clocks; the board goes out without them', errorContext(err));
+  }
+  return armed;
+}
+
 export async function loadBoard(params: {
   visibleUserIds: string[] | null;
   pipelineKey: string;
@@ -377,15 +405,7 @@ export async function loadBoard(params: {
    * 10 Nov. This reads only the pending rows (`idx_job_claim` starts with
    * `status`), of which there are a handful, and pairs them up in memory.
    */
-  const armed = new Map<string, Date>();
-  for (const job of await query<{ oid: string | null; due: Date }>(
-    `SELECT payload ->> '$.opportunityId' AS oid, MIN(run_at) AS due
-       FROM jobs
-      WHERE status = 'pending' AND type = 'workflow.a.sla_check'
-      GROUP BY oid`,
-  )) {
-    if (job.oid) armed.set(job.oid, job.due);
-  }
+  const armed = await armedClocks();
 
   const board = [];
 

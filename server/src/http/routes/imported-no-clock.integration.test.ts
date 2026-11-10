@@ -126,6 +126,31 @@ describeWithDb('an imported lead carries no clock', () => {
     return res.json() as Promise<{ assigned: number }>;
   }
 
+  /*
+   * Through the real endpoint, not just the function behind it.
+   *
+   * The first version of these tests called `loadBoard` directly, so it had
+   * nothing to say when /pipeline answered "Internal server error" on the
+   * live site. The board is what the route returns, so the route is what
+   * has to be asked.
+   */
+  it('serves the board over HTTP, with the clock column on every card', async () => {
+    const boss = await createTestUser({ role: 'owner', name: 'Emir' });
+    await importThreeLeads();
+    const cookie = await signIn(base, boss);
+
+    const res = await fetch(`${base}/api/pipeline/board`, { headers: { cookie } });
+    expect(res.status, await res.clone().text()).toBe(200);
+
+    const body = await res.json() as { columns: { stageKey: string; cards: Record<string, unknown>[] }[] };
+    const newLead = body.columns.find((c) => c.stageKey === 'new_lead');
+    expect(newLead?.cards).toHaveLength(3);
+    for (const card of newLead?.cards ?? []) {
+      expect(card, 'every card carries the field, even when empty').toHaveProperty('sla_due_at');
+      expect(card.sla_due_at).toBeNull();
+    }
+  });
+
   it('shows no countdown after a file is imported', async () => {
     const boss = await createTestUser({ role: 'owner', name: 'Emir' });
     await importThreeLeads();
