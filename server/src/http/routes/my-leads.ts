@@ -109,6 +109,41 @@ const SELECT = `
     JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
     LEFT JOIN users u ON u.id = o.owner_user_id`;
 
+/**
+ * The next lead to work after this one.
+ *
+ * Emir, 10 Nov 2026: "next in the right should be button, next leads, so it
+ * will be going next leads, so it's easy." An agent with forty leads was
+ * going back to the list and finding their place again after every single
+ * call, which is forty detours a day.
+ *
+ * Oldest first among the ones still open and still theirs, skipping the lead
+ * they are on. Oldest because that is the one going coldest, which is the
+ * same order Incoming uses and the same order an agent would pick by hand.
+ */
+myLeadsRouter.get(
+  '/:id/next',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const here = String(req.params.id);
+
+    const next = await queryOne<{ id: string; contact_id: string; full_name: string | null }>(
+      `SELECT o.id, o.contact_id, c.full_name
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+        WHERE o.owner_user_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
+          AND o.id <> ?
+        ORDER BY o.created_at ASC
+        LIMIT 1`,
+      [user.id, here],
+    );
+
+    /* Null rather than a 404: "nothing left" is an answer the button shows,
+       not an error it has to handle. */
+    res.json({ next: next ?? null });
+  }),
+);
+
 myLeadsRouter.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {

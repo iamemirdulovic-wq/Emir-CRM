@@ -488,12 +488,24 @@
  * height above everything an agent came to read.
  */
 @media (max-width:760px){
-  .toolbar .right .lead-actions{
+  /*
+   * Both slots. The bar used to put these on the right; they sit in the
+   * middle now, and scoping this to `.right` alone meant the scroll box
+   * stopped applying the moment they moved -- 786px of buttons in a 390px
+   * window, and the whole page scrolled sideways.
+   */
+  .toolbar .right .lead-actions,
+  .toolbar .middle .lead-actions{
     max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;
     /* Room for the buttons' own shadows, which a scroll box would clip. */
     padding:4px 2px;margin:-4px -2px;scrollbar-width:none}
-  .toolbar .right .lead-actions::-webkit-scrollbar{display:none}
-  .toolbar .right .lead-actions .btn{flex:none}
+  .toolbar .right .lead-actions::-webkit-scrollbar,
+  .toolbar .middle .lead-actions::-webkit-scrollbar{display:none}
+  .toolbar .right .lead-actions .btn,
+  .toolbar .middle .lead-actions .btn{flex:none}
+  /* And the slot itself has to be allowed to be narrower than its content,
+     or the scroll box inside it never gets the chance. */
+  .toolbar.has-middle .middle{min-width:0;max-width:100%}
 }
 
 /* ---------------------------------------------------------------------------
@@ -1696,3 +1708,25 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
   background:var(--primary-soft)}
 .clear-side.stays b{color:var(--primary-ink)}
 @media (max-width:620px){.clear-cols{grid-template-columns:1fr}}
+
+/*
+ * Where the number is and what time it is there. Emir, 10 Nov 2026: his leads
+ * run 186 UK numbers against 184 UAE ones, and nothing on screen said that
+ * ringing London at 10am Dubai time wakes somebody at 6am.
+ */
+.where-they-are{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;
+  margin:10px 0 2px;font-size:12.5px;color:var(--ink-2)}
+.where-they-are.compact{margin:4px 0 0;font-size:12px}
+.wta-country{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink)}
+.wta-flag{font-size:15px;line-height:1}
+.wta-clock{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.wta-clock .lucide{width:14px;height:14px;color:var(--ink-3)}
+.wta-clock small{color:var(--ink-3);font-size:11.5px}
+.wta-call{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;
+  font-size:11.5px;font-weight:600}
+.wta-call .lucide{width:13px;height:13px}
+.wta-call.ok{background:var(--primary-soft);color:var(--primary-ink)}
+.wta-call.wait{background:color-mix(in srgb,var(--att-late) 15%,transparent);color:var(--att-late)}
+
+/* Straight on to the next lead, at the right-hand end of the lead toolbar. */
+.next-lead{font-weight:650}

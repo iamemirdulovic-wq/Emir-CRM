@@ -6,6 +6,7 @@ import type { Card, Contact360, StageKey } from '../lib/types.js';
 import { Icon } from '../design/index.js';
 import { stageStyle } from '../design/stages.js';
 import { Avatar, budgetLabel, Drawer, DrawerHead, Score, Spinner, StagePill, Tag } from '../design/ui.js';
+import { WhereTheyAre } from './WhereTheyAre.js';
 
 /**
  * The lead drawer: everything about one lead, slid in over the board.
@@ -57,6 +58,10 @@ export function LeadDrawer({
           </DrawerHead>
 
           <div className="drawer-body">
+            {/* Where they are and what time it is there, before anything
+                else: it decides whether the Call button should be pressed
+                at all. */}
+            <WhereTheyAre phone={card.phone_e164 ?? null} />
             <StagePill stage={card.stage_key} label={humanize(card.stage_key)} />
             <div className="stagebar" aria-hidden>
               {STAGE_ORDER.map((stage, i) => (

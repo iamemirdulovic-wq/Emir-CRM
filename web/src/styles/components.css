@@ -198,6 +198,19 @@ tr:last-child td{border-bottom:0}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;font-weight:600;font-size:13px;color:var(--ink-2);box-shadow:none;cursor:pointer}
 .chip.on{background:var(--primary-soft);color:var(--primary);border-color:rgba(118,184,22,.32)}
 .toolbar .right{margin-left:auto;display:flex;gap:8px}
+/*
+ * Three slots: back on the left, the work in the middle, where next on the
+ * right. The actions used to sit hard against the right edge with the whole
+ * bar empty beside the back link -- Emir, 10 Nov 2026: "it should be this on
+ * middle, next in the right should be button, next leads."
+ */
+.toolbar.has-middle .middle{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;
+  align-items:center;justify-content:center}
+.toolbar.has-middle .right{margin-left:auto}
+@media (max-width:900px){
+  .toolbar.has-middle .middle{margin-left:0;width:100%;order:3;justify-content:flex-start}
+  .toolbar.has-middle .right{order:2}
+}
 .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
 .col{flex:0 0 276px;border-radius:var(--r-l);display:flex;flex-direction:column;max-height:calc(100vh - 200px)}
 .col-head{padding:14px 14px 10px;position:relative}

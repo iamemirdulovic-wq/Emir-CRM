@@ -2368,6 +2368,11 @@ const ROUTES: Route[] = [
     };
   } },
 
+  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/next$/, handler: () => {
+    const lead = LEADS[1] ?? LEADS[0];
+    return { next: lead ? { id: lead.id, contact_id: lead.contactId, full_name: lead.name } : null };
+  } },
+
   // --- starting the leads again -------------------------------------------
   { method: 'GET', pattern: /^\/api\/company\/lead-data$/, handler: () => ({
     phrase: 'DELETE ALL LEADS',

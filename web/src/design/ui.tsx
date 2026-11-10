@@ -124,10 +124,15 @@ export function Panel({
   );
 }
 
-export function Toolbar({ children, right }: { children?: ReactNode; right?: ReactNode }) {
+export function Toolbar({
+  children, middle, right,
+}: { children?: ReactNode; middle?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="toolbar rise" style={{ ['--i' as string]: 0 }}>
+    <div className={middle ? 'toolbar rise has-middle' : 'toolbar rise'} style={{ ['--i' as string]: 0 }}>
       {children}
+      {/* Three slots rather than two, so what an agent presses most sits in
+          the middle of the bar instead of crushed against the right edge. */}
+      {middle && <div className="middle">{middle}</div>}
       {right && <div className="right">{right}</div>}
     </div>
   );

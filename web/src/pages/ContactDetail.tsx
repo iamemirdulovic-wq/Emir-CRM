@@ -14,6 +14,8 @@ import {
 } from '../design/ui.js';
 import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
 import { LeadBrief } from '../components/LeadBrief.js';
+import { WhereTheyAre } from '../components/WhereTheyAre.js';
+import { NextLead } from '../components/NextLead.js';
 import { useLeadShortcuts } from '../components/CommandLayer.js';
 import { LeadNotes } from '../components/LeadNotes.js';
 import { EmailComposer } from '../components/EmailComposer.js';
@@ -118,7 +120,8 @@ export function ContactDetail() {
   return (
     <>
       <Toolbar
-        right={
+        right={opportunity ? <NextLead opportunityId={opportunity.id} /> : null}
+        middle={
           opportunity ? (
             /*
              * The nine buttons, on the lead itself. They were two links
@@ -200,6 +203,9 @@ export function ContactDetail() {
               {opportunity && <StagePill stage={opportunity.stage_key} label={humanize(opportunity.stage_key)} />}
               <Score value={contact.lead_score} />
             </div>
+            {/* The country, their clock and whether now is a decent hour.
+                Under the number, because it is a fact about the number. */}
+            <WhereTheyAre phone={contact.phone_e164 ?? null} />
           </div>
 
           {contact.ai_summary && (
