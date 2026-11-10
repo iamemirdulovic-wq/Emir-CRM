@@ -17,6 +17,7 @@ import { isMacLike } from '../lib/shortcuts.js';
 import { AiKnowledgeTab } from '../components/AiKnowledge.js';
 import { PhoneAppPanel } from '../components/PhoneApp.js';
 import { RoutingSettings } from '../components/RoutingSettings.js';
+import { ClearLeads } from '../components/ClearLeads.js';
 import { CompanySettings } from '../components/CompanySettings.js';
 import { TeamProfiles } from '../components/TeamProfiles.js';
 import { AttendanceSettings } from '../components/AttendanceSettings.js';
@@ -114,6 +115,8 @@ export function Settings() {
 
       {tab === 'profile' && <ProfileTab />}
       {tab === 'company' && <CompanySettings />}
+      {/* Owner only, and the component refuses to render for anybody else. */}
+      {tab === 'company' && <ClearLeads />}
       {tab === 'team' && <TeamTab />}
       {tab === 'people' && <TeamProfiles />}
       {tab === 'teams' && <DesksTab />}

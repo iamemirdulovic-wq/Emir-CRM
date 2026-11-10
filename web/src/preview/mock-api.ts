@@ -2368,6 +2368,22 @@ const ROUTES: Route[] = [
     };
   } },
 
+  // --- starting the leads again -------------------------------------------
+  { method: 'GET', pattern: /^\/api\/company\/lead-data$/, handler: () => ({
+    phrase: 'DELETE ALL LEADS',
+    counts: {
+      contacts: 643, opportunities: 690, offers: 12, messages: 2841,
+      activities: 1960, inboundEvents: 712, imports: 3, jobs: 48,
+    },
+  }) },
+  { method: 'POST', pattern: /^\/api\/company\/clear-leads$/, handler: () => ({
+    removed: {
+      contacts: 643, opportunities: 690, offers: 12, messages: 2841,
+      activities: 1960, inboundEvents: 712, imports: 3, jobs: 48,
+    },
+    leftBehind: [],
+  }) },
+
   // --- teams and the pool -------------------------------------------------
   { method: 'GET', pattern: /^\/api\/teams$/, handler: () => ({ items: TEAMS }) },
   { method: 'GET', pattern: /^\/api\/teams\/pool$/, handler: () => ({

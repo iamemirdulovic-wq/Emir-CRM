@@ -19,6 +19,11 @@ import {
 import { baseContentType, extensionFor, insideUploadDir, uploadDir, IMAGE_TYPES } from '../../lib/uploads.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { writeAudit } from '../../audit/audit.js';
+import { currentUser } from '../middleware/auth.js';
+import { forbidden } from '../../lib/errors.js';
+import {
+  CLEAR_PHRASE, clearAllLeads, countLeadData, leadTablesStillHolding,
+} from '../../leads/clear-all.js';
 
 /**
  * The company, and the limits on automated messaging.
@@ -300,3 +305,58 @@ async function removeLogos(): Promise<void> {
     if (insideUploadDir(file)) await unlink(file).catch(() => undefined);
   }
 }
+
+
+/* ── Starting the leads again ─────────────────────────────────────────── */
+
+/**
+ * What is in the CRM, for the panel to show before anything is pressed.
+ *
+ * Owner only, like the delete it describes: the counts are the whole business
+ * in one line, and an agent has no reason to read them here.
+ */
+companyRouter.get(
+  '/lead-data',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (currentUser(req).role !== 'owner') throw forbidden('Only the owner can see this.');
+    res.json({ counts: await countLeadData(), phrase: CLEAR_PHRASE });
+  }),
+);
+
+/**
+ * Remove every lead, permanently.
+ *
+ * Owner only, confirmed by typing the phrase, audited before it runs, and
+ * rate limited because nothing legitimate calls it twice. See
+ * `leads/clear-all.ts` for why this is a real DELETE and what it costs.
+ */
+companyRouter.post(
+  '/clear-leads',
+  /*
+   * `requireAdmin` first, then owner-only inside the handler. Belt and
+   * braces, and `settings-audit.test.ts` is right to insist on the middleware:
+   * it reads this file and checks every write verb on this router carries it,
+   * so a check buried in a handler cannot be the only thing standing between
+   * an agent and the company's data.
+   */
+  requireAdmin,
+  rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 3,
+    keyFor: (req) => `clear-leads:${currentUser(req).id}`,
+    message: 'That has been tried several times already. Wait an hour.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    if (currentUser(req).role !== 'owner') throw forbidden('Only the owner can clear the leads.');
+
+    const body = z.object({ confirm: z.string() }).parse(req.body ?? {});
+    if (body.confirm.trim() !== CLEAR_PHRASE) {
+      throw badRequest(`Type ${CLEAR_PHRASE} exactly to confirm.`);
+    }
+
+    const removed = await clearAllLeads(actorFrom(req));
+    /* Read back rather than assume: "it is empty" should be something the
+       database said, not something this endpoint hoped. */
+    res.json({ removed, leftBehind: await leadTablesStillHolding() });
+  }),
+);

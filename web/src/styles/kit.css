@@ -1679,3 +1679,20 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
 
 /* The "how many leads" box in an assignment split by number. */
 .count-box{width:92px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+
+/*
+ * "Start the leads again": what goes against what stays, side by side.
+ * Two columns rather than one list, because the question a person actually
+ * has in front of this button is "what am I keeping".
+ */
+.clear-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 4px}
+.clear-side{border:1.5px solid var(--line);border-radius:14px;padding:12px 14px}
+.clear-side b{display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:8px}
+.clear-side ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.7;color:var(--ink-2)}
+.clear-side.goes{border-color:color-mix(in srgb,var(--hot) 45%,transparent);
+  background:color-mix(in srgb,var(--hot) 7%,transparent)}
+.clear-side.goes b{color:var(--hot)}
+.clear-side.stays{border-color:color-mix(in srgb,var(--primary) 45%,transparent);
+  background:var(--primary-soft)}
+.clear-side.stays b{color:var(--primary-ink)}
+@media (max-width:620px){.clear-cols{grid-template-columns:1fr}}
