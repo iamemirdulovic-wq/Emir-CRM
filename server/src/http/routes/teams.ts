@@ -122,6 +122,13 @@ teamsRouter.get(
 
 const ruleSchema = z.object({
   name: z.string().min(1).max(120),
+  /*
+   * Six, not seven: this one is written to the `assignment_rules.method` ENUM,
+   * and adding a value to an ENUM means an ALTER ... MODIFY, which the
+   * migration guard refuses because this database is migrated unattended on
+   * every push. `split_count` is a choice made when a batch is shared out, not
+   * a standing rule, so it travels in the request body and never lands here.
+   */
   method: z.enum(['agent', 'team_round_robin', 'split_even', 'split_percent', 'by_rule', 'pool']),
   targetUserId: z.string().max(36).nullable().optional(),
   targetTeamId: z.string().max(36).nullable().optional(),

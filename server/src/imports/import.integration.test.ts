@@ -372,6 +372,37 @@ describeWithDb('bulk import (integration)', () => {
     expect(byOwner.get(b.id)).toBe(2);
   });
 
+  /*
+   * Emir, 10 Nov 2026: "we have 9 people, we have more than 600 leads, we can
+   * give 500, like this." The numbers have to survive the whole trip -- stored
+   * on the import, read back by the worker, through the distributor and onto
+   * the rows -- and a dropped field in any one of those is silent.
+   */
+  it('gives each agent the exact number asked for, and pools the rest', async () => {
+    const tej = await createTestUser({ name: 'Tej', role: 'agent' });
+    const talha = await createTestUser({ name: 'Talha', role: 'agent' });
+    await createTestUser({ name: 'Nobody asked for me', role: 'agent' });
+
+    const rows = ['Full Name,Mobile No.'];
+    for (let i = 0; i < 10; i += 1) rows.push(`Person ${i},+9715${String(10_000_000 + i).slice(0, 8)}`);
+
+    const { importId } = await createImport(rows.join('\n'), {}, {
+      method: 'split_count',
+      counts: [{ userId: tej.id, count: 4 }, { userId: talha.id, count: 3 }],
+    });
+    await runToCompletion(importId);
+
+    const counts = await query<{ owner_user_id: string | null; n: number }>(
+      'SELECT owner_user_id, COUNT(*) AS n FROM opportunities GROUP BY owner_user_id',
+    );
+    const byOwner = new Map(counts.map((row) => [row.owner_user_id, Number(row.n)]));
+    expect(byOwner.get(tej.id)).toBe(4);
+    expect(byOwner.get(talha.id)).toBe(3);
+    /* The other three nobody asked for: unowned, waiting, not pushed onto the
+       third agent to make the sum come out. */
+    expect(byOwner.get(null)).toBe(3);
+  });
+
   it('leaves imported leads unowned when the method is the shared pool', async () => {
     await createTestUser({ role: 'agent' });
     const { importId } = await createImport(

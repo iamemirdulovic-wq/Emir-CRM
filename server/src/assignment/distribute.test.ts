@@ -75,6 +75,93 @@ describe('round robin', () => {
   });
 });
 
+/*
+ * Emir, 10 Nov 2026: "we have 9 people, we have more than 600 leads, we can
+ * give 500, like this." The numbers are the point -- nobody can say "100 each"
+ * in percentages of a file whose size they do not know.
+ */
+describe('split by exact number', () => {
+  it('gives each person the number asked for', () => {
+    const plan = distribute({
+      method: 'split_count',
+      leads: leads(600),
+      candidates: [agent('tej'), agent('talha'), agent('olga')],
+      counts: [
+        { userId: 'tej', count: 100 },
+        { userId: 'talha', count: 100 },
+        { userId: 'olga', count: 50 },
+      ],
+    });
+    expect(plan.counts.get('tej')).toBe(100);
+    expect(plan.counts.get('talha')).toBe(100);
+    expect(plan.counts.get('olga')).toBe(50);
+    expect(plan.byLead.size).toBe(250);
+  });
+
+  it('leaves the rest in the pool rather than pushing them on somebody', () => {
+    const plan = distribute({
+      method: 'split_count',
+      leads: leads(600),
+      candidates: [agent('tej'), agent('talha')],
+      counts: [{ userId: 'tej', count: 300 }, { userId: 'talha', count: 200 }],
+    });
+    expect(plan.pooled).toHaveLength(100);
+    expect(plan.byLead.size).toBe(500);
+  });
+
+  it('gives nobody the same lead twice', () => {
+    const plan = distribute({
+      method: 'split_count',
+      leads: leads(30),
+      candidates: [agent('a'), agent('b'), agent('c')],
+      counts: [{ userId: 'a', count: 10 }, { userId: 'b', count: 10 }, { userId: 'c', count: 10 }],
+    });
+    expect(new Set(plan.byLead.keys()).size).toBe(30);
+    expect(plan.pooled).toHaveLength(0);
+  });
+
+  /* Asked for more than the file holds: served in order, the last people get
+     what is left. The preview shows these numbers before it runs. */
+  it('serves in order when the numbers add up to more than the file', () => {
+    const plan = distribute({
+      method: 'split_count',
+      leads: leads(15),
+      candidates: [agent('a'), agent('b'), agent('c')],
+      counts: [{ userId: 'a', count: 10 }, { userId: 'b', count: 10 }, { userId: 'c', count: 10 }],
+    });
+    expect(plan.counts.get('a')).toBe(10);
+    expect(plan.counts.get('b')).toBe(5);
+    expect(plan.counts.get('c')).toBeUndefined();
+    expect(plan.byLead.size).toBe(15);
+    expect(plan.pooled).toHaveLength(0);
+  });
+
+  it('skips a zero and an agent who is not eligible', () => {
+    const plan = distribute({
+      method: 'split_count',
+      leads: leads(10),
+      candidates: [agent('a'), agent('away', { isEligible: false })],
+      counts: [
+        { userId: 'a', count: 4 },
+        { userId: 'away', count: 4 },
+        { userId: 'ghost', count: 4 },
+      ],
+    });
+    expect(plan.counts.get('a')).toBe(4);
+    expect(plan.counts.get('away')).toBeUndefined();
+    expect(plan.counts.get('ghost')).toBeUndefined();
+    expect(plan.pooled, 'everything nobody eligible asked for').toHaveLength(6);
+  });
+
+  it('pools the batch when no numbers are given at all', () => {
+    const plan = distribute({
+      method: 'split_count', leads: leads(8), candidates: [agent('a')], counts: [],
+    });
+    expect(plan.pooled).toHaveLength(8);
+    expect(plan.byLead.size).toBe(0);
+  });
+});
+
 describe('percentage split', () => {
   it('splits 40/30/30 of ten leads as 4/3/3', () => {
     // Plain rounding would give 4/3/3 too, but 4/3/2 with a lead lost is the

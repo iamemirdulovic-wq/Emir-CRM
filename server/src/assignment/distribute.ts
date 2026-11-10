@@ -1,7 +1,7 @@
 /**
  * Sharing a batch of leads out between people.
  *
- * Six methods, all pure: given the leads and the candidates, decide who gets
+ * Seven methods, all pure: given the leads and the candidates, decide who gets
  * what. Nothing here touches the database, so the rules that decide an agent's
  * workload for the month are testable in milliseconds.
  *
@@ -15,6 +15,7 @@ export type AssignmentMethod =
   | 'team_round_robin'
   | 'split_even'
   | 'split_percent'
+  | 'split_count'
   | 'by_rule'
   | 'pool';
 
@@ -55,6 +56,20 @@ export interface SplitShare {
   percent: number;
 }
 
+/**
+ * A plain number of leads for one person.
+ *
+ * Emir, 10 Nov 2026: "we have 9 people, we have more than 600 leads, we can
+ * give 500, like this." Percentages are the wrong tool for that: nobody knows
+ * what share of 637 leads makes 100 each, and the answer changes the moment
+ * one more row is imported.
+ */
+export interface CountShare {
+  userId: string;
+  /** How many leads this person gets. */
+  count: number;
+}
+
 export interface DistributionPlan {
   method: AssignmentMethod;
   /** lead id -> user id. A lead absent from this map goes to the pool. */
@@ -75,6 +90,8 @@ export interface DistributionInput {
   userId?: string | null;
   /** For split_percent. */
   shares?: SplitShare[];
+  /** For split_count, in the order they are handed out. */
+  counts?: CountShare[];
   /** For by_rule, in priority order — the first match wins. */
   clauses?: AssignmentRuleClause[];
 }
@@ -130,6 +147,36 @@ export function distribute(input: DistributionInput): DistributionPlan {
     leads.forEach((lead, index) => {
       give(plan, lead.id, (order[index % order.length] as AssignmentCandidate).userId);
     });
+    return plan;
+  }
+
+  if (input.method === 'split_count') {
+    const wanted = (input.counts ?? []).filter(
+      (entry) => entry.count > 0 && people.some((person) => person.userId === entry.userId),
+    );
+    if (wanted.length === 0) {
+      plan.pooled = leads.map((lead) => lead.id);
+      return plan;
+    }
+
+    /*
+     * Exactly what was asked for, in the order asked, first come first served.
+     * Ask for more than the file holds and the people at the end get what is
+     * left rather than the whole thing silently rebalancing -- the preview
+     * shows the real numbers, so an owner sees that before running it.
+     */
+    let cursor = 0;
+    for (const entry of wanted) {
+      for (let i = 0; i < entry.count && cursor < leads.length; i += 1, cursor += 1) {
+        give(plan, (leads[cursor] as AssignableLead).id, entry.userId);
+      }
+    }
+    /*
+     * And the rest wait in the pool. 500 of 600 given out means 100 nobody
+     * asked for, and those are not quietly pushed onto somebody: they sit
+     * where a person can see them and decide.
+     */
+    for (; cursor < leads.length; cursor += 1) plan.pooled.push((leads[cursor] as AssignableLead).id);
     return plan;
   }
 

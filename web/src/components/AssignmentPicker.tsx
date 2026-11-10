@@ -11,6 +11,7 @@ const METHODS: { value: AssignmentMethod; label: string; hint: string }[] = [
   { value: 'agent', label: 'One agent', hint: 'Everything to a single person.' },
   { value: 'team_round_robin', label: 'Round-robin a team', hint: 'Evenly round the team, least loaded first.' },
   { value: 'split_even', label: 'Split evenly', hint: 'Evenly across everyone available.' },
+  { value: 'split_count', label: 'By exact number', hint: 'e.g. Tej 100, Talha 100, Olga 50. The rest wait in the pool.' },
   { value: 'split_percent', label: 'Split by percentage', hint: 'e.g. Sara 40%, Omar 30%, Lina 30%.' },
   { value: 'by_rule', label: 'By rule', hint: 'Route on language, project, emirate or budget.' },
 ];
@@ -55,6 +56,10 @@ export function AssignmentPicker({
 
   const shares = value.shares ?? [];
   const clauses = value.clauses ?? [];
+  const counts = value.counts ?? [];
+  /* How many leads there are to share out, once the preview has said. */
+  const total = preview?.leads ?? null;
+  const givenOut = counts.reduce((sum, entry) => sum + Math.max(0, entry.count), 0);
 
   return (
     <>
@@ -104,6 +109,55 @@ export function AssignmentPicker({
             ))}
           </Select>
         </Field>
+      )}
+
+      {value.method === 'split_count' && (
+        <>
+          <div className="sec-t">How many each</div>
+          {agents.map((agent) => {
+            const entry = counts.find((row) => row.userId === agent.id);
+            return (
+              <div className="bank" key={agent.id}>
+                <Avatar name={agent.name} size={32} />
+                <b style={{ flex: 1 }}>{agent.name}</b>
+                <input
+                  className="input count-box"
+                  type="number"
+                  min={0}
+                  step={10}
+                  aria-label={`How many leads for ${agent.name}`}
+                  value={entry?.count ?? 0}
+                  onChange={(event) => {
+                    const count = Math.max(0, Math.floor(Number(event.target.value) || 0));
+                    const next = counts.filter((row) => row.userId !== agent.id);
+                    if (count > 0) next.push({ userId: agent.id, count });
+                    onChange({ ...value, counts: next });
+                  }}
+                />
+              </div>
+            );
+          })}
+          {/*
+            * The running total, which is the whole reason for this method:
+            * "500 of 637" answers the question an owner actually has, and
+            * says plainly where the other 137 go.
+            */}
+          <p className={total !== null && givenOut > total ? 'err' : 'muted'} style={{ display: 'block' }}>
+            {total === null && `${plural(givenOut, 'lead')} given out.`}
+            {total !== null && givenOut <= total && (
+              <>
+                {givenOut} of {plural(total, 'lead')} given out
+                {total - givenOut > 0 && <> · {total - givenOut} wait in the pool</>}
+              </>
+            )}
+            {total !== null && givenOut > total && (
+              <>
+                That is {givenOut} leads between you and there are only {total}. Everybody is served
+                in order, so the last people on the list get what is left.
+              </>
+            )}
+          </p>
+        </>
       )}
 
       {value.method === 'split_percent' && (

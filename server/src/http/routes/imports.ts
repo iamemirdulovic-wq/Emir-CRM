@@ -208,10 +208,15 @@ const configureSchema = z.object({
     .optional(),
   assignment: z
     .object({
-      method: z.enum(['agent', 'team_round_robin', 'split_even', 'split_percent', 'by_rule', 'pool']),
+      method: z.enum(['agent', 'team_round_robin', 'split_even', 'split_percent', 'split_count', 'by_rule', 'pool']),
       userId: z.string().max(36).nullable().optional(),
       teamId: z.string().max(36).nullable().optional(),
       shares: z.array(z.object({ userId: z.string().max(36), percent: z.number().min(0).max(100) })).max(50).optional(),
+      /* Split by a plain number of leads: "Tej 100, Talha 100, Olga 50." */
+      counts: z.array(z.object({
+        userId: z.string().max(36),
+        count: z.number().int().min(0).max(1_000_000),
+      })).max(50).optional(),
       clauses: z
         .array(
           z.object({
@@ -475,6 +480,7 @@ importsRouter.post(
       candidates,
       userId: assignment.userId ?? null,
       shares: assignment.shares ?? [],
+      counts: assignment.counts ?? [],
       clauses: assignment.clauses ?? [],
     });
 

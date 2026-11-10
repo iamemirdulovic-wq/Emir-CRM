@@ -2315,6 +2315,24 @@ const ROUTES: Route[] = [
     const method = String(body.method ?? 'pool');
     if (method === 'pool') return { leads: 250, plan: { method, counts: [] }, pooled: 250, unmatched: 0, warnings: [] };
     const agents = USERS.filter((u) => u.role === 'agent');
+
+    /* Split by number: show the numbers that were actually typed, so the
+       preview answers the question the screen is asking. */
+    if (method === 'split_count') {
+      const asked = (body.counts ?? []) as { userId: string; count: number }[];
+      let left = 250;
+      const counts = asked
+        .map((entry, i) => {
+          const agent = agents.find((u) => u.id === entry.userId);
+          if (!agent) return null;
+          const got = Math.max(0, Math.min(entry.count, left));
+          left -= got;
+          return { userId: agent.id, name: agent.name, before: 20 + i * 8, after: 20 + i * 8 + got };
+        })
+        .filter(Boolean);
+      return { leads: 250, plan: { method, counts }, pooled: left, unmatched: 0, warnings: [] };
+    }
+
     const each = Math.floor(250 / agents.length);
     return {
       leads: 250,

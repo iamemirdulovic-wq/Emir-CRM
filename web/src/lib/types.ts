@@ -393,13 +393,14 @@ export type ImportDetail = {
 /* ── Assignment ───────────────────────────────────────────────────────── */
 
 export type AssignmentMethod =
-  | 'agent' | 'team_round_robin' | 'split_even' | 'split_percent' | 'by_rule' | 'pool';
+  | 'agent' | 'team_round_robin' | 'split_even' | 'split_percent' | 'split_count' | 'by_rule' | 'pool';
 
 export type AssignmentChoice = {
   method: AssignmentMethod;
   userId?: string | null;
   teamId?: string | null;
   shares?: { userId: string; percent: number }[];
+  counts?: { userId: string; count: number }[];
   clauses?: {
     language?: string; project?: string; emirate?: string;
     budgetMinAed?: number; budgetMaxAed?: number; userId: string;

@@ -20,7 +20,9 @@ import { tagContact } from '../ingestion/ingest.js';
 import { assign } from '../assignment/apply.js';
 import { armSlaTimer, notifyAgent } from '../workflows/workflow-a.js';
 import { decideTreatAsNew } from './treat-as-new.js';
-import type { AssignmentMethod, AssignmentRuleClause, SplitShare } from '../assignment/distribute.js';
+import type {
+  AssignmentMethod, AssignmentRuleClause, CountShare, SplitShare,
+} from '../assignment/distribute.js';
 import { readRows, type FileKind } from './rows.js';
 import { mapRow, rowToLead, type ImportSettings } from './normalize.js';
 import type { ColumnMapping } from './mapping.js';
@@ -36,6 +38,8 @@ export interface ImportAssignment {
   userId?: string | null;
   teamId?: string | null;
   shares?: SplitShare[];
+  /** For split_count: how many leads each person gets. */
+  counts?: CountShare[];
   clauses?: AssignmentRuleClause[];
 }
 
@@ -374,6 +378,7 @@ async function finish(importId: string, exec: Executor): Promise<void> {
           userId: assignment.userId ?? null,
           teamId: assignment.teamId ?? null,
           shares: assignment.shares ?? [],
+          counts: assignment.counts ?? [],
           clauses: assignment.clauses ?? [],
           opportunityIds: created.map((row) => row.opportunity_id),
           reason: 'bulk import',

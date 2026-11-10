@@ -9,7 +9,9 @@ import { ownerPredicate } from '../auth/scope.js';
 import { writeAudit, SYSTEM_ACTOR, type AuditActor } from '../audit/audit.js';
 import { tagContact } from '../ingestion/ingest.js';
 import { assign } from '../assignment/apply.js';
-import type { AssignmentMethod, AssignmentRuleClause, SplitShare } from '../assignment/distribute.js';
+import type {
+  AssignmentMethod, AssignmentRuleClause, CountShare, SplitShare,
+} from '../assignment/distribute.js';
 import { buildFilter, type ListFilter } from './filters.js';
 import { LIVE_CONTACT } from '../auth/deleted.js';
 
@@ -233,7 +235,7 @@ export async function removeFromList(
 /* ── Bulk actions ─────────────────────────────────────────────────────── */
 
 export type BulkAction =
-  | { kind: 'assign'; method: AssignmentMethod; userId?: string | null; teamId?: string | null; shares?: SplitShare[]; clauses?: AssignmentRuleClause[] }
+  | { kind: 'assign'; method: AssignmentMethod; userId?: string | null; teamId?: string | null; shares?: SplitShare[]; counts?: CountShare[]; clauses?: AssignmentRuleClause[] }
   | { kind: 'add_tag'; tag: string }
   | { kind: 'remove_tag'; tag: string }
   | { kind: 'add_to_list'; listId: string }
@@ -275,6 +277,7 @@ export async function runBulkAction(
           userId: action.userId ?? null,
           teamId: action.teamId ?? null,
           shares: action.shares ?? [],
+          counts: action.counts ?? [],
           clauses: action.clauses ?? [],
           opportunityIds: opportunities.map((row) => row.id),
           reason: 'bulk action',
