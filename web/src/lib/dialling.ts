@@ -20,16 +20,25 @@
  * not appear, which is the honest answer and never a wrong flag.
  */
 
+/** Where the people reading this sit. */
+export const HOME = 'Dubai';
+
 export interface Origin {
   /** ISO 3166-1 alpha-2, which is also what makes the flag. */
   iso2: string;
   name: string;
-  /**
-   * An IANA zone, or null where the country spans several and no single
-   * clock would be true — Russia, the United States, Australia, Canada,
-   * Brazil. Those show the country and no time rather than a wrong time.
-   */
+  /** An IANA zone. Null only where no sensible default exists. */
   timeZone: string | null;
+  /**
+   * Set where the country spans several zones, naming the city this clock
+   * belongs to — "Moscow", "New York". The card then says "3:26 PM in
+   * Moscow" instead of implying the whole country is on that clock.
+   *
+   * Showing the main city beats showing nothing: most Russian mobiles in
+   * Dubai lead data are European Russia, and an agent told "3:26 PM in
+   * Moscow" knows both what it probably is and that it is worth a glance.
+   */
+  zoneLabel?: string;
 }
 
 /** Dialling code → country. Longest match wins, so +1242 beats +1. */
@@ -119,11 +128,15 @@ const CODES: Record<string, Origin> = {
   234: { iso2: 'NG', name: 'Nigeria', timeZone: 'Africa/Lagos' },
   254: { iso2: 'KE', name: 'Kenya', timeZone: 'Africa/Nairobi' },
 
-  // Several zones: the country, and no clock rather than a wrong one.
-  7: { iso2: 'RU', name: 'Russia / Kazakhstan', timeZone: null },
-  1: { iso2: 'US', name: 'USA / Canada', timeZone: null },
-  61: { iso2: 'AU', name: 'Australia', timeZone: null },
-  55: { iso2: 'BR', name: 'Brazil', timeZone: null },
+  /*
+   * Several zones. The clock is the country's main one and is labelled as
+   * such, so the card is useful without pretending the whole country shares
+   * it — Russia alone spans eleven.
+   */
+  7: { iso2: 'RU', name: 'Russia / Kazakhstan', timeZone: 'Europe/Moscow', zoneLabel: 'Moscow' },
+  1: { iso2: 'US', name: 'USA / Canada', timeZone: 'America/New_York', zoneLabel: 'New York' },
+  61: { iso2: 'AU', name: 'Australia', timeZone: 'Australia/Sydney', zoneLabel: 'Sydney' },
+  55: { iso2: 'BR', name: 'Brazil', timeZone: 'America/Sao_Paulo', zoneLabel: 'São Paulo' },
   52: { iso2: 'MX', name: 'Mexico', timeZone: 'America/Mexico_City' },
   54: { iso2: 'AR', name: 'Argentina', timeZone: 'America/Argentina/Buenos_Aires' },
   57: { iso2: 'CO', name: 'Colombia', timeZone: 'America/Bogota' },
@@ -151,22 +164,35 @@ export function originOf(phoneE164: string | null | undefined): Origin | null {
 }
 
 export interface LocalClock {
-  /** "14:05" in their country. */
+  /**
+   * "3:05 PM" where they are.
+   *
+   * Twelve hour, not twenty-four. Emir, 10 Nov 2026: "should be 12 hours
+   * time, is like not 16 17 18, like should be 3 a.m. 4 p.m. 12 p.m." An
+   * agent glancing at a card reads 3 PM without converting; 15:00 is one
+   * small sum, and the card exists precisely so nobody has to do sums.
+   */
   time: string;
   /** 0–23 there, for deciding whether now is a decent hour. */
   hour: number;
-  /** How far ahead or behind us, in words: "3 hours behind you". */
+  /** "3 hours behind Dubai", or "Same time as Dubai". */
   offset: string;
+  /** The gap in hours, signed. Positive is ahead of us. */
+  gap: number;
 }
 
 /** What the clock says where they are. Null when the zone is unknown. */
 export function clockIn(timeZone: string | null, now: Date = new Date()): LocalClock | null {
   if (!timeZone) return null;
   try {
-    const there = new Intl.DateTimeFormat('en-GB', {
-      timeZone, hour: '2-digit', minute: '2-digit', hour12: false,
+    /* Read the 24-hour value for the arithmetic, show the 12-hour one. */
+    const hour = Number(new Intl.DateTimeFormat('en-GB', {
+      timeZone, hour: '2-digit', hour12: false,
+    }).format(now).slice(0, 2));
+
+    const time = new Intl.DateTimeFormat('en-US', {
+      timeZone, hour: 'numeric', minute: '2-digit', hour12: true,
     }).format(now);
-    const hour = Number(there.slice(0, 2));
 
     /*
      * The gap, worked out by formatting the same instant in both zones rather
@@ -177,11 +203,16 @@ export function clockIn(timeZone: string | null, now: Date = new Date()): LocalC
     if (gap > 12) gap -= 24;
     if (gap < -12) gap += 24;
 
+    /*
+     * Named against the office rather than "you": every agent reading this
+     * is sitting in Dubai, and "3 hours behind Dubai" is a fact they can
+     * repeat to a colleague, where "behind you" depends on who is looking.
+     */
     const offset = gap === 0
-      ? 'same time as you'
-      : `${Math.abs(gap)} hour${Math.abs(gap) === 1 ? '' : 's'} ${gap > 0 ? 'ahead of' : 'behind'} you`;
+      ? `Same time as ${HOME}`
+      : `${Math.abs(gap)} hour${Math.abs(gap) === 1 ? '' : 's'} ${gap > 0 ? 'ahead of' : 'behind'} ${HOME}`;
 
-    return { time: there, hour, offset };
+    return { time, hour, offset, gap };
   } catch {
     /* An IANA zone the browser does not know. Better no clock than a wrong one. */
     return null;
@@ -222,13 +253,13 @@ export function whenToCall(clock: LocalClock | null, timeZone: string | null): C
       timeZone, hour: '2-digit', hour12: false,
     }).format(at).slice(0, 2));
     if (theirHour === CALL_FROM) {
-      const yours = new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit', minute: '2-digit', hour12: false,
+      const yours = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', minute: '2-digit', hour12: true,
       }).format(at);
       const early = clock.hour < CALL_FROM;
       return {
         ok: false,
-        line: `${early ? 'Too early there' : 'Too late there'} — call after ${yours} your time`,
+        line: `${early ? 'Too early there' : 'Too late there'} — call after ${yours} ${HOME} time`,
       };
     }
   }

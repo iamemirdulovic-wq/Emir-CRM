@@ -1888,7 +1888,10 @@ const ROUTES: Route[] = [
     return {
       contact: {
         id: lead.contactId, full_name: lead.name, first_name: lead.name.split(' ')[0],
-        phone_e164: lead.phone, wa_id: lead.phone.replace('+', ''), email: lead.email,
+        /* `?phone=+44…` swaps the number, so the country card can be seen
+           for any country without inventing a contact per nation. */
+        phone_e164: new URLSearchParams(window.location.search).get('phone') ?? lead.phone,
+        wa_id: lead.phone.replace('+', ''), email: lead.email,
         language: lead.language, lead_score: lead.score, dnc: lead.dnc,
         owner_name: userName(lead.owner), owner_email: USERS.find((u) => u.id === lead.owner)?.email ?? null,
         first_source: lead.source, created_at: ago(lead.createdMinutesAgo),

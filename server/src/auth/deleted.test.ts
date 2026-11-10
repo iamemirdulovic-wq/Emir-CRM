@@ -37,10 +37,27 @@ describe('nothing hard-deletes a lead', () => {
   });
 
   /*
-   * `db/demo.ts` is the only exception: it wipes and rebuilds a demo dataset
-   * on a developer's own machine, and is never pointed at production.
+   * Two exceptions, both deliberate and both named here rather than waved
+   * through by loosening the pattern.
+   *
+   * `db/demo.ts` wipes and rebuilds a demo dataset on a developer's own
+   * machine and is never pointed at production.
+   *
+   * `leads/clear-all.ts` is the owner's "start the leads again" button, asked
+   * for on 10 Nov 2026 after a supplier's spreadsheet arrived with its
+   * columns sorted apart. It has to be a hard delete, and that is the whole
+   * point of it: a soft delete leaves the row, and `reviveIfDeleted` brings
+   * the contact back by phone number on the next import with the old wrong
+   * name still attached. Clearing softly and re-importing the corrected file
+   * would look cleaned and be exactly as wrong. It is owner-only, behind a
+   * typed phrase, rate limited, audited before it runs, and covered by
+   * `leads/clear-all.integration.test.ts` -- including a test for that exact
+   * revival path.
+   *
+   * Nothing else may hard-delete a lead. If a third file ever needs to, it
+   * belongs on this list with its reason, not inside a widened regex.
    */
-  const EXEMPT = ['db/demo.ts', 'testing/'];
+  const EXEMPT = ['db/demo.ts', 'testing/', 'leads/clear-all.ts'];
 
   for (const file of FILES) {
     const relative = file.slice(SRC.length + 1);
@@ -56,6 +73,25 @@ describe('nothing hard-deletes a lead', () => {
       ).toBeNull();
     });
   }
+
+  /*
+   * The exemption list is the thing most likely to be widened quietly, so it
+   * is itself checked: three entries, and the one that can delete a live
+   * contact is the owner's button and nothing else.
+   */
+  it('keeps the exemption list to the three that are meant', () => {
+    expect(EXEMPT).toEqual(['db/demo.ts', 'testing/', 'leads/clear-all.ts']);
+  });
+
+  it('the one exempt production file is still owner-only and still audited', () => {
+    const clear = readFileSync(join(SRC, 'leads', 'clear-all.ts'), 'utf8');
+    expect(clear, 'the typed phrase is gone').toMatch(/CLEAR_PHRASE\s*=\s*'DELETE ALL LEADS'/);
+    expect(clear, 'it no longer writes an audit row').toMatch(/writeAudit\(/);
+
+    const route = readFileSync(join(SRC, 'http', 'routes', 'company.ts'), 'utf8');
+    expect(route, 'the route no longer checks for the owner').toMatch(/role !== 'owner'/);
+    expect(route, 'the route no longer checks the phrase').toMatch(/CLEAR_PHRASE/);
+  });
 });
 
 describe('the fence constants', () => {
