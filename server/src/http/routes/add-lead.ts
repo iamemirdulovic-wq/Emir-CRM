@@ -112,6 +112,19 @@ const addSchema = z.object({
   note: z.string().max(2000).optional(),
   /** Manager+ only; ignored for an agent, who always gets their own lead. */
   assignToUserId: z.string().max(36).nullable().optional(),
+  /**
+   * Start the five-minute clock on this one.
+   *
+   * Off unless asked for. The clock exists to protect a stranger who has just
+   * filled in a form and is sitting there waiting — it reassigns the lead and
+   * tags `sla-breach` if nobody touches it. A lead the owner types in and
+   * hands to a named agent is not waiting for anybody, and taking it back off
+   * that agent five minutes later actively undoes the decision he just made.
+   *
+   * Emir, 10 Nov 2026: "it should be only me, as owner and admin, who gives a
+   * lead that timer — not every lead."
+   */
+  urgent: z.boolean().optional(),
 });
 
 addLeadRouter.post(
@@ -189,9 +202,14 @@ addLeadRouter.post(
         assignedByUserId: user.id,
       })).catch((err: unknown) => logger.warn('could not record a manual assignment', errorContext(err)));
 
-      /* A manager handing it to someone else is a hand-over like any other,
-         so that one does get a clock. */
-      if (!isAgent) {
+      /*
+       * Only when the person adding it says so, and never on a lead somebody
+       * kept for themselves: the clock's whole job is to take the lead off
+       * whoever is holding it, and there is nobody to take it from if that is
+       * you. Emir, 10 Nov 2026: "my leads should be here, only mine — it
+       * should not be going anywhere."
+       */
+      if (!isAgent && assignTo !== user.id && body.urgent === true) {
         await armSlaTimer({
           opportunityId: result.opportunityId,
           contactId: result.contactId,
@@ -206,7 +224,10 @@ addLeadRouter.post(
       action: 'lead.added_manually',
       entityType: 'opportunity',
       entityId: result.opportunityId,
-      after: { source: body.source, assignedTo: assignTo, existingContact: !result.isNewContact },
+      after: {
+        source: body.source, assignedTo: assignTo,
+        existingContact: !result.isNewContact, urgent: body.urgent === true,
+      },
     });
 
     /*
