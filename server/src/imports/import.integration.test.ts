@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import {
   closeTestDatabase, createTestUser, describeWithDb, execute, prepareTestDatabase, query, resetTables,
 } from '../testing/db.js';
+import { queryOne } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
 import { defaultSettings, type ImportSettings } from './normalize.js';
@@ -401,6 +402,42 @@ describeWithDb('bulk import (integration)', () => {
     /* The other three nobody asked for: unowned, waiting, not pushed onto the
        third agent to make the sum come out. */
     expect(byOwner.get(null)).toBe(3);
+  });
+
+  /*
+   * The rule that used to be a switch.
+   *
+   * "Treat these as brand-new leads" was off by default and capped at 200
+   * rows, and it was still a trap: Emir ticked it once on a 47-row file and
+   * watched forty-seven countdowns start. He has said twice that a bulk
+   * import must never carry a timer, so there is nothing left to tick --
+   * and this is the test that keeps it that way.
+   */
+  it('never starts a five-minute clock, whatever the file says', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const { importId } = await createImport(
+      ['Full Name,Mobile No.', 'One,0501111111', 'Two,0502222222', 'Three,0503333333'].join('\n'),
+      /* The old flag, smuggled into the settings JSON the way an API caller
+         or an old saved import could: it must do nothing at all now. */
+      { treatAsNew: true } as Record<string, unknown>,
+      { method: 'agent', userId: agent.id },
+    );
+    await runToCompletion(importId);
+
+    const owned = await query<{ id: string }>(
+      'SELECT id FROM opportunities WHERE owner_user_id = ?', [agent.id],
+    );
+    expect(owned, 'the leads still land with the agent').toHaveLength(3);
+
+    const timers = await query(
+      "SELECT id FROM jobs WHERE type IN ('workflow.a.sla_check', 'workflow.a.sla_reminder')",
+    );
+    expect(timers, 'and not one of them is on a clock').toHaveLength(0);
+
+    const breached = await queryOne<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM opportunities WHERE sla_breached = 1', [],
+    );
+    expect(Number(breached?.n)).toBe(0);
   });
 
   it('leaves imported leads unowned when the method is the shared pool', async () => {

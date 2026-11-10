@@ -2297,13 +2297,13 @@ const ROUTES: Route[] = [
       defaults: {
         sourceLabel: 'Import', source: 'csv_import', tags: [], projectName: null,
         pipelineKey: 'sales', stageKey: 'new_lead', consent: 'unknown',
-        duplicateStrategy: 'fill_empty', phoneRegion: 'AE', treatAsNew: false,
+        duplicateStrategy: 'fill_empty', phoneRegion: 'AE',
       },
     };
   } },
   { method: 'PATCH', pattern: /^\/api\/imports\/([^/]+)$/, handler: () => ({ ok: true }) },
   { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/start$/, handler: () => ({
-    ok: true, batchTag: 'pasted-rows-30oct-impp', treatAsNew: false,
+    ok: true, batchTag: 'pasted-rows-30oct-impp',
   }) },
   { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/duplicates$/, handler: () => ({
     exact: 0, possible: 0, sample: [],
@@ -2333,7 +2333,7 @@ const ROUTES: Route[] = [
     };
   } },
   { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/validate$/, handler: () => ({
-    total: pastedRows || 250, treatAsNewMaxRows: 200,
+    total: pastedRows || 250,
   }) },
   { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/assignment-preview$/, handler: ({ body }) => {
     const method = String(body.method ?? 'pool');

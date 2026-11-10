@@ -138,7 +138,6 @@ export function ImportWizard() {
   const [upload, setUpload] = useState<UploadResponse | null>(null);
   /* The server's own limit, sent back with the row count so there is not a
      second copy of the number drifting in the browser. */
-  const [treatAsNewMax, setTreatAsNewMax] = useState(0);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [settings, setSettings] = useState<ImportSettings | null>(null);
   const [assignment, setAssignment] = useState<AssignmentChoice>({ method: 'pool' });
@@ -199,11 +198,10 @@ export function ImportWizard() {
     setBusy(true);
     try {
       await save({ mapping });
-      const result = await api.post<{ total: number; treatAsNewMaxRows: number }>(
+      const result = await api.post<{ total: number }>(
         `/api/imports/${upload.id}/validate`,
       );
       setStaged(result.total);
-      setTreatAsNewMax(result.treatAsNewMaxRows);
       setStep(3);
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'Could not read the file');
@@ -433,13 +431,6 @@ export function ImportWizard() {
                 email will go to them, and a bulk WhatsApp campaign will skip them.
               </Note>
             )}
-
-            <TreatAsNewSwitch
-              rows={staged}
-              max={treatAsNewMax}
-              on={Boolean(settings.treatAsNew)}
-              onChange={(value) => setSettings({ ...settings, treatAsNew: value })}
-            />
 
             <button type="button" className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setStep(5)}>
               Continue
@@ -740,64 +731,6 @@ export function ImportDetailScreen() {
         </Panel>
       </div>
     </>
-  );
-}
-
-/**
- * The five-minute timer, for an import.
- *
- * Off by default and it has to stay that way: running a forty-thousand-row
- * file through Workflow A would wake every agent's phone forty thousand times
- * and bounce most of the leads before anyone could answer. The switch exists
- * for the other case, which is just as real — twenty names off a stand at
- * Cityscape, uploaded that evening, which are new leads in every sense.
- *
- * Above the limit the switch is not merely warned about, it is unavailable,
- * and it says why rather than sitting there greyed out.
- */
-function TreatAsNewSwitch({
-  rows, max, on, onChange,
-}: { rows: number | null; max: number; on: boolean; onChange: (value: boolean) => void }) {
-  const count = rows ?? 0;
-  const tooMany = max > 0 && count > max;
-
-  return (
-    <div className={tooMany ? 'treat-new blocked' : 'treat-new'}>
-      <label className="treat-new-row">
-        <input
-          type="checkbox"
-          checked={on && !tooMany}
-          disabled={tooMany}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-        <span>
-          <b>Treat these as brand-new leads</b>
-          <small>
-            The agent gets the new-lead alert and the five-minute timer starts, exactly as if the
-            lead had just come in from an ad. Still no WhatsApp or email.
-          </small>
-        </span>
-      </label>
-
-      {tooMany ? (
-        <p className="treat-new-why">
-          Not available for this file. It has {count.toLocaleString()} rows, and the timer only goes
-          up to {max.toLocaleString()}. A list this size would alert every agent
-          hundreds of times and bounce most of the leads before anyone could answer. Import it
-          without the timer and work it through a list or a call campaign.
-        </p>
-      ) : on ? (
-        <p className="treat-new-why on">
-          {count.toLocaleString()} {count === 1 ? 'lead' : 'leads'} will be handed out and timed.
-          Make sure the agents are expecting them.
-        </p>
-      ) : (
-        <p className="treat-new-why">
-          Left off, these leads simply land in the agents&rsquo; lists with no alert and no clock —
-          which is what you want for an old database or a bought list.
-        </p>
-      )}
-    </div>
   );
 }
 

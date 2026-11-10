@@ -18,8 +18,6 @@ import { writeAudit, SYSTEM_ACTOR, type AuditActor } from '../audit/audit.js';
 import { ingestLead } from '../ingestion/ingest.js';
 import { tagContact } from '../ingestion/ingest.js';
 import { assign } from '../assignment/apply.js';
-import { armSlaTimer, notifyAgent } from '../workflows/workflow-a.js';
-import { decideTreatAsNew } from './treat-as-new.js';
 import type {
   AssignmentMethod, AssignmentRuleClause, CountShare, SplitShare,
 } from '../assignment/distribute.js';
@@ -388,8 +386,24 @@ async function finish(importId: string, exec: Executor): Promise<void> {
     }
   }
 
-  const settings = asJson<ImportSettings | null>(record.settings, null);
-  if (settings?.treatAsNew) await startTheClock(importId, record.total_rows, exec);
+  /*
+   * No clock, ever, on an imported lead.
+   *
+   * There used to be a "treat these as brand-new leads" switch here, for the
+   * twenty names collected on a stand at Cityscape and uploaded that evening.
+   * It was off by default and capped at 200 rows, and it was still a trap:
+   * Emir ticked it once on a 47-row file and watched forty-seven countdowns
+   * start on leads nobody had asked anyone to ring in five minutes.
+   *
+   * He has now said twice that a bulk import must never carry a timer -- "I
+   * go to imports, I go to bulk leads, then I will upload all the things, and
+   * there should be no any timer" -- so the switch is gone rather than
+   * defaulted off. A setting whose wrong value costs an afternoon is worth
+   * less than not having the setting.
+   *
+   * An imported lead that really is urgent gets its clock the same way every
+   * other one does: somebody hands it over from Incoming and ticks Hot.
+   */
 
   await execute(
     `UPDATE imports
@@ -400,58 +414,6 @@ async function finish(importId: string, exec: Executor): Promise<void> {
     exec,
   );
   logger.info('import completed', { importId });
-}
-
-/**
- * Treat this import's leads as leads that just arrived.
- *
- * Only what Workflow A does to the CRM's own people: the agent is told and the
- * five-minute clock starts. Deliberately *not* the WhatsApp welcome — an
- * imported list has no fresh consent and no open 24-hour window, so a template
- * to all of them is exactly the send that gets a number banned.
- *
- * The row cap is re-checked here and not only in the wizard. The settings are
- * JSON on a row that the API could be made to write directly, and "the UI
- * disabled the button" is not a rule the server has enforced.
- */
-async function startTheClock(importId: string, totalRows: number, exec: Executor): Promise<void> {
-  const decision = decideTreatAsNew(true, totalRows);
-  if (!decision.allowed) {
-    logger.warn('import asked to start the clock on too many rows; refused', { importId, totalRows });
-    return;
-  }
-
-  const leads = await query<{ opportunity_id: string; contact_id: string; owner_user_id: string | null }>(
-    `SELECT o.id AS opportunity_id, o.contact_id, o.owner_user_id
-       FROM import_rows ir
-       JOIN opportunities o ON o.id = ir.opportunity_id
-      WHERE ir.import_id = ? AND ir.status = 'created' AND o.owner_user_id IS NOT NULL`,
-    [importId],
-    exec,
-  );
-
-  for (const lead of leads) {
-    /* One lead failing to arm must not stop the rest: the import is finished
-       either way, and a half-alerted batch is better than a crashed job that
-       leaves the import stuck in 'importing'. */
-    try {
-      await notifyAgent(lead.owner_user_id as string, lead.contact_id, lead.opportunity_id);
-      await armSlaTimer({
-        opportunityId: lead.opportunity_id,
-        contactId: lead.contact_id,
-        assignedUserId: lead.owner_user_id as string,
-        phase: 'accept',
-      });
-    } catch (err) {
-      logger.warn('could not start the clock on an imported lead', {
-        importId,
-        opportunityId: lead.opportunity_id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  logger.info('import started the five-minute clock', { importId, leads: leads.length });
 }
 
 /** Kicks off the chunk loop. */

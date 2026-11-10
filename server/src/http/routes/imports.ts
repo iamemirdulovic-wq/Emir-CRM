@@ -22,7 +22,6 @@ import { columnsFromRows, inferMappingFromValues, preferNamed } from '../../impo
 import { defaultSettings } from '../../imports/normalize.js';
 import { previewUndo, stageRows, startImport, undoImport, UNDO_WINDOW_HOURS } from '../../imports/run.js';
 import { batchTagFor } from '../../imports/batch.js';
-import { decideTreatAsNew, TREAT_AS_NEW_MAX_ROWS } from '../../imports/treat-as-new.js';
 import type { ImportSettings } from '../../imports/normalize.js';
 import { loadCandidates, loadAssignable, previewPlan } from '../../assignment/apply.js';
 import { distribute } from '../../assignment/distribute.js';
@@ -203,7 +202,6 @@ const configureSchema = z.object({
       phoneRegion: z.string().length(2),
       /* The batch tag is generated, never sent: accepting one from the client
          would let two imports claim the same batch. */
-      treatAsNew: z.boolean().optional(),
     })
     .optional(),
   assignment: z
@@ -269,7 +267,7 @@ importsRouter.post(
     const total = await stageRows(id);
     /* The row limit comes back with the count so the wizard shows the same
        rule the server enforces, rather than a second copy of the number. */
-    res.json({ total, treatAsNewMaxRows: TREAT_AS_NEW_MAX_ROWS });
+    res.json({ total });
   }),
 );
 
@@ -300,8 +298,6 @@ importsRouter.post(
 
     /* Re-checked on the server. The wizard disables the switch above the row
        limit, but a disabled button is not a rule. */
-    const decision = decideTreatAsNew(Boolean(settings.treatAsNew), record.total_rows);
-    settings.treatAsNew = decision.allowed;
 
     await execute('UPDATE imports SET settings = ? WHERE id = ?', [JSON.stringify(settings), id]);
 
@@ -311,9 +307,9 @@ importsRouter.post(
       action: 'import.started',
       entityType: 'import',
       entityId: id,
-      after: { batchTag: settings.batchTag, treatAsNew: settings.treatAsNew, rows: record.total_rows },
+      after: { batchTag: settings.batchTag, rows: record.total_rows },
     });
-    res.json({ ok: true, batchTag: settings.batchTag, treatAsNew: settings.treatAsNew });
+    res.json({ ok: true, batchTag: settings.batchTag });
   }),
 );
 

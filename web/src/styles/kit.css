@@ -679,21 +679,6 @@
   font-weight:700;color:var(--primary)}
 .batch-tag .btn{margin-left:auto}
 
-.treat-new{
-  margin-top:14px;padding:12px 13px;border-radius:var(--r-m);
-  border:1px solid var(--line);background:var(--surface-2)}
-/* Not greyed out and silent: it says why it cannot be used. */
-.treat-new.blocked{border-color:var(--s-att);background:rgba(196,161,114,.10)}
-
-.treat-new-row{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
-.treat-new.blocked .treat-new-row{cursor:not-allowed}
-.treat-new-row input{margin-top:3px;flex:none;width:17px;height:17px;accent-color:var(--primary)}
-.treat-new-row b{display:block;font-size:14px}
-.treat-new-row small{display:block;color:var(--ink-2);font-size:12.5px;line-height:1.45;margin-top:2px}
-
-.treat-new-why{margin:9px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
-.treat-new-why.on{color:var(--primary);font-weight:600}
-
 /* The batch filter banner on My Leads. */
 .lead-filter{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
