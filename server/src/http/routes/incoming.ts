@@ -172,7 +172,12 @@ incomingRouter.get(
 );
 
 const assignSchema = z.object({
-  opportunityIds: z.array(z.string().min(1)).min(1).max(100),
+  /*
+   * 200, matching the list's own LIMIT: "Select all" could pick more than the
+   * old cap of 100 and the whole press would fail with a validation error
+   * rather than assign anything.
+   */
+  opportunityIds: z.array(z.string().min(1)).min(1).max(200),
   agentUserId: z.string().min(1),
   /**
    * Start the clock on these. Off unless asked for.

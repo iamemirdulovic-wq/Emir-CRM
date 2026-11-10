@@ -45,7 +45,20 @@ interface Agent {
 export function Incoming() {
   const toast = useToast();
   const leads = useAsync<{ items: IncomingLead[] }>(() => api.get('/api/incoming'), []);
-  const teams = useAsync<{ items: { members: Agent[] }[] }>(() => api.get('/api/teams'), []);
+  /*
+   * Everybody who can take a lead, not just the people on a desk.
+   *
+   * This list used to be built from the desks in Settings, so a brokerage
+   * with nine agents and no desk saw "Add agents to a desk in Settings before
+   * you can assign leads" and could not hand out a single lead -- which is
+   * where Emir ended up with 56 of them selected and nowhere to send them.
+   * Desks group agents for round-robin rules; they were never meant to decide
+   * who exists.
+   */
+  const team = useAsync<{ items: { id: string; name: string; open_leads: number }[] }>(
+    () => api.get('/api/leads/agents'),
+    [],
+  );
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   /*
@@ -58,14 +71,13 @@ export function Incoming() {
    */
   const [urgent, setUrgent] = useState(false);
 
-  /* One row per agent, however many desks they sit on. */
-  const agents = useMemo(() => {
-    const byId = new Map<string, Agent>();
-    for (const team of teams.data?.items ?? []) {
-      for (const member of team.members) byId.set(member.userId, member);
-    }
-    return [...byId.values()].sort((a, b) => a.openLeads - b.openLeads);
-  }, [teams.data]);
+  /* Least loaded first, so the obvious press is also the fair one. */
+  const agents = useMemo<Agent[]>(
+    () => (team.data?.items ?? [])
+      .map((row) => ({ userId: row.id, name: row.name, openLeads: Number(row.open_leads) }))
+      .sort((a, b) => a.openLeads - b.openLeads || a.name.localeCompare(b.name)),
+    [team.data],
+  );
 
   const items = leads.data?.items ?? [];
   const allPicked = items.length > 0 && picked.size === items.length;
@@ -98,7 +110,7 @@ export function Incoming() {
       );
       setPicked(new Set());
       leads.reload();
-      teams.reload();
+      team.reload();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'Could not assign those leads');
     } finally {
@@ -160,7 +172,9 @@ export function Incoming() {
                   </label>
                   <span className="assign-label">Send to</span>
                   {agents.length === 0 ? (
-                    <Note>Add agents to a desk in Settings before you can assign leads.</Note>
+                    <Note>
+                      Nobody to send these to yet. Add your agents in Settings &rarr; Team.
+                    </Note>
                   ) : (
                     agents.map((agent) => (
                       <button
