@@ -67,6 +67,69 @@ describe('reading a spreadsheet', () => {
     expect(await countRows(path, 'xlsx')).toBe(2);
   });
 
+  /*
+   * Emir, 10 Nov: his sheet's last row is numbered 775 and the CRM read 687.
+   * The two ways a spreadsheet quietly holds leads the importer does not take
+   * are a hidden or filtered row, and a second tab. One of those is fine and
+   * the other loses people, so both are written down here.
+   */
+  it('still reads a row that Excel is hiding', async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Phone']);
+    sheet.addRow(['Visible One', '0501111111']);
+    const hidden = sheet.addRow(['Hidden Two', '0502222222']);
+    hidden.hidden = true;
+    sheet.addRow(['Visible Three', '0503333333']);
+
+    const path = join(workDir, 'hidden.xlsx');
+    await book.xlsx.writeFile(path);
+
+    const names: string[] = [];
+    for await (const row of (await readRows(path, 'xlsx')).rows) names.push(row[0] ?? '');
+    expect(names, 'filtering a sheet must not lose the leads').toEqual([
+      'Visible One', 'Hidden Two', 'Visible Three',
+    ]);
+  });
+
+  it('reads the first tab only, and says how many it ignored', async () => {
+    const book = new ExcelJS.Workbook();
+    const first = book.addWorksheet('Leads');
+    first.addRow(['Name', 'Phone']);
+    first.addRow(['On Tab One', '0501111111']);
+    const second = book.addWorksheet('More leads');
+    second.addRow(['Name', 'Phone']);
+    second.addRow(['On Tab Two', '0502222222']);
+
+    const path = join(workDir, 'tabs.xlsx');
+    await book.xlsx.writeFile(path);
+
+    const source = await readRows(path, 'xlsx');
+    const names: string[] = [];
+    for await (const row of source.rows) names.push(row[0] ?? '');
+
+    /* Deliberate -- a second sheet is normally notes or a pivot. But it is
+       silent, and a lead sitting on tab two is a lead nobody ever calls. */
+    expect(names).toEqual(['On Tab One']);
+  });
+
+  it('skips a row with nothing in it, and only that', async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Phone']);
+    sheet.addRow(['One', '0501111111']);
+    sheet.addRow([]);
+    sheet.addRow(['   ', '  ']);
+    sheet.addRow(['Two', '0502222222']);
+
+    const path = join(workDir, 'blanks.xlsx');
+    await book.xlsx.writeFile(path);
+
+    const names: string[] = [];
+    for await (const row of (await readRows(path, 'xlsx')).rows) names.push(row[0] ?? '');
+    expect(names).toEqual(['One', 'Two']);
+  });
+
   it('knows what it cannot read', async () => {
     expect(kindFromFilename('contacts.pdf')).toBeNull();
     expect(kindFromFilename('contacts.numbers')).toBeNull();
