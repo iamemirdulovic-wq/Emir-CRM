@@ -97,6 +97,21 @@ const ENTRIES: Entry[] = [
     roles: ['owner', 'admin', 'manager'],
   },
   { to: '/pool', label: t('pool'), icon: 'inbox', title: t('pool'), roles: ['agent'] },
+  /*
+   * Bulk import had screens, a wizard, a background job and tests, and no way
+   * in: no nav row, no button anywhere. Emir went looking for it and could
+   * not find it, which is the only test that matters.
+   *
+   * Manager and above, matching the server — `importsRouter` is behind
+   * `requireManager`, so an agent seeing this row would only meet a refusal.
+   */
+  {
+    to: '/imports',
+    label: t('importLeads'),
+    icon: 'upload',
+    title: t('importLeads'),
+    roles: ['owner', 'admin', 'manager'],
+  },
   { to: '/wall', label: t('teamWall'), icon: 'message-square-heart', title: t('teamWall'), phone: true },
   { to: '/projects', label: t('projects'), icon: 'building-2', title: t('projects') },
   { to: '/offers', label: t('offers'), icon: 'sparkles', title: t('offers') },

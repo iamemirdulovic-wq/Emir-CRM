@@ -63,6 +63,7 @@ const STRINGS = {
     automations: 'Automations',
     settings: 'Settings',
     /* The heading greets; the button still says what it does. */
+    importLeads: 'Import leads',
     welcomeBack: 'Welcome back',
     signInSubtitle: 'Use the email and password your admin gave you.',
     signInHeadline: 'Every lead answered in seconds.',
@@ -125,6 +126,7 @@ const STRINGS = {
     pipeline: 'المسار',
     automations: 'الأتمتة',
     settings: 'الإعدادات',
+    importLeads: 'استيراد العملاء',
     welcomeBack: 'أهلاً بعودتك',
     signInSubtitle: 'استخدم البريد الإلكتروني وكلمة المرور من المسؤول.',
     signInHeadline: 'كل عميل يحصل على رد خلال ثوانٍ.',

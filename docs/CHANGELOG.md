@@ -2,6 +2,28 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Bulk import had no door
+
+Emir: *"Where is the upload for leads? I cannot upload bulk."*
+
+It was built in Step 9 and has been there ever since — the upload, the column
+mapper with the AI suggestions, the cleaning step, the duplicate check against
+the CRM, the assignment step, the report, the 24-hour undo, a background job
+that chunks 100,000 rows, and tests. Three routes, `/imports`, `/imports/new`
+and `/imports/:id`, all three in the layout pass every time it runs.
+
+**And nothing anywhere linked to them.** No sidebar row, no button, no entry
+in the command palette's visible list. It could only be reached by typing the
+URL. A feature nobody can find is a feature nobody has, and the owner going
+looking for it and failing is the only test of that which matters.
+
+**Import leads** is now in the sidebar, for owner, admin and manager —
+matching the server, where `importsRouter` sits behind `requireManager`, so an
+agent seeing the row would only have met a refusal.
+
+Checked in a browser for all three roles: the owner and the manager see it and
+it lands on a working screen; the agent does not.
+
 ## Reset password now hands you something you can send
 
 Emir had five accounts whose passwords he had never seen — they are shown once
