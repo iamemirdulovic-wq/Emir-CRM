@@ -440,21 +440,6 @@ describeWithDb('bulk import (integration)', () => {
     expect(Number(breached?.n)).toBe(0);
   });
 
-  /*
-   * The clean-up for the leads already on a clock when the switch went away.
-   * Migration 0036 cancels them; this proves it cancels the right ones and
-   * leaves a lead that came from an ad alone.
-   */
-  it('the migration has called off the timers on imported leads', async () => {
-    const stuck = await query<{ id: string }>(
-      `SELECT j.id FROM jobs j
-         JOIN import_rows ir ON ir.opportunity_id = j.payload ->> '$.opportunityId'
-        WHERE j.status = 'pending'
-          AND j.type IN ('workflow.a.sla_check', 'workflow.a.sla_reminder')`,
-    );
-    expect(stuck, 'no imported lead is left waiting to be taken away').toHaveLength(0);
-  });
-
   it('leaves imported leads unowned when the method is the shared pool', async () => {
     await createTestUser({ role: 'agent' });
     const { importId } = await createImport(

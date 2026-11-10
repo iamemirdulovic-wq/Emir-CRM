@@ -197,14 +197,6 @@ function card(lead: (typeof LEADS)[number]) {
     created_at: ago(lead.createdMinutesAgo),
     stage_changed_at: ago(Math.max(1, lead.createdMinutesAgo - 5)),
     sla_breached: lead.slaBreached,
-    /*
-     * Only the lead that really is on the clock in the preview carries a
-     * deadline. The rest show no countdown, which is the point of the change:
-     * a clock on a card has to mean a clock that is running.
-     */
-    sla_due_at: lead.id === 'opp-1' && !lead.slaBreached
-      ? new Date(Date.now() + 184_000).toISOString()
-      : null,
     contact_id: lead.contactId,
     full_name: lead.name,
     phone_e164: lead.phone,

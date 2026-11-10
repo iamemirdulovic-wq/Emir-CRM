@@ -60,8 +60,6 @@ export type Card = {
   created_at: string;
   stage_changed_at: string;
   sla_breached: number;
-  /** When an armed five-minute clock runs out. Null when none is running. */
-  sla_due_at?: string | null;
   contact_id: string;
   full_name: string | null;
   phone_e164: string | null;
