@@ -29,6 +29,7 @@ export type SettingName =
   /* Where to POST a stage change back to. Empty means do not report back. */
   | 'PROPERTY_INVESTMENT_URL'
   /* Lead routing — see routing/settings.ts. Owner-only. */
+  | 'ROUTING_SLA_ENABLED'
   | 'ROUTING_SLA_MINUTES'
   | 'ROUTING_REMINDER_MINUTES'
   | 'ROUTING_AUTO_ASSIGN'

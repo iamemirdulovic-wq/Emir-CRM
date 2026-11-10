@@ -14,8 +14,9 @@ describe('reading the lead routing settings', () => {
 
   it('reads the values an owner saved', () => {
     expect(parseRoutingSettings({
-      slaMinutes: '3', reminderMinutes: '1', autoAssign: '0', bounceToOwner: '1',
+      slaEnabled: '1', slaMinutes: '3', reminderMinutes: '1', autoAssign: '0', bounceToOwner: '1',
     })).toEqual({
+      slaEnabled: true,
       slaMinutes: 3, reminderMinutes: 1, autoAssign: false, bounceToOwner: true, emailOwnerOnNewLead: true,
       emailAgentOnNewLead: true,
       quietHours: true, quietStart: '22:00', quietEnd: '08:00',

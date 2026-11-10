@@ -11,6 +11,8 @@ import { createApp } from '../app.js';
 import { signIn } from '../../testing/http.js';
 import { runSlaCheck } from '../../workflows/workflow-a.js';
 import { resetStorm } from '../../routing/storm.js';
+import { saveRoutingSettings } from '../../routing/settings.js';
+import { SYSTEM_ACTOR } from '../../audit/audit.js';
 
 /**
  * The loop Emir got caught in, and the way out of it.
@@ -91,7 +93,12 @@ describeWithDb('a lead that came back, and handing it out again', () => {
     await new Promise((resolve) => server.close(resolve));
     await closeTestDatabase();
   });
-  beforeEach(async () => { await resetTables(); resetRateLimits(); resetStorm(); });
+  beforeEach(async () => {
+    await resetTables(); resetRateLimits(); resetStorm();
+    /* These tests are about the five-minute rule, which is off by default
+       since 10 Nov, so they switch it on for themselves. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
+  });
 
   it('shows up in Incoming for the person it came back to', async () => {
     const emir = await createTestUser({ role: 'owner', name: 'Emir' });

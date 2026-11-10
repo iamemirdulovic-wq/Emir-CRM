@@ -17,6 +17,9 @@ import { defaultSettings } from '../../imports/normalize.js';
 import { suggestMapping } from '../../imports/mapping.js';
 import { runChunk, stageRows } from '../../imports/run.js';
 import { loadBoard } from '../../services/opportunities.js';
+import { runSlaCheck } from '../../workflows/workflow-a.js';
+import { saveRoutingSettings } from '../../routing/settings.js';
+import { SYSTEM_ACTOR } from '../../audit/audit.js';
 import { DEFAULT_PIPELINE_KEY } from '../../pipeline/stages.js';
 
 /**
@@ -175,7 +178,78 @@ describeWithDb('an imported lead carries no clock', () => {
     expect(await clocksOnTheBoard([agent.id])).toEqual([null, null, null]);
   });
 
+  /*
+   * The fourth way in. Assigning an imported lead arms nothing, but the agent
+   * then presses Accept -- or "Take them all" -- and the action clock starts,
+   * which is what Emir photographed: cards counting 4:29, 4:31, 4:26, all
+   * different, so all real.
+   */
+  it('starts no clock when the agent accepts an imported lead', async () => {
+    const boss = await createTestUser({ role: 'owner', name: 'Emir' });
+    const agent = await createTestUser({ role: 'agent', name: 'Test Agents' });
+    const ids = await importThreeLeads();
+    await handOut(await signIn(base, boss), ids, agent.id);
+
+    const agentCookie = await signIn(base, agent);
+    const accepted = await fetch(`${base}/api/incoming/${ids[0]}/accept`, {
+      method: 'POST', headers: { cookie: agentCookie },
+    });
+    expect(accepted.status, await accepted.clone().text()).toBe(200);
+
+    expect(await clocksOnTheBoard(null)).toEqual([null, null, null]);
+  });
+
+  it('starts no clock when the agent takes them all at once', async () => {
+    const boss = await createTestUser({ role: 'owner', name: 'Emir' });
+    const agent = await createTestUser({ role: 'agent', name: 'Test Agents' });
+    const ids = await importThreeLeads();
+    await handOut(await signIn(base, boss), ids, agent.id);
+
+    const agentCookie = await signIn(base, agent);
+    const res = await fetch(`${base}/api/incoming/accept-all`, {
+      method: 'POST', headers: { cookie: agentCookie },
+    });
+    expect(res.status, await res.clone().text()).toBe(200);
+
+    expect(await clocksOnTheBoard(null)).toEqual([null, null, null]);
+    expect(await query("SELECT id FROM jobs WHERE type LIKE 'workflow.a.sla%' AND status = 'pending'"))
+      .toHaveLength(0);
+  });
+
+  /*
+   * Six hundred of these were already queued against imported leads before
+   * the rule existed. They are not cancelled -- that would be another bulk
+   * UPDATE over `jobs`, and one of those took the site down twice today.
+   * They fire, decline, and clear themselves.
+   */
+  it('a clock already queued against an imported lead takes nobody off the agent', async () => {
+    const boss = await createTestUser({ role: 'owner', name: 'Emir' });
+    const agent = await createTestUser({ role: 'agent', name: 'Test Agents' });
+    const ids = await importThreeLeads();
+    await handOut(await signIn(base, boss), ids, agent.id);
+
+    const opportunityId = ids[0]!;
+    const contactId = (await query<{ contact_id: string }>(
+      'SELECT contact_id FROM opportunities WHERE id = ?', [opportunityId],
+    ))[0]!.contact_id;
+
+    const outcome = await runSlaCheck({
+      opportunityId, contactId, assignedUserId: agent.id, phase: 'action',
+    });
+
+    expect(outcome.breached).toBe(false);
+    expect(outcome.bounced).toBeFalsy();
+    const after = await query<{ owner_user_id: string | null; sla_breached: number }>(
+      'SELECT owner_user_id, sla_breached FROM opportunities WHERE id = ?', [opportunityId],
+    );
+    expect(after[0]?.owner_user_id, 'the lead stays with the agent').toBe(agent.id);
+    expect(Number(after[0]?.sla_breached)).toBe(0);
+  });
+
   it('starts the clock when, and only when, Hot is chosen', async () => {
+    /* The rule is off by default since 10 Nov; Hot only means something
+       once the owner has switched it back on. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
     const boss = await createTestUser({ role: 'owner', name: 'Emir' });
     const agent = await createTestUser({ role: 'agent', name: 'Test Agents' });
     const ids = await importThreeLeads();

@@ -506,8 +506,48 @@ export async function armSlaTimer(input: {
   contactId: string;
   assignedUserId: string;
   phase: SlaPhase;
-}): Promise<{ deadline: Date; deferred: boolean }> {
+  /**
+   * Somebody chose this. Set only where a person pressed "Hot", never by a
+   * step that happens on its own.
+   */
+  force?: boolean;
+}): Promise<{ deadline: Date | null; deferred: boolean }> {
+  /*
+   * A lead off a spreadsheet does not start a clock unless somebody asks.
+   *
+   * Emir, four times now, with screenshots: he uploads a file, the leads go
+   * out, and every card is counting down from five minutes on people nobody
+   * is going to take away from anybody. The clock exists for a stranger who
+   * just filled in a form and is sitting by their phone. A row in a file he
+   * exported last month is not that, and he says so: "if i give new leads to
+   * test agents, like bulk leads, that time should be not timing, at least i
+   * can choose."
+   *
+   * Each route was fixed in turn and each time another way in was left --
+   * the importer, then the migration, then assigning, and now accepting.
+   * So the rule moves here, to the one function that starts any clock at
+   * all: if the card says Imported, there is no clock, however the lead got
+   * to the agent. Pressing Hot still arms one, because that is a person
+   * asking for it.
+   */
   const settings = await routingSettings();
+
+  /* Switched off altogether, by the owner. Nothing is armed. */
+  if (!settings.slaEnabled) return { deadline: null, deferred: false };
+
+  if (!input.force) {
+    const lead = await queryOne<{ source: string }>(
+      'SELECT source FROM opportunities WHERE id = ?',
+      [input.opportunityId],
+    );
+    if (lead?.source === 'csv_import') {
+      logger.info('no clock on an imported lead', {
+        opportunityId: input.opportunityId, phase: input.phase,
+      });
+      return { deadline: null, deferred: false };
+    }
+  }
+
   const now = new Date();
 
   /*
@@ -644,6 +684,23 @@ export async function runSlaCheck(input: {
   phase?: SlaPhase;
 }): Promise<{ breached: boolean; reassignedTo?: string | null; bounced?: boolean }> {
   const phase: SlaPhase = input.phase ?? 'accept';
+
+  /*
+   * Switched off altogether, by the owner.
+   *
+   * Checked here as well as where the clock is armed, because two hundred of
+   * these were already queued when Emir turned it off, and each one was about
+   * to take a lead off the agent holding it. Cancelling them would mean a bulk
+   * UPDATE over `jobs`, and one of those took the site down twice on 10 Nov.
+   * A job that fires and declines needs no migration: the queue clears itself.
+   */
+  if (!(await routingSettings()).slaEnabled) {
+    logger.info('the five-minute rule is off; nobody is bounced', {
+      opportunityId: input.opportunityId, phase,
+    });
+    return { breached: false };
+  }
+
   const opportunity = await queryOne<{
     id: string;
     owner_user_id: string | null;
@@ -653,12 +710,34 @@ export async function runSlaCheck(input: {
     status: string;
     assigned_at: Date | null;
     title: string | null;
+    source: string;
   }>(
-    `SELECT id, owner_user_id, first_touch_at, accepted_at, stage_key, status, assigned_at, title
+    `SELECT id, owner_user_id, first_touch_at, accepted_at, stage_key, status, assigned_at, title, source
        FROM opportunities WHERE id = ?`,
     [input.opportunityId],
   );
   if (!opportunity) return { breached: false };
+
+  /*
+   * The same rule as `armSlaTimer`, enforced again where the clock runs out.
+   *
+   * Two reasons it is in both places. Six hundred of these were already
+   * queued against imported leads before the rule existed, and each one was
+   * about to take a lead off the agent holding it -- exactly the bouncing
+   * Emir reported this morning. Cancelling them would mean another bulk
+   * UPDATE over `jobs`, and one of those took the site down twice today; a
+   * job that fires and declines to do anything needs no migration, and the
+   * queued ones clear themselves within minutes.
+   *
+   * And an imported lead should never be bounced for silence whatever is in
+   * the queue, so the guard belongs here on its own merits.
+   */
+  if (opportunity.source === 'csv_import') {
+    logger.info('an imported lead is not bounced for being quiet', {
+      opportunityId: input.opportunityId, phase,
+    });
+    return { breached: false };
+  }
 
   const acted = await hasActed({
     opportunityId: input.opportunityId,

@@ -14,6 +14,20 @@ import { parseClock } from './hours.js';
 
 export interface RoutingSettings {
   /**
+   * Whether the five-minute rule runs at all.
+   *
+   * Off, by Emir's instruction on 10 Nov: "remove this 5 mins feature for
+   * now, later we will add it." It had spent the day taking imported leads
+   * off the agent he had just given them to and dropping two hundred of
+   * them back into Incoming marked Bounced.
+   *
+   * A switch rather than a deletion, because the rule itself is sound and
+   * he wants it back once the CRM has settled. Off means off everywhere: no
+   * clock is armed, no lead is bounced, and a clock already queued does
+   * nothing when it fires.
+   */
+  slaEnabled: boolean;
+  /**
    * Minutes an agent has to accept a lead, and then again to do something
    * about it. Five is the number the business runs on; it is a setting so it
    * can be tightened to three on a launch day without a code change.
@@ -74,6 +88,8 @@ export interface RoutingSettings {
 }
 
 export const ROUTING_DEFAULTS: RoutingSettings = {
+  // Off until Emir asks for it back; see `slaEnabled` above.
+  slaEnabled: false,
   // The same five minutes the speed-to-lead target has always meant, read from
   // the constant so the two cannot drift apart.
   slaMinutes: SLA_FIRST_TOUCH_MS / 60_000,
@@ -106,6 +122,7 @@ export function parseRoutingSettings(raw: Partial<Record<keyof RoutingSettings, 
    */
   const reminderMinutes = clamp(number(raw.reminderMinutes, ROUTING_DEFAULTS.reminderMinutes), 0, slaMinutes - 1);
   return {
+    slaEnabled: bool(raw.slaEnabled, ROUTING_DEFAULTS.slaEnabled),
     slaMinutes,
     reminderMinutes,
     autoAssign: bool(raw.autoAssign, ROUTING_DEFAULTS.autoAssign),
@@ -143,9 +160,10 @@ function clamp(value: number, low: number, high: number): number {
 
 export async function routingSettings(exec: Executor = getPool()): Promise<RoutingSettings> {
   const [
-    slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
+    slaEnabled, slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
     emailAgentOnNewLead, quietHours, quietStart, quietEnd,
   ] = await Promise.all([
+    setting('ROUTING_SLA_ENABLED', exec),
     setting('ROUTING_SLA_MINUTES', exec),
     setting('ROUTING_REMINDER_MINUTES', exec),
     setting('ROUTING_AUTO_ASSIGN', exec),
@@ -157,7 +175,7 @@ export async function routingSettings(exec: Executor = getPool()): Promise<Routi
     setting('ROUTING_QUIET_END', exec),
   ]);
   return parseRoutingSettings({
-    slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
+    slaEnabled, slaMinutes, reminderMinutes, autoAssign, bounceToOwner, emailOwnerOnNewLead,
     emailAgentOnNewLead, quietHours, quietStart, quietEnd,
   });
 }
@@ -176,6 +194,7 @@ export async function saveRoutingSettings(
    * it belongs to moves.
    */
   const next = parseRoutingSettings({
+    slaEnabled: String(patch.slaEnabled ?? current.slaEnabled),
     slaMinutes: String(patch.slaMinutes ?? current.slaMinutes),
     reminderMinutes: String(patch.reminderMinutes ?? current.reminderMinutes),
     autoAssign: String(patch.autoAssign ?? current.autoAssign),

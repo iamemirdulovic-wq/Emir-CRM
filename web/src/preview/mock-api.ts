@@ -58,7 +58,7 @@ const session = {
 };
 
 const routing = {
-  slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
+  slaEnabled: false, slaMinutes: 5, reminderMinutes: 3, autoAssign: true, bounceToOwner: true,
   emailOwnerOnNewLead: true, quietHours: true, quietStart: '22:00', quietEnd: '08:00',
 };
 

@@ -91,6 +91,9 @@ describeWithDb('workflows (integration)', () => {
   beforeEach(async () => {
     await resetTables();
     await approveTemplates();
+    /* These tests are about the five-minute rule, which is off by default
+       since 10 Nov, so they switch it on for themselves. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
     setWhatsAppAdapterForTesting(new LogAdapter());
     /*
      * The storm guard counts bounces in a 60-second window and is module
@@ -248,7 +251,7 @@ describeWithDb('workflows (integration)', () => {
    * which setting it is exercising.
    */
   it('hands the lead to another agent when the owner has turned bouncing off', async () => {
-    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true, bounceToOwner: false });
     const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
@@ -285,7 +288,7 @@ describeWithDb('workflows (integration)', () => {
   it('sends the lead back to Incoming by default, and says who let it go', async () => {
     /* Stated, not assumed: this is the default, and saying so here means the
        test still holds if the default ever moves. */
-    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: true });
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true, bounceToOwner: true });
     const agent = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
@@ -337,7 +340,7 @@ describeWithDb('workflows (integration)', () => {
   it('returns a hand-given lead to whoever gave it out', async () => {
     /* Set to the opposite of what we expect, so passing cannot be the setting
        doing the work. */
-    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true, bounceToOwner: false });
     const emir = await createTestUser({ role: 'owner', name: 'Emir' });
     const agent = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     await createTestUser({ role: 'agent', name: 'Backup Agent' });
@@ -396,7 +399,7 @@ describeWithDb('workflows (integration)', () => {
   });
 
   it('still uses the round-robin for a lead the CRM assigned by itself', async () => {
-    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true, bounceToOwner: false });
     const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
 
@@ -422,7 +425,7 @@ describeWithDb('workflows (integration)', () => {
 
   /* A lead given out by somebody who has since left cannot go back to them. */
   it('falls back to the round-robin when the giver is deactivated', async () => {
-    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true, bounceToOwner: false });
     const manager = await createTestUser({ role: 'manager', name: 'Gone Manager' });
     const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
     const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
@@ -898,6 +901,9 @@ describeWithDb('workflow idempotency (integration)', () => {
   beforeEach(async () => {
     await resetTables();
     await approveTemplates();
+    /* These tests are about the five-minute rule, which is off by default
+       since 10 Nov, so they switch it on for themselves. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
     setWhatsAppAdapterForTesting(new LogAdapter());
     /*
      * The storm guard counts bounces in a 60-second window and is module

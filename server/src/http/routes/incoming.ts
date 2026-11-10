@@ -290,7 +290,7 @@ incomingRouter.post(
         assigned.push(opportunityId);
         /* Only when asked for. See `urgent` on the schema above. */
         if (urgent === true) {
-          await armSlaTimer({ opportunityId, contactId: done, assignedUserId: agentUserId, phase: 'accept' })
+          await armSlaTimer({ opportunityId, contactId: done, assignedUserId: agentUserId, phase: 'accept', force: true })
             .catch((err: unknown) => logger.warn('could not arm the accept timer', errorContext(err)));
         }
         /* Recorded, then pushed. A phone that was face-down must not be the
@@ -422,6 +422,7 @@ const settingsSchema = z.object({
   slaMinutes: z.number().int().optional(),
   reminderMinutes: z.number().int().optional(),
   autoAssign: z.boolean().optional(),
+  slaEnabled: z.boolean().optional(),
   bounceToOwner: z.boolean().optional(),
   emailOwnerOnNewLead: z.boolean().optional(),
   quietHours: z.boolean().optional(),

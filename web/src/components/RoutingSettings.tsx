@@ -13,6 +13,7 @@ import { Field, Input, Note, Panel, Spinner, ErrorNote, useToast } from '../desi
  */
 
 interface Routing {
+  slaEnabled: boolean;
   slaMinutes: number;
   reminderMinutes: number;
   autoAssign: boolean;
@@ -58,13 +59,30 @@ export function RoutingSettings() {
 
   return (
     <Panel span={12} index={0} icon="timer" title="How leads are given out">
-      <div className="routing-grid">
+      {/*
+        * Off since 10 Nov, at Emir's word: "remove this 5 mins feature for
+        * now, later we will add it." It had spent the day taking imported
+        * leads off the agent he had just given them to. The dials below stay
+        * on screen, greyed, so turning it back on is one switch and not a
+        * conversation with me.
+        */}
+      <Switch
+        label="The five-minute rule"
+        on={draft.slaEnabled}
+        onChange={(on) => set('slaEnabled', on)}
+        hint={draft.slaEnabled
+          ? 'A lead given to an agent is taken back if they do not act within the time below.'
+          : 'Off. A lead stays with the agent you gave it to until you move it — no countdown, nothing comes back on its own.'}
+      />
+
+      <div className="routing-grid" aria-disabled={!draft.slaEnabled}
+        style={draft.slaEnabled ? undefined : { opacity: 0.5 }}>
         <Field
           label="How long an agent has"
           hint={`They have ${draft.slaMinutes} minute${draft.slaMinutes === 1 ? '' : 's'} to accept a new lead, then the same again to call. Miss either and it comes back to you.`}
         >
           <Input
-            type="number" min={1} max={120} value={draft.slaMinutes}
+            type="number" min={1} max={120} value={draft.slaMinutes} disabled={!draft.slaEnabled}
             onChange={(event) => set('slaMinutes', Number(event.target.value))}
           />
         </Field>
@@ -77,6 +95,7 @@ export function RoutingSettings() {
         >
           <Input
             type="number" min={0} max={Math.max(0, draft.slaMinutes - 1)} value={draft.reminderMinutes}
+            disabled={!draft.slaEnabled}
             onChange={(event) => set('reminderMinutes', Number(event.target.value))}
           />
         </Field>
@@ -94,6 +113,7 @@ export function RoutingSettings() {
       <Switch
         label="Bring a missed lead back to me"
         on={draft.bounceToOwner}
+        disabled={!draft.slaEnabled}
         onChange={(on) => set('bounceToOwner', on)}
         hint={draft.bounceToOwner
           ? 'When an agent runs out of time, the lead comes back to Incoming for you to place.'
@@ -158,15 +178,19 @@ export function RoutingSettings() {
 }
 
 function Switch({
-  label, hint, on, onChange,
-}: { label: string; hint: string; on: boolean; onChange: (on: boolean) => void }) {
+  label, hint, on, onChange, disabled = false,
+}: {
+  label: string; hint: string; on: boolean;
+  onChange: (on: boolean) => void; disabled?: boolean;
+}) {
   return (
-    <div className="routing-switch">
+    <div className="routing-switch" style={disabled ? { opacity: 0.5 } : undefined}>
       <button
         type="button"
         role="switch"
         aria-checked={on}
         aria-label={label}
+        disabled={disabled}
         className={on ? 'switch' : 'switch off'}
         onClick={() => onChange(!on)}
       />
