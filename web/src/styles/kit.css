@@ -1724,3 +1724,16 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px
 .next-lead{font-weight:650}
 /* "3:26 PM in Moscow" — the city, where the country has several clocks. */
 .wta-zone{margin-left:6px;font-size:11.5px;font-weight:500;color:var(--ink-3)}
+
+/*
+ * "From the sheet": every column of the row a lead was imported on.
+ *
+ * Emir, 10 Nov 2026 -- "whatever should be in the Excel sheet, it should be
+ * showing per lead in the lead page." Half his columns have no CRM field and
+ * were being appended to the notes, where nobody read them.
+ */
+.sheet-from{margin-left:8px;padding:1px 8px;border-radius:99px;background:var(--primary-soft);
+  color:var(--primary-ink);font-size:10.5px;font-weight:600;letter-spacing:0;text-transform:none}
+.sheet-facts dt{word-break:break-word}
+.sheet-facts dd{text-align:right;word-break:break-word}
+.sheet-note{margin:6px 0 0;font-size:11px;color:var(--ink-3)}

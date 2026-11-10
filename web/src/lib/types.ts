@@ -151,6 +151,8 @@ export type Contact360 = {
   tasks: Array<{ id: string; type: string; title: string; due_at: string; completed_at: string | null; priority: string }>;
   tags: string[];
   consents: Array<{ channel: string; granted: number; source: string; consent_text: string | null; created_at: string }>;
+  /** The row this lead arrived on, when it came from an uploaded sheet. */
+  importedRow?: ImportedRow | null;
   conversation: { id: string; wa_window_expires_at: string | null } | null;
   aiSuggestions: Array<{ id: string; field: string; value: string; status: string }>;
 };
@@ -395,6 +397,14 @@ export type ImportDetail = {
 
 export type AssignmentMethod =
   | 'agent' | 'team_round_robin' | 'split_even' | 'split_percent' | 'split_count' | 'by_rule' | 'pool';
+
+/** One row of an uploaded sheet, as it was written. */
+export type ImportedRow = {
+  sourceLabel: string | null;
+  importedAt: string | null;
+  lineNumber: number;
+  fields: { label: string; value: string }[];
+};
 
 export type AssignmentChoice = {
   method: AssignmentMethod;

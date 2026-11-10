@@ -8,6 +8,7 @@ import {
 import { queryOne } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
+import { contact360, type ImportedRow } from '../services/contacts.js';
 import { defaultSettings, type ImportSettings } from './normalize.js';
 import { suggestMapping } from './mapping.js';
 import { previewUndo, runChunk, stageRows, undoImport } from './run.js';
@@ -568,6 +569,53 @@ describeWithDb('undoing an import', () => {
     const result = await undoImport(SYSTEM_ACTOR, second.importId);
     expect(result.deleted).toBe(0);
     expect(await query('SELECT id FROM contacts')).toHaveLength(1);
+  });
+
+  /*
+   * Emir, 10 Nov 2026: "whatever should be in the Excel sheet, it should be
+   * showing per lead in the lead page." His files carry columns the CRM has no
+   * field for — Priority, Pay Ready, Country — and those were being appended
+   * to the notes, where nobody reads them. The lead page now reads the row
+   * back out of `import_rows.raw` and shows every column of it.
+   */
+  it('shows every column of the sheet on the lead page', async () => {
+    const { importId } = await createImport(
+      [
+        'Full Name,Phone,Email,Country,Project,Priority,Buying Timeline,Pay Ready,Notes',
+        'Sara Ahmed,0501234567,sara@example.com,US,KORE by Imtiaz,Hot,Immediately,Yes,',
+      ].join('\n'),
+      { sourceLabel: 'agent_1_leads' },
+    );
+    await runToCompletion(importId);
+
+    const contact = await queryOne<{ id: string }>('SELECT id FROM contacts LIMIT 1');
+    const detail = await contact360(contact!.id);
+    const row = detail.importedRow as ImportedRow;
+
+    expect(row.sourceLabel).toBe('agent_1_leads');
+    /* Row 1 of the data: the header line is not a row. */
+    expect(row.lineNumber).toBe(1);
+    // In the sheet's own order, and including the four columns the CRM has
+    // nowhere else to put. "Notes" was blank in the file, so it is not shown.
+    expect(row.fields).toEqual([
+      { label: 'Full Name', value: 'Sara Ahmed' },
+      { label: 'Phone', value: '0501234567' },
+      { label: 'Email', value: 'sara@example.com' },
+      { label: 'Country', value: 'US' },
+      { label: 'Project', value: 'KORE by Imtiaz' },
+      { label: 'Priority', value: 'Hot' },
+      { label: 'Buying Timeline', value: 'Immediately' },
+      { label: 'Pay Ready', value: 'Yes' },
+    ]);
+  });
+
+  it('shows no sheet panel for a lead that never came from one', async () => {
+    const contactId = newId();
+    await execute(
+      "INSERT INTO contacts (id, full_name, phone_e164) VALUES (?, 'Typed In', '+971500000001')",
+      [contactId],
+    );
+    expect((await contact360(contactId)).importedRow).toBeNull();
   });
 
   it('refuses once the 24-hour window has passed', async () => {

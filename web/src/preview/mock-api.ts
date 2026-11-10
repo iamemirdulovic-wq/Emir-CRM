@@ -1910,6 +1910,25 @@ const ROUTES: Route[] = [
           ? `Ready buyer for ${lead.project ?? 'off-plan'} with a stated budget of ${lead.budgetMax ? `AED ${lead.budgetMax.toLocaleString()}` : 'unspecified'}.\nAsked about pricing and floor plans; replies within minutes on WhatsApp.\nNext step: confirm the viewing and send the payment plan.`
           : null,
       },
+      importedRow: lead.source === 'csv_import' || lead.id === 'o-1' ? {
+        sourceLabel: 'agent_1_leads',
+        importedAt: ago(90),
+        lineNumber: 2,
+        fields: [
+          { label: 'Full Name', value: lead.name },
+          { label: 'Phone', value: lead.phone },
+          { label: 'Alternate Phone', value: '554813624' },
+          { label: 'Country', value: 'US' },
+          { label: 'Project', value: 'KORE by Imtiaz' },
+          { label: 'Developer', value: 'Imtiaz Developments' },
+          { label: 'Lead Source', value: 'Instagram' },
+          { label: 'Campaign', value: 'KORE by Imtiaz \u2013 English' },
+          { label: 'Priority', value: 'Hot' },
+          { label: 'Purpose', value: 'Investor' },
+          { label: 'Buying Timeline', value: 'Immediately' },
+          { label: 'Pay Ready', value: 'Yes' },
+        ],
+      } : null,
       opportunities: [{
         id: lead.id, title: lead.name, stage_key: lead.stage, sub_status: lead.subStatus, status: lead.status,
         lost_reason: lead.lostReason ?? null, owner_user_id: lead.owner, project_name: lead.project,

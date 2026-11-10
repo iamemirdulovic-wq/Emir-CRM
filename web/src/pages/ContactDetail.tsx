@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -100,7 +100,7 @@ export function ContactDetail() {
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
   if (!detail.data) return <Spinner />;
 
-  const { contact, opportunities, activities, tasks, tags, consents } = detail.data;
+  const { contact, opportunities, activities, tasks, tags, consents, importedRow } = detail.data;
   /*
    * Which enquiry this page is about.
    *
@@ -261,6 +261,36 @@ export function ContactDetail() {
                   <Tag key={tag}>{tag}</Tag>
                 ))}
               </div>
+            </>
+          )}
+
+          {/*
+            * Every column of the sheet this lead arrived on, in the sheet's
+            * own order. Emir, 10 Nov 2026: "whatever should be in the Excel
+            * sheet, it should be showing per lead in the lead page." Half of
+            * these have no CRM field -- Priority, Pay Ready, Country -- and
+            * were being appended to the notes where nobody read them.
+            */}
+          {importedRow && importedRow.fields.length > 0 && (
+            <>
+              <div className="sec-t">
+                From the sheet
+                {importedRow.sourceLabel && <span className="sheet-from">{importedRow.sourceLabel}</span>}
+              </div>
+              {/* dt and dd as direct children: `dl.facts` is a two-column
+                  grid, and a wrapping <div> puts both in one cell. */}
+              <dl className="facts sheet-facts">
+                {importedRow.fields.map((field, index) => (
+                  /* Keyed by position: a sheet can repeat a header. */
+                  <Fragment key={`${index}-${field.label}`}>
+                    <dt>{field.label}</dt>
+                    <dd dir="auto">{field.value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+              <p className="sheet-note">
+                Row {importedRow.lineNumber} of the file, exactly as it was uploaded.
+              </p>
             </>
           )}
 

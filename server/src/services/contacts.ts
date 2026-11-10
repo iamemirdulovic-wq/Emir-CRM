@@ -119,6 +119,19 @@ export async function contact360(contactId: string): Promise<Record<string, unkn
     opportunities,
     activities,
     tasks,
+    /*
+     * Every column of the row this lead came in on.
+     *
+     * Emir, 10 Nov 2026: "whatever should be in the Excel sheet, it should be
+     * showing per lead in the lead page." His files carry sixteen columns --
+     * Priority, Country, Pay Ready, Buying Timeline -- and the CRM has a field
+     * for about half of them. The rest were appended to the notes as
+     * "Priority: Hot" and effectively lost.
+     *
+     * The original row is already kept in `import_rows.raw`, so nothing new is
+     * stored: this just reads it back and pairs it with the header row.
+     */
+    importedRow: await importedRowFor(contactId),
     tags: (tags as Array<{ namespace: string; value: string }>).map((t) => `${t.namespace}:${t.value}`),
     tagDetails: tags,
     consents,
@@ -375,4 +388,62 @@ export async function setDnc(input: {
       tx,
     );
   });
+}
+
+/** One row of an uploaded sheet, as it was written, for the lead page. */
+export interface ImportedRow {
+  /** What the owner called the file, and when it was loaded. */
+  sourceLabel: string | null;
+  importedAt: Date | null;
+  lineNumber: number;
+  /** Header and value, in the sheet's own order, blanks dropped. */
+  fields: { label: string; value: string }[];
+}
+
+async function importedRowFor(contactId: string): Promise<ImportedRow | null> {
+  const row = await queryOne<{
+    line_number: number; raw: unknown; headers: unknown;
+    settings: unknown; finished_at: Date | null;
+  }>(
+    `SELECT ir.line_number, ir.raw, i.headers, i.settings, i.finished_at
+       FROM import_rows ir
+       JOIN imports i ON i.id = ir.import_id
+      WHERE ir.contact_id = ?
+      ORDER BY i.created_at DESC
+      LIMIT 1`,
+    [contactId],
+  );
+  if (!row) return null;
+
+  /* mysql2 parses a JSON column for us; a string means an older row. */
+  const parse = <T>(value: unknown, fallback: T): T => {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value !== 'string') return value as T;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const headers = parse<unknown>(row.headers, []);
+  const values = parse<unknown>(row.raw, []);
+  const settings = parse<{ sourceLabel?: string } | null>(row.settings, null);
+  /* A malformed row must not take the whole lead page down with it. */
+  if (!Array.isArray(headers) || !Array.isArray(values)) return null;
+
+  const fields = headers
+    .map((label, index) => ({ label: String(label).trim(), value: String(values[index] ?? '').trim() }))
+    /* An empty cell is not information. Showing "Budget: —" for every blank
+       column turns a useful panel into a wall of dashes. */
+    .filter((field) => field.label !== '' && field.value !== '');
+
+  if (fields.length === 0) return null;
+
+  return {
+    sourceLabel: settings?.sourceLabel ?? null,
+    importedAt: row.finished_at,
+    lineNumber: Number(row.line_number),
+    fields,
+  };
 }
