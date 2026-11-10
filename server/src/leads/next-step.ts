@@ -176,13 +176,26 @@ function stageRule(lead: LeadForAdvice, silentDays: number): NextStepSuggestion 
   switch (lead.stage) {
     case 'new_lead':
       if (sub === 'invalid' || sub === 'duplicate') return null;
+      /*
+       * Somebody has already reached out. The rule above this one catches
+       * every lead nobody has rung, so by the time a New Lead gets here the
+       * call has happened -- which is why "First call, still sitting in New
+       * Lead" was wrong in every case it could fire, and loudest in the one
+       * that matters: a lead the owner typed in himself, straight off the
+       * phone, told that nobody had spoken to them.
+       *
+       * The stage not having moved is an admin lapse, not a missed client, so
+       * it is worth a reminder once it has gone a couple of days quiet and
+       * nothing before that.
+       */
+      if (silentDays < 2) return null;
       return {
         type: 'call',
         inDays: 0,
-        note: 'First call',
-        why: 'Still sitting in New Lead.',
-        urgency: 'now',
-        rule: 'new_lead',
+        note: 'Follow up',
+        why: `You spoke to them ${silentDays === 2 ? 'two days' : `${silentDays} days`} ago and this is still in New Lead.`,
+        urgency: 'soon',
+        rule: 'new_lead_follow_up',
       };
 
     case 'attempted_contact': {

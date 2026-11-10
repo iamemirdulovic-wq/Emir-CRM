@@ -161,6 +161,73 @@ export async function recordFirstAction(
  * to the next agent — is how a lead gets handed round four people in twenty
  * minutes while nobody is actually accountable for it.
  */
+/**
+ * Give a missed lead back to the person who handed it out.
+ *
+ * Emir, 10 Nov 2026: "If they not respond, this lead will be coming
+ * automatically to my account."
+ *
+ * The automatic round-robin reassignment below is right for a lead the CRM
+ * handed out by itself: nobody chose that agent, so any other agent will do.
+ * It is wrong for a lead a person gave out. The owner read that lead, decided
+ * who should have it, and the CRM silently passing it to a third person
+ * replaces his judgement with a lottery -- and leaves him believing Tej is
+ * working a lead Tej never saw. Back to the person who gave it out, who knows
+ * the lead and can decide again.
+ *
+ * Only for a hand-over: `assigned_by_user_id` is NULL on every assignment the
+ * CRM made by itself, which is the normal case and keeps its old behaviour.
+ */
+export async function returnLeadToGiver(
+  tx: PoolConnection,
+  input: {
+    opportunityId: string;
+    contactId: string;
+    agentUserId: string;
+    agentName: string | null;
+    giverUserId: string;
+  },
+): Promise<void> {
+  await execute(
+    `UPDATE opportunities
+        SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NOW(3),
+            sla_breached = 1, bounce_count = bounce_count + 1
+      WHERE id = ?`,
+    [input.giverUserId, input.opportunityId],
+    tx,
+  );
+  await execute(
+    `UPDATE lead_assignments SET outcome = 'bounced'
+      WHERE opportunity_id = ? AND agent_user_id = ? AND outcome = 'working'`,
+    [input.opportunityId, input.agentUserId],
+    tx,
+  );
+  /*
+   * The sticky owner follows it. A returning lead goes to whoever holds the
+   * relationship, and that is no longer the agent who let the clock run out.
+   */
+  await execute('UPDATE contacts SET owner_user_id = ? WHERE id = ?', [input.giverUserId, input.contactId], tx);
+  await execute(
+    'UPDATE conversations SET assigned_user_id = ? WHERE contact_id = ?',
+    [input.giverUserId, input.contactId],
+    tx,
+  );
+  await recordAssignment(tx, {
+    opportunityId: input.opportunityId,
+    contactId: input.contactId,
+    agentUserId: input.giverUserId,
+    assignedByUserId: null,
+  });
+  await addActivity(tx, {
+    contactId: input.contactId,
+    opportunityId: input.opportunityId,
+    type: 'lead.returned',
+    title: `Came back — ${input.agentName ?? 'the agent'} did not pick it up in time`,
+    body: 'Returned to whoever gave it out, to be given to somebody else.',
+    meta: { previousUserId: input.agentUserId, newUserId: input.giverUserId },
+  });
+}
+
 export async function bounceLead(
   tx: PoolConnection,
   input: { opportunityId: string; contactId: string; agentUserId: string; agentName: string | null },

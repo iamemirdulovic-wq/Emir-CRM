@@ -15,6 +15,7 @@ import {
 } from '../routing/new-lead-email.js';
 import {
   bounceLead, clearStickyOwner, decideSla, hasActed, recordAssignment, recordFirstAction,
+  returnLeadToGiver,
 } from '../routing/assignments.js';
 import { pushToManagers, pushToUser } from '../messaging/push.js';
 import { sendWhatsApp } from '../messaging/send.js';
@@ -695,6 +696,74 @@ export async function runSlaCheck(input: {
     phase,
     why: verdict.why,
   });
+
+  /*
+   * A lead a person handed out goes back to that person, ahead of both the
+   * bounce-to-Incoming setting and the round-robin below. See
+   * `returnLeadToGiver`: the owner chose this agent, so the CRM must not pick
+   * the next one for him.
+   */
+  const giver = await queryOne<{ id: string; name: string }>(
+    `SELECT u.id, u.name
+       FROM lead_assignments la
+       JOIN users u ON u.id = la.assigned_by_user_id
+      WHERE la.opportunity_id = ? AND la.agent_user_id = ? AND la.outcome = 'working'
+        AND u.is_active = 1 AND u.id <> la.agent_user_id
+      ORDER BY la.assigned_at DESC
+      LIMIT 1`,
+    [input.opportunityId, input.assignedUserId],
+  );
+
+  if (giver) {
+    const agent = await queryOne<{ name: string }>('SELECT name FROM users WHERE id = ?', [input.assignedUserId]);
+    await withRetryingTransaction(async (tx) => {
+      await returnLeadToGiver(tx, {
+        opportunityId: input.opportunityId,
+        contactId: input.contactId,
+        agentUserId: input.assignedUserId,
+        agentName: agent?.name ?? null,
+        giverUserId: giver.id,
+      });
+      await writeAudit(
+        {
+          actor: SYSTEM_ACTOR,
+          action: 'lead.returned_to_giver',
+          entityType: 'opportunity',
+          entityId: input.opportunityId,
+          before: { ownerUserId: input.assignedUserId },
+          after: { ownerUserId: giver.id, phase, slaBreached: true },
+        },
+        tx,
+      );
+      await tagOps(tx, input.contactId, 'sla-breach');
+    });
+
+    /*
+     * And tell him, in the bell and on his phone. Behind the storm guard for
+     * the same reason as the bounce alert below: after an outage every expired
+     * timer fires at once, and seven buzzes in four seconds gets the phone
+     * silenced for good.
+     */
+    const alert = recordBounceForAlerting();
+    if (alert.tell !== 'nothing') {
+      await notify({
+        userId: giver.id,
+        type: 'lead_bounced',
+        title: alert.tell === 'each'
+          ? 'A lead came back to you'
+          : `${alert.count} leads came back to you`,
+        body: alert.tell === 'each'
+          ? `${agent?.name ?? 'The agent'} did not pick up ${opportunity.title ?? 'a lead'} in five minutes. It is yours again — give it to somebody else.`
+          : 'Nobody picked them up in time. They are in your leads again.',
+        link: alert.tell === 'each' ? `/contacts/${input.contactId}` : '/my-leads',
+        contactId: input.contactId,
+        opportunityId: input.opportunityId,
+        priority: 'high',
+      }).catch((err: unknown) => logger.warn('could not tell the giver a lead came back', errorContext(err)));
+    }
+
+    return { breached: true, reassignedTo: giver.id };
+  }
 
   const { bounceToOwner } = await routingSettings();
   if (bounceToOwner) {

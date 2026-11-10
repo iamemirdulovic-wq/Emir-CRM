@@ -5,9 +5,9 @@ import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth,
 } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/auth.js';
-import { execute, query, queryOne, withRetryingTransaction } from '../../db/client.js';
+import { execute, getPool, query, queryOne, withRetryingTransaction } from '../../db/client.js';
 import { normalizeLead } from '../../ingestion/normalize.js';
-import { ingestLead } from '../../ingestion/ingest.js';
+import { addActivity, ingestLead } from '../../ingestion/ingest.js';
 import { toE164 } from '../../lib/phone.js';
 import { normalizeEmail } from '../../lib/email.js';
 import { writeAudit } from '../../audit/audit.js';
@@ -188,9 +188,30 @@ addLeadRouter.post(
     const isAgent = user.role === 'agent';
     const assignTo = isAgent ? user.id : (body.assignToUserId ?? null);
 
+    /*
+     * Did the person adding it keep it for themselves?
+     *
+     * That is the "this is my own client" case, and it is different in kind
+     * from handing a lead to somebody else. They met this person. Somebody has
+     * spoken to them, which is exactly what the record did not say: the lead
+     * went in with no contact against it, so the CRM told its own owner
+     * "nobody has spoken to them yet" about a conversation he had just had.
+     *
+     * Recording the touch is the honest fix, and it fixes it everywhere at
+     * once -- the suggestion, the dashboard's untouched count, speed-to-lead
+     * -- rather than hiding one message on one card.
+     */
+    const keptByAdder = assignTo !== null && assignTo === user.id;
+
     if (assignTo) {
       await execute(
-        'UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NOW(3) WHERE id = ?',
+        `UPDATE opportunities
+            SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NOW(3)${
+              keptByAdder
+                ? ', last_contact_at = NOW(3), first_touch_at = COALESCE(first_touch_at, NOW(3))'
+                : ''
+            }
+          WHERE id = ?`,
         [assignTo, result.opportunityId],
       );
       await execute('UPDATE contacts SET owner_user_id = ? WHERE id = ? AND owner_user_id IS NULL',
@@ -201,6 +222,21 @@ addLeadRouter.post(
         agentUserId: assignTo,
         assignedByUserId: user.id,
       })).catch((err: unknown) => logger.warn('could not record a manual assignment', errorContext(err)));
+
+      /* And in the history, so the agent reading the lead next week can see
+         where it came from rather than finding a contacted lead with nothing
+         behind it. */
+      if (keptByAdder) {
+        await addActivity(getPool(), {
+          contactId: result.contactId,
+          opportunityId: result.opportunityId,
+          userId: user.id,
+          type: 'call',
+          title: `${user.name} added this lead and kept it`,
+          body: 'Entered by hand after speaking to them, so it counts as contacted.',
+          meta: { addedBy: user.id, source: body.source },
+        }).catch((err: unknown) => logger.warn('could not record the first touch', errorContext(err)));
+      }
 
       /*
        * Only when the person adding it says so, and never on a lead somebody

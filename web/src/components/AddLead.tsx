@@ -70,6 +70,14 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
   const [assignTo, setAssignTo] = useState<string | null>(null);
 
   const canAssign = user?.role !== 'agent';
+  /*
+   * The five-minute clock, off unless asked for.
+   *
+   * It used to start on every lead a manager handed to an agent, which took
+   * the lead back off the person they had just chosen. Emir, 10 Nov 2026:
+   * "it should be only me who gives a lead that timer, not every lead."
+   */
+  const [urgent, setUrgent] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -141,6 +149,7 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
         ...(referredBy.trim() ? { referredBy: referredBy.trim() } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
         ...(canAssign && assignTo ? { assignToUserId: assignTo } : {}),
+        ...(canAssign && assignTo && urgent ? { urgent: true } : {}),
       });
 
       celebrate();
@@ -318,7 +327,7 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
           </Field>
 
           {canAssign ? (
-            <Field label="Who should work it?" hint="Leave it unassigned and it waits in Incoming.">
+            <Field label="Who should work it?">
               <div className="chip-row">
                 <Chip on={assignTo === null} onClick={() => setAssignTo(null)}>Leave in Incoming</Chip>
                 {agents.map((agent) => (
@@ -327,6 +336,36 @@ export function AddLead({ open, onClose }: { open: boolean; onClose: () => void 
                   </Chip>
                 ))}
               </div>
+              {!assignTo && <small className="muted">Leave it unassigned and it waits in Incoming.</small>}
+              {/*
+                * Only once somebody else is actually holding it. An unassigned
+                * lead has nobody to take it from, and neither has one you kept
+                * for yourself, so a clock on either would mean nothing.
+                */}
+              {assignTo && assignTo !== user?.id && (
+                <div className="add-pace" role="group" aria-label="How urgent is this lead?">
+                  <button
+                    type="button"
+                    className={urgent ? 'add-pace-opt' : 'add-pace-opt on'}
+                    aria-pressed={!urgent}
+                    onClick={() => setUrgent(false)}
+                  >
+                    <Icon name="clock-3" />
+                    <b>Normal</b>
+                    <small>Theirs to work. Nobody takes it off them.</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={urgent ? 'add-pace-opt hot on' : 'add-pace-opt hot'}
+                    aria-pressed={urgent}
+                    onClick={() => setUrgent(true)}
+                  >
+                    <Icon name="flame" />
+                    <b>Hot</b>
+                    <small>Call in 5 minutes, or it comes back to you.</small>
+                  </button>
+                </div>
+              )}
             </Field>
           ) : (
             <p className="add-mine">

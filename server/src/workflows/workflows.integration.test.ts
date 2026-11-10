@@ -15,6 +15,7 @@ import { normalizeLead } from '../ingestion/normalize.js';
 import { handleInboundMessage } from '../ingestion/whatsapp-inbound.js';
 import { parseWhatsAppWebhook } from '../ingestion/sources/whatsapp.js';
 import { runWorkflowA, runSlaCheck } from './workflow-a.js';
+import { resetStorm } from '../routing/storm.js';
 import { saveRoutingSettings } from '../routing/settings.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
 import { runWorkflowBStep, shouldContinue } from './workflow-b.js';
@@ -91,6 +92,13 @@ describeWithDb('workflows (integration)', () => {
     await resetTables();
     await approveTemplates();
     setWhatsAppAdapterForTesting(new LogAdapter());
+    /*
+     * The storm guard counts bounces in a 60-second window and is module
+     * state, so without this a test is told "3 leads came back" because of the
+     * tests that ran before it -- the guard working, in the one place it is
+     * not wanted.
+     */
+    resetStorm();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -319,6 +327,123 @@ describeWithDb('workflows (integration)', () => {
       [ingested.opportunityId],
     );
     expect(queued?.reason).toContain('Slow Agent');
+  });
+
+  /*
+   * The third way, and it beats both settings above: a lead a person handed
+   * out comes back to that person. Emir, 10 Nov 2026: "If they not respond,
+   * this lead will be coming automatically to my account."
+   */
+  it('returns a hand-given lead to whoever gave it out', async () => {
+    /* Set to the opposite of what we expect, so passing cannot be the setting
+       doing the work. */
+    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    const emir = await createTestUser({ role: 'owner', name: 'Emir' });
+    const agent = await createTestUser({ role: 'agent', name: 'Slow Agent' });
+    await createTestUser({ role: 'agent', name: 'Backup Agent' });
+
+    const ingested = await arriveLead();
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
+      agent.id, ingested.opportunityId,
+    ]);
+    await execute(
+      `INSERT INTO lead_assignments (id, opportunity_id, contact_id, agent_user_id, assigned_by_user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [newId(), ingested.opportunityId, ingested.contactId, agent.id, emir.id],
+    );
+
+    const result = await runSlaCheck({
+      opportunityId: ingested.opportunityId,
+      contactId: ingested.contactId,
+      assignedUserId: agent.id,
+    });
+
+    expect(result.breached).toBe(true);
+    /* Not Backup Agent, which is what the round-robin would have chosen. */
+    expect(result.reassignedTo).toBe(emir.id);
+
+    const opportunity = await queryOne<{ owner_user_id: string; sla_breached: number }>(
+      'SELECT owner_user_id, sla_breached FROM opportunities WHERE id = ?', [ingested.opportunityId],
+    );
+    expect(opportunity?.owner_user_id).toBe(emir.id);
+    expect(opportunity?.sla_breached).toBe(1);
+
+    /* The relationship follows it, so the next enquiry does not go back to
+       the agent who let this one lapse. */
+    const contact = await queryOne<{ owner_user_id: string }>(
+      'SELECT owner_user_id FROM contacts WHERE id = ?', [ingested.contactId],
+    );
+    expect(contact?.owner_user_id).toBe(emir.id);
+
+    /* And it is not sitting in Incoming as well. */
+    const queued = await queryOne<{ id: string }>(
+      'SELECT id FROM unassigned_queue WHERE opportunity_id = ? AND resolved_at IS NULL',
+      [ingested.opportunityId],
+    );
+    expect(queued).toBeNull();
+
+    const told = await queryOne<{ title: string; body: string }>(
+      "SELECT title, body FROM notifications WHERE user_id = ? AND type = 'lead_bounced'", [emir.id],
+    );
+    expect(told?.title).toBe('A lead came back to you');
+    expect(told?.body).toContain('Slow Agent');
+
+    const history = await queryOne<{ title: string }>(
+      "SELECT title FROM activities WHERE opportunity_id = ? AND type = 'lead.returned'",
+      [ingested.opportunityId],
+    );
+    expect(history?.title).toContain('Slow Agent');
+  });
+
+  it('still uses the round-robin for a lead the CRM assigned by itself', async () => {
+    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
+    const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
+
+    const ingested = await arriveLead();
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
+      first.id, ingested.opportunityId,
+    ]);
+    /* No assigned_by_user_id: this is what every automatic assignment looks
+       like, and nobody chose the agent, so any other agent will do. */
+    await execute(
+      `INSERT INTO lead_assignments (id, opportunity_id, contact_id, agent_user_id)
+       VALUES (?, ?, ?, ?)`,
+      [newId(), ingested.opportunityId, ingested.contactId, first.id],
+    );
+
+    const result = await runSlaCheck({
+      opportunityId: ingested.opportunityId,
+      contactId: ingested.contactId,
+      assignedUserId: first.id,
+    });
+    expect(result.reassignedTo).toBe(second.id);
+  });
+
+  /* A lead given out by somebody who has since left cannot go back to them. */
+  it('falls back to the round-robin when the giver is deactivated', async () => {
+    await saveRoutingSettings(SYSTEM_ACTOR, { bounceToOwner: false });
+    const manager = await createTestUser({ role: 'manager', name: 'Gone Manager' });
+    const first = await createTestUser({ role: 'agent', name: 'Slow Agent' });
+    const second = await createTestUser({ role: 'agent', name: 'Backup Agent' });
+    await execute('UPDATE users SET is_active = 0 WHERE id = ?', [manager.id]);
+
+    const ingested = await arriveLead();
+    await execute('UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3) WHERE id = ?', [
+      first.id, ingested.opportunityId,
+    ]);
+    await execute(
+      `INSERT INTO lead_assignments (id, opportunity_id, contact_id, agent_user_id, assigned_by_user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [newId(), ingested.opportunityId, ingested.contactId, first.id, manager.id],
+    );
+
+    const result = await runSlaCheck({
+      opportunityId: ingested.opportunityId,
+      contactId: ingested.contactId,
+      assignedUserId: first.id,
+    });
+    expect(result.reassignedTo).toBe(second.id);
   });
 
   it('does not breach the SLA when the agent has already acted', async () => {
@@ -774,6 +899,13 @@ describeWithDb('workflow idempotency (integration)', () => {
     await resetTables();
     await approveTemplates();
     setWhatsAppAdapterForTesting(new LogAdapter());
+    /*
+     * The storm guard counts bounces in a 60-second window and is module
+     * state, so without this a test is told "3 leads came back" because of the
+     * tests that ran before it -- the guard working, in the one place it is
+     * not wanted.
+     */
+    resetStorm();
   });
   afterEach(() => setWhatsAppAdapterForTesting(null));
   afterAll(async () => {

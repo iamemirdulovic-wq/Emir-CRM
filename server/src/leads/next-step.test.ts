@@ -335,6 +335,38 @@ describe('dueAt', () => {
   });
 });
 
+/*
+ * The bug Emir photographed: he added a lead, kept it, and the card told him
+ * "Call them, today -- nobody has spoken to them yet" about a conversation he
+ * had just had. A New Lead only reaches the stage rules once somebody has
+ * reached out, so that line could only ever be wrong.
+ */
+describe('suggestNextStep -- a New Lead somebody has already called', () => {
+  it('says nothing the day you spoke to them', () => {
+    const advice = suggestNextStep(lead({ stage: 'new_lead', lastContactAt: hoursAgo(1) }), NOW);
+    expect(advice.suggest, 'he just put the phone down').toBeNull();
+  });
+
+  it('still says nothing the next day', () => {
+    expect(suggestNextStep(lead({ stage: 'new_lead', lastContactAt: daysAgo(1) }), NOW).suggest).toBeNull();
+  });
+
+  it('asks for a follow-up once it has gone two days quiet', () => {
+    const advice = suggestNextStep(lead({ stage: 'new_lead', lastContactAt: daysAgo(2) }), NOW);
+    expect(advice.suggest?.rule).toBe('new_lead_follow_up');
+    expect(advice.suggest?.note).toBe('Follow up');
+    /* And it does not claim nobody has called. */
+    expect(advice.suggest?.why).toMatch(/spoke to them two days ago/);
+    expect(advice.suggest?.why).not.toMatch(/nobody/i);
+  });
+
+  it('still tells you to ring a lead nobody has touched', () => {
+    const advice = suggestNextStep(lead({ stage: 'new_lead', lastContactAt: null }), NOW);
+    expect(advice.suggest?.rule, 'the rule that matters most is untouched').toBe('never_contacted');
+    expect(advice.suggest?.note).toBe('First call');
+  });
+});
+
 describe('describeSuggestion', () => {
   const base = { type: 'call', inDays: 0, note: '', why: '', urgency: 'now', rule: 'x' } as const;
 

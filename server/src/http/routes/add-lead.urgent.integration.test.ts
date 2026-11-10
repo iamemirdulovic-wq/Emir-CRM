@@ -127,6 +127,51 @@ describeWithDb('the clock on a lead added by hand', () => {
     expect(owned?.owner_user_id, 'and it stays his').toBe(emir.id);
   });
 
+  /*
+   * "I added this lead myself -- it doesn't mean nobody called." The lead went
+   * in with no contact against it, so every count and every suggestion in the
+   * CRM believed it had never been touched.
+   */
+  it('counts a lead you keep as contacted', async () => {
+    const emir = await createTestUser({ role: 'owner' });
+    const cookie = await signIn(base, emir);
+
+    const res = await addLead(cookie, { assignToUserId: emir.id });
+    const row = await queryOne<{ last_contact_at: Date | null; first_touch_at: Date | null }>(
+      'SELECT last_contact_at, first_touch_at FROM opportunities WHERE id = ?', [res.body.opportunityId],
+    );
+    expect(row?.last_contact_at, 'somebody spoke to them: him').not.toBeNull();
+    expect(row?.first_touch_at, 'and that is the speed-to-lead moment').not.toBeNull();
+
+    const activity = await queryOne<{ title: string; type: string }>(
+      'SELECT title, type FROM activities WHERE opportunity_id = ? AND type = ?',
+      [res.body.opportunityId, 'call'],
+    );
+    expect(activity?.title, 'and the history says where it came from').toContain('kept it');
+  });
+
+  it('counts an agent adding their own lead as contacted too', async () => {
+    const cookie = await signIn(base, await createTestUser({ role: 'agent' }));
+    const res = await addLead(cookie, {});
+    const row = await queryOne<{ last_contact_at: Date | null }>(
+      'SELECT last_contact_at FROM opportunities WHERE id = ?', [res.body.opportunityId],
+    );
+    expect(row?.last_contact_at).not.toBeNull();
+  });
+
+  /* But a lead handed to somebody else has NOT been called by them, and the
+     nag on it is the whole point of the pipeline. */
+  it('leaves a handed-over lead uncontacted', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const cookie = await signIn(base, await createTestUser({ role: 'owner' }));
+
+    const res = await addLead(cookie, { assignToUserId: agent.id });
+    const row = await queryOne<{ last_contact_at: Date | null }>(
+      'SELECT last_contact_at FROM opportunities WHERE id = ?', [res.body.opportunityId],
+    );
+    expect(row?.last_contact_at, 'the agent still has to ring them').toBeNull();
+  });
+
   it('records in the audit log whether the clock was asked for', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const cookie = await signIn(base, await createTestUser({ role: 'owner' }));
