@@ -1001,15 +1001,30 @@ const ROUTES: Route[] = [
    * One lead sitting on the signed-in person's clock, so the new-lead card
    * shows in the preview. Accepting it clears the list, as it does for real.
    */
+  /*
+   * One waiting lead by default, so the preview shows the single card. Add
+   * `?pending=12` to the URL to see the batch card instead -- the one an
+   * agent gets when a pile is handed over at once.
+   */
   { method: 'GET', pattern: /^\/api\/incoming\/pending$/, handler: () => {
     const lead = LEADS[0];
-    if (pendingAccepted || !lead) return { items: [] };
+    if (pendingAccepted || !lead) return { items: [], total: 0 };
+    const asked = Number(new URLSearchParams(window.location.search).get('pending') ?? '1');
+    const total = Number.isFinite(asked) && asked > 0 ? Math.min(asked, 50) : 1;
     return {
-      items: [{
-        id: 'opp-pending', contactId: lead.contactId, name: lead.name, phone: lead.phone,
-        project: lead.project, budgetMaxAed: lead.budgetMax, source: lead.source, secondsLeft: 184,
-      }],
+      total,
+      items: Array.from({ length: total }, (_unused, i) => ({
+        id: i === 0 ? 'opp-pending' : `opp-pending-${i}`,
+        contactId: lead.contactId, name: lead.name, phone: lead.phone,
+        project: lead.project, budgetMaxAed: lead.budgetMax, source: lead.source,
+        secondsLeft: 184 - i,
+      })),
     };
+  } },
+  { method: 'POST', pattern: /^\/api\/incoming\/accept-all$/, handler: () => {
+    const asked = Number(new URLSearchParams(window.location.search).get('pending') ?? '1');
+    pendingAccepted = true;
+    return { accepted: Number.isFinite(asked) && asked > 0 ? Math.min(asked, 50) : 1, skipped: 0 };
   } },
   { method: 'POST', pattern: /^\/api\/incoming\/([^/]+)\/accept$/, handler: () => {
     pendingAccepted = true;

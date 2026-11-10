@@ -5,6 +5,16 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-10 — leads — **The X on the new-lead card hides it for ten minutes,
+it does not accept the lead** — Emir chose this over "closing it means I've
+got it".
+
+The card exists so the clock cannot take a lead off somebody who never knew
+they had one. A close button that stopped the clock would let an agent dismiss
+every card unread and leave nobody chasing. Hiding is honest: the toast says
+the lead is still theirs and the clock is still running, and the card returns
+by itself.
+
 2026-11-10 — leads — **Handing a lead out from Incoming starts no clock
 unless asked** — The loop this ended was live and costing contacts.
 

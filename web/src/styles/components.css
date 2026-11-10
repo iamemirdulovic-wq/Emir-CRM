@@ -335,6 +335,16 @@ dl.facts dd{margin:0;font-weight:600;text-align:right}
 .newlead-clock{margin-left:auto;flex:none;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
   padding:2px 8px;border-radius:999px;background:var(--primary-soft);color:var(--primary)}
 .newlead-clock.late{background:color-mix(in srgb,var(--s-lost) 14%,transparent);color:var(--s-lost)}
+/*
+ * Put the card down and carry on working. There was no way to do that: the
+ * only exit was opening the lead, which is unusable when forty-five arrive.
+ * A real tap target, not a decorative cross.
+ */
+.newlead-x{flex:none;width:28px;height:28px;margin:-4px -6px -4px 0;display:inline-flex;
+  align-items:center;justify-content:center;border:0;background:transparent;border-radius:50%;
+  color:var(--ink-3);cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
+.newlead-x:hover{background:var(--surface-2);color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.newlead-x{transition:none}}
 
 .bottom-nav{display:none}
 @media (max-width:1100px){

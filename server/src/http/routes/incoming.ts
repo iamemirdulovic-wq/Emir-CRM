@@ -150,11 +150,18 @@ incomingRouter.get(
           AND o.deleted_at IS NULL AND c.deleted_at IS NULL
           AND o.accepted_at IS NULL AND o.assigned_at IS NOT NULL
         ORDER BY o.assigned_at ASC
-        LIMIT 5`,
+        LIMIT 50`,
       [slaMinutes, user.id],
     );
 
     res.json({
+      /*
+       * The total, so the card can say "45 new leads" in one line instead of
+       * queueing forty-five cards an agent has to open one at a time. Emir,
+       * 10 Nov 2026: "if we add bulk leads, it should show like, you have
+       * this leads, 45 leads you have it. If its one, then its normal."
+       */
+      total: rows.length,
       items: rows.map((row) => ({
         id: row.id,
         contactId: row.contact_id,
@@ -348,6 +355,54 @@ incomingRouter.post(
 
     const { slaMinutes } = await routingSettings();
     res.json({ acceptedAt, actionDueInMinutes: slaMinutes });
+  }),
+);
+
+/**
+ * "Take them all" — accept every lead waiting on this agent, in one press.
+ *
+ * Without it an agent handed forty-five leads has to open forty-five cards to
+ * stop forty-five clocks, which is the thing that was actually wasting their
+ * morning. Each one goes through `acceptLead`, so the rule that you may only
+ * accept your own lead is enforced per lead rather than assumed for the batch.
+ */
+incomingRouter.post(
+  '/accept-all',
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = actorFrom(req);
+    const agentUserId = currentUser(req).id;
+
+    const waiting = await query<{ id: string; contact_id: string }>(
+      `SELECT id, contact_id FROM opportunities
+        WHERE owner_user_id = ? AND status = 'open' AND deleted_at IS NULL
+          AND accepted_at IS NULL AND assigned_at IS NOT NULL
+        ORDER BY assigned_at ASC
+        LIMIT 200`,
+      [agentUserId],
+    );
+
+    let accepted = 0;
+    for (const row of waiting) {
+      /*
+       * One at a time, and a refusal on one does not lose the rest: a lead
+       * closed or reassigned a second ago is not a reason to leave the other
+       * forty-four on the clock.
+       */
+      try {
+        await acceptLead(actor, row.id);
+        accepted += 1;
+        await armSlaTimer({
+          opportunityId: row.id,
+          contactId: row.contact_id,
+          assignedUserId: agentUserId,
+          phase: 'action',
+        }).catch((err: unknown) => logger.warn('could not arm the action timer', errorContext(err)));
+      } catch (err: unknown) {
+        logger.warn('could not accept one of a batch', errorContext(err));
+      }
+    }
+
+    res.json({ accepted, skipped: waiting.length - accepted });
   }),
 );
 

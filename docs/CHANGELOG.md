@@ -2,6 +2,24 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## One card for a batch, and an X to close it
+
+Emir: *"When I add bulk leads it continues opening one-by-one notifications,
+and they cannot cancel — they need to open the leads."*
+
+The new-lead card is how an agent learns a lead is theirs, and the only way
+past one was to open its lead. Forty-five leads at once meant forty-five
+cards, each a separate interruption.
+
+**Two or more waiting is now one card** — *"45 new leads for you"* — with
+**Take all 45**, which accepts the lot in one press so nothing goes back to
+the owner. One lead still gets the card it always had, with the countdown.
+
+**And there is an X.** It hides the card for ten minutes rather than
+accepting anything, and says so: *"Hidden for 10 minutes. The lead is still
+yours and the clock is still running."* A close button that quietly stopped
+the clock would be worse than one that will not close.
+
 ## The loop that was taking leads off agents mid-conversation
 
 Emir, an hour after the last release: *"I already gave our agents leads, but
