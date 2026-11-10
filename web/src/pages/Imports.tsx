@@ -159,7 +159,21 @@ export function ImportWizard() {
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-        throw new Error(payload?.error?.message ?? 'Could not read that file');
+        /*
+         * Only blame the file when the server actually said so.
+         *
+         * 10 Nov: the site was down, the upload came back as a 503 HTML page,
+         * `response.json()` threw, and this fell through to "Could not read
+         * that file" -- so Emir spent his afternoon looking for a fault in a
+         * spreadsheet that read perfectly. A server that is not answering is
+         * not a bad file, and the message has to say which it is.
+         */
+        if (payload?.error?.message) throw new Error(payload.error.message);
+        throw new Error(
+          response.status >= 500
+            ? `The CRM is not responding right now (error ${response.status}). Your file is fine — try again in a minute.`
+            : `The upload was refused (error ${response.status}).`,
+        );
       }
       const data = (await response.json()) as UploadResponse;
       setUpload(data);
@@ -167,7 +181,13 @@ export function ImportWizard() {
       setSettings({ ...data.defaults, sourceLabel: file.name.replace(/\.[^.]+$/, '') });
       setStep(1);
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not upload that file');
+      /* `fetch` throws a TypeError when it never reached the server at all:
+         no connection, or the site is down. That is not the file either. */
+      if (err instanceof TypeError) {
+        toast('Could not reach the CRM. Check your connection, then try again.');
+      } else {
+        toast(err instanceof Error ? err.message : 'Could not upload that file');
+      }
     } finally {
       setBusy(false);
     }
