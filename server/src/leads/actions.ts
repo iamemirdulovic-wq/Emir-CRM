@@ -168,6 +168,13 @@ export async function runLeadAction(
       sets.push('no_answer_count = ?');
       args.push(noAnswerCount);
     }
+    /*
+     * Somebody is working it, so it is no longer a lead waiting to be placed.
+     * Without this a lead that came back would sit in Incoming for ever once
+     * the person who got it back decided to keep it and ring them.
+     */
+    sets.push('returned_at = NULL');
+
     if (REACHED_OUT.has(input.action)) {
       sets.push('last_contact_at = NOW(3)');
       /* The first real touch is what the speed-to-lead figure measures. */

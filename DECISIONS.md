@@ -5,6 +5,33 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-10 — leads — **Handing a lead out from Incoming starts no clock
+unless asked** — The loop this ended was live and costing contacts.
+
+Emir gave his nine agents leads. Every hand-out from Incoming armed a
+five-minute clock; the agents did not tap accept inside five minutes because
+they were on the phone; every lead was taken off them and returned to him; and
+handing them out again started the same clock. Agents lost contacts they were
+mid-conversation with.
+
+A tick-box above the agent list now carries it, off by default, exactly like
+the Add Lead popup. A lead a person placed deliberately is not a stranger
+sitting on a form. Leads that arrive by themselves still get the clock through
+Workflow A, which is what it was built for.
+
+2026-11-10 — leads — **`opportunities.returned_at` marks a lead waiting to be
+placed again, and Incoming lists them** — The column exists because a returned
+lead was invisible.
+
+Returning a missed lead to whoever gave it out was right, but it put the lead
+in that person's own leads, where no screen hands a pile of leads back out.
+Incoming already had the tick-boxes and the "Send to" row; it was only
+filtered to `owner_user_id IS NULL`. It now also shows leads that came back to
+whoever is looking, tagged "Came back to you".
+
+Cleared when the lead is given to somebody, and when its holder works it —
+otherwise a lead they decided to keep and ring would sit in Incoming for ever.
+
 2026-11-10 — leads — **The five-minute clock is opt-in, and never runs on a
 lead somebody kept for themselves** — It used to start on every lead a manager
 or owner handed to an agent.

@@ -1094,6 +1094,16 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .pick-all{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);cursor:pointer}
 .assign-to{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
 .assign-label{font-size:13px;color:var(--ink-3)}
+/*
+ * The five-minute clock, chosen where the lead is handed over. A full-width
+ * row above the agents so it is read before a name is pressed, not after.
+ */
+.incoming-urgent{flex:1 0 100%;display:flex;align-items:center;gap:8px;cursor:pointer;
+  font-size:13px;color:var(--ink-2)}
+.incoming-urgent span{display:inline-flex;align-items:center;gap:6px}
+.incoming-urgent .lucide{width:15px;height:15px;color:var(--ink-3)}
+.incoming-urgent input:checked ~ span{color:var(--att-late);font-weight:600}
+.incoming-urgent input:checked ~ span .lucide{color:var(--att-late)}
 .agent-pick{display:inline-flex;align-items:center;gap:8px;padding:5px 11px 5px 5px;border-radius:999px}
 .agent-pick .agent-name{font-weight:600}
 /* The open-lead count, so nobody gets buried without it being visible. */

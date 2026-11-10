@@ -38,6 +38,7 @@ interface IncomingRow {
   lead_score: number | null;
   bounce_count: number;
   created_at: Date;
+  returned_at: Date | null;
   full_name: string | null;
   phone_e164: string | null;
   language: string | null;
@@ -48,19 +49,28 @@ interface IncomingRow {
 incomingRouter.get(
   '/',
   requireManager,
-  asyncHandler(async (_req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req).id;
+    /*
+     * Two kinds of lead wait here, and they are the same kind of problem:
+     * one nobody owns, and one that came back to you because the agent you
+     * gave it to ran out of time. The second used to land silently in your
+     * own leads, where there is no way to hand a pile of them on.
+     */
     const rows = await query<IncomingRow>(
       `SELECT o.id, o.contact_id, o.title, o.project_name, o.budget_max_aed, o.source,
-              o.lead_score, o.bounce_count, o.created_at,
+              o.lead_score, o.bounce_count, o.created_at, o.returned_at,
               c.full_name, c.phone_e164, c.language,
               q.reason
          FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id
          LEFT JOIN unassigned_queue q ON q.opportunity_id = o.id AND q.resolved_at IS NULL
-        WHERE o.status = 'open' AND o.owner_user_id IS NULL
+        WHERE o.status = 'open'
+          AND (o.owner_user_id IS NULL OR (o.owner_user_id = ? AND o.returned_at IS NOT NULL))
           AND o.deleted_at IS NULL AND c.deleted_at IS NULL
         ORDER BY o.created_at ASC
         LIMIT 200`,
+      [me],
     );
 
     res.json({
@@ -75,6 +85,7 @@ incomingRouter.get(
         source: row.source,
         score: row.lead_score,
         bounceCount: Number(row.bounce_count),
+        returnedAt: row.returned_at,
         reason: row.reason,
         arrivedAt: row.created_at,
       })),
@@ -163,6 +174,18 @@ incomingRouter.get(
 const assignSchema = z.object({
   opportunityIds: z.array(z.string().min(1)).min(1).max(100),
   agentUserId: z.string().min(1),
+  /**
+   * Start the clock on these. Off unless asked for.
+   *
+   * It used to start on every lead handed out from this screen, which is the
+   * loop Emir got caught in: give a lead to Tej, Tej does not tap accept
+   * within five minutes, the lead is taken off him mid-conversation and comes
+   * back, and handing it out again starts the same clock. A lead a person
+   * placed deliberately is not a stranger waiting on a form.
+   *
+   * Same rule as the Add Lead popup: Hot is a choice, not the default.
+   */
+  urgent: z.boolean().optional(),
 });
 
 /**
@@ -178,7 +201,7 @@ incomingRouter.post(
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = assignSchema.safeParse(req.body);
     if (!parsed.success) throw badRequest('Choose at least one lead and an agent.', parsed.error.issues);
-    const { opportunityIds, agentUserId } = parsed.data;
+    const { opportunityIds, agentUserId, urgent } = parsed.data;
     const actor = actorFrom(req);
 
     const agent = await queryOne<{ id: string; name: string; is_active: number }>(
@@ -204,8 +227,15 @@ incomingRouter.post(
         );
         if (!opportunity || opportunity.status !== 'open') return null;
 
+        /*
+         * `returned_at` is cleared: it has an owner again, so it is no longer
+         * a lead waiting to be placed and drops out of Incoming.
+         */
         await execute(
-          'UPDATE opportunities SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NULL WHERE id = ?',
+          `UPDATE opportunities
+              SET owner_user_id = ?, assigned_at = NOW(3), returned_at = NULL,
+                  accepted_at = ${urgent === true ? 'NULL' : 'NOW(3)'}
+            WHERE id = ?`,
           [agentUserId, opportunityId],
           tx,
         );
@@ -246,16 +276,20 @@ incomingRouter.post(
 
       if (done) {
         assigned.push(opportunityId);
-        // The clock only starts once the lead is really theirs.
-        await armSlaTimer({ opportunityId, contactId: done, assignedUserId: agentUserId, phase: 'accept' })
-          .catch((err: unknown) => logger.warn('could not arm the accept timer', errorContext(err)));
+        /* Only when asked for. See `urgent` on the schema above. */
+        if (urgent === true) {
+          await armSlaTimer({ opportunityId, contactId: done, assignedUserId: agentUserId, phase: 'accept' })
+            .catch((err: unknown) => logger.warn('could not arm the accept timer', errorContext(err)));
+        }
         /* Recorded, then pushed. A phone that was face-down must not be the
            reason an agent never learns a lead is theirs. */
         await notify({
           userId: agentUserId,
           type: 'lead_assigned',
           title: 'New lead for you',
-          body: 'Open it and call — you have a few minutes before it goes back.',
+          body: urgent === true
+            ? 'Open it and call — you have a few minutes before it goes back.'
+            : 'It is yours. Open it and call when you can.',
           link: `/contacts/${done}`,
           contactId: done,
           opportunityId,
@@ -264,7 +298,11 @@ incomingRouter.post(
       }
     }
 
-    res.json({ assigned: assigned.length, skipped: opportunityIds.length - assigned.length });
+    res.json({
+      assigned: assigned.length,
+      skipped: opportunityIds.length - assigned.length,
+      urgent: urgent === true,
+    });
   }),
 );
 

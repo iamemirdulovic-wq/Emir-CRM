@@ -2,6 +2,34 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The loop that was taking leads off agents mid-conversation
+
+Emir, an hour after the last release: *"I already gave our agents leads, but
+it comes back down again to my account as owner. So now how can I give it to
+them? Because they already starting to talk, some of the contacts is already
+gone."*
+
+Two faults, one on top of the other.
+
+**Every hand-out from Incoming armed a five-minute clock.** Nine agents were
+given leads, none tapped *accept* inside five minutes because they were busy
+talking to the clients, and every lead was taken off them. Handing them out
+again started the same clock. The clock is now a tick-box above the agent
+list, off by default, the same rule as the Add Lead popup: a lead a person
+places deliberately is not a stranger sitting on a form. Leads that arrive by
+themselves still get it, which is what it was built for.
+
+**And a returned lead was invisible.** Sending a missed lead back to whoever
+gave it out was right, but it landed in that person's own leads, and no screen
+hands a pile of those back out. Incoming — which already has the tick-boxes
+and the "Send to" row — was only ever filtered to leads nobody owns. It now
+also lists the ones that came back to you, tagged **Came back to you**, and
+they leave the list the moment you give them to someone or ring them yourself.
+
+The leads already stuck from the hour before this release are brought into
+Incoming by the migration, read from the activity written when each came back,
+and skipped if their holder has since rung them.
+
 ## Three doors a lead comes in by
 
 Emir set out how leads should reach the CRM, and the rules differ by who put

@@ -30,6 +30,8 @@ interface IncomingLead {
   source: string | null;
   score: number | null;
   bounceCount: number;
+  /** Set when this one came back to you after an agent ran out of time. */
+  returnedAt: string | null;
   reason: string | null;
   arrivedAt: string;
 }
@@ -46,6 +48,15 @@ export function Incoming() {
   const teams = useAsync<{ items: { members: Agent[] }[] }>(() => api.get('/api/teams'), []);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  /*
+   * The five-minute clock, off unless asked for.
+   *
+   * It used to start on everything handed out from here, which is the loop
+   * Emir got caught in: give Tej a lead, Tej does not tap accept within five
+   * minutes, it is taken off him mid-conversation and comes back, and handing
+   * it out again starts the same clock.
+   */
+  const [urgent, setUrgent] = useState(false);
 
   /* One row per agent, however many desks they sit on. */
   const agents = useMemo(() => {
@@ -76,11 +87,14 @@ export function Incoming() {
       const result = await api.post<{ assigned: number; skipped: number }>('/api/incoming/assign', {
         opportunityIds,
         agentUserId,
+        ...(urgent ? { urgent: true } : {}),
       });
+      const what = result.assigned === 1 ? 'Lead' : `${result.assigned} leads`;
+      const clock = urgent ? ' They have 5 minutes.' : ' Theirs to work, no timer.';
       toast(
         result.skipped > 0
           ? `${result.assigned} sent to ${name}. ${result.skipped} had already moved.`
-          : `${result.assigned === 1 ? 'Lead' : `${result.assigned} leads`} sent to ${name}`,
+          : `${what} sent to ${name}.${clock}`,
       );
       setPicked(new Set());
       leads.reload();
@@ -111,7 +125,7 @@ export function Incoming() {
           <Empty
             icon="inbox"
             title="Nothing waiting"
-            hint="New leads are assigned automatically. One only lands here if nobody was available, or an agent let their five minutes run out."
+            hint="New leads are assigned automatically. One only lands here if nobody was available, or an agent let their five minutes run out and it came back to you."
           />
         ) : (
           <>
@@ -127,6 +141,23 @@ export function Incoming() {
 
               {picked.size > 0 && (
                 <div className="assign-to" dir="auto">
+                  {/*
+                    * The clock, where the decision is made. Off by default:
+                    * a lead you place by hand is not a stranger sitting on a
+                    * form, and taking it back off the agent five minutes
+                    * later undoes the choice you just made.
+                    */}
+                  <label className="incoming-urgent">
+                    <input
+                      type="checkbox"
+                      checked={urgent}
+                      onChange={(event) => setUrgent(event.target.checked)}
+                    />
+                    <span>
+                      <Icon name="flame" />
+                      They must call in 5 minutes
+                    </span>
+                  </label>
                   <span className="assign-label">Send to</span>
                   {agents.length === 0 ? (
                     <Note>Add agents to a desk in Settings before you can assign leads.</Note>
@@ -174,7 +205,14 @@ export function Incoming() {
                   </Link>
 
                   <div className="incoming-tags">
-                    {lead.bounceCount > 0 && (
+                    {/* Which of the two kinds of waiting lead this is. */}
+                    {lead.returnedAt !== null && (
+                      <span className="tag bounced" title={lead.reason ?? undefined}>
+                        <Icon name="undo-2" />
+                        Came back to you
+                      </span>
+                    )}
+                    {lead.returnedAt === null && lead.bounceCount > 0 && (
                       <span className="tag bounced" title={lead.reason ?? undefined}>
                         <Icon name="undo-2" />
                         {lead.bounceCount > 1 ? `Bounced ${lead.bounceCount}×` : 'Bounced'}

@@ -188,10 +188,16 @@ export async function returnLeadToGiver(
     giverUserId: string;
   },
 ): Promise<void> {
+  /*
+   * `returned_at` is what puts it in Incoming. Without it the lead lands in
+   * the giver's own leads looking like any other lead of theirs, and there is
+   * no screen that hands a pile of those back out -- which is exactly where
+   * Emir got stuck, holding leads his agents were mid-conversation with.
+   */
   await execute(
     `UPDATE opportunities
         SET owner_user_id = ?, assigned_at = NOW(3), accepted_at = NOW(3),
-            sla_breached = 1, bounce_count = bounce_count + 1
+            sla_breached = 1, bounce_count = bounce_count + 1, returned_at = NOW(3)
       WHERE id = ?`,
     [input.giverUserId, input.opportunityId],
     tx,

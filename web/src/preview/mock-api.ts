@@ -978,7 +978,13 @@ const ROUTES: Route[] = [
       source: l.source,
       score: l.score,
       bounceCount: index === 0 ? 1 : 0,
-      reason: index === 0 ? 'Bounced from Omar Farouk' : 'No agent available',
+      /*
+       * The first one came back to you because the agent ran out of time --
+       * the case that actually bites -- and any other is a lead nobody could
+       * be given to in the first place.
+       */
+      returnedAt: index === 0 ? ago(12) : null,
+      reason: index === 0 ? 'Came back from Omar Farouk' : 'No agent available',
       arrivedAt: ago(l.createdMinutesAgo),
     })),
   }) },
@@ -989,7 +995,7 @@ const ROUTES: Route[] = [
     const ids = new Set((body as { opportunityIds?: string[] }).opportunityIds ?? []);
     const agent = (body as { agentUserId?: string }).agentUserId ?? null;
     for (const lead of LEADS) if (ids.has(lead.id)) lead.owner = agent;
-    return { assigned: ids.size, skipped: 0 };
+    return { assigned: ids.size, skipped: 0, urgent: (body as { urgent?: boolean }).urgent === true };
   } },
   /*
    * One lead sitting on the signed-in person's clock, so the new-lead card
