@@ -102,9 +102,22 @@ const NOTIFICATIONS: Array<{
 ];
 
 /** The mock leads as My Leads wants them, with a spread of next-step states. */
+/*
+ * A lead list the size a real one is.
+ *
+ * Eight rows made every list on this screen fit on one page, so the preview
+ * never showed the "Show more" button and never would have caught it being
+ * missing -- which is how Emir ended up with a tab reading 419 and a list of
+ * thirty. The demo leads are cycled to a believable number instead.
+ */
+const DEMO_LEAD_ROWS = 124;
+
 function myLeadRows() {
   const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
-  return LEADS.slice(0, 8).map((lead, index) => ({
+  return Array.from({ length: DEMO_LEAD_ROWS }, (_unused, index) => {
+    const lead = LEADS[index % LEADS.length]!;
+    return { lead, index };
+  }).map(({ lead, index }) => ({
     id: `opp-${index}`,
     contact_id: lead.contactId,
     stage_key: index % 4 === 0 ? 'new_lead' : index % 3 === 0 ? 'appointment_scheduled' : 'engaged_qualified',
@@ -1089,7 +1102,7 @@ const ROUTES: Route[] = [
      with a spread of next-step states so every colour can be seen. */
   { method: 'GET', pattern: /^\/api\/my-leads$/, handler: ({ query }) => {
     const tab = query.get('tab') ?? 'today';
-    const items = myLeadRows().filter((row) => {
+    const matching = myLeadRows().filter((row) => {
       if (tab === 'new') return row.stage_key === 'new_lead';
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
@@ -1097,8 +1110,12 @@ const ROUTES: Route[] = [
       if (tab === 'all') return true;
       return row.next_step_at !== null;
     });
+    /* Paged like the real endpoint, so "Show more" is exercised here. */
+    const page = Math.max(1, Number(query.get('page') ?? '1'));
+    const pageSize = Math.min(50, Math.max(1, Number(query.get('pageSize') ?? '30')));
+    const items = matching.slice((page - 1) * pageSize, page * pageSize);
     return {
-      tab, items, total: items.length, page: 1, pageSize: 30,
+      tab, items, total: matching.length, page, pageSize,
       empty: { title: 'Nothing here', hint: 'Try another tab.' },
     };
   } },

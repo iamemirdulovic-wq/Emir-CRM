@@ -7,6 +7,7 @@ import { formatAedShort, humanize, maskPhone, relativeTime } from '../lib/format
 import { Icon, SkeletonRows, Tabs, type TabItem } from '../design/index.js';
 import { Avatar, Empty, ErrorNote, Score, StagePill } from '../design/ui.js';
 import type { StageKey } from '../lib/types.js';
+import { Button } from '../design/forms.js';
 import { LeadActionBar, LeadActionSheets, useLeadActions } from '../components/LeadActions.js';
 import { useShellSearch } from '../components/Layout.js';
 
@@ -48,8 +49,20 @@ interface ListResponse {
   tab: Tab;
   items: Lead[];
   total: number;
+  page: number;
+  pageSize: number;
   empty: { title: string; hint: string };
 }
+
+/*
+ * How many leads come down at once.
+ *
+ * Fifty is the server's ceiling, and the right number here: Emir, 11 Nov --
+ * "we have leads means new 419, but we can't see all the leads." The tab
+ * counted four hundred and nineteen and the list stopped at thirty, with
+ * nothing on screen to say there was more or any way to reach it.
+ */
+const PAGE_SIZE = 50;
 
 const TAB_LABELS: Record<Tab, string> = {
   today: 'Follow-up today',
@@ -83,6 +96,7 @@ export function MyLeads() {
   const qs = useMemo(() => {
     const next = new URLSearchParams();
     next.set('tab', tab);
+    next.set('pageSize', String(PAGE_SIZE));
     if (debounced) next.set('search', debounced);
     if (tag) next.set('tag', tag);
     return next.toString();
@@ -98,6 +112,39 @@ export function MyLeads() {
   }, [debounced, tag, reloadKey]);
 
   const refresh = useCallback(() => setReloadKey((n) => n + 1), []);
+
+  /*
+   * Pages after the first, kept beside the first rather than replacing it.
+   *
+   * "Show more" rather than numbered pages: this is a call list worked from
+   * the top down, and a page that swaps under you loses your place in it.
+   */
+  const [more, setMore] = useState<Lead[]>([]);
+  const [nextPage, setNextPage] = useState(2);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  /* A different tab, search or batch is a different list: start again. */
+  useEffect(() => {
+    setMore([]);
+    setNextPage(2);
+  }, [qs, reloadKey]);
+
+  const shown = (leads.data?.items.length ?? 0) + more.length;
+  const total = leads.data?.total ?? 0;
+
+  async function showMore() {
+    setLoadingMore(true);
+    try {
+      const batch = await api.get<ListResponse>(`/api/my-leads?${qs}&page=${nextPage}`);
+      setMore((rows) => [...rows, ...batch.items]);
+      setNextPage((n) => n + 1);
+    } catch {
+      /* Left on screen deliberately: the rows already loaded are still
+         good, and a failed "show more" is retried by pressing it again. */
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const tabs: TabItem<Tab>[] = (Object.keys(TAB_LABELS) as Tab[]).map((value) => ({
     value,
@@ -149,11 +196,28 @@ export function MyLeads() {
       )}
 
       {leads.data && leads.data.items.length > 0 && (
-        <ul className="leads-list">
-          {leads.data.items.map((lead) => (
-            <LeadRow key={lead.id} lead={lead} onChanged={refresh} showOwner={user?.role !== 'agent'} />
-          ))}
-        </ul>
+        <>
+          <ul className="leads-list">
+            {[...leads.data.items, ...more].map((lead) => (
+              <LeadRow key={lead.id} lead={lead} onChanged={refresh} showOwner={user?.role !== 'agent'} />
+            ))}
+          </ul>
+
+          {/* Always says where you are in the list, even at the end of it:
+              "603 of 603" is the answer to "have I seen them all?" */}
+          <div className="leads-more">
+            <span className="leads-count">
+              {shown.toLocaleString()} of {total.toLocaleString()}
+            </span>
+            {shown < total && (
+              <Button variant="ghost" onClick={showMore} disabled={loadingMore}>
+                {loadingMore
+                  ? 'Loading…'
+                  : `Show ${Math.min(PAGE_SIZE, total - shown).toLocaleString()} more`}
+              </Button>
+            )}
+          </div>
+        </>
       )}
     </section>
   );
