@@ -118,7 +118,13 @@ function myLeadRows() {
     const lead = LEADS[index % LEADS.length]!;
     return { lead, index };
   }).map(({ lead, index }) => ({
-    id: `opp-${index}`,
+    /*
+     * The real lead's own id for the ones that have a contact page behind
+     * them. The list used to invent `opp-0`, `opp-1`, ... while the lead
+     * page used `o-1`, so "Next lead" could never find where it was in the
+     * list here -- the preview mirrored the live bug instead of catching it.
+     */
+    id: index < LEADS.length ? lead.id : `opp-${index}`,
     contact_id: lead.contactId,
     stage_key: index % 4 === 0 ? 'new_lead' : index % 3 === 0 ? 'appointment_scheduled' : 'engaged_qualified',
     status: 'open',
@@ -2415,9 +2421,27 @@ const ROUTES: Route[] = [
     };
   } },
 
-  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/next$/, handler: () => {
-    const lead = LEADS[1] ?? LEADS[0];
-    return { next: lead ? { id: lead.id, contact_id: lead.contactId, full_name: lead.name } : null };
+  /*
+   * The one AFTER this one, in the order of the tab the agent came off.
+   *
+   * This used to hand back LEADS[1] every single time -- the same bug the
+   * real endpoint had, mirrored here, which is why no check against the
+   * preview could ever have caught "it's just repeating only first two
+   * leads all over again."
+   */
+  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/next$/, handler: ({ params, query }) => {
+    const tab = query.get('tab') ?? 'all';
+    const rows = myLeadRows().filter((row) => {
+      if (tab === 'new') return row.stage_key === 'new_lead';
+      if (tab === 'hot') return row.score_band === 'hot';
+      if (tab === 'no_next_step') return row.next_step_at === null;
+      if (tab === 'overdue') return row.last_contact_at === null;
+      if (tab === 'all') return true;
+      return row.next_step_at !== null;
+    });
+    const seat = rows.findIndex((row) => row.id === params[0]);
+    const next = seat === -1 ? rows[0] : rows[seat + 1];
+    return { next: next ? { id: next.id, contact_id: next.contact_id, full_name: next.full_name } : null };
   } },
 
   // --- starting the leads again -------------------------------------------

@@ -39,6 +39,13 @@ function activityColour(type: string): string {
 export function ContactDetail() {
   const { id = '' } = useParams();
   const [search] = useSearchParams();
+  /*
+   * Which list the agent came off, so both the back chip and "Next lead"
+   * stay on it. All when nothing says otherwise: landing on Follow-up
+   * today after every call meant "No follow-ups today 🎉" and the real
+   * list one tab away.
+   */
+  const from = search.get('from') ?? 'all';
   const { user } = useAuth();
   const toast = useToast();
   const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${id}`), [id]);
@@ -120,7 +127,7 @@ export function ContactDetail() {
   return (
     <>
       <Toolbar
-        right={opportunity ? <NextLead opportunityId={opportunity.id} /> : null}
+        right={opportunity ? <NextLead opportunityId={opportunity.id} from={from} /> : null}
         middle={
           opportunity ? (
             /*
@@ -143,7 +150,15 @@ export function ContactDetail() {
           ) : null
         }
       >
-        <Link className="chip" to="/leads">
+        {/*
+          * Back to All, not to Follow-up today.
+          *
+          * Emir's agents, 11 Nov: coming back from a lead landed on
+          * "Follow-up today", which is usually empty -- "No follow-ups
+          * today 🎉" after every single call, with the list they were
+          * actually working one tab away. All is the list they came from.
+          */}
+        <Link className="chip" to={`/leads?tab=${encodeURIComponent(from)}`}>
           <Icon name="arrow-left" />
           My Leads
         </Link>

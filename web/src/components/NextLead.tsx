@@ -12,10 +12,14 @@ import { Icon } from '../design/index.js';
  * forty detours.
  *
  * Fetched rather than guessed, so the button can say whose name is next and
- * disappear when there is nobody left. Oldest open lead first, which is the
- * one going coldest and the same order the list already uses.
+ * disappear when there is nobody left.
+ *
+ * `from` is the tab the agent came off, carried in the URL. Without it the
+ * button walked its own order rather than the list on screen, and the server
+ * had no way to know where "next" was from. Emir's agents, 11 Nov: "it's
+ * just repeating only first two leads all over again."
  */
-export function NextLead({ opportunityId }: { opportunityId: string }) {
+export function NextLead({ opportunityId, from }: { opportunityId: string; from: string }) {
   const navigate = useNavigate();
   const [next, setNext] = useState<{ contact_id: string; full_name: string | null } | null>(null);
   const [asked, setAsked] = useState(false);
@@ -24,7 +28,7 @@ export function NextLead({ opportunityId }: { opportunityId: string }) {
     try {
       const { next: found } = await api.get<{
         next: { id: string; contact_id: string; full_name: string | null } | null;
-      }>(`/api/my-leads/${opportunityId}/next`);
+      }>(`/api/my-leads/${opportunityId}/next?tab=${encodeURIComponent(from)}`);
       setNext(found);
     } catch {
       /* Not worth an error on a convenience button; it simply does not
@@ -33,7 +37,7 @@ export function NextLead({ opportunityId }: { opportunityId: string }) {
     } finally {
       setAsked(true);
     }
-  }, [opportunityId]);
+  }, [opportunityId, from]);
 
   useEffect(() => { void look(); }, [look]);
 
@@ -43,7 +47,9 @@ export function NextLead({ opportunityId }: { opportunityId: string }) {
     <button
       type="button"
       className="btn next-lead"
-      onClick={() => navigate(`/contacts/${next.contact_id}`)}
+      /* The tab travels with you, or the walk forgets which list it is on
+         after the very first step. */
+      onClick={() => navigate(`/contacts/${next.contact_id}?from=${encodeURIComponent(from)}`)}
       title={next.full_name ? `Next: ${next.full_name}` : 'The next lead waiting'}
     >
       Next lead

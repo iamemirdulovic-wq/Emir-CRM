@@ -199,7 +199,13 @@ export function MyLeads() {
         <>
           <ul className="leads-list">
             {[...leads.data.items, ...more].map((lead) => (
-              <LeadRow key={lead.id} lead={lead} onChanged={refresh} showOwner={user?.role !== 'agent'} />
+              <LeadRow
+                key={lead.id}
+                lead={lead}
+                tab={tab}
+                onChanged={refresh}
+                showOwner={user?.role !== 'agent'}
+              />
             ))}
           </ul>
 
@@ -224,14 +230,16 @@ export function MyLeads() {
 }
 
 function LeadRow({
-  lead, onChanged, showOwner,
-}: { lead: Lead; onChanged: () => void; showOwner: boolean }) {
+  lead, tab, onChanged, showOwner,
+}: { lead: Lead; tab: Tab; onChanged: () => void; showOwner: boolean }) {
   const actions = useLeadActions(lead.id, onChanged);
   const due = dueState(lead.next_step_at);
 
   return (
     <li className="lead-row">
-      <Link to={`/contacts/${lead.contact_id}`} className="lead-main">
+      {/* The tab travels with the lead, so the back chip and "Next lead"
+          both know which list this came off. */}
+      <Link to={`/contacts/${lead.contact_id}?from=${tab}`} className="lead-main">
         <Avatar name={lead.full_name ?? '?'} />
         <span className="lead-who">
           <span className="lead-name" dir="auto">{lead.full_name ?? 'Unnamed lead'}</span>

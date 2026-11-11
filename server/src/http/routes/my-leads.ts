@@ -128,6 +128,15 @@ const SELECT = `
  * showed hundreds. An agent still gets only their own, because that is what
  * `visibleUserIds` returns for an agent.
  */
+/*
+ * How far "Next lead" will walk before it stops offering one.
+ *
+ * Nobody presses the button four thousand times, and an unbounded window
+ * over every lead in the CRM is the kind of query that took the site down
+ * on 10 Nov.
+ */
+const WALK_LIMIT = 4000;
+
 myLeadsRouter.get(
   '/:id/next',
   asyncHandler(async (req: Request, res: Response) => {
@@ -136,16 +145,52 @@ myLeadsRouter.get(
     const visible = await visibleUserIds(user);
     const scope = ownerPredicate('o.owner_user_id', visible);
 
+    /*
+     * The one AFTER this one, in the order of the list the agent came from.
+     *
+     * The first version asked for "the oldest open lead that is not this
+     * one", which is not a next at all: from the oldest you get the second,
+     * and from the second you get the oldest again. Emir's agents, 11 Nov:
+     * "it's just repeating only first two leads all over again." They were
+     * right, and it had been doing that since the button was built.
+     *
+     * So it walks the real list. Same tab, same filters, same ORDER BY as
+     * My Leads, and `o.id` last so the order is settled: a file of six
+     * hundred imported leads shares a `created_at` to the second, and
+     * without a tiebreaker MySQL may hand them back in a different order
+     * each time -- which on its own is enough to make a walk go in circles.
+     *
+     * Bounded at WALK_LIMIT. An agent is not pressing this four thousand
+     * times, and an unbounded window over every lead in the CRM is the kind
+     * of query that took the site down on 10 Nov.
+     */
+    const tab: LeadTab = isLeadTab(req.query.tab) ? req.query.tab : 'all';
+    const definition = TABS[tab];
+    const args: (string | number)[] = [...scope.params];
+
+    let clause = `${scope.sql} AND ${definition.where} AND o.owner_user_id IS NOT NULL`;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    if (search) {
+      clause += ' AND (c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?)';
+      const like = `%${search}%`;
+      args.push(like, like, like, like);
+    }
+
     const next = await queryOne<{ id: string; contact_id: string; full_name: string | null }>(
-      `SELECT o.id, o.contact_id, c.full_name
-         FROM opportunities o
-         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
-        WHERE ${scope.sql} AND o.status = 'open' AND o.deleted_at IS NULL
-          AND o.owner_user_id IS NOT NULL
-          AND o.id <> ?
-        ORDER BY o.created_at ASC
+      `WITH walk AS (
+         SELECT o.id, o.contact_id, c.full_name,
+                ROW_NUMBER() OVER (ORDER BY ${definition.orderBy}, o.id ASC) AS seat
+           FROM opportunities o
+           JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+          WHERE ${clause}
+          ORDER BY ${definition.orderBy}, o.id ASC
+          LIMIT ${WALK_LIMIT}
+       )
+       SELECT id, contact_id, full_name FROM walk
+        WHERE seat > COALESCE((SELECT seat FROM walk WHERE id = ?), 0)
+        ORDER BY seat ASC
         LIMIT 1`,
-      [...scope.params, here],
+      [...args, here],
     );
 
     /* Null rather than a 404: "nothing left" is an answer the button shows,
