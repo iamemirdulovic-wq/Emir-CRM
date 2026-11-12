@@ -1088,3 +1088,27 @@
   text-transform:uppercase; color:var(--ink-4); }
 .v2-proj-foot{ display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
 .v2-proj-units{ font-size:11.5px; color:var(--ink-3); }
+
+/* ── Thumbs ─────────────────────────────────────────────────────────────
+ *
+ * `e2e/polish.mjs` walks every screen at 390px and flags anything under 28px
+ * as a tap target. The design's own `--tap: 44px` says the same thing in a
+ * token. On a computer a 26px button beside a row is fine; on a phone it is
+ * a miss, and "Accept", "Refuse" and the task tick are the three where a miss
+ * costs something.
+ *
+ * Only the height grows. The design's proportions on a computer stay exactly
+ * as drawn.
+ */
+@media (max-width:767px){
+  .v2 .d-btn.d-xs{ min-height:32px; padding:0 12px; }
+  .v2 .v2-tick{ width:32px; height:32px; }
+  .v2 .d-card-link, .v2 .v2-leads-links a{
+    min-height:32px; display:inline-flex; align-items:center; gap:4px;
+  }
+  .v2 .v2-back{ min-height:32px; }
+  /* A checkbox is 13px by default on every browser; the label around it is
+     what a thumb actually hits. */
+  .v2 .v2-pick{ min-width:32px; min-height:32px; align-items:center; justify-content:center; }
+  .v2 .v2-pick input, .v2 .v2-switch input, .v2 .v2-agent input{ width:18px; height:18px; }
+}

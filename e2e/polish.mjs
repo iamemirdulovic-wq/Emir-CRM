@@ -52,6 +52,21 @@ const ROUTES = [
   ['/imports/im-1', 'import-detail'], ['/pool', 'pool'], ['/automations', 'automations'],
   ['/team-activity', 'team-activity'], ['/audit', 'audit'], ['/profile', 'profile'],
   ['/settings', 'settings'], ['/attendance', 'attendance'], ['/dev/components', 'components'],
+
+  /*
+   * v2, under its own shell. Same checks, because the same mistakes are
+   * available: the first drawing of the v2 home scrolled sideways to 575px on
+   * a phone, and the calling screen's outcome buttons rendered as bare text.
+   * Neither is visible in a passing test suite.
+   */
+  ['/v2', 'v2-home'], ['/v2/incoming', 'v2-incoming'], ['/v2/leads', 'v2-leads'],
+  ['/v2/leads?tab=all', 'v2-leads-all'], ['/v2/leads/o-1', 'v2-lead'],
+  ['/v2/leads/new', 'v2-add-lead'], ['/v2/calling', 'v2-calling'],
+  ['/v2/pipeline', 'v2-pipeline'], ['/v2/follow-ups', 'v2-follow-ups'],
+  ['/v2/transfers', 'v2-transfers'], ['/v2/calendar', 'v2-calendar'],
+  ['/v2/tasks', 'v2-tasks'], ['/v2/attendance', 'v2-attendance'],
+  ['/v2/team', 'v2-team'], ['/v2/profile', 'v2-profile'],
+  ['/v2/projects', 'v2-projects'], ['/v2/more', 'v2-more'],
 ];
 
 const VIEWPORTS = [['desktop', 1440, 1000], ['mobile', 390, 844]];
