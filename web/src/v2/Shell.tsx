@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { api } from '../lib/api.js';
+import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { Avatar } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
 import { groupsFor, pinnedFor, PHONE_BAR, LATER_ITEMS, type NavItem } from './nav.js';
+import { Bell } from './Bell.js';
+import { Find } from './Find.js';
 
 /**
  * The frame every v2 screen sits inside.
@@ -77,9 +81,20 @@ function useRail(): [boolean, () => void] {
   return [chosen || tooNarrow, toggle];
 }
 
-/** A number, or nothing. Counts are wired to the server in a later phase. */
+/**
+ * What every badge in the menu says, read once for the whole shell.
+ *
+ * One request rather than one per badge: the sidebar is on every screen, and
+ * five components each polling their own count is five requests a minute per
+ * person. It refreshes when the route changes, which is when a number is most
+ * likely to have moved.
+ */
+const Counts = createContext<Record<string, number>>({});
+
+/** A number, or nothing. */
 function Badge({ item, folded }: { item: NavItem; folded: boolean }) {
-  const n = 0;
+  const counts = useContext(Counts);
+  const n = item.badge ? counts[item.badge] ?? 0 : 0;
   if (!item.badge || n === 0) return null;
   /* S-29: in the rail a badge is a dot, not a number -- there is no room for
      one, and a number nobody can read is just noise. */
@@ -191,11 +206,7 @@ function TopBar() {
       )}
 
       {/* S-39, S-40: always visible, and never an empty box when opened. */}
-      <button type="button" className="v2-search" aria-label="Search">
-        <Icon name="search" />
-        <span>Search leads, phone, project…</span>
-        <kbd>Ctrl K</kbd>
-      </button>
+      <Find />
 
       {/* S-43: the only filled button up here. */}
       <Link to="/v2/leads/new" className="v2-add"><Icon name="plus" />Add lead</Link>
@@ -207,7 +218,7 @@ function TopBar() {
         </Link>
       )}
 
-      <button type="button" className="v2-bell" aria-label="Notifications"><Icon name="bell" /></button>
+      <Bell />
       <Link to="/v2/profile" className="v2-avatar" aria-label="My profile">
         <Avatar name={user?.name ?? '?'} />
       </Link>
@@ -270,6 +281,11 @@ function titleFor(pathname: string, role: string): string {
 export function V2Shell() {
   const isPhone = useIsPhone();
   const [folded, toggleRail] = useRail();
+  const { pathname } = useLocation();
+  /* Re-read when the screen changes: taking a lead, answering a transfer or
+     finishing a task all change a number, and all of them change the route. */
+  const badges = useAsync<Record<string, number>>(() => api.get('/api/v2/badges'), [pathname]);
+  const counts = useMemo(() => badges.data ?? {}, [badges.data]);
 
   /*
    * The orange system is opt-in per page (`:root[data-v2]`), so that the live
@@ -295,13 +311,101 @@ export function V2Shell() {
   }, [toggleRail]);
 
   return (
-    <div className={isPhone ? 'v2 v2-phone' : 'v2'}>
-      {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
-      <div className="v2-main">
-        {!isPhone && <TopBar />}
-        <main className="v2-page"><Outlet /></main>
+    <Counts.Provider value={counts}>
+      <div className={isPhone ? 'v2 v2-phone' : 'v2'}>
+        {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
+        <div className="v2-main">
+          {!isPhone && <TopBar />}
+          {isPhone && <PhoneTop />}
+          <main className="v2-page"><Outlet /></main>
+        </div>
+        {isPhone && <PhoneBar />}
       </div>
-      {isPhone && <PhoneBar />}
+    </Counts.Provider>
+  );
+}
+
+/**
+ * The phone's top strip.
+ *
+ * On a phone the sidebar is gone, so search, the bell and Add lead have
+ * nowhere else to live. Without it an agent on a phone could not search at
+ * all — the computer layout hides that, and it is exactly the thing most of
+ * this team does most of the day.
+ */
+function PhoneTop() {
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const onRecord = /^\/v2\/leads\/[^/]+$/.test(pathname);
+  const navigate = useNavigate();
+
+  return (
+    <header className="v2-ptop">
+      {onRecord ? (
+        <button type="button" className="v2-back" onClick={() => navigate(-1)}>
+          <Icon name="arrow-left" />Back
+        </button>
+      ) : (
+        <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>
+      )}
+      <Find compact />
+      <Bell />
+      <Link to="/v2/leads/new" className="v2-padd" aria-label="Add lead"><Icon name="plus" /></Link>
+    </header>
+  );
+}
+
+/** The phone's More screen: the rest of the same menu, in the same order. */
+export function V2More() {
+  const { user } = useAuth();
+  const role = user?.role ?? 'agent';
+  const counts = useContext(Counts);
+
+  return (
+    <div className="v2-more">
+      {groupsFor(role).map((group, i) => (
+        <section className="v2-more-group" key={group.label ?? `top-${i}`}>
+          {group.label && <h2>{group.label}</h2>}
+          {group.items.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/v2'} className="v2-more-row">
+              <Icon name={item.icon} />
+              <span className="v2-more-label">{item.label}</span>
+              {item.badge && (counts[item.badge] ?? 0) > 0 && (
+                <span className={item.urgent ? 'v2-badge v2-badge-urgent' : 'v2-badge'}>
+                  {counts[item.badge]}
+                </span>
+              )}
+              <Icon name="chevron-right" />
+            </NavLink>
+          ))}
+        </section>
+      ))}
+
+      <section className="v2-more-group">
+        {pinnedFor(role).map((item) => (
+          <NavLink key={item.to} to={item.to} className="v2-more-row">
+            <Icon name={item.icon} />
+            <span className="v2-more-label">{item.label}</span>
+            <Icon name="chevron-right" />
+          </NavLink>
+        ))}
+        <Link to="/v2/profile" className="v2-more-row">
+          <Avatar name={user?.name ?? '?'} />
+          <span className="v2-more-label">{user?.name ?? 'My profile'}</span>
+          <Icon name="chevron-right" />
+        </Link>
+      </section>
+
+      <section className="v2-more-group">
+        <h2>LATER</h2>
+        {LATER_ITEMS.map((item) => (
+          <span key={item.to} className="v2-more-row v2-more-later">
+            <Icon name={item.icon} />
+            <span className="v2-more-label">{item.label}</span>
+            <span className="v2-later">later</span>
+          </span>
+        ))}
+      </section>
     </div>
   );
 }

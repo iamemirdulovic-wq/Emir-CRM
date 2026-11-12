@@ -13,6 +13,9 @@ import {
 import {
   agentsWithLoad, cameBack, freeLeads, shareLeads, takeLead,
 } from '../../v2/incoming.js';
+import { queryOne } from '../../db/client.js';
+import { visibleUserIds } from '../../auth/scope.js';
+import { leadTabCounts } from '../../leads/counts.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -228,5 +231,58 @@ v2Router.post(
   requireRole('owner', 'admin', 'manager'),
   asyncHandler(async (req: Request, res: Response) => {
     res.json(await shareLeads(actorFrom(req), shareSchema.parse(req.body)));
+  }),
+);
+
+/* ── the numbers on the menu ───────────────────────────────────────────── */
+
+/**
+ * Every badge in the sidebar, in one answer.
+ *
+ * Five separate endpoints polled from five components is five requests per
+ * page per person per minute, and the sidebar is on every screen. One row of
+ * counts costs one round trip.
+ *
+ * Each number means the same thing the screen behind it shows, because they
+ * are the same queries. A badge that says 3 over a list of 5 is worse than no
+ * badge at all (docs/v2/rules.md S-25).
+ */
+v2Router.get(
+  '/badges',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const isAgent = user.role === 'agent';
+    const visible = await visibleUserIds(user);
+    const [counts, free, transfers, tasks, leave] = await Promise.all([
+      leadTabCounts(visible),
+      queryOne<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM opportunities
+          WHERE status = 'open' AND owner_user_id IS NULL AND deleted_at IS NULL`,
+      ),
+      queryOne<{ n: number }>(
+        isAgent
+          ? "SELECT COUNT(*) AS n FROM lead_transfers WHERE to_user_id = ? AND status = 'pending'"
+          : "SELECT COUNT(*) AS n FROM lead_transfers WHERE status = 'needs_approval'",
+        isAgent ? [user.id] : [],
+      ),
+      queryOne<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM tasks
+          WHERE assigned_user_id = ? AND completed_at IS NULL AND due_at < NOW(3)`,
+        [user.id],
+      ),
+      isAgent
+        ? Promise.resolve({ n: 0 })
+        : queryOne<{ n: number }>(
+          "SELECT COUNT(*) AS n FROM leave_requests WHERE status = 'pending'",
+        ),
+    ]);
+
+    res.json({
+      incoming: Number(free?.n ?? 0),
+      followups: counts.overdue,
+      transfers: Number(transfers?.n ?? 0),
+      tasks: Number(tasks?.n ?? 0),
+      leave: Number(leave?.n ?? 0),
+    });
   }),
 );

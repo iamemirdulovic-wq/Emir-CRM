@@ -1255,6 +1255,19 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* The numbers on the menu, in one answer, as the real endpoint gives them. */
+  { method: 'GET', pattern: /^\/api\/v2\/badges$/, handler: () => {
+    const rows = myLeadRows();
+    const now = Date.now();
+    return {
+      incoming: 6,
+      followups: rows.filter((r) => r.next_step_at !== null && new Date(r.next_step_at).getTime() < now).length,
+      transfers: 1,
+      tasks: 3,
+      leave: currentUser().role === 'agent' ? 0 : 2,
+    };
+  } },
+
   /* Incoming, role-shaped exactly as the real endpoint shapes it. */
   { method: 'GET', pattern: /^\/api\/v2\/incoming$/, handler: () => {
     const rows = myLeadRows().slice(0, 6);

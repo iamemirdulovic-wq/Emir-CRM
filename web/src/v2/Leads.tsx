@@ -214,7 +214,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           <ul className="v2-rows">
             {rows.map((row) => <LeadRow key={row.id} row={row} showOwner={user?.role !== 'agent'} />)}
           </ul>
-          <div className="v2-more">
+          <div className="v2-showmore">
             <span className="v2-count">{rows.length.toLocaleString()} of {total.toLocaleString()}</span>
             {rows.length < total && (
               <button type="button" className="v2-btn" onClick={showMore} disabled={loadingMore}>

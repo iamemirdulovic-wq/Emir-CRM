@@ -926,7 +926,9 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .acts2 .icon-btn svg{width:15px;height:15px}
 .wand{border:0;border-radius:10px;width:40px;height:43px;display:grid;place-items:center;background:linear-gradient(135deg,#4F8DF7,#A57CF3 55%,#E7707E);color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(120,110,230,.3)}
 .wand:disabled{opacity:.5;box-shadow:none}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* `.two` is declared once, further up. The duplicate that stood here was
+   word for word the same; the guard now refuses two declarations of one
+   component, and an exact copy is the easy half of that rule. */
 .fieldrow{display:flex;gap:8px;align-items:flex-end}
 .fieldrow .field{flex:1;margin-bottom:0}
 @media (max-width:560px){.two{grid-template-columns:1fr}}

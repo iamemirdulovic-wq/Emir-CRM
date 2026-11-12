@@ -33,7 +33,7 @@ import { Attendance } from './pages/Attendance.js';
 import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
-import { V2Shell } from './v2/Shell.js';
+import { V2Shell, V2More } from './v2/Shell.js';
 import { Placeholder } from './v2/Placeholder.js';
 import { V2Leads } from './v2/Leads.js';
 import { V2Home } from './v2/Home.js';
@@ -128,7 +128,7 @@ export function App() {
           <Route path="/v2/automations" element={<Placeholder title="Automations" phase="phase 11 — owner tools" />} />
           <Route path="/v2/settings" element={<Placeholder title="Settings" phase="phase 12 — team and me" />} />
           <Route path="/v2/profile" element={<Placeholder title="My profile" phase="phase 12 — team and me" />} />
-          <Route path="/v2/more" element={<Placeholder title="More" phase="phase 2 — shell" />} />
+          <Route path="/v2/more" element={<V2More />} />
           <Route path="/v2/templates" element={<Placeholder title="Templates" phase="later" />} />
         </Route>
 
