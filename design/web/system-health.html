@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>System health · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.btn>svg,.banner>svg{width:16px;height:16px;flex:none}
+
+.hl-top{flex-direction:row;align-items:center;gap:18px;padding:26px}
+.hl-top h2{font-size:22px}
+.hl-big{width:60px;height:60px;border-radius:20px;background:var(--amber-soft);color:var(--amber-ink);display:grid;place-items:center;flex:none;transition:.2s}
+.hl-big.ok{background:var(--green-soft);color:var(--green-ink)}
+.hl-big.run i{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hl-row{display:flex;align-items:center;gap:14px;padding:14px 0}
+.hl-row:first-child{padding-top:0}.hl-row:last-child{padding-bottom:0}
+.hl-name{width:300px;min-width:0}.hl-name b{display:block;font-weight:650}.hl-name span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-strip{flex:1;display:flex;gap:2px;height:26px;min-width:0}
+.hl-strip i{flex:1;border-radius:2px;background:var(--green);opacity:.75}
+.hl-strip i.warn{background:var(--amber);opacity:1}.hl-strip i.bad{background:var(--red);opacity:1}
+.hl-ms{width:130px;text-align:right;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+.hl-chip{width:92px;justify-content:center}
+.hl-row.checking .hl-strip{opacity:.35}
+</style>
+</head>
+<body data-page="system-health" data-role="owner" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" class="on" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>System health</h1><p>Is everything working? Checked by itself every 5 minutes.</p></div></div>
+<section class="card hl-top">
+  <span class="hl-big" id="hl-big"><i data-icon="check" class="i-xl"></i></span>
+  <div class="grow"><h2 id="hl-title">5 of 6 services are fine</h2><p class="muted mt-4" id="hl-sub">Notifications are slow. Alerts arrive, but late. Last check 14:52.</p></div>
+  <button class="btn primary" id="hl-run"><i data-icon="refresh"></i>Run a check now</button>
+</section>
+<section class="card"><div class="card-head"><h3>Services</h3><span class="small muted">Bars: last 30 days</span></div><div class="divide" id="hl-list"><div class="hl-row" data-st="ok"><span class="card-icon"><i data-icon="globe"></i></span><div class="hl-name"><b>CRM website and sign-in</b><span>crm.homes.me</span></div><div class="hl-strip" data-tip="Last 30 days · 100% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></div><span class="hl-ms">180 ms</span><span class="chip green pip hl-chip">Fine</span></div><div class="hl-row" data-st="ok"><span class="card-icon"><i data-icon="list"></i></span><div class="hl-name"><b>Database</b><span>Leads, notes, history · last backup today 03:00</span></div><div class="hl-strip" data-tip="Last 30 days · 100% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></div><span class="hl-ms">24 ms</span><span class="chip green pip hl-chip">Fine</span></div><div class="hl-row" data-st="warn"><span class="card-icon"><i data-icon="bell"></i></span><div class="hl-name"><b>Notifications</b><span>Phone and computer alerts</span></div><div class="hl-strip" data-tip="Last 30 days · 99.1% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="bad"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="warn"></i></div><span class="hl-ms">Last alert took 48 s</span><span class="chip amber pip hl-chip">Slow</span></div><div class="hl-row" data-st="ok"><span class="card-icon"><i data-icon="link"></i></span><div class="hl-name"><b>Tracked links</b><span>homes.me/p/… and “client opened your link”</span></div><div class="hl-strip" data-tip="Last 30 days · 100% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></div><span class="hl-ms">95 ms</span><span class="chip green pip hl-chip">Fine</span></div><div class="hl-row" data-st="ok"><span class="card-icon"><i data-icon="file"></i></span><div class="hl-name"><b>File storage</b><span>Brochures, IDs, booking forms · 6.2 of 50 GB</span></div><div class="hl-strip" data-tip="Last 30 days · 100% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></div><span class="hl-ms">210 ms</span><span class="chip green pip hl-chip">Fine</span></div><div class="hl-row" data-st="ok"><span class="card-icon"><i data-icon="sparkles"></i></span><div class="hl-name"><b>Homes AI</b><span>In short, voice notes, chat · $38 of $100</span></div><div class="hl-strip" data-tip="Last 30 days · 99.8% up"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></div><span class="hl-ms">1.4 s</span><span class="chip green pip hl-chip">Fine</span></div></div></section>
+<section class="card" id="hl-problem">
+  <div class="card-head"><h3>What to do</h3></div>
+  <div class="banner amber"><i data-icon="alert"></i><span class="grow"><b>Notifications are slow since 14:20.</b> A VIP lead alert can come late. Phone the agent when you give a VIP lead, until this is green again.</span><a class="btn xs" href="settings-team.html#notif-on">Who has notifications on</a></div>
+  <div class="timeline mt-16">
+    <div class="tl-item"><span class="tl-dot"><i data-icon="alert"></i></span><div class="tl-body"><b>Notifications slow</b><p>Alerts take up to 48 seconds. Normal is under 3.</p><span class="tl-time">Today 14:20 · still open</span></div></div>
+    <div class="tl-item"><span class="tl-dot red"><i data-icon="x"></i></span><div class="tl-body"><b>Notifications down for 12 min</b><p>Fixed by itself. 3 alerts were sent again.</p><span class="tl-time">Thu 29 Oct 11:05 – 11:17</span></div></div>
+    <div class="tl-item"><span class="tl-dot green"><i data-icon="check"></i></span><div class="tl-body"><b>Backup restored in a test</b><p>All 863 leads came back. Test took 4 min.</p><span class="tl-time">Sun 1 Nov 03:30</span></div></div>
+  </div>
+</section>
+<div class="row"><span class="small muted grow">Something else is wrong? Tell us with a bug report marked “Blocking my work”.</span><a class="btn" href="feedback.html"><i data-icon="message"></i>Report a problem</a></div>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))}, busy=false;
+  $('#hl-run').addEventListener('click',function(){ if(busy) return; busy=true; var btn=this, rows=$$('.hl-row'); btn.disabled=true;
+    $('#hl-big').className='hl-big run'; $('#hl-big').innerHTML=HM.icon('refresh'); $('#hl-big').querySelector('svg').style.cssText='width:28px;height:28px;animation:spin 1s linear infinite';
+    $('#hl-title').textContent='Checking 6 services…'; $('#hl-sub').textContent='This takes a few seconds.';
+    rows.forEach(function(r){ r.classList.add('checking'); var c=r.querySelector('.hl-chip'); c.className='chip hl-chip'; c.textContent='Checking…'; });
+    rows.forEach(function(r,i){ setTimeout(function(){ r.classList.remove('checking'); var c=r.querySelector('.hl-chip'); c.className='chip green pip hl-chip'; c.textContent='Fine';
+      if(r.dataset.st==='warn'){ r.dataset.st='ok'; r.querySelector('.hl-ms').textContent='2 s'; r.querySelector('.hl-strip i:last-child').className=''; }
+      if(i===rows.length-1){ busy=false; btn.disabled=false; $('#hl-big').className='hl-big ok'; $('#hl-big').innerHTML=HM.icon('check'); $('#hl-big').querySelector('svg').style.cssText='width:28px;height:28px';
+        $('#hl-title').textContent='All 6 services are fine'; $('#hl-sub').textContent='Notifications are fast again. Last check 14:55, just now.';
+        var b=$('#hl-problem .banner'); if(b){ b.className='banner green'; b.innerHTML=HM.icon('check')+'<span class="grow"><b>Nothing to do.</b> Notifications were slow from 14:20 to 14:55. They are fine now.</span>'; }
+        var t=$('#hl-problem .tl-time'); if(t) t.textContent='Today 14:20 – 14:55 · closed';
+        HM.toast('Check finished · all 6 services are fine'); } }, 450*(i+1)); });
+  });
+})();
+</script>
+</body>
+</html>

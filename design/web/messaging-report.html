@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Messaging report · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .funnel{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:16px}
+  .funnel .card{gap:8px}
+  .funnel .step-bar{height:8px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin-top:auto}
+  .funnel .step-bar i{display:block;height:100%;border-radius:999px;background:var(--ink);width:var(--v)}
+  .funnel .hero .step-bar{background:var(--hero-3)}.funnel .hero .step-bar i{background:var(--accent)}
+  .funnel .of{font-size:12.5px;color:var(--ink-3)}
+  #agents td{height:46px}
+  .nu{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+  .how li{margin:0 0 10px 0;color:var(--ink-2);font-size:13px}
+  .how ol{margin:0;padding-left:18px}
+  .lk{display:flex;align-items:center;gap:12px;padding:11px 0;min-width:0}
+  .lk .grow b{display:block;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lk .grow span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body data-page="messaging-report" data-role="owner" data-sub="WhatsApp and Telegram taps">
+<main>
+  <div data-topbar>
+    <div class="seg"><a href="team-activity.html">Activity</a><a href="team-live.html">Live</a><a class="on" href="messaging-report.html">Messaging</a></div>
+  </div>
+
+  <div class="page-head"><h2 class="grow">From tap to reply</h2><div class="seg" data-seg id="period"><button class="on">Today</button><button>Week</button><button>Month</button></div></div>
+
+  <!-- taps → confirmed → replied → links opened -->
+  <div class="funnel">
+    <section class="card hero"><span class="label">Taps on WhatsApp or Telegram</span><div class="stat-row"><b class="num-hero" id="f-taps">132</b><span class="delta up" id="f-delta">9 vs yesterday</span></div><span class="muted small" id="f-split">104 WhatsApp · 28 Telegram</span><div class="step-bar"><i style="--v:100%"></i></div></section>
+    <section class="card"><span class="label">Confirmed · agent said what happened</span><div class="stat-row"><b class="num" id="f-conf">125</b><span class="of" id="f-conf-p">95% of taps</span></div><a class="small t-red" href="#no-update" id="f-nu">7 with no update</a><div class="step-bar"><i id="b-conf" style="--v:95%"></i></div></section>
+    <section class="card"><span class="label">Client replied</span><div class="stat-row"><b class="num" id="f-rep">58</b><span class="of" id="f-rep-p">46% of confirmed</span></div><span class="small muted" id="f-rep-s">37 interested · 21 not now</span><div class="step-bar"><i id="b-rep" style="--v:44%"></i></div></section>
+    <section class="card"><span class="label">Links opened by clients</span><div class="stat-row"><b class="num" id="f-link">31</b><span class="of" id="f-link-p">of 74 links</span></div><span class="small muted">Brochure is opened most</span><div class="step-bar"><i id="b-link" style="--v:23%"></i></div></section>
+  </div>
+
+  <div class="bento mt-16">
+    <section class="card c-8" aria-label="By agent" id="no-update">
+      <div class="card-head"><h3>By agent</h3><span class="small muted">“No update” = the agent did not answer “What happened?”</span></div>
+      <table class="table" id="agents">
+        <thead><tr><th>Agent</th><th class="t-right">Taps</th><th class="t-right">Confirmed</th><th class="t-right">Replied</th><th>Reply rate</th><th class="t-right">Links opened</th><th class="t-right">No update</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="card-foot"><i data-icon="info" class="i-sm"></i><span>Most “no update” first. Remind sends one notification with the open questions.</span></div>
+    </section>
+
+    <div class="stack c-4">
+      <section class="card" aria-label="What happened">
+        <div class="card-head"><h3>What the agents answered</h3><span class="small muted">125 today</span></div>
+        <div class="segbar tall"><i class="grey" style="--v:49" data-tip="Waiting for reply 49"></i><i class="green" style="--v:37" data-tip="Interested 37"></i><i class="amber" style="--v:21" data-tip="Not now 21"></i><i class="red" style="--v:9" data-tip="Not interested 9"></i><i class="ink" style="--v:9" data-tip="Wrong number or not sent 9"></i></div>
+        <div class="hbars mt-16" style="gap:8px">
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span>Sent, waiting for reply</span><b>49</b></div>
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span><span class="dot green"></span> He replied: interested</span><b>37</b></div>
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span><span class="dot amber"></span> He replied: not now</span><b>21</b></div>
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span><span class="dot red"></span> Not interested</span><b>9</b></div>
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span>Wrong number</span><b>4</b></div>
+          <div class="hbar" style="grid-template-columns:1fr 34px"><span>Didn't send</span><b>5</b></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="bento mt-16">
+    <section class="card c-8" aria-label="Links opened by clients">
+      <div class="card-head"><h3>Links opened by clients</h3><span class="small muted">Tracked links · homes.me/p/…</span></div>
+      <div class="divide" id="links"></div>
+    </section>
+    <section class="card c-4 how" aria-label="How it is counted">
+      <div class="card-head"><h3>How it is counted</h3></div>
+      <ol>
+        <li><b>Tap</b> · the agent presses WhatsApp or Telegram on a lead. The chat opens on their phone. The CRM never writes for them.</li>
+        <li><b>Confirmed</b> · back in the CRM the agent answers “What happened?”.</li>
+        <li><b>Replied</b> · the agent chose “He replied: interested” or “not now”.</li>
+        <li><b>Link opened</b> · the client opened a brochure, payment plan, location or video link.</li>
+      </ol>
+      <div class="card-foot"><i data-icon="lock" class="i-sm"></i><span>We do not read the chats. Only taps and answers are counted.</span></div>
+    </section>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  // name, status, taps, replied, links, no update
+  var A=[['Shan','late',10,3,1,3],['Rocky','office',10,4,3,2],['Tej','office',14,5,3,1],['Nelson','outside',13,6,3,1],['Yuliia','office',26,13,6,0],['Talha','office',23,12,7,0],['Olga','office',21,9,5,0],['Srdjan','office',15,6,3,0]];
+  var mult=1;
+  function draw(){
+    $('#agents tbody').innerHTML=A.map(function(a,i){
+      var t=a[2]*mult, nu=a[5]*(mult>1?Math.ceil(mult/3):1), conf=t-nu, rep=a[3]*mult, rate=Math.round(rep/conf*100);
+      return '<tr data-i="'+i+'"><td><span class="person"><span class="av sm" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><b>'+a[0]+'</b></span></td><td class="t-right"><b>'+t+'</b></td><td class="t-right">'+conf+'</td><td class="t-right">'+rep+'</td><td><div class="row gap-8"><div class="bar'+(rate>=45?' green':'')+'" style="--v:'+rate+'%;max-width:90px"><i></i></div><span class="small">'+rate+'%</span></div></td><td class="t-right">'+a[4]*mult+'</td>'+
+      '<td class="t-right">'+(a[5]&&!a._done?'<span class="nu"><b class="t-red">'+nu+'</b><button class="btn xs" data-remind="'+i+'">Remind</button></span>':a._done?'<span class="small muted">Reminded 14:55</span>':'<span class="muted">0</span>')+'</td></tr>'}).join('');
+    HM.refresh($('#agents'));
+  }
+  draw();
+  $('#agents').addEventListener('click',function(e){var b=e.target.closest('[data-remind]'); if(!b) return; var a=A[+b.getAttribute('data-remind')]; a._done=1; draw(); HM.toast(a[0]+' gets one reminder with '+a[5]+' open “What happened?” questions');});
+
+  var P={ // taps, delta, split, confirmed, no update, replied, rep split, links, of links, mult
+    'Today':[132,'9 vs yesterday','104 WhatsApp · 28 Telegram',125,7,58,'37 interested · 21 not now',31,74,1],
+    'Week':['660','6% vs last week','520 WhatsApp · 140 Telegram',646,14,290,'185 interested · 105 not now',155,370,5],
+    'Month':['2,508','11% vs October','1,976 WhatsApp · 532 Telegram','2,459',49,'1,102','703 interested · 399 not now',589,'1,406',19]
+  };
+  function num(x){return +String(x).replace(/,/g,'')}
+  $('#period').addEventListener('hm:change',function(e){
+    var d=P[e.detail.value]; if(!d) return; mult=d[9];
+    $('#f-taps').textContent=d[0]; $('#f-delta').textContent=d[1]; $('#f-split').textContent=d[2];
+    $('#f-conf').textContent=d[3]; $('#f-nu').textContent=d[4]+' with no update';
+    var cp=Math.round(num(d[3])/num(d[0])*100), rp=Math.round(num(d[5])/num(d[3])*100);
+    $('#f-conf-p').textContent=cp+'% of taps'; $('#b-conf').style.setProperty('--v',cp+'%');
+    $('#f-rep').textContent=d[5]; $('#f-rep-p').textContent=rp+'% of confirmed'; $('#f-rep-s').textContent=d[6]; $('#b-rep').style.setProperty('--v',Math.round(num(d[5])/num(d[0])*100)+'%');
+    $('#f-link').textContent=d[7]; $('#f-link-p').textContent='of '+d[8]+' links'; $('#b-link').style.setProperty('--v',Math.round(num(d[7])/num(d[0])*100)+'%');
+    A.forEach(function(a){a._done=0}); draw();
+  });
+
+  var L=[['Marco Bellini','Brochure · The Archive','opened 2 times · last 14:37','Rocky','homes.me/p/archive-brochure','file'],
+    ['Elena Kuznetsova','Payment plan · Damac Islands','opened 3 times · last 14:12','Yuliia','homes.me/p/damac-plan','file'],
+    ['Aisha Noor','Location · The Archive','opened 1 time · 13:48','Talha','homes.me/p/archive-map','pin'],
+    ['Ivan Petrov','Video · Damac Islands','opened 1 time · 12:55','Olga','homes.me/p/damac-video','video'],
+    ['Daniel Rossi','Location · Valia','opened 1 time · 11:31','Nelson','homes.me/p/valia-map','pin']];
+  $('#links').innerHTML=L.map(function(l){return '<a class="lk" href="lead.html"><span class="card-icon"><i data-icon="'+l[5]+'"></i></span><span class="grow"><b>'+l[0]+' · '+l[1]+'</b><span>'+l[2]+' · '+l[4]+'</span></span><span class="person small"><span class="av xs" data-name="'+l[3]+'"></span>'+l[3]+'</span><i data-icon="chevron-right" class="i-sm muted"></i></a>'}).join('');
+  HM.refresh($('#links'));
+})();
+</script>
+</body>
+</html>

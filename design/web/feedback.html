@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feedback · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.fb{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start;margin-top:8px}
+.fb-types{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.fb-types .opt{padding:12px}
+.rep{padding:14px 0;display:flex;flex-direction:column;gap:6px}.rep:first-child{padding-top:0}.rep:last-child{padding-bottom:0}
+.rep b{font-weight:650}
+.rep-ans{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-radius:12px;padding:8px 10px;margin-top:2px}
+.att{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 12px;border-radius:10px;background:var(--surface-2);font-size:12.5px;font-weight:600}
+.att button{width:22px;height:22px;border-radius:50%;color:var(--ink-3)}.att button:hover{background:var(--surface-3);color:var(--ink)}
+#fb-rec.rec{background:var(--red);color:#fff;box-shadow:none}
+.fb-ok{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:70px 20px}
+.fb-ok[hidden]{display:none}
+.fb-ok .ic{width:72px;height:72px;border-radius:24px;background:var(--green-soft);color:var(--green-ink);display:grid;place-items:center}
+.fb-ok p{max-width:400px}
+</style>
+</head>
+<body data-page="feedback" data-role="any" data-sub="Bugs, problems and ideas go straight to the owners">
+<main>
+<div class="fb">
+<section class="card">
+  <form data-form id="fb-form">
+  <div class="card-head"><h2 class="grow">Tell us what to fix or build</h2><span class="chip green">+15 points for each report</span></div>
+  <div class="col gap-16">
+    <div class="field"><span class="field-label">What is it?</span>
+      <div class="fb-types" data-chips id="fb-type">
+        <button type="button" class="opt on" data-value="Bug"><span class="card-icon"><i data-icon="alert"></i></span><span class="grow"><b class="bold">Bug</b><div class="small muted">Something is broken</div></span></button>
+        <button type="button" class="opt" data-value="Issue"><span class="card-icon"><i data-icon="help"></i></span><span class="grow"><b class="bold">Issue</b><div class="small muted">Works, but hard to use</div></span></button>
+        <button type="button" class="opt" data-value="New feature"><span class="card-icon"><i data-icon="plus"></i></span><span class="grow"><b class="bold">New feature</b><div class="small muted">Something is missing</div></span></button>
+        <button type="button" class="opt" data-value="Idea"><span class="card-icon"><i data-icon="sparkles"></i></span><span class="grow"><b class="bold">Idea</b><div class="small muted">A thought for later</div></span></button>
+      </div></div>
+    <div class="form-grid" style="grid-template-columns:1.6fr 1fr">
+      <div class="field"><label>Short title <span class="req">*</span></label><input class="input" id="fb-title" required data-min="4" data-error="Write a short title." placeholder="Call button does nothing on the lead page"></div>
+      <div class="field"><label>Where</label><select class="select" id="fb-where"><option value="">Choose a page…</option><option>My Day</option><option>Dashboard</option><option>My leads</option><option>All leads</option><option>Lead page</option><option>Add lead</option><option>Incoming</option><option>Pipeline</option><option>Calling</option><option>Transfers</option><option>Calendar</option><option>Tasks and follow-ups</option><option>Projects</option><option>Team</option><option>Team wall</option><option>Best of Homes</option><option>Attendance</option><option>Notifications</option><option>Search</option><option>Homes AI</option><option>Business card</option><option>Settings</option><option>Phone app</option><option>Other</option></select></div>
+      <div class="field full"><label id="fb-text-l">What happened? <span class="req">*</span></label><textarea class="textarea" id="fb-text" required data-min="10" data-error="Write what happened, at least 10 letters." style="min-height:120px" placeholder="What did you do, what did you see, what did you expect?"></textarea></div>
+    </div>
+    <div class="row gap-8 wrap">
+      <button type="button" class="btn sm" id="fb-shot"><i data-icon="image"></i>Add a screenshot</button>
+      <button type="button" class="btn sm" id="fb-rec"><i data-icon="mic"></i><span>Record a voice note</span></button>
+      <span class="small muted">Or press Print Screen and paste here with Ctrl V.</span>
+    </div>
+    <div class="row gap-8 wrap" id="fb-att"></div>
+    <div class="field"><span class="field-label">How urgent?</span>
+      <div class="row gap-16 wrap"><div class="seg" data-seg id="fb-urg"><button type="button">Low</button><button type="button" class="on">Normal</button><button type="button">Blocking my work</button></div><span class="small muted" id="fb-urg-n">We read every report within 2 working days.</span></div></div>
+    <div class="row" style="border-top:1px solid var(--line);padding-top:16px"><span class="small muted grow">Sent as <b id="fb-me"></b> · Chrome on Windows · this page address is added by itself.</span><button class="btn primary"><i data-icon="arrow-up-right"></i>Send report</button></div>
+  </div>
+  </form>
+  <div class="fb-ok" id="fb-ok" hidden><span class="ic"><i data-icon="check" class="i-xl"></i></span><h2>Thank you · ticket <span id="ok-no">#1042</span></h2><p class="muted" id="ok-t">We got your report. You will see the status on the right and get an alert when it changes.</p><div class="chip green lg">+15 points</div><button class="btn mt-8" id="fb-again"><i data-icon="plus"></i>Write another</button></div>
+</section>
+<aside class="col gap-16">
+  <section class="card">
+    <div class="card-head"><h4 class="grow">My reports</h4><span class="small muted" id="rep-n">3 reports</span></div>
+    <div class="divide" id="reps">
+      <div class="rep"><div class="row gap-8"><b class="grow truncate">Lead local time is 1 hour wrong for Portugal</b><span class="chip green pip">Fixed</span></div><div class="small muted">#1031 · Bug · Lead page · 4 Nov</div><div class="rep-ans"><span class="av xs" data-name="George Vanous"></span><span>Fixed on 6 Nov. Winter time was not counted. Thank you.</span></div></div>
+      <div class="rep"><div class="row gap-8"><b class="grow truncate">Let me sort My leads by last contact</b><span class="chip blue pip">Planned</span></div><div class="small muted">#1017 · New feature · My leads · 28 Oct</div><div class="rep-ans"><span class="av xs" data-name="George Vanous"></span><span>Good idea. Planned for the next update.</span></div></div>
+      <div class="rep"><div class="row gap-8"><b class="grow truncate">Calendar is slow when I change the month</b><span class="chip amber pip">New</span></div><div class="small muted">#1038 · Issue · Calendar · Mon 9 Nov</div></div>
+    </div>
+  </section>
+  <section class="card flat"><div class="row top gap-12"><span class="card-icon"><i data-icon="info"></i></span><div class="small ink-2"><b class="bold">What happens next?</b><br>New → Planned → Fixed. “Blocking my work” goes to the owners at once. Is the CRM down for everyone? Phone Abdullah.</div></div></section>
+  <a class="shortcut" href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i><span class="grow">Open the feedback inbox</span><i data-icon="arrow-right"></i></a>
+</aside>
+</div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))}, no=1041, shots=0, rec=null, sec=0, hasVoice=false;
+  $('#fb-me').textContent=HM.me.name;
+  var L={Bug:['What happened?','What did you do, what did you see, what did you expect?'],Issue:['What is hard?','Which step is slow or not clear?'],'New feature':['What do you need?','What should the CRM do, and when would you use it?'],Idea:['Your idea','Write it in simple words. Short is fine.']};
+  $('#fb-type').addEventListener('hm:change',function(e){ var l=L[e.detail.value]; $('#fb-text-l').innerHTML=l[0]+' <span class="req">*</span>'; $('#fb-text').placeholder=l[1]; });
+  $('#fb-urg').addEventListener('hm:change',function(e){ var v=e.detail.value; $('#fb-urg-n').textContent = v==='Blocking my work' ? 'Owners get an alert at once. Use it only when you cannot work.' : v==='Low' ? 'We read it when we plan the next update.' : 'We read every report within 2 working days.'; $('#fb-urg-n').classList.toggle('t-red',v==='Blocking my work'); });
+  function att(icon,label){ var a=document.createElement('span'); a.className='att fade-in'; a.innerHTML=HM.icon(icon)+'<span></span><button type="button" aria-label="Remove">×</button>'; a.querySelector('span').textContent=label; a.querySelector('svg').style.cssText='width:15px;height:15px';
+    a.querySelector('button').addEventListener('click',function(){ if(icon==='mic'){ hasVoice=false; $('#fb-rec span').textContent='Record a voice note'; } else shots--; a.remove(); }); $('#fb-att').appendChild(a); return a; }
+  $('#fb-shot').addEventListener('click',function(){ if(shots>=3){ HM.toast('3 screenshots is the most for one report'); return; } shots++; shotNo=(window.shotNo||0)+1; att('image','screenshot-'+shotNo+'.png · 240 KB'); });
+  document.addEventListener('paste',function(e){ if([].some.call((e.clipboardData||{}).items||[],function(i){return i.type.indexOf('image')===0})){ $('#fb-shot').click(); HM.toast('Screenshot pasted'); } });
+  $('#fb-rec').addEventListener('click',function(){ var b=this;
+    if(rec){ clearInterval(rec); rec=null; b.classList.remove('rec'); b.querySelector('span').textContent='Record again'; if(sec<1){ HM.toast('Too short. Hold the recording for at least 1 second.'); return; }
+      $$('#fb-att .voice').forEach(function(v){v.remove()}); att('mic','Voice note · 0:'+('0'+sec).slice(-2)).classList.add('voice'); hasVoice=true; $('#fb-text').closest('.field').classList.remove('invalid'); return; }
+    sec=0; b.classList.add('rec'); b.querySelector('span').textContent='Stop · 0:00'; rec=setInterval(function(){ sec++; b.querySelector('span').textContent='Stop · 0:'+('0'+sec).slice(-2); if(sec>=59) b.click(); },1000); });
+  /* a voice note can stand in for the text */
+  window.addEventListener('submit',function(e){ if(e.target.id!=='fb-form') return; var t=$('#fb-text'); t.required=!hasVoice; if(hasVoice){ t.removeAttribute('data-min'); } else t.setAttribute('data-min','10'); },true);
+  $('#fb-form').addEventListener('hm:submit',function(){ no++; var type=$('#fb-type .on').dataset.value, urg=$('#fb-urg .on').textContent.trim(), title=$('#fb-title').value.trim(), where=$('#fb-where').value||'No page';
+    var r=document.createElement('div'); r.className='rep pulse-row'; r.innerHTML='<div class="row gap-8"><b class="grow truncate"></b><span class="chip amber pip">New</span></div><div class="small muted">#'+no+' · '+type+' · '+where+' · today 14:55'+(urg==='Blocking my work'?' · <span class="t-red bold">Blocking</span>':'')+'</div>';
+    r.querySelector('b').textContent=title; $('#reps').insertBefore(r,$('#reps').firstChild); $('#rep-n').textContent=$$('#reps .rep').length+' reports';
+    $('#ok-no').textContent='#'+no; $('#ok-t').textContent = urg==='Blocking my work' ? 'Emir, George and Abdullah got an alert just now. You will see the status on the right.' : 'We got your report. You will see the status on the right and get an alert when it changes.';
+    this.hidden=true; $('#fb-ok').hidden=false; HM.toast('Report sent · ticket #'+no+' · +15 points'); });
+  $('#fb-again').addEventListener('click',function(){ var f=$('#fb-form'); f.reset(); $('#fb-att').innerHTML=''; shots=0; window.shotNo=0; $$('#fb-urg button').forEach(function(b,i){b.classList.toggle('on',i===1)}); $('#fb-urg-n').textContent='We read every report within 2 working days.'; $('#fb-urg-n').classList.remove('t-red'); hasVoice=false; $('#fb-rec span').textContent='Record a voice note'; f.hidden=false; $('#fb-ok').hidden=true; $('#fb-title').focus(); });
+})();
+</script>
+</body>
+</html>

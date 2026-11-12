@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My leads · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .head-links{display:flex;gap:6px}
+  #leads td{height:52px}
+  #leads .nm{display:flex;align-items:center;gap:10px}
+  #leads .t-sub{display:block;line-height:1.2}
+  #leads td,#leads th{padding:0 8px}
+  #leads td.next{max-width:214px;overflow:hidden;text-overflow:ellipsis}
+  #leads td.next .did{display:block;font-size:12px;font-weight:600;color:var(--green-ink);line-height:1.2;overflow:hidden;text-overflow:ellipsis}
+  #leads .row-actions{opacity:1}
+  #leads th[data-sort]{cursor:pointer;user-select:none}#leads th[data-sort].asc,#leads th[data-sort].desc{color:var(--ink)}
+  #leads th[data-sort].asc::after{content:" ↑"}#leads th[data-sort].desc::after{content:" ↓"}
+  .start-strip.locked .btn.primary{background:rgba(255,255,255,.12);box-shadow:none;color:#fff}
+  .tabs.pills{margin-bottom:12px}
+  .start-strip{display:flex;align-items:center;gap:14px;padding:12px 14px 12px 18px;border-radius:18px;background:var(--hero);color:#fff;margin-bottom:12px;box-shadow:var(--shadow-2)}
+  .start-strip b.big{font-size:15px;font-weight:680}.start-strip span.s{color:var(--hero-ink-2);font-size:13px}
+  .start-strip .bar{max-width:180px;background:rgba(255,255,255,.14)}.start-strip .bar>i{background:var(--accent)}
+  .pv-next{border-radius:14px;background:var(--surface-2);padding:12px 14px}
+  .pv-next.red{background:var(--red-soft);color:var(--red-ink)}
+</style>
+</head>
+<body data-page="my-leads" data-role="agent" data-sub="62 open · 12 to call today">
+<main>
+
+  <div class="page-head" style="margin-bottom:12px">
+    <div class="tabs pills" data-tabs id="tabs" style="margin:0">
+      <button class="tab on" data-tab="today">Today <span class="count">12</span></button>
+      <button class="tab" data-tab="new">New <span class="count">18</span></button>
+      <button class="tab" data-tab="overdue">Overdue <span class="count red">1</span></button>
+      <button class="tab" data-tab="nonext">No next step <span class="count">2</span></button>
+      <button class="tab" data-tab="vip">VIP <span class="count">1</span></button>
+      <button class="tab" data-tab="lost">Lost <span class="count">1</span></button>
+      <button class="tab" data-tab="all">All <span class="count">62</span></button>
+    </div>
+    <span class="grow"></span>
+    <div class="head-links">
+      <a class="btn sm ghost" href="incoming.html"><i data-icon="inbox"></i>Free leads <span class="badge">3</span></a>
+      <a class="btn sm ghost" href="pipeline.html"><i data-icon="columns"></i>Pipeline</a>
+    </div>
+  </div>
+
+  <!-- Start calling (Today tab only) -->
+  <div class="start-strip" id="start">
+    <span class="card-icon" style="background:rgba(255,255,255,.1);color:#fff"><i data-icon="phone"></i></span>
+    <div class="grow"><b class="big" id="start-b">12 leads are ready to call</b> <span class="s" id="start-s">· one at a time, VIP first · +15 points per call</span></div>
+    <span class="s nowrap">18 of 40 calls today</span><div class="bar" style="--v:45%"><i></i></div>
+    <a class="btn primary" href="calling.html" id="start-go"><i data-icon="phone"></i>Start calling · 12 ready</a>
+  </div>
+
+  <div class="filters" id="filters">
+    <div class="input-icon"><i data-icon="search"></i><input class="input sm" id="q" placeholder="Name, phone or project"></div>
+    <select class="select sm" id="f-stage"><option value="">Stage: all</option><option value="new">New</option><option value="called">Called</option><option value="interested">Interested</option><option value="meeting">Meeting</option><option value="offer">Offer</option></select>
+    <select class="select sm" id="f-proj"><option value="">Project: all</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option><option>Valia</option><option>Al Seef</option></select>
+    <span id="chips" style="display:contents"></span>
+    <button class="btn xs ghost hide" id="clear" data-clear-filters>Clear all</button>
+    <span class="grow"></span><span class="result-count" id="count"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table sticky" id="leads">
+      <thead><tr><th data-sort="n" data-tip="Sort by name">Lead</th><th>Phone</th><th data-sort="pr" data-tip="Sort by project">Project</th><th data-sort="s" data-tip="Sort by stage">Stage</th><th>Local time</th><th>Next step</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty hide" id="empty"><span class="ic"><i data-icon="users" class="i-xl"></i></span><b>No leads here</b><p id="empty-t">Nothing matches this list. Try another tab or clear the filters.</p><a class="btn sm" href="add-lead.html"><i data-icon="plus"></i>Add a new lead</a></div>
+    <div class="table-foot" id="foot"><span id="foot-t"></span><span class="grow"></span><button class="btn xs" id="more" data-toast="Demo: the other leads load here">Show more</button></div>
+  </div>
+</main>
+
+<!-- lead quick view -->
+<aside class="panel" id="lead-panel" aria-label="Lead">
+  <div class="panel-head"><h2 id="pv-name">Marco Bellini</h2><a class="btn sm" href="lead.html" id="pv-open">Open full page</a><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div>
+      <div class="phone-xl" id="pv-phone">+39 333 455 4821</div>
+      <div class="row gap-8 mt-8 wrap"><span class="chip" id="pv-stage">Interested</span><span class="vip-tag hide" id="pv-vip">VIP</span><span class="localtime"><i data-icon="clock"></i><span id="pv-time">Milan 11:55</span></span><span class="muted small">· with you</span></div>
+    </div>
+    <div class="btn-row"><button class="btn primary" id="pv-call"><i data-icon="phone"></i>Call</button><button class="btn" id="pv-wa"><i data-icon="whatsapp"></i>WhatsApp</button><button class="btn" id="pv-tg"><i data-icon="telegram"></i>Telegram</button></div>
+    <div class="pv-next" id="pv-next"><span class="sec-label" style="color:inherit;opacity:.75">Next step</span><b class="bold" id="pv-nx" style="display:block;margin-top:2px">Send payment plan · 15:30</b></div>
+    <dl class="kv">
+      <div class="kv-row" data-edit><dt>Project</dt><dd id="pv-proj">The Archive</dd></div>
+      <div class="kv-row" data-edit><dt>Unit · budget</dt><dd id="pv-d">2BR · AED 2M</dd></div>
+      <div class="kv-row"><dt>Speaks</dt><dd id="pv-lang">Italian, English</dd></div>
+      <div class="kv-row"><dt>Last contact</dt><dd id="pv-last">Today 10:30 · call, 4 min</dd></div>
+    </dl>
+    <div>
+      <span class="sec-label mb-8">Last note</span>
+      <p class="mt-8" id="pv-note">Wants the payment plan on WhatsApp. Compares with one project in Milan.</p>
+    </div>
+  </div>
+  <div class="panel-foot"><button class="btn" id="pv-tr"><i data-icon="swap"></i>Transfer</button><span class="grow"></span><a class="btn" href="lead.html#notes" id="pv-note-a"><i data-icon="edit"></i>Add note</a></div>
+</aside>
+
+<div class="menu" id="row-menu">
+  <a class="menu-item" href="lead.html" id="m-open"><i data-icon="external"></i>Open the lead</a>
+  <button class="menu-item" id="m-tg"><i data-icon="telegram"></i>Telegram</button>
+  <a class="menu-item" href="lead.html#notes" id="m-note"><i data-icon="edit"></i>Add note</a>
+  <a class="menu-item" href="tasks.html#follow-ups"><i data-icon="clock"></i>Plan a follow-up</a>
+  <div class="menu-sep"></div>
+  <button class="menu-item" id="m-tr"><i data-icon="swap"></i>Transfer to another agent</button>
+</div>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var TOTAL={today:12,'new':18,overdue:1,nonext:2,vip:1,lost:1,all:62}, tab='today', hot=false;
+  var EMPTY={overdue:'No overdue follow-ups. Well done.',vip:'No VIP lead right now. Owners give them from Incoming.',lost:'No lost leads.'};
+  var body=$('#leads tbody'), sortK='', sortD=1;
+  $('#leads thead').addEventListener('click',function(e){ var th=e.target.closest('th[data-sort]'); if(!th) return; var k=th.getAttribute('data-sort');
+    if(sortK===k&&sortD===1) sortD=-1; else if(sortK===k){ sortK=''; sortD=1; } else { sortK=k; sortD=1; }
+    $$('#leads th').forEach(function(x){ x.classList.remove('asc','desc'); }); if(sortK) th.classList.add(sortD===1?'asc':'desc'); render(); });
+
+  function row(l){
+    var m=LK.did(l.n);
+    var acts=l.p?'<button class="btn xs" data-call="'+l.n+'|'+l.p+'"><i data-icon="phone"></i>Call</button><button class="btn xs" data-msg="whatsapp|'+l.n+'|'+l.p+'"><i data-icon="whatsapp"></i>WhatsApp</button><button class="btn xs icon" data-menu="#row-menu" data-tip="More" data-lead="'+l.n+'"><i data-icon="more"></i></button>':'';
+    return '<tr data-lead="'+l.n+'" tabindex="0"><td><span class="nm"><span class="av sm" data-name="'+l.n+'"></span><span class="t-main">'+l.n+'</span>'+(l.vip?'<span class="vip-tag">VIP</span>':'')+'</span></td>'+
+      '<td class="t-mono">'+(l.p||'–')+'</td><td>'+l.pr+'<span class="t-sub">'+l.d+'</span></td>'+
+      '<td><span class="chip stage-'+l.s+'">'+LK.stage[l.s]+'</span></td>'+
+      '<td><span class="localtime"><i data-icon="clock"></i>'+l.c+' '+l.t+'</span></td>'+
+      '<td class="next'+(l.red&&!m?' overdue':l.none?' muted':'')+'" title="'+l.nx+'">'+l.nx+(m?'<span class="did">'+m.text+' · '+m.at+'</span>':'')+'</td>'+
+      '<td><div class="row-actions">'+acts+'</div></td></tr>';
+  }
+  function render(){
+    var q=$('#q').value.trim().toLowerCase(), qd=q.replace(/\D/g,''), st=$('#f-stage').value, pr=$('#f-proj').value;
+    var rows=LK.leads.filter(function(l){
+      if(tab==='all'){ if(l.s==='lost') return false; } else if((' '+l.tabs+' ').indexOf(' '+tab+' ')<0) return false;
+      if(hot && !/hot/.test(l.tabs)) return false;
+      if(st && l.s!==st) return false; if(pr && l.pr!==pr) return false;
+      if(q && (l.n+' '+l.pr+' '+l.d).toLowerCase().indexOf(q)<0 && !(qd.length>2 && l.p.replace(/\D/g,'').indexOf(qd)>-1)) return false;
+      return true;
+    });
+    if(sortK){ var ORD=['new','called','interested','meeting','offer','won','lost']; rows.sort(function(a,b){ var x=sortK==='s'?ORD.indexOf(a.s):a[sortK], y=sortK==='s'?ORD.indexOf(b.s):b[sortK]; return (x<y?-1:x>y?1:0)*sortD; }); }
+    body.innerHTML=rows.map(row).join(''); HM.refresh(body);
+    var filtered=q||st||pr||hot, total=filtered?rows.length:(hot?6:TOTAL[tab]);
+    $('#count').textContent=rows.length+(total>rows.length?' of '+total:'')+' lead'+(total===1?'':'s');
+    $('#foot-t').textContent=rows.length?'1–'+rows.length+' of '+total:'';
+    $('#more').classList.toggle('hide',total<=rows.length);
+    $('#empty').classList.toggle('hide',rows.length>0); $('#leads').classList.toggle('hide',!rows.length); $('#foot').classList.toggle('hide',!rows.length);
+    $('#empty-t').textContent=filtered?'Nothing matches. Clear the filters or try another name.':(EMPTY[tab]||'Nothing in this list.');
+    $('#start').classList.toggle('hide',tab!=='today');
+    var chips='';
+    if(hot) chips+='<span class="filter-chip" data-f="hot">Hot leads <button aria-label="Remove">×</button></span>';
+    if(st) chips+='<span class="filter-chip" data-f="stage">Stage: '+LK.stage[st]+' <button aria-label="Remove">×</button></span>';
+    if(pr) chips+='<span class="filter-chip" data-f="proj">Project: '+pr+' <button aria-label="Remove">×</button></span>';
+    $('#chips').innerHTML=chips; $('#clear').classList.toggle('hide',!chips);
+  }
+  $('#tabs').addEventListener('hm:tab',function(e){ tab=e.detail.value; render(); });
+  $('#q').addEventListener('input',render); $('#f-stage').addEventListener('change',render); $('#f-proj').addEventListener('change',render);
+  $('#filters').addEventListener('click',function(e){
+    var x=e.target.closest('.filter-chip button'), c=x&&x.closest('.filter-chip'); 
+    if(c){ var f=c.getAttribute('data-f'); if(f==='hot') hot=false; if(f==='stage') $('#f-stage').value=''; if(f==='proj') $('#f-proj').value=''; setTimeout(render,0); }
+    if(e.target.closest('[data-clear-filters]')){ hot=false; $('#f-stage').value=''; $('#f-proj').value=''; $('#q').value=''; setTimeout(render,0); }
+  },true);
+  function fromHash(){
+    if(location.hash==='#hot'){ hot=true; tab='all'; $$('#tabs .tab').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-tab')==='all'); }); }
+    else { var h=location.hash.slice(1); if(TOTAL[h]){ tab=h; hot=false; } }
+    render();
+  }
+  window.addEventListener('hashchange',fromHash); fromHash();
+
+  /* Start calling is locked until the agent is checked in */
+  function lock(){ var out=LK.checkedOut(); $('#start').classList.toggle('locked',out);
+    $('#start-b').textContent=out?'Check in to start calling':'12 leads are ready to call'; $('#start-s').textContent=out?'· 12 leads wait for you · calls before check-in are marked':'· one at a time, VIP first · +15 points per call';
+    $('#start-go').innerHTML=out?HM.icon('lock')+'Check in first':HM.icon('phone')+'Start calling · 12 ready'; $('#start-go').href=out?'attendance.html':'calling.html'; $$('#start-go svg').forEach(function(x){ x.style.cssText='width:16px;height:16px'; }); }
+  lock(); document.addEventListener('lk:checkin',lock);
+  /* the list remembers what you just did */
+  ['lk:call','lk:msg','lk:outcome','lk:outcome-undo'].forEach(function(ev){ document.addEventListener(ev,function(e){ render(); if(cur&&e.detail&&e.detail.name===cur.n) last(cur); }); });
+
+  /* side panel */
+  var NOTES={'Marco Bellini':'Wants the payment plan on WhatsApp. Compares with one project in Milan.','Khalid Al Mansoori':'From Emir: “Serious, wants to see the show flat this week. Call him in English.”','Sara Nunes':'Asked to call back about the villa. Husband decides with her.'};
+  var cur=null, LAST={'Marco Bellini':'Today 10:30 · call, 4 min','Sara Nunes':'Mon 9 Nov · call, 2 min','Omar Khalil':'Today 12:00 · meeting in the office','Hanna Alabbas':'Today 09:40 · no answer','Tom Becker':'Tue 3 Nov · call'};
+  function last(l){ var m=LK.did(l.n); $('#pv-last').textContent=m?'Today '+m.at+' · '+m.text:l.s==='new'?'Not called yet':(LAST[l.n]||'Yesterday · call'); }
+  function openLead(name){
+    var l=LK.lead(name); if(!l) return; cur=l;
+    $('#pv-name').textContent=l.n; $('#pv-phone').textContent=l.p||'No phone'; $('#pv-stage').className='chip stage-'+l.s; $('#pv-stage').textContent=LK.stage[l.s];
+    $('#pv-vip').classList.toggle('hide',!l.vip); $('#pv-time').textContent=l.c+' '+l.t; $('#pv-nx').textContent=l.nx; $('#pv-next').classList.toggle('red',!!l.red);
+    $('#pv-proj').textContent=l.pr; $('#pv-d').textContent=l.d; $('#pv-lang').textContent=l.lang; last(l);
+    $('#pv-open').href=LK.url(l.n); $('#pv-note-a').href=LK.url(l.n)+'#notes';
+    ['#pv-call','#pv-wa','#pv-tg'].forEach(function(id){ $(id).classList.toggle('disabled',!l.p); $(id).disabled=!l.p; });
+    $('#pv-tr').classList.toggle('hide',l.s==='lost');
+    $('#pv-note').textContent=NOTES[l.n]||(l.s==='new'?'No notes yet.':l.nx+'.');
+    HM.open('#lead-panel');
+  }
+  body.addEventListener('click',function(e){ if(e.target.closest('button,a,input')) return; var tr=e.target.closest('tr'); if(tr) openLead(tr.getAttribute('data-lead')); });
+  body.addEventListener('keydown',function(e){ var tr=e.target.closest('tr'); if(!tr) return;
+    if(e.key==='Enter') openLead(tr.getAttribute('data-lead'));
+    if(e.key==='ArrowDown'&&tr.nextElementSibling){ tr.nextElementSibling.focus(); e.preventDefault(); }
+    if(e.key==='ArrowUp'&&tr.previousElementSibling){ tr.previousElementSibling.focus(); e.preventDefault(); } });
+  $('#pv-call').addEventListener('click',function(){ LK.call(cur.n,cur.p); });
+  $('#pv-wa').addEventListener('click',function(){ LK.message('whatsapp',cur.n,cur.p); });
+  $('#pv-tg').addEventListener('click',function(){ LK.message('telegram',cur.n,cur.p); });
+  $('#pv-tr').addEventListener('click',function(){ LK.transfer(cur.n); });
+
+  /* row menu */
+  var menuLead='';
+  document.addEventListener('click',function(e){ var b=e.target.closest('[data-menu="#row-menu"]'); if(b){ menuLead=b.getAttribute('data-lead'); $('#m-open').href=LK.url(menuLead); $('#m-note').href=LK.url(menuLead)+'#notes'; } },true);
+  $('#m-tg').addEventListener('click',function(){ var l=LK.lead(menuLead); LK.message('telegram',l.n,l.p); });
+  $('#m-tr').addEventListener('click',function(){ LK.transfer(menuLead); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Automations · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.card.hero.take{gap:18px;padding:26px}
+.tb-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;transition:opacity .2s}
+.tb-grid.off,.tb-grid.off~.tb-clock{opacity:.35;pointer-events:none}
+.tb-box{background:var(--hero-2);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 0 0 1px var(--hero-line)}
+.tb-num{display:flex;align-items:baseline;gap:8px}.tb-num b{font-size:60px;font-weight:750;letter-spacing:-.05em;line-height:1}.tb-num span{font-size:17px;color:var(--hero-ink-2);font-weight:600}
+.card.hero .chip-opt{background:rgba(255,255,255,.07);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.card.hero .chip-opt:hover{background:rgba(255,255,255,.14)}
+.card.hero .chip-opt.on{background:var(--accent);color:#fff;box-shadow:none}
+.tb-clock{display:flex;gap:12px;align-items:flex-start;color:var(--hero-ink-2)}
+.tb-clock b{color:#fff;font-weight:620}
+.tb-day{display:flex;gap:3px;height:10px;margin:10px 0 6px}
+.tb-day span{border-radius:5px;position:relative}.tb-day .off{background:repeating-linear-gradient(135deg,rgba(255,255,255,.16) 0 4px,transparent 4px 8px)}
+.tb-day .onn{background:var(--green)}.tb-day em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;border-radius:2px}
+.tb-say{font-size:15px;line-height:1.5;color:#fff;padding-top:16px;border-top:1px solid var(--hero-line)}
+.tb-say b{color:var(--accent)}
+.card.hero .vip-tag{flex:none}
+</style>
+</head>
+<body data-page="automations" data-role="owner">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" class="on" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Automations</h1><p>Rules the CRM runs by itself, so no lead is forgotten.</p></div></div>
+<section class="card hero take">
+  <div class="row gap-16 top"><span class="arow-ic accent" style="width:44px;height:44px;border-radius:14px"><i data-icon="undo"></i></span>
+    <div class="grow"><h2>Take-back rule</h2><p class="muted small mt-4">A lead that nobody calls goes back to Incoming, and you are told.</p></div>
+    <label class="switch" style="color:#fff"><input type="checkbox" id="tb-on" checked><span class="track"></span><span id="tb-on-l">On</span></label></div>
+  <div class="tb-grid" id="tb-grid">
+    <div class="tb-box">
+      <div class="row gap-8"><span class="vip-tag">VIP</span><b>VIP lead</b></div>
+      <div class="tb-num"><b id="tb-vip-n">30</b><span id="tb-vip-u">min</span></div>
+      <div class="chips" data-chips id="tb-vip"><button class="chip-opt">15 min</button><button class="chip-opt on">30 min</button><button class="chip-opt">1 hour</button><button class="chip-opt">2 hours</button></div>
+      <p class="small muted">The agent sees a live countdown and gets a warning 10 min before the end.</p>
+    </div>
+    <div class="tb-box">
+      <div class="row gap-8"><i data-icon="upload"></i><b>Imported lead</b></div>
+      <div class="tb-num"><b id="tb-imp-n">24</b><span id="tb-imp-u">hours</span></div>
+      <div class="chips" data-chips id="tb-imp"><button class="chip-opt">4 hours</button><button class="chip-opt on">24 hours</button><button class="chip-opt">48 hours</button><button class="chip-opt">72 hours</button></div>
+      <p class="small muted">Counted in working time. The agent sees the day and hour on the lead, like “goes back tomorrow 09:00”.</p>
+    </div>
+  </div>
+  <div class="tb-clock"><i data-icon="clock"></i><div class="grow"><b>The clock stops outside 09:00 – 18:00</b><div class="tb-day"><span class="off" style="flex:9"></span><span class="onn" style="flex:9"><em style="left:66%"></em></span><span class="off" style="flex:6"></span></div><div class="row between tiny"><span>00:00</span><span style="margin-left:6%">09:00 · clock runs</span><span style="margin-right:10%">18:00 · clock stops</span><span>24:00</span></div></div></div>
+  <p class="tb-say" id="tb-say"></p>
+</section>
+<section class="card">
+  <div class="card-head"><h3>Taken back today</h3><a class="card-link" href="incoming.html">Open Incoming <i data-icon="arrow-right" class="i-sm"></i></a></div>
+  <div class="divide">
+    <a class="list-row" href="incoming.html"><span class="card-icon accent"><i data-icon="crown"></i></span><span class="grow"><b class="bold">Omar Khan</b> <span class="vip-tag">VIP</span><div class="small muted">Shahrukhz · Bassam did not call in 30 min</div></span><span class="small muted">14:50</span><span class="chip red pip">Waits 11 min</span></a>
+    <a class="list-row" href="incoming.html"><span class="card-icon"><i data-icon="upload"></i></span><span class="grow"><b class="bold">Lina Rahimi</b><div class="small muted">Damac Islands · import · Shan did not call in 24 h</div></span><span class="small muted">14:13</span><span class="chip amber pip">Waits 42 min</span></a>
+  </div>
+</section>
+<section class="card"><div class="card-head"><h4 class="grow">Leads</h4><span class="small muted" data-oncount></span></div><div><div class="switch-row"><div class="txt"><b>Warn the agent before a lead goes back</b><span>10 min before for a VIP lead, 1 hour before for an imported lead</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Mark leads as “going cold”</b><span>No call, no message and no plan for 7 days · 12 leads now</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Ask “What happened?” after WhatsApp or Telegram</b><span>The agent must answer. Open ones show on My Day and in the messaging report.</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">Follow-ups and meetings</h4><span class="small muted" data-oncount></span></div><div><div class="switch-row"><div class="txt"><b>Remind the agent when a follow-up is due</b><span>At the planned time, and again after 1 hour</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Remind 2 hours before a meeting</b><span>Agent only. The client message is ready, the agent presses send.</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Ask “How did it go?” after each meeting</b><span>Answer before 21:00. Owners see who did not answer.</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Red flag after 2 no-shows</b><span>Cancelled is not a no-show</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">Attendance</h4><span class="small muted" data-oncount></span></div><div><div class="switch-row"><div class="txt"><b>Check-in reminder at 09:00</b><span>Only on working days, only if not checked in</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Mark late after 09:10</b><span>The agent can write a reason</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Tell owners about an absent agent at 10:00</b><span>No check-in and no leave</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Ask “Are you back in the office?”</b><span>Asked once at the back-by time</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section>
+<p class="small muted">Times come from <a class="link" href="settings-attendance.html">Attendance rules</a>. Every change here is saved at once and written in the activity log.</p>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function val(id){ return $(id+' .on').textContent.trim(); }
+  function say(){ var v=val('#tb-vip'), m=val('#tb-imp'), on=$('#tb-on').checked;
+    $('#tb-vip-n').textContent=v.split(' ')[0]; $('#tb-vip-u').textContent=v.split(' ')[1]; $('#tb-imp-n').textContent=m.split(' ')[0]; $('#tb-imp-u').textContent=m.split(' ')[1];
+    $('#tb-grid').classList.toggle('off',!on); $('#tb-on-l').textContent=on?'On':'Off';
+    var h=+m.split(' ')[0], days=Math.ceil(h/9);
+    $('#tb-say').innerHTML = on ? 'A VIP lead not called in <b>'+v+'</b> goes back to Incoming and you get an alert. An imported lead not called in <b>'+m+'</b> of working time'+(h>9?' (about '+days+' working days)':'')+' goes back too. Notes and history stay with the lead.'
+      : 'Take-back is <b>off</b>. Leads stay with the agent even when nobody calls them.'; }
+  $('#tb-vip').addEventListener('hm:change',function(){ say(); HM.toast('VIP leads go back after '+val('#tb-vip')); });
+  $('#tb-imp').addEventListener('hm:change',function(){ say(); HM.toast('Imported leads go back after '+val('#tb-imp')); });
+  var tb=$('#tb-on'); tb.addEventListener('click',function(e){ if(!tb.checked && !tb._ok){ e.preventDefault(); tb._ok=1; HM.toast('Tap again to turn take-back off. Uncalled leads will stay with agents.'); setTimeout(function(){ tb._ok=0; },4000); return; } tb._ok=0; setTimeout(function(){ say(); HM.toast(tb.checked?'Take-back is on':'Take-back is off'); },0); });
+  function counts(){ $$('[data-oncount]').forEach(function(c){ var b=[].slice.call(c.closest('.card').querySelectorAll('.switch input')); c.textContent=b.filter(function(x){return x.checked}).length+' of '+b.length+' on'; }); }
+  $$('.set-body > .card:not(.hero) .switch input').forEach(function(i){ i.addEventListener('change',function(){ counts(); HM.toast(i.closest('.switch-row').querySelector('b').textContent+(i.checked?' · on':' · off')); }); });
+  say(); counts();
+})();
+</script>
+</body>
+</html>

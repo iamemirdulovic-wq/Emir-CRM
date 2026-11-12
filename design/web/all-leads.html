@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>All leads · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .lead-tabs{margin:6px 0 12px}
+  #leads td.t-act{position:relative;width:300px;max-width:300px}
+  #leads td.t-act .next{display:block;overflow:hidden;text-overflow:ellipsis}
+  .filters[hidden],.sel-all[hidden],.empty[hidden]{display:none}
+  #leads td.t-act .row-actions{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--surface-2);padding-left:10px;box-shadow:-16px 0 14px -4px var(--surface-2)}
+  #leads tr.selected td.t-act .row-actions{background:var(--accent-soft);box-shadow:-16px 0 14px -4px var(--accent-soft)}
+  #leads td.nm{max-width:210px}
+  #leads th.sorted{color:var(--ink)}
+  .sel-all{display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 12px;margin:2px 4px 6px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink);font-size:13px;font-weight:560}
+  .sel-all button{font-weight:700;text-decoration:underline;text-underline-offset:3px;color:inherit}
+  .who-list{display:flex;flex-wrap:wrap;gap:6px}
+  .p-top{display:flex;flex-direction:column;gap:8px}
+  .p-acts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
+</style>
+</head>
+<body data-page="all-leads" data-role="owner" data-sub="863 leads · every agent">
+<main>
+
+  <!-- quick tabs -->
+  <div class="tabs pills lead-tabs" id="qtabs">
+    <button class="tab on" data-q="all">All <span class="count">863</span></button>
+    <button class="tab" data-q="cold">Going cold <span class="count">12</span></button>
+    <button class="tab" data-q="overdue">Overdue <span class="count red">9</span></button>
+    <button class="tab" data-q="nonext">No next step <span class="count">31</span></button>
+    <button class="tab" data-q="vip">VIP <span class="count">5</span></button>
+    <button class="tab" data-q="lost">Lost <span class="count">50</span></button>
+  </div>
+
+  <!-- filters: one row -->
+  <div class="filters" id="filters">
+    <div class="input-icon" style="width:220px"><i data-icon="search"></i><input class="input sm" id="f-q" placeholder="Search in this list" aria-label="Search in this list"></div>
+    <select class="select sm" id="f-agent" data-k="Agent" aria-label="Agent" style="width:auto"></select>
+    <select class="select sm" id="f-stage" data-k="Stage" aria-label="Stage" style="width:auto"><option value="">Stage: all</option><option>New</option><option>Called</option><option>Interested</option><option>Meeting</option><option>Offer</option><option>Won</option><option>Lost</option></select>
+    <select class="select sm" id="f-project" data-k="Project" aria-label="Project" style="width:auto"><option value="">Project: all</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option><option>Valia</option><option>Al Seef</option></select>
+    <select class="select sm" id="f-source" data-k="Source" aria-label="Source" style="width:auto"><option value="">Source: all</option><option>Import (Excel)</option><option>Referral</option><option>Social media</option><option>My own call</option><option>Walk-in</option><option>Event / expo</option><option>Owner's contact</option><option>Email to owner</option><option>Old client</option></select>
+    <select class="select sm" id="f-date" data-k="Added" aria-label="Added" style="width:auto"><option value="">Added: any time</option><option>Today</option><option>This week</option><option>This month</option></select>
+    <span class="grow"></span><span class="result-count" id="count">863 leads</span>
+    <button class="btn sm" id="export"><i data-icon="download"></i>Export</button>
+  </div>
+  <div class="filters" id="chips" hidden>
+    <span id="chip-box" class="row gap-8 wrap"></span>
+    <button class="btn xs ghost" data-clear-filters>Clear all</button>
+  </div>
+
+  <!-- table -->
+  <div class="table-wrap">
+    <div class="sel-all" id="sel-all" hidden></div>
+    <table class="table sticky" id="leads" data-select>
+      <thead><tr>
+        <th class="t-check"><label class="check"><input type="checkbox" data-select-all aria-label="Select all on this page"></label></th>
+        <th data-sort="0">Lead</th><th>Phone</th><th data-sort="2">Project</th><th data-sort="3">Stage</th><th data-sort="4">Agent</th><th data-sort="5">Last contact</th><th>Attention · next step</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="none" hidden><span class="ic"><i data-icon="search" class="i-xl"></i></span><b>No lead fits these filters</b><p>Take one filter away, or clear them all.</p><button class="btn sm" data-clear-all>Clear all filters</button></div>
+    <div class="table-foot"><span id="foot">1–50 of 863</span><span class="small muted" id="foot-note">· 50 per page</span><span class="grow"></span><button class="btn xs" disabled>Previous</button><button class="btn xs" id="next" data-toast="Demo: only the first page is drawn">Next</button></div>
+  </div>
+
+  <!-- dark bulk bar -->
+  <div class="bulkbar" data-bulk="#leads"><b><span data-bulk-count>0</span> selected</b><button class="btn sm on-dark primary" id="bulk-move"><i data-icon="swap"></i>Move to agent</button><button class="btn sm on-dark" id="bulk-inc"><i data-icon="inbox"></i>Move to Incoming</button><button class="btn sm on-dark" data-bulk-cancel>Cancel</button></div>
+</main>
+
+<!-- row menu -->
+<div class="menu" id="row-menu">
+  <a class="menu-item" href="lead.html"><i data-icon="external"></i>Open full page</a>
+  <button class="menu-item" id="m-give"><i data-icon="swap"></i>Give to another agent</button>
+  <button class="menu-item" id="m-inc"><i data-icon="inbox"></i>Move to Incoming</button>
+</div>
+
+<!-- lead side panel · 480 px -->
+<aside class="panel" id="lead-panel" aria-label="Lead">
+  <div class="panel-head"><h2 id="p-name">Lead</h2><a class="btn sm" href="lead.html"><i data-icon="external"></i>Open full page</a><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="p-top">
+      <div class="phone-big" id="p-phone"></div>
+      <div class="row gap-8 wrap" id="p-meta"></div>
+    </div>
+    <div class="banner" id="p-att"><i data-icon="clock"></i><span class="grow" id="p-next"></span></div>
+    <div class="p-acts">
+      <a class="btn primary" id="p-call" href="tel:"><i data-icon="phone"></i>Call</a>
+      <button class="btn" data-toast="WhatsApp opens on your phone · this tap is logged"><i data-icon="whatsapp"></i>WhatsApp</button>
+      <button class="btn" data-toast="Telegram opens on your phone · this tap is logged"><i data-icon="telegram"></i>Telegram</button>
+    </div>
+    <dl class="kv">
+      <div class="kv-row" data-edit><dt>Project</dt><dd id="p-project"></dd></div>
+      <div class="kv-row" data-edit><dt>Budget</dt><dd id="p-budget"></dd></div>
+      <div class="kv-row"><dt>Agent</dt><dd id="p-agent"></dd></div>
+      <div class="kv-row"><dt>Last contact</dt><dd id="p-last"></dd></div>
+      <div class="kv-row"><dt>Source</dt><dd id="p-source"></dd></div>
+      <div class="kv-row"><dt>Lead #</dt><dd id="p-id"></dd></div>
+    </dl>
+    <div>
+      <h4 class="mb-8">Latest on the timeline</h4>
+      <div class="timeline" id="p-tl"></div>
+    </div>
+  </div>
+  <div class="panel-foot"><button class="btn" id="p-give"><i data-icon="swap"></i>Give to another agent</button><span class="grow"></span><button class="btn ghost" data-close>Close</button></div>
+</aside>
+
+<!-- "Move N leads" panel · asks twice -->
+<aside class="panel" id="move-panel" aria-label="Move leads">
+  <div class="panel-head"><h2 id="mv-title">Move 3 leads</h2><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="who-list" id="mv-who"></div>
+    <div class="banner"><i data-icon="info"></i><span class="grow">Notes and history go with them. The new agent gets one notification.</span></div>
+    <div>
+      <div class="row mb-8"><h4 class="grow">Move to</h4><span class="small muted">fewest open leads first</span></div>
+      <div class="opt-list" data-chips id="mv-to"></div>
+    </div>
+  </div>
+  <div class="panel-foot"><button class="btn ghost" data-close>Cancel</button><span class="grow"></span><button class="btn primary disabled" id="mv-go">Choose where they go</button></div>
+</aside>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+
+  /* ---- people ---- */
+  var AG=[['Tej','office',11,'English, Hindi, Punjabi'],['Olga','office',12,'English, Russian'],['Rocky','office',14,'English, Arabic, Hindi'],['Srdjan','office',16,'English, Serbian'],['Yuliia','office',18,'English, Russian, Ukrainian'],['Talha','office',22,'English, Urdu, Hindi'],['Nelson','outside',9,'Outside until 16:00'],['Shan','late',57,'Above the desk maximum (50)'],['Sultan','leave',31,'On leave 10–11 Nov'],['Bassam','absent',44,'Absent today']];
+  var ST={}; AG.forEach(function(a){ST[a[0]]=a[1]});
+  $('#f-agent').innerHTML='<option value="">Agent: all</option>'+['Talha','Rocky','Yuliia','Olga','Srdjan','Tej','Shan','Nelson','Sultan','Bassam','Incoming'].map(function(n){return '<option>'+n+'</option>'}).join('');
+
+  /* ---- leads: name, phone, project, stage, agent, last contact, next step / attention, flags, source, added(0 today,1 week,2 month,3 older), budget ---- */
+  // flags: v VIP · o overdue · c going cold · n no next step · u untouched · r red text
+  var L=[
+    ['Khalid Al Mansoori','+971 50 555 0101','The Archive','New','Rocky','Not yet','VIP · call within 24 min','vr','Email to owner',0,'AED 2.5M · 2BR'],
+    ['Omar Khan','+971 50 555 0188','Shahrukhz','New','Incoming','Not yet','VIP · came back from Bassam · waits 11 min','vr',"Owner's contact",0,'Not said'],
+    ['Lina Rahimi','+971 55 555 0142','Damac Islands','New','Incoming','Not yet','Waits 42 min · Shan did not call in 24 h','ur','Import (Excel)',1,'Not said'],
+    ['Kevin Brooks','+44 7700 900 782','The Archive','New','Incoming','Not yet','Waits 16 min · added by Abdullah','u','Walk-in',0,'Not said'],
+    ['Sara Nunes','+351 91 234 5678','Damac Islands','Called','Rocky','Yesterday','Follow-up overdue since 11:00','or','Social media',1,'Villa'],
+    ['Marco Bellini','+39 333 455 4821','The Archive','Interested','Rocky','Today 10:30','Send payment plan · 15:30','','Referral',1,'AED 2M · 2BR'],
+    ['Priya Shah','+91 98765 43210','Valia','Interested','Rocky','Today 09:40','Call after her meeting · 16:00','','Event / expo',2,'AED 1.4M · 1BR'],
+    ['Lucas Martin','+33 6 12 34 56 78','The Archive','Interested','Rocky','Yesterday','Site visit · today 16:30','','Referral',2,'AED 2.5M · 3BR'],
+    ['Omar Khalil','+971 50 222 3344','Valia','Meeting','Rocky','Today 12:00','Transfer to Yuliia waits for your approval','','Walk-in',2,'2BR'],
+    ['Daniel Rossi','+39 320 555 0144','Valia','Called','Nelson','Today 11:20','VIP · called · send the location','v',"Owner's contact",0,'AED 1.8M'],
+    ['Aisha Noor','+971 52 555 0177','The Archive','Meeting','Talha','Yesterday','VIP · meeting Thu 15:00','v',"Owner's contact",1,'AED 3M · 3BR'],
+    ['Elena Kuznetsova','+7 912 345 67 89','Damac Islands','Offer','Yuliia','Yesterday','VIP · follow-up tomorrow','v','Email to owner',2,'AED 4.1M'],
+    ['Farid Sultani','+971 50 555 0163','Damac Islands','Won','Talha','Today 13:10','Unit booked today · AED 2.9M','','Referral',2,'AED 2.9M'],
+    ['Ahmed Hassan','+966 50 123 4567','Shahrukhz','Called','Rocky','Mon 9 Nov','Best time in KSA · 19:00','','My own call',1,'1BR'],
+    ['Sami Najahi','+971 50 410 2233','The Archive','New','Rocky','Not yet','Goes back tomorrow 09:00','ur','Import (Excel)',1,'Not said'],
+    ['Neil Smith','+44 7700 900 123','Shahrukhz','New','Rocky','Not yet','Goes back tomorrow 09:00','ur','Import (Excel)',1,'Not said'],
+    ['Parvez Hossain','+880 17 1234 5678','The Archive','New','Rocky','Not yet','Not called yet','u','Import (Excel)',1,'Not said'],
+    ['Hanna Alabbas','+971 55 320 7788','The Archive','Called','Rocky','Fri 6 Nov','No answer twice','','Walk-in',2,'2BR'],
+    ['Dave Patel','+44 7700 900 456','Shahrukhz','Called','Rocky','Thu 5 Nov','Wants the floor plan first','','Social media',2,'2BR'],
+    ['Vanessa Pecoraro','+39 347 111 2222','Al Seef','Called','Rocky','Fri 6 Nov','No next step','n','Old client',2,'1BR'],
+    ['Bridget Cardoso','+351 91 220 1188','The Archive','Interested','Rocky','Thu 5 Nov','No next step','n','Social media',2,'2BR'],
+    ['Fatima Al Zaabi','+971 56 555 0120','The Archive','Called','Yuliia','Yesterday','Transfer to Rocky · answer by 18:00','','Referral',1,'Not said'],
+    ['Dmitri Volkov','+7 916 555 0131','Damac Islands','Interested','Yuliia','Mon 9 Nov','Follow-up overdue since yesterday','or','Referral',2,'AED 3.2M'],
+    ['Ivan Petrov','+7 903 555 0119','Damac Islands','Offer','Olga','Yesterday','Offer ends Friday','','Social media',2,'AED 2.8M'],
+    ['Jelena Markovic','+381 64 555 0107','Shahrukhz','Meeting','Srdjan','Today 11:05','Meeting tomorrow 11:00','','Referral',2,'AED 1.3M'],
+    ['Arjun Mehta','+91 98200 55501','Shahrukhz','Called','Tej','Today 12:40','Call back tomorrow 11:00','','My own call',1,'1BR'],
+    ['Yousef Al Hammadi','+971 50 555 0111','The Archive','Called','Shan','Fri 6 Nov','Follow-up overdue since Monday','or','Import (Excel)',2,'2BR'],
+    ['Bilal Ahmed','+92 300 555 0121','Shahrukhz','Called','Shan','Thu 5 Nov','Follow-up overdue since Monday','or','Import (Excel)',2,'Studio'],
+    ['Faisal Noor','+971 55 555 0135','Valia','Interested','Shan','Mon 9 Nov','Follow-up overdue since 10:00','or','Event / expo',2,'AED 1.5M'],
+    ['Mariam Saleh','+971 52 555 0148','Damac Islands','Interested','Shan','Mon 2 Nov','No contact for 9 days','cn','Import (Excel)',3,'Villa'],
+    ['Imran Sheikh','+92 321 555 0152','The Archive','Called','Shan','Tue 3 Nov','No contact for 8 days','cn','Import (Excel)',3,'1BR'],
+    ['Zainab Raza','+971 54 555 0166','Shahrukhz','Called','Shan','Wed 4 Nov','No contact for 7 days','cn','Social media',3,'1BR'],
+    ['Hassan Qureshi','+971 50 555 0172','Shahrukhz','Called','Bassam','Mon 9 Nov','Follow-up overdue since yesterday','or','Import (Excel)',2,'2BR'],
+    ['Rania Khoury','+961 3 555 018','The Archive','Interested','Bassam','Fri 6 Nov','Follow-up overdue since Monday','or','Referral',2,'AED 2.2M'],
+    ['Sameer Jaber','+962 79 555 0193','Damac Islands','Called','Bassam','Thu 5 Nov','Follow-up overdue since Monday','or','Import (Excel)',2,'Not said'],
+    ['Layla Farouk','+20 100 555 0104','The Archive','Called','Bassam','Sat 31 Oct','No contact for 11 days','cnr','Import (Excel)',3,'Not said'],
+    ['George Haddad','+961 70 555 015','Valia','Called','Bassam','Mon 2 Nov','No contact for 9 days','cn','Walk-in',3,'1BR'],
+    ['Nadia Karim','+971 56 555 0127','Shahrukhz','Interested','Bassam','Tue 3 Nov','No contact for 8 days','cn','Import (Excel)',3,'AED 1.2M'],
+    ['Walid Aziz','+971 50 555 0139','The Archive','Called','Bassam','Wed 4 Nov','No contact for 7 days','cn','Import (Excel)',3,'2BR'],
+    ['Noura Al Ketbi','+971 50 555 0145','The Archive','Called','Sultan','Mon 9 Nov','Follow-up overdue since yesterday · agent on leave','or','Referral',2,'2BR'],
+    ['Rashid Al Nuaimi','+971 55 555 0158','Valia','Interested','Sultan','Tue 3 Nov','No contact for 8 days · agent on leave','cn','Event / expo',3,'AED 1.6M'],
+    ['Huda Al Marri','+974 55 555 016','Damac Islands','Called','Sultan','Mon 2 Nov','No contact for 9 days','cn','Import (Excel)',3,'Villa'],
+    ['Khalifa Bin Saeed','+971 50 555 0170','The Archive','Called','Sultan','Tue 3 Nov','No contact for 8 days','cn','Import (Excel)',3,'3BR'],
+    ['Salma Idris','+249 91 555 0183','Shahrukhz','Called','Sultan','Wed 4 Nov','No contact for 7 days','cn','Import (Excel)',3,'1BR'],
+    ['Tariq Mansour','+971 52 555 0196','Shahrukhz','Interested','Sultan','Wed 4 Nov','No contact for 7 days','cn','Social media',3,'AED 1.3M'],
+    ['Tom Becker','–','Shahrukhz','Lost','Rocky','Mon 2 Nov','Budget too low · try again in Feb 2027','','Social media',3,'Under AED 700K']
+  ];
+  var TOTAL={all:863,cold:12,overdue:9,nonext:31,vip:5,lost:50,untouched:86};
+  /* totals behind one filter, so a number on a dashboard opens a list with the same number */
+  var AGT={Talha:22,Rocky:14,Yuliia:18,Olga:12,Srdjan:16,Tej:11,Shan:57,Nelson:9,Sultan:31,Bassam:44,Incoming:3};
+  var KNOWN={'f-stage':{New:456,Called:214,Interested:96,Meeting:31,Offer:12,Won:4,Lost:50},
+    'f-project':{'The Archive':115,'Shahrukhz':64,'Damac Islands':52,'Valia':28},
+    'f-source':{'Import (Excel)':498,'Referral':96,'Social media':84,'My own call':61,'Walk-in':47,'Event / expo':39,"Owner's contact":22,'Old client':16},
+    'f-date':{'Today':27,'This week':70,'This month':202}};
+  var NN={Sultan:12,Bassam:9,Shan:6,Rocky:2,Yuliia:1,Nelson:1}; // no next step, by agent = 31
+  function known(n){
+    var act=sels.filter(function(s){return s.value}), ex=state.extra, q=state.q, v;
+    if($('#f-q').value.trim()) return n;
+    if(!act.length&&!ex) return TOTAL[q];
+    if(!act.length&&q==='all') return ex==='untouched'?86:809;
+    if(act.length===1&&!ex){
+      var s=act[0];
+      if(q==='all') v=s.id==='f-agent'?AGT[s.value]:(KNOWN[s.id]||{})[s.value];
+      else if(q==='nonext'&&s.id==='f-agent') v=NN[s.value];
+    }
+    return Math.max(n,v||0);
+  }
+  var body=$('#leads tbody');
+  function agentCell(a){return a==='Incoming'?'<span class="chip red pip">Incoming</span>':'<span class="person"><span class="av sm" data-name="'+a+'" data-status="'+(ST[a]||'office')+'"></span>'+a+'</span>'}
+  body.innerHTML=L.map(function(l,i){
+    var tel=l[1]==='–'?'':'tel:'+l[1].replace(/\s/g,''), red=l[7].indexOf('r')>-1;
+    return '<tr data-open="#lead-panel" data-i="'+i+'"><td class="t-check"><label class="check"><input type="checkbox" aria-label="Select '+esc(l[0])+'"></label></td>'+
+      '<td class="nm"><span class="t-main">'+esc(l[0])+'</span>'+(l[7].indexOf('v')>-1?' <span class="vip-tag">VIP</span>':'')+'</td>'+
+      '<td class="t-mono">'+l[1]+'</td><td>'+l[2]+'</td><td><span class="chip stage-'+l[3].toLowerCase()+'">'+l[3]+'</span></td>'+
+      '<td class="ag">'+agentCell(l[4])+'</td><td class="t-sub">'+l[5]+'</td><td class="t-act'+(red?' overdue':'')+'"><span class="next" title="'+esc(l[6])+'">'+esc(l[6])+'</span><div class="row-actions">'+(tel?'<a class="btn xs" href="'+tel+'" data-toast="Call logged · '+esc(l[0])+'"><i data-icon="phone"></i>Call</a>':'')+'<button class="btn xs" data-toast="WhatsApp opens on your phone · this tap is logged"><i data-icon="whatsapp"></i>WhatsApp</button><button class="btn xs icon" data-menu="#row-menu" data-tip="More" aria-label="More"><i data-icon="more"></i></button></div></td></tr>';
+  }).join('');
+  HM.refresh(body);
+  var rows=$$('tr',body);
+
+  /* ---- filters ---- */
+  var state={q:'all',extra:''}, selAll=false, table=$('#leads');
+  var sels=$$('#filters select');
+  function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+  function match(l){
+    var f=l[7], q=state.q;
+    if(q==='cold'&&f.indexOf('c')<0) return false;
+    if(q==='overdue'&&f.indexOf('o')<0) return false;
+    if(q==='nonext'&&f.indexOf('n')<0) return false;
+    if(q==='vip'&&f.indexOf('v')<0) return false;
+    if(q==='lost'&&l[3]!=='Lost') return false;
+    if(state.extra==='untouched'&&f.indexOf('u')<0) return false;
+    if(state.extra==='open'&&(l[3]==='Won'||l[3]==='Lost')) return false;
+    var a=$('#f-agent').value, s=$('#f-stage').value, p=$('#f-project').value, so=$('#f-source').value, d=$('#f-date').value, t=$('#f-q').value.trim().toLowerCase();
+    if(a&&l[4]!==a) return false; if(s&&l[3]!==s) return false; if(p&&l[2]!==p) return false; if(so&&l[8]!==so) return false;
+    if(d&&l[9]>({'Today':0,'This week':1,'This month':2})[d]) return false;
+    if(t&&(l[0]+' '+l[1]+' '+l[2]).toLowerCase().replace(/\s+/g,' ').indexOf(t)<0&&l[1].replace(/\D/g,'').indexOf(t.replace(/\D/g,'').replace(/^0+/,'')||'x')<0) return false;
+    return true;
+  }
+  function apply(){
+    var n=0, chips=[];
+    rows.forEach(function(r){var ok=match(L[+r.getAttribute('data-i')]); r.hidden=!ok; if(ok) n++; else { var c=$('input',r); if(c.checked){c.checked=false;} }});
+    sels.forEach(function(s){ if(s.value) chips.push('<span class="filter-chip" data-for="'+s.id+'">'+s.getAttribute('data-k')+': '+esc(s.value)+' <button aria-label="Remove">×</button></span>'); });
+    if(state.extra==='untouched') chips.push('<span class="filter-chip" data-for="extra">Untouched <button aria-label="Remove">×</button></span>');
+    if(state.extra==='open') chips.push('<span class="filter-chip" data-for="extra">Open leads <button aria-label="Remove">×</button></span>');
+    if($('#f-q').value.trim()) chips.push('<span class="filter-chip" data-for="f-q">Search: '+esc($('#f-q').value.trim())+' <button aria-label="Remove">×</button></span>');
+    $('#chip-box').innerHTML=chips.join(''); $('#chips').hidden=!chips.length;
+    var plain=!chips.length, total=known(n);
+    $('#count').innerHTML=plain?'<b class="ink-2">'+total+'</b> leads':'<b class="ink-2">'+total+'</b> of 863 leads';
+    $('#foot').textContent=n?'1–'+Math.min(n,50)+' of '+total:'0 leads';
+    $('#foot-note').textContent=total>n&&n?'· this demo draws the first '+n:(n?'· 50 per page':'');
+    $('#next').disabled=total<=n; $('#none').hidden=n>0; table.hidden=n===0;
+    selAll=false; $('input',rows[0]).dispatchEvent(new Event('change',{bubbles:true})); syncSel();
+  }
+  function fromChips(){ // a chip was removed with × or "Clear all": reset the control behind it
+    var left=$$('#chip-box .filter-chip').map(function(c){return c.getAttribute('data-for')});
+    sels.forEach(function(s){ if(left.indexOf(s.id)<0) s.value=''; });
+    if(left.indexOf('extra')<0) state.extra='';
+    if(left.indexOf('f-q')<0) $('#f-q').value='';
+    apply();
+  }
+  $('#chips').addEventListener('hm:filters',fromChips);
+  document.addEventListener('click',function(e){ if(e.target.closest('[data-clear-all]')){ $('#chip-box').innerHTML=''; state.q='all'; setTab('all'); fromChips(); } });
+  sels.forEach(function(s){s.addEventListener('change',apply)});
+  $('#f-q').addEventListener('input',apply);
+  function setTab(q){ state.q=q; $$('#qtabs .tab').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-q')===q)}); }
+  $('#qtabs').addEventListener('click',function(e){var b=e.target.closest('.tab'); if(!b) return; setTab(b.getAttribute('data-q')); apply(); });
+
+  /* links from the dashboards: all-leads.html?stage=new · ?agent=shan · ?tab=going-cold · ?project=valia · ?source=Referral */
+  var qs={}; location.search.slice(1).split('&').forEach(function(p){var kv=p.split('='); if(kv[0]) qs[kv[0]]=decodeURIComponent(kv[1]||'')});
+  function pick(sel,v){ $$('option',sel).forEach(function(o){ if(slug(o.value)===slug(v)) sel.value=o.value; }); }
+  if(qs.stage) pick($('#f-stage'),qs.stage);
+  if(qs.agent) pick($('#f-agent'),qs.agent);
+  if(qs.project) pick($('#f-project'),qs.project);
+  if(qs.source) pick($('#f-source'),qs.source);
+  if(qs.added) pick($('#f-date'),qs.added);
+  if(qs.tab){ var m={'going-cold':'cold','overdue':'overdue','no-next-step':'nonext','vip':'vip','lost':'lost'}[qs.tab]; if(m) setTab(m); if(qs.tab==='untouched'||qs.tab==='open') state.extra=qs.tab; }
+
+  /* ---- sort ---- */
+  var ORDER=['New','Called','Interested','Meeting','Offer','Won','Lost'], WHEN=function(s){return /Today/.test(s)?0:/Yesterday/.test(s)?1:/Not yet/.test(s)?99:10+(40-parseInt(s.replace(/\D/g,'')||0,10))%40};
+  $$('#leads th[data-sort]').forEach(function(th){
+    th.addEventListener('click',function(){
+      var c=+th.getAttribute('data-sort'), dir=th._dir=th._dir===1?-1:1;
+      $$('#leads th').forEach(function(x){x.classList.toggle('sorted',x===th)});
+      rows.sort(function(a,b){
+        var x=L[+a.getAttribute('data-i')][c], y=L[+b.getAttribute('data-i')][c];
+        if(c===3){x=ORDER.indexOf(x);y=ORDER.indexOf(y)} else if(c===5){x=WHEN(x);y=WHEN(y)}
+        return (x>y?1:x<y?-1:0)*dir;
+      }).forEach(function(r){body.appendChild(r)});
+    });
+  });
+
+  /* ---- selection: page → "Select all 863" ---- */
+  function picked(){return rows.filter(function(r){return $('input',r).checked})}
+  function syncSel(){
+    var n=picked().length, vis=rows.filter(function(r){return !r.hidden}).length, total=parseInt($('#count').textContent,10)||n, box=$('#sel-all');
+    var allPage=n>0&&n===vis&&total>n;
+    if(!allPage) selAll=false;
+    box.hidden=!allPage;
+    if(selAll) box.innerHTML='All <b>'+total+'</b> leads in this list are selected. <button data-sel="page">Select only this page</button>';
+    else if(allPage) box.innerHTML='All <b>'+n+'</b> leads on this page are selected. <button data-sel="all">Select all '+total+'</button>';
+    $('[data-bulk-count]').textContent=selAll?total:n;
+  }
+  table.addEventListener('hm:select',syncSel);
+  $('#sel-all').addEventListener('click',function(e){var b=e.target.closest('[data-sel]'); if(!b) return; selAll=b.getAttribute('data-sel')==='all'; syncSel(); });
+  function count(){return selAll?(parseInt($('#count').textContent,10)||0):picked().length}
+
+  /* ---- lead side panel ---- */
+  var cur=null;
+  function fill(r){
+    cur=r; var l=L[+r.getAttribute('data-i')], ag=l[4], red=l[7].indexOf('r')>-1||l[7].indexOf('o')>-1;
+    $('#p-name').innerHTML=esc(l[0])+(l[7].indexOf('v')>-1?' <span class="vip-tag">VIP</span>':'');
+    $('#p-phone').textContent=l[1]==='–'?'No phone number':l[1];
+    $('#p-meta').innerHTML='<span class="chip stage-'+l[3].toLowerCase()+'">'+l[3]+'</span><span class="muted small">'+(ag==='Incoming'?'in Incoming · no agent':'with '+ag)+'</span>';
+    $('#p-att').className='banner'+(red?' red':''); $('#p-next').textContent=l[6];
+    $('#p-call').href=l[1]==='–'?'lead.html':'tel:'+l[1].replace(/\s/g,'');
+    $('#p-project').textContent=l[2]; $('#p-budget').textContent=l[10]; $('#p-agent').innerHTML=agentCell(ag); $('#p-last').textContent=l[5]; $('#p-source').textContent=l[8]; $('#p-id').textContent=4800+(+r.getAttribute('data-i'))*7;
+    $('#p-tl').innerHTML=(l[5]==='Not yet'?'':'<div class="tl-item"><span class="tl-dot accent"><i data-icon="phone"></i></span><div class="tl-body"><b>'+(ag==='Incoming'?'Agent':ag)+' called</b><p>'+esc(l[6])+'</p><span class="tl-time">'+l[5]+'</span></div></div>')+
+      '<div class="tl-item"><span class="tl-dot"><i data-icon="user"></i></span><div class="tl-body"><b>'+(ag==='Incoming'?'Waiting in Incoming':'Given to '+ag)+'</b><span class="tl-time">'+['Today','This week','This month','October'][l[9]]+'</span></div></div>'+
+      '<div class="tl-item"><span class="tl-dot green"><i data-icon="check"></i></span><div class="tl-body"><b>Lead added · '+l[8]+'</b><span class="tl-time">'+['Today','This week','This month','October'][l[9]]+'</span></div></div>';
+    HM.refresh($('#lead-panel'));
+  }
+  body.addEventListener('click',function(e){
+    var r=e.target.closest('tr'); if(!r) return;
+    if(e.target.closest('[data-menu]')){ cur=r; return; }
+    if(!e.target.closest('a,button,input,label')) fill(r);
+  });
+
+  /* ---- "Move N leads" panel ---- */
+  var mv={rows:[],n:0,to:''}, go=$('#mv-go');
+  $('#mv-to').innerHTML='<button class="opt" data-value="Incoming"><span class="card-icon"><i data-icon="inbox"></i></span><span class="grow"><b class="bold">Incoming</b><div class="small muted">Free leads · any agent can take one</div></span><span class="small muted">3 waiting</span></button>'+
+    AG.map(function(a,i){var off=a[1]==='leave'||a[1]==='absent';
+      return '<button class="opt"'+(off?' disabled':'')+' data-value="'+a[0]+'"><span class="av" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><span class="grow"><b class="bold">'+a[0]+'</b>'+(i===0?' <span class="chip green" style="height:20px">Fewest leads</span>':'')+'<div class="small muted">'+a[3]+'</div></span><span class="small muted">'+a[2]+' open</span></button>'}).join('');
+  HM.refresh($('#mv-to'));
+  function word(n){return n===1?'1 lead':n+' leads'}
+  function setTo(v){
+    mv.to=v; $$('#mv-to .opt').forEach(function(o){o.classList.toggle('on',o.getAttribute('data-value')===v)});
+    go.classList.toggle('disabled',!v);
+    go.textContent=v?'Move '+word(mv.n)+' to '+v:'Choose where they go';
+    if(v) go.setAttribute('data-confirm','Tap again · move '+word(mv.n)+' to '+v); else go.removeAttribute('data-confirm');
+  }
+  function openMove(list,n,to){
+    mv.rows=list; mv.n=n;
+    $('#mv-title').textContent='Move '+word(n);
+    var names=list.slice(0,6).map(function(r){return '<span class="chip lg">'+esc(L[+r.getAttribute('data-i')][0])+'</span>'});
+    if(n>6) names.push('<span class="chip lg dark">+ '+(n-Math.min(6,list.length))+' more</span>');
+    $('#mv-who').innerHTML=names.join('');
+    var from=$('#f-agent').value;
+    $$('#mv-to .opt').forEach(function(o){ var v=o.getAttribute('data-value'), st=ST[v]; o.disabled=st==='leave'||st==='absent'||v===from; });
+    setTo(to&&to!==from?to:''); HM.open('#move-panel');
+  }
+  $('#mv-to').addEventListener('hm:change',function(e){setTo(e.detail.value)});
+  go.addEventListener('hm:confirm',function(){
+    var to=mv.to, list=mv.rows, n=mv.n, old=list.map(function(r){return L[+r.getAttribute('data-i')][4]});
+    var from=$('#f-agent').value, nn=state.q==='nonext';
+    function tally(sign){ // keep the counts behind the filters right
+      var bump=function(a,k){ if(AGT[a]!=null) AGT[a]+=k; if(nn) NN[a]=(NN[a]||0)+k; };
+      if(from&&n>list.length){ bump(from,-sign*n); bump(to,sign*n); }
+      else old.forEach(function(a){ bump(a,-sign); bump(to,sign); });
+    }
+    list.forEach(function(r){L[+r.getAttribute('data-i')][4]=to; $('.ag',r).innerHTML=agentCell(to); r.classList.add('pulse-row'); $('input',r).checked=false; setTimeout(function(){r.classList.remove('pulse-row')},1300)});
+    tally(1); HM.refresh(body); HM.close(); apply();
+    var names=old.filter(function(a,i){return old.indexOf(a)===i});
+    HM.toast(word(n)+' moved '+(names.length===1?'from '+names[0]+' ':'')+'to '+to+' · notes and history went with them',{undo:function(){list.forEach(function(r,i){L[+r.getAttribute('data-i')][4]=old[i]; $('.ag',r).innerHTML=agentCell(old[i])}); tally(-1); HM.refresh(body); apply(); HM.toast('Move undone · '+word(n)+' back '+(names.length===1?'with '+names[0]:'where they were'))}});
+  });
+  $('#bulk-move').addEventListener('click',function(){openMove(picked(),count())});
+  $('#bulk-inc').addEventListener('click',function(){openMove(picked(),count(),'Incoming')});
+  $('#m-give').addEventListener('click',function(){ if(cur) openMove([cur],1) });
+  $('#m-inc').addEventListener('click',function(){ if(cur) openMove([cur],1,'Incoming') });
+  $('#p-give').addEventListener('click',function(){ if(cur) openMove([cur],1) });
+
+  $('#export').addEventListener('click',function(){HM.toast('Export started · all-leads-11-Nov.xlsx · '+$('#count').textContent)});
+
+  apply();
+})();
+</script>
+</body>
+</html>

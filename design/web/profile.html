@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My profile · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.pf-hero{flex-direction:row;gap:36px;padding:28px;align-items:stretch}
+.pf-id{display:flex;gap:18px;align-items:center;flex:1;min-width:0}
+.pf-id h1{font-size:28px;color:#fff;letter-spacing:-.03em}
+.pf-id .av.xl{width:84px;height:84px;font-size:28px}
+.pf-perf{display:grid;grid-template-columns:230px auto;gap:28px;align-items:center;padding-left:32px;border-left:1px solid var(--hero-line)}
+.pf-perf .bar{background:rgba(255,255,255,.14)}
+.pf-stats{display:flex;gap:26px}
+.pf-stats a{display:flex;flex-direction:column;gap:6px}.pf-stats span{font-size:12.5px;color:var(--hero-ink-2)}
+.pf-stats small{font-size:15px;font-weight:600;color:var(--hero-ink-2);letter-spacing:0}
+.pf-stats a:hover b{color:var(--accent)}
+.pf-links{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px}
+.pf-links .shortcut{background:var(--surface);box-shadow:var(--shadow-1)}.pf-links .shortcut:hover{background:var(--surface-2)}
+.pf-done{display:flex;align-items:center;gap:24px;padding:14px 16px;border-radius:16px;background:var(--surface-2);margin-bottom:20px}
+.pw-meter{display:flex;gap:4px}.pw-meter i{flex:1;height:4px;border-radius:2px;background:var(--surface-3);transition:.2s}
+.pw-meter.s1 i:nth-child(1){background:var(--red)}.pw-meter.s2 i:nth-child(-n+2){background:var(--amber)}.pw-meter.s3 i{background:var(--green)}
+.dev{display:flex;align-items:center;gap:12px;padding:12px 0}.dev:first-child{padding-top:0}
+#f-wa:disabled{background:var(--surface-2);color:var(--ink-3)}
+.av.none{background:var(--surface-3)!important;color:var(--ink-4)!important;box-shadow:inset 0 0 0 1.5px var(--line-2)}
+</style>
+</head>
+<body data-page="settings" data-role="any" data-title="My profile">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html" class="on"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body">
+<section class="card hero pf-hero">
+  <div class="pf-id"><span class="av xl me" id="pf-av"></span><div class="grow"><h1 id="pf-name"></h1><p class="muted mt-4" id="pf-title"></p><div class="row gap-8 mt-12 wrap"><span class="hero-chip" id="pf-c1"></span><span class="hero-chip" id="pf-c2"></span></div></div></div>
+  <div class="pf-perf">
+    <div><span class="label" id="pf-l0">Performance this month</span><div class="stat-row mt-8"><b class="num-hero" id="pf-pct">86%</b><span class="delta up" id="pf-d">5 vs October</span></div><div class="bar accent mt-12" style="--v:86%"><i></i></div><span class="small muted mt-8" style="display:block" id="pf-how">Calls, follow-ups on time, meetings and deals against your monthly target.</span></div>
+    <div class="pf-stats">
+      <a href="pipeline.html"><b class="num" id="pf-s1">4</b><span>Deals</span></a>
+      <a href="calendar.html"><b class="num" id="pf-s2">9</b><span>Viewings</span></a>
+      <a href="my-leads.html" id="pf-s3l"><b class="num" id="pf-s3">5<small> min</small></b><span>Avg reply</span></a>
+    </div>
+  </div>
+</section>
+<div class="pf-links">
+  <a class="shortcut" href="best-of-homes.html"><i data-icon="trophy"></i><span class="grow" id="pf-k1">Best of Homes · rank 2 · 1,740 points</span><i data-icon="arrow-right"></i></a>
+  <a class="shortcut" href="digital-card.html"><i data-icon="card"></i><span class="grow">Business card</span><i data-icon="arrow-right"></i></a>
+  <a class="shortcut" id="pf-k3" href="attendance.html"><i data-icon="pin"></i><span class="grow">My attendance</span><i data-icon="arrow-right"></i></a>
+</div>
+<section class="card">
+  <div class="tabs" data-tabs><button class="tab on" data-tab="info">Personal info</button><button class="tab" data-tab="security">Security</button></div>
+  <div data-panel="info">
+    <div class="pf-done"><div class="grow"><b class="bold" id="pf-done-t">Profile 100% complete</b><div class="bar green mt-8" id="pf-done-b" style="--v:100%"><i></i></div></div><span class="small muted" id="pf-done-s" style="max-width:300px">Colleagues and transfers use this.</span></div>
+    <form data-form data-toast="Profile saved" id="pf-form">
+      <div class="set-row"><div class="lab"><b>Photo</b><span>A clear face photo. Shown to the team and on your card.</span></div>
+        <div class="row gap-16"><span class="av xl" id="pf-photo"></span><div class="btn-row"><button type="button" class="btn sm" id="ph-ch"><i data-icon="image"></i>Change photo</button><button type="button" class="btn sm danger" id="ph-rm" data-confirm="Tap again to remove">Remove</button></div></div></div>
+      <div class="set-row"><div class="lab"><b>About you</b><span>Your name and title show on the business card.</span></div>
+        <div class="form-grid">
+          <div class="field"><label>Full name <span class="req">*</span></label><input class="input" id="f-name" required data-min="3" data-error="Write your full name."></div>
+          <div class="field"><label>Title</label><input class="input" id="f-title" placeholder="Property Consultant"></div>
+          <div class="field" id="brn-f"><label>BRN <span class="req">*</span></label><input class="input" id="f-brn" required inputmode="numeric" data-digits data-min="4" data-error="A BRN has 4 to 6 digits."><span class="hint">Broker registration number · 4 to 6 digits</span></div>
+        </div></div>
+      <div class="set-row"><div class="lab"><b>Contact</b><span>Colleagues can phone or write to you from the Team page.</span></div>
+        <div class="form-grid">
+          <div class="field"><label>Phone <span class="req">*</span></label><div class="input-icon"><i data-icon="phone"></i><input class="input" id="f-phone" required data-digits data-min="9" data-error="Digits only, at least 9."></div></div>
+          <div class="field"><label>WhatsApp</label><div class="input-icon"><i data-icon="whatsapp"></i><input class="input" id="f-wa" data-digits data-min="9" data-error="Digits only, at least 9." disabled></div><label class="switch small mt-4"><input type="checkbox" id="f-same" checked><span class="track"></span>WhatsApp is the same number</label></div>
+          <div class="field full"><label>Email</label><div class="input-icon"><i data-icon="mail"></i><input class="input" id="f-email" type="email" data-error="This email does not look right."></div><span class="hint">Your sign-in email. Ask an owner to change it.</span></div>
+        </div></div>
+      <div class="set-row"><div class="lab"><b>Languages</b><span>Used to find the best agent in transfers, and in the team filters.</span></div>
+        <div class="field" id="lang-f"><div class="chips" data-chips="multi" id="f-langs"><button type="button" class="chip-opt">English</button><button type="button" class="chip-opt">Arabic</button><button type="button" class="chip-opt">Russian</button><button type="button" class="chip-opt">Hindi</button><button type="button" class="chip-opt">Urdu</button><button type="button" class="chip-opt">Portuguese</button><button type="button" class="chip-opt">Serbian</button><button type="button" class="chip-opt">Ukrainian</button><button type="button" class="chip-opt">Punjabi</button><button type="button" class="chip-opt">French</button></div><span class="error">Choose at least one language.</span></div></div>
+      <div class="set-savebar mt-16"><button class="btn primary">Save profile</button></div>
+    </form>
+  </div>
+  <div data-panel="security" hidden>
+    <div class="set-row"><div class="lab"><b>Password</b><span>Last changed 24 Sep 2026.</span></div>
+      <form data-form data-toast="Password changed · other devices are signed out" id="pw-form" class="form-grid">
+        <div class="field full" style="max-width:320px"><label>Password now <span class="req">*</span></label><input class="input" type="password" id="pw0" required data-error="Write your password." autocomplete="off"></div>
+        <div class="field" id="pw1-f"><label>New password <span class="req">*</span></label><input class="input" type="password" id="pw1" required data-min="8" data-error="At least 8 letters or numbers." autocomplete="off"><div class="pw-meter" id="pw-meter"><i></i><i></i><i></i></div><span class="hint" id="pw-hint">At least 8. Mix letters and numbers.</span></div>
+        <div class="field" id="pw2-f"><label>New password again <span class="req">*</span></label><input class="input" type="password" id="pw2" required data-error="Write the new password again." autocomplete="off"></div>
+        <div class="full"><button class="btn">Change password</button></div>
+      </form></div>
+    <div class="set-row" data-only="owner"><div class="lab"><b>Two-step sign-in</b><span>For owners and admin. After the password we ask for a 6-digit code.</span></div>
+      <div><div class="switch-row" style="padding-top:0"><span class="card-icon accent"><i data-icon="shield"></i></span><div class="txt"><b id="ts-t">On · code from your phone app</b><span id="ts-s">Asked on a new device and every 30 days</span></div><label class="switch"><input type="checkbox" id="ts" checked><span class="track"></span></label></div>
+      <div class="btn-row mt-8" id="ts-more"><button class="btn sm" data-toast="8 new backup codes are downloading. The old codes stopped working."><i data-icon="download"></i>New backup codes</button><button class="btn sm" data-toast="Scan the QR code with your phone app to move two-step to a new phone"><i data-icon="qr"></i>Move to a new phone</button></div></div></div>
+    <div class="set-row" data-only="agent"><div class="lab"><b>Two-step sign-in</b><span>A second code after the password.</span></div>
+      <div class="banner"><i data-icon="shield"></i><span class="grow">Two-step sign-in is for owners and admin. Your account is protected by your password and the device list below.</span></div></div>
+    <div class="set-row"><div class="lab"><b>Signed-in devices</b><span>Do you not know a device? Sign it out and change your password.</span></div>
+      <div><div class="divide" id="devs">
+        <div class="dev"><span class="card-icon"><i data-icon="laptop"></i></span><div class="grow"><b class="bold">Chrome on Windows</b><div class="small muted">Dubai · active now</div></div><span class="chip green pip">This device</span></div>
+        <div class="dev other"><span class="card-icon"><i data-icon="phone"></i></span><div class="grow"><b class="bold">iPhone 15 · homes.me app</b><div class="small muted">Dubai · today 08:41</div></div><button class="btn sm" data-confirm="Tap again to sign out" data-remove=".dev" data-toast="iPhone 15 is signed out">Sign out</button></div>
+        <div class="dev other"><span class="card-icon"><i data-icon="laptop"></i></span><div class="grow"><b class="bold">Safari on MacBook</b><div class="small muted">Sharjah · Mon 9 Nov 21:14 <span class="chip amber" style="margin-left:6px">new place</span></div></div><button class="btn sm" data-confirm="Tap again to sign out" data-remove=".dev" data-toast="Safari on MacBook is signed out">Sign out</button></div>
+      </div>
+      <div class="row mt-12"><button class="btn danger" id="dev-all" data-confirm="Tap again · sign out 2 devices">Sign out all others</button><span class="grow"></span><a class="btn ghost" href="login.html"><i data-icon="logout"></i>Sign out here</a></div></div></div>
+  </div>
+</section>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))}, owner=HM.role==='owner';
+  var me = owner ? {name:'Emir Dulovic',title:'Founder & CEO',phone:'+971 50 000 0001',email:'emir@homes.me',brn:'10001',langs:['English'],c1:'Owner',c2:'Dubai office'}
+                 : {name:'Rocky Khan',title:'Property Consultant',phone:'+971 50 123 4567',email:'rocky@homes.me',brn:'54321',langs:['English','Arabic','Hindi'],c1:'Agent · Dubai off-plan · Arabic desk',c2:'Level 7 · Closer'};
+  $('#pf-av').textContent=HM.initials(me.name); $('#pf-name').textContent=me.name; $('#pf-title').textContent=me.title+' · homes.me'; $('#pf-c1').textContent=me.c1; $('#pf-c2').textContent=me.c2;
+  if(owner){ $('#pf-l0').textContent='Team performance this month'; $('#pf-s1').textContent='27'; $('#pf-s2').textContent='67'; $('#pf-s3').innerHTML='9<small> min</small>'; $('#pf-how').textContent='The whole team: calls, follow-ups on time, meetings and deals against the monthly target.';
+    $('#pf-k1').textContent='Best of Homes · Talha leads with 1,980'; $('#pf-k3').href='team-attendance.html'; $('#pf-k3 .grow').textContent='Team attendance'; $('#pf-s3l').href='all-leads.html'; }
+  var photo=true, ph=$('#pf-photo'); ph.textContent=HM.initials(me.name); ph.classList.add('me');
+  $('#f-name').value=me.name; $('#f-title').value=me.title; $('#f-brn').value=me.brn; $('#f-phone').value=me.phone; $('#f-wa').value=me.phone; $('#f-email').value=me.email; $('#f-email').readOnly=true;
+  $$('#f-langs .chip-opt').forEach(function(b){ if(me.langs.indexOf(b.textContent)>-1) b.classList.add('on'); });
+  function done(){ var parts=[photo,$('#f-name').value.trim(),$('#f-title').value.trim(),/^\d{4,6}$/.test($('#f-brn').value.trim()),$('#f-phone').value.replace(/\D/g,'').length>=9,$('#f-same').checked||$('#f-wa').value.replace(/\D/g,'').length>=9,$('#f-email').value.trim(),$$('#f-langs .on').length];
+    var miss=['a photo','your name','a title','your BRN','your phone','your WhatsApp','your email','a language'].filter(function(_,i){return !parts[i]}), p=Math.round((8-miss.length)/8*100);
+    $('#pf-done-t').textContent='Profile '+p+'% complete'; $('#pf-done-b').style.setProperty('--v',p+'%'); $('#pf-done-b').className='bar mt-8 '+(p===100?'green':'accent');
+    $('#pf-done-s').textContent = miss.length ? 'Missing: '+miss.join(', ')+'.' : 'Colleagues and transfers use this.'; }
+  $('#pf-form').addEventListener('input',done); $('#f-langs').addEventListener('hm:change',function(){ $('#lang-f').classList.remove('invalid'); done(); });
+  $('#f-same').addEventListener('change',function(){ var w=$('#f-wa'); w.disabled=this.checked; if(this.checked){ w.value=$('#f-phone').value; w.closest('.field').classList.remove('invalid'); } else { w.value=''; w.focus(); } done(); });
+  $('#f-phone').addEventListener('input',function(){ if($('#f-same').checked) $('#f-wa').value=this.value; });
+  $('#ph-rm').addEventListener('hm:confirm',function(){ photo=false; ph.classList.add('none'); ph.classList.remove('me'); ph.innerHTML=HM.icon('user'); this.style.display='none'; done(); HM.toast('Photo removed',{undo:function(){ $('#ph-ch').click(); }}); });
+  $('#ph-ch').addEventListener('click',function(){ photo=true; ph.classList.remove('none'); ph.classList.add('me'); ph.textContent=HM.initials($('#f-name').value||me.name); $('#ph-rm').style.display=''; done(); HM.toast('New photo is in place'); });
+  function err(f,msg){ var e=f.querySelector('.error'); if(!e){ e=document.createElement('span'); e.className='error'; f.appendChild(e); } e.textContent=msg; f.classList.add('invalid'); }
+  window.addEventListener('submit',function(e){ var bad=false;
+    if(e.target.id==='pf-form'){
+      $$('#pf-form .field.invalid').forEach(function(f){ f.classList.remove('invalid'); });
+      var chk=function(id,okv,msg){ if(!okv){ err($(id).closest('.field'),msg); if(!bad) $(id).focus(); bad=true; } };
+      var tel=function(v){ return !/[^\d\s+()-]/.test(v) && v.replace(/\D/g,'').length>=9; };
+      chk('#f-name',$('#f-name').value.trim().length>=3,'Write your full name.');
+      chk('#f-brn',/^\d{4,6}$/.test($('#f-brn').value.trim()),'A BRN has 4 to 6 digits.');
+      chk('#f-phone',tel($('#f-phone').value),'Digits only, at least 9.');
+      if(!$('#f-same').checked && $('#f-wa').value.trim()) chk('#f-wa',tel($('#f-wa').value),'Digits only, at least 9.');
+      if(!$$('#f-langs .on').length){ $('#lang-f').classList.add('invalid'); bad=true; }
+      if(bad) HM.toast('Not saved yet. Check the red fields.'); }
+    if(e.target.id==='pw-form'){ var a=$('#pw1').value, c=$('#pw2').value;
+      if(a.length>=8 && a===$('#pw0').value){ err($('#pw1-f'),'The new password must be different.'); bad=true; }
+      else if(a.length>=8 && c && a!==c){ err($('#pw2-f'),'The two passwords are not the same.'); bad=true; } }
+    if(bad){ e.preventDefault(); e.stopPropagation(); } },true);
+  $('#pf-form').addEventListener('hm:submit',function(){ var n=$('#f-name').value.trim(); $('#pf-name').textContent=n; $('#pf-title').textContent=($('#f-title').value.trim()||'Agent')+' · homes.me'; if(photo){ ph.textContent=HM.initials(n); $('#pf-av').textContent=HM.initials(n); } });
+  $('#pw-form').addEventListener('hm:submit',function(){ this.reset(); $('#pw-meter').className='pw-meter'; $$('#devs .other').forEach(function(d){ d.remove(); }); $('#dev-all').disabled=true; $('#dev-all').classList.add('disabled'); });
+  $('#pw1').addEventListener('input',function(){ var v=this.value, s=!v?0:(v.length<8?1:(/[a-z]/i.test(v)&&/\d/.test(v)&&v.length>=10?3:2)); $('#pw-meter').className='pw-meter'+(s?' s'+s:''); $('#pw-hint').textContent=['At least 8. Mix letters and numbers.','Too short.','Good. Longer is stronger.','Strong password.'][s]; });
+  var ts=$('#ts'); if(ts){ ts.addEventListener('click',function(e){ if(!ts.checked && !ts._ok){ e.preventDefault(); ts._ok=1; HM.toast('Tap again to turn two-step off. Your account will be less safe.'); setTimeout(function(){ ts._ok=0; },4000); return; } ts._ok=0;
+      setTimeout(function(){ $('#ts-t').textContent=ts.checked?'On · code from your phone app':'Off · password only'; $('#ts-s').textContent=ts.checked?'Asked on a new device and every 30 days':'Owners and admin should keep this on'; $('#ts-more').style.display=ts.checked?'':'none'; HM.toast(ts.checked?'Two-step sign-in is on':'Two-step sign-in is off'); },0); }); }
+  $('#dev-all').addEventListener('hm:confirm',function(){ var n=$$('#devs .other').length; $$('#devs .other').forEach(function(d){ HM.slideOut(d); }); this.disabled=true; this.classList.add('disabled'); HM.toast(n+' other devices are signed out'); });
+  done();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Homes AI settings · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.ai-top{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.ai-bar{position:relative;height:14px;border-radius:7px;background:rgba(255,255,255,.12)}
+.ai-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:var(--accent);transition:width .4s var(--ease)}
+.ai-bar b{position:absolute;top:-5px;bottom:-5px;width:2px;background:#fff;border-radius:2px;opacity:.7}
+.ai-bar.warn i{background:var(--amber)}
+.hbar>span{width:104px}
+</style>
+</head>
+<body data-page="ai-settings" data-role="owner" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" class="on" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Homes AI</h1><p>What Homes AI may do, what it knows about the company, and how much it may spend.</p></div></div>
+<div class="ai-top">
+  <section class="card hero">
+    <div class="row top"><div class="grow"><span class="label">Used in November</span><div class="stat-row mt-8"><b class="num-hero">$38</b><span class="num-sm muted">of $<span id="ai-lim">100</span></span></div></div><span class="hero-chip" id="ai-chip">On track</span></div>
+    <div class="ai-bar mt-16"><i id="ai-fill" style="width:38%"></i><b id="ai-mark" style="left:37%"></b></div>
+    <div class="row between small muted mt-8"><span>Day 11 of 30</span><span id="ai-fore">At this speed: about $104 by 30 Nov</span></div>
+    <div class="card-foot" style="color:var(--hero-ink-2)"><i data-icon="info" class="i-sm"></i><span id="ai-rule">At the limit Homes AI pauses until 1 December. The CRM keeps working.</span></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h3>Monthly limit</h3></div>
+    <div class="seg block" data-seg id="ai-seg"><button>$50</button><button class="on">$100</button><button>$200</button></div>
+    <div class="col gap-8 mt-16">
+      <div class="hbar"><span>In short</span><div class="bar" style="--v:100%"><i></i></div><b>$14</b></div>
+      <div class="hbar"><span>Voice notes</span><div class="bar" style="--v:64%"><i></i></div><b>$9</b></div>
+      <div class="hbar"><span>Chat</span><div class="bar" style="--v:57%"><i></i></div><b>$8</b></div>
+      <div class="hbar"><span>Morning brief</span><div class="bar" style="--v:29%"><i></i></div><b>$4</b></div>
+      <div class="hbar"><span>Best time</span><div class="bar" style="--v:21%"><i></i></div><b>$3</b></div>
+    </div>
+    <div class="card-foot">Alert to owners at 80% and at 100%</div>
+  </section>
+</div>
+<section class="card"><div class="card-head"><h4 class="grow">Homes AI can</h4><span class="small muted" id="ai-on"></span></div><div id="ai-can">
+  <div class="switch-row"><div class="txt"><b>Write “In short” on each lead</b><span>3 lines from the notes and timeline, new after each change</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Suggest the best time to call</b><span>From the client's country, local time and past answers</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Turn voice notes into text</b><span>And find fields like budget and unit: “Save 4 to lead”</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Write the morning brief for owners</b><span>One short text on the dashboard at 08:30</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Answer questions in Homes AI chat</b><span>Agents ask about their own leads. Owners ask about the team.</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+</div></section>
+<section class="card">
+  <form data-form data-toast="Homes AI will use this from now on" id="ai-form">
+  <div class="card-head"><h3>What Homes AI should know about us</h3><span class="small muted" id="ai-len"></span></div>
+  <div class="field"><textarea class="textarea" id="ai-know" required data-min="20" data-error="Write at least one full sentence." style="min-height:150px">We are homes.me, a real estate brokerage in Business Bay, Dubai. We sell off-plan projects in Dubai and Abu Dhabi: The Archive (Imtiaz), Shahrukhz (Danube), Damac Islands (Damac) and Valia (Emaar, launching soon).
+Our clients are mostly investors from the GCC, Europe, India and CIS countries. Agents speak English, Arabic, Russian, Hindi, Urdu, Portuguese and Serbian.
+Write short and simple English. Say "booking", not other words for it. Never promise a price, a discount or a return.</textarea></div>
+  <div class="row mt-12"><span class="small muted grow">Do not write passwords or client details here. Homes AI uses this text in every answer.</span><button class="btn primary">Save text</button></div>
+  </form>
+</section>
+<div class="banner"><i data-icon="shield"></i><span class="grow">Homes AI reads only what the person may see: for an agent it reads only that agent's leads. It never sends a message for anyone.</span><a class="link" href="homes-ai.html">Open Homes AI</a></div>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function lim(v,quiet){ var used=38, p=used/v*100, fore=Math.round(used/11*30);
+    $('#ai-lim').textContent=v; $('#ai-fill').style.width=Math.min(100,p)+'%'; $('.ai-bar').classList.toggle('warn',p>=70);
+    $('#ai-chip').textContent = p>=70 ? Math.round(p)+'% used · alert soon' : (fore>v ? 'A little fast' : 'On track');
+    $('#ai-fore').textContent='At this speed: about $'+fore+' by 30 Nov'+(fore>v?' · over the limit':'');
+    if(!quiet) HM.toast('Monthly limit is $'+v); }
+  $('#ai-seg').addEventListener('hm:change',function(e){ lim(+e.detail.value.replace('$','')); }); lim(100,true);
+  function on(){ var b=$$('#ai-can .switch input'); $('#ai-on').textContent=b.filter(function(x){return x.checked}).length+' of 5 on'; }
+  $$('#ai-can .switch input').forEach(function(i){ i.addEventListener('change',function(){ on(); HM.toast(i.closest('.switch-row').querySelector('b').textContent+(i.checked?' · on':' · off')); }); }); on();
+  var t=$('#ai-know'); function len(){ $('#ai-len').textContent=t.value.length+' of 1,500 letters'; $('#ai-len').classList.toggle('t-red',t.value.length>1500); } t.addEventListener('input',len); len();
+  window.addEventListener('submit',function(e){ if(e.target.id==='ai-form' && t.value.length>1500){ e.preventDefault(); e.stopPropagation(); HM.toast('The text is too long. Keep it under 1,500 letters.',{error:true}); } },true);
+})();
+</script>
+</body>
+</html>

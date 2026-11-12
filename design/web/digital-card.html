@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Business card · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.btn>svg,.banner>svg{width:16px;height:16px;flex:none}
+
+.dc{display:grid;grid-template-columns:minmax(0,1fr) 470px;gap:20px;align-items:start;margin-top:8px}
+.dc-left{display:flex;flex-direction:column;gap:16px;min-width:0}
+.dc-right{position:sticky;top:calc(var(--tb-h) + 12px);display:flex;flex-direction:column;gap:16px}
+#steps .step{cursor:pointer}
+.dc-step[hidden]{display:none}
+.pv{background:var(--surface-3);border-radius:var(--r-card);padding:18px 20px;display:flex;flex-direction:column;gap:14px;
+  background-image:radial-gradient(var(--line-2) 1px,transparent 1px);background-size:16px 16px}
+.pv-stage{display:grid;place-items:center;padding:18px 0;perspective:1400px}
+/* ---- the card ---- */
+.bc{--bg:#141317;--ink:#fff;--sub:rgba(255,255,255,.62);--acc:#FF5A2E;--mk:#FF5A2E;--mki:#fff;--w:420px;--ar:1.5455;position:relative;display:block;width:var(--w);height:calc(var(--w) / var(--ar));font-size:calc(var(--w) / 42);flex:none;text-align:left}
+.bc.t-reverse{--bg:#FF5A2E;--ink:#fff;--sub:rgba(255,255,255,.82);--acc:#141317;--mk:#141317;--mki:#fff}
+.bc.t-light{--bg:#fff;--ink:#141317;--sub:#77737D;--acc:#FF5A2E;--mk:#FF5A2E;--mki:#fff}
+.bc.in{--ar:1.75}
+.bc-in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .6s var(--ease)}
+.bc.flip .bc-in{transform:rotateY(180deg)}
+.bc-face{position:absolute;inset:0;border-radius:1.4em;background:var(--bg);color:var(--ink);backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;box-shadow:0 1.6em 3em -1.4em rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.06)}
+.bc.sq .bc-face{border-radius:0}
+.bc-back{transform:rotateY(180deg)}
+.bc-front{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.9em}
+.bc-front::before{content:"";position:absolute;right:-22%;top:-40%;width:60%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--acc) 45%,transparent),transparent 70%)}
+.bc-brand{display:flex;align-items:center;gap:.7em;position:relative}
+.bc-brand b{font-size:2.6em;font-weight:750;letter-spacing:-.04em}.bc-brand b i{font-style:normal;color:var(--acc)}
+.bc-mark{width:3.2em;height:3.2em;border-radius:.95em;background:var(--mk);color:var(--mki);display:grid;place-items:center}.bc-mark svg{width:1.7em;height:1.7em}
+.bc-tag{font-size:1.02em;color:var(--sub);letter-spacing:.01em;position:relative}
+.bc-co{position:absolute;bottom:1.5em;font-size:.82em;letter-spacing:.14em;text-transform:uppercase;color:var(--sub)}
+.bc-back{padding:2.3em 2.5em}
+.bc-who b{display:block;font-size:2em;font-weight:720;letter-spacing:-.03em;line-height:1.1}
+.bc-who>span{display:block;font-size:1.05em;color:var(--sub);margin-top:.3em}
+.bc-who em{font-style:normal;display:inline-block;margin-top:.7em;font-size:.84em;font-weight:650;letter-spacing:.08em;padding:.3em .7em;border-radius:.6em;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc)}
+.bc.t-reverse .bc-who em{background:rgba(20,19,23,.18);color:#fff}
+.bc-lines{position:absolute;left:2.5em;bottom:2.1em;right:10em;display:flex;flex-direction:column;gap:.28em;font-size:.95em;white-space:nowrap}
+.bc-lines u{text-decoration:none;display:inline-block;width:1.5em;font-weight:700;color:var(--acc)}
+.bc-addr{color:var(--sub);margin-top:.35em;line-height:1.4;font-size:.92em;white-space:normal}
+.bc-qr{position:absolute;right:2.3em;bottom:2.1em;display:flex;flex-direction:column;align-items:center;gap:.4em;font-size:.72em;color:var(--sub);letter-spacing:.08em;text-transform:uppercase}
+.qr{width:7.6em;height:7.6em;padding:.6em;border-radius:.9em;background:#fff;display:grid;grid-template-columns:repeat(13,1fr);grid-template-rows:repeat(13,1fr)}
+.qr i{background:#141317}.qr i.o{background:transparent}
+.bc-co2{position:absolute;right:2.5em;top:2.5em;font-size:.72em;letter-spacing:.12em;text-transform:uppercase;color:var(--sub);text-align:right;max-width:12em;line-height:1.5}
+.bc [data-s].hide{display:none}
+.bc-safe{position:absolute;inset:3.6%;border:1.5px dashed #3E7BFA;border-radius:.8em;pointer-events:none;display:none;z-index:3}
+.bc-safe::after{content:"Safe area · keep text inside";position:absolute;left:8px;top:-20px;font-size:11px;font-weight:650;color:#3E7BFA;white-space:nowrap}
+.bc.safe .bc-safe{display:block}
+.bc.big{cursor:pointer}
+.bc.mini{--w:216px}
+/* ---- step 1 ---- */
+.dz{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.dz-opt{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px 8px 14px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);transition:.15s;background:var(--surface-2)}
+.dz-opt:hover{box-shadow:inset 0 0 0 1px var(--ink-4)}
+.dz-opt.on{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-soft)}
+.dz-opt .bc.mini{--w:168px}
+.dz-lab{text-align:center}.dz-lab b{display:block;font-size:15px;font-weight:650}.dz-lab span{font-size:12.5px;color:var(--ink-3)}
+.cmp{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.cmp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cmp-grid>div{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 8px;border-radius:16px;background:var(--surface-2)}
+.cmp-grid .bc.mini{--w:168px}
+.dc-sw{display:flex;flex-wrap:wrap;gap:14px 26px;padding-top:14px;border-top:1px solid var(--line)}
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dl{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);text-align:left;transition:.15s}
+.dl:hover{box-shadow:inset 0 0 0 1px var(--ink-4);background:var(--surface-2)}
+.dl b{display:block;font-weight:650}.dl .grow span{font-size:12.5px;color:var(--ink-3)}.dl>i{color:var(--ink-3)}
+.mock{margin:16px 0 12px;height:230px;border-radius:18px;background:linear-gradient(160deg,#CFC8BD,#A99F92);position:relative;overflow:hidden}
+.mock .bc{position:absolute;--w:250px}
+.mock #mock-a{left:16%;top:38px;transform:rotate(-8deg)}.mock #mock-b{left:46%;top:54px;transform:rotate(6deg)}
+.pub-link{display:flex;align-items:center;gap:10px;margin-top:14px;padding:6px 6px 6px 14px;border-radius:12px;background:var(--surface-2);font-weight:600;font-variant-numeric:tabular-nums}
+.pub-link.off{opacity:.45}
+</style>
+</head>
+<body data-page="digital-card" data-role="any" data-sub="Make your card in 3 steps">
+<main>
+<div class="dc">
+<div class="dc-left">
+  <section class="card" style="padding:16px 22px"><div class="stepper mb-0" id="steps">
+    <button class="step on" data-step="1"><span class="n">1</span>Design</button><span class="line"></span>
+    <button class="step" data-step="2"><span class="n">2</span>Details</button><span class="line"></span>
+    <button class="step" data-step="3"><span class="n">3</span>Download</button>
+  </div></section>
+
+  <section class="card dc-step" data-s-panel="1">
+    <div class="card-head"><h2 class="grow">Choose a design</h2><button class="btn sm" id="cmp-btn"><i data-icon="columns"></i>Compare</button></div>
+    <div class="dz" id="designs">
+      <button class="dz-opt on" data-value="signature"><span class="bc mini t-signature"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="dz-lab"><b>Signature</b><span>Black with orange · the homes.me look</span></span></button>
+      <button class="dz-opt" data-value="reverse"><span class="bc mini t-reverse"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="dz-lab"><b>Reverse</b><span>Orange front · strong at events</span></span></button>
+      <button class="dz-opt" data-value="light"><span class="bc mini t-light"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="dz-lab"><b>Light</b><span>White · cheapest to print</span></span></button>
+    </div>
+    <div class="cmp" id="cmp" hidden>
+      <h4 class="mb-8">Front and back, side by side</h4>
+      <div class="cmp-grid"><div><span class="bc mini t-signature"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="bc mini flip t-signature"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><b class="small">Signature</b></div><div><span class="bc mini t-reverse"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="bc mini flip t-reverse"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><b class="small">Reverse</b></div><div><span class="bc mini t-light"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="bc mini flip t-light"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><b class="small">Light</b></div></div>
+    </div>
+  </section>
+
+  <section class="card dc-step" data-s-panel="2" hidden>
+    <div class="card-head"><h2 class="grow">Your details</h2><button class="btn sm ghost" id="fill-btn"><i data-icon="refresh"></i>Take from my profile</button></div>
+    <form id="dc-form" class="form-grid" novalidate>
+      <div class="field"><label>Name <span class="req">*</span></label><input class="input" data-b="name" required data-min="3" data-error="Write your full name."></div>
+      <div class="field"><label>Title</label><input class="input" data-b="title"></div>
+      <div class="field"><label>BRN <span class="req">*</span></label><input class="input" data-b="brn" required data-re="^\d{4,6}$" data-error="A BRN has 4 to 6 digits."></div>
+      <div class="field"><label>Phone <span class="req">*</span></label><input class="input" data-b="phone" required data-re="^\+?[\d ]{9,}$" data-error="Digits only, at least 9."></div>
+      <div class="field"><label>WhatsApp</label><input class="input" data-b="wa" data-re="^\+?[\d ]{9,}$" data-error="Digits only, at least 9." disabled><label class="switch small mt-4"><input type="checkbox" id="wa-same" checked><span class="track"></span>WhatsApp is the same number</label></div>
+      <div class="field"><label>Email <span class="req">*</span></label><input class="input" data-b="email" required data-re="^[^@\s]+@[^@\s]+\.[^@\s]+$" data-error="This email does not look right."></div>
+      <div class="field"><label>Website</label><input class="input" data-b="web"></div>
+      <div class="field"><span class="field-label">Card size</span><div class="seg block" data-seg id="dc-size"><button type="button" class="on" data-value="mm">85 × 55 mm</button><button type="button" data-value="in">3.5 × 2 in</button></div></div>
+      <div class="field"><label>Address line 1</label><input class="input" data-b="a1" maxlength="48"></div>
+      <div class="field"><label>Address line 2</label><input class="input" data-b="a2" maxlength="48"></div>
+      <div class="full dc-sw">
+        <label class="switch"><input type="checkbox" data-t="tagline" checked><span class="track"></span>Tagline</label>
+        <label class="switch"><input type="checkbox" data-t="qr" checked><span class="track"></span>WhatsApp QR</label>
+        <label class="switch"><input type="checkbox" data-t="round" checked><span class="track"></span>Rounded corners</label>
+        <label class="switch"><input type="checkbox" data-t="company" checked><span class="track"></span>Company name</label>
+        <label class="switch"><input type="checkbox" data-t="safe"><span class="track"></span>Show safe area</label>
+      </div>
+    </form>
+  </section>
+
+  <section class="card dc-step" data-s-panel="3" hidden>
+    <div class="card-head"><h2 class="grow">Download</h2><span class="small muted" id="dl-meta">Signature · 85 × 55 mm · front and back</span></div>
+    <div class="dl-grid">
+      <button class="dl" data-ext="pdf"><span class="card-icon accent"><i data-icon="file"></i></span><span class="grow"><b>PDF + crop marks</b><span>For the print shop · 3 mm bleed · CMYK</span></span><i data-icon="download"></i></button>
+      <button class="dl" data-ext="png"><span class="card-icon"><i data-icon="image"></i></span><span class="grow"><b>PNG</b><span>Sharp, clear background · for WhatsApp and email</span></span><i data-icon="download"></i></button>
+      <button class="dl" data-ext="jpg"><span class="card-icon"><i data-icon="image"></i></span><span class="grow"><b>JPG</b><span>Small file · for social media</span></span><i data-icon="download"></i></button>
+      <button class="dl" data-ext="mockup.jpg"><span class="card-icon"><i data-icon="eye"></i></span><span class="grow"><b>Mockup</b><span>Photo of your card on a desk</span></span><i data-icon="download"></i></button>
+    </div>
+    <div class="mock"><span class="bc mini t-signature" id="mock-a"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span><span class="bc mini flip t-signature" id="mock-b"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span></span></div>
+    <p class="small muted">Print tip: 350 g paper, matt. Ask the print shop for a test card first.</p>
+  </section>
+
+  <div class="row"><button class="btn ghost" id="st-back" disabled><i data-icon="arrow-left"></i>Back</button><span class="grow"></span><span class="small muted" id="st-note">Step 1 of 3</span><button class="btn primary" id="st-next">Next: details<i data-icon="arrow-right"></i></button></div>
+</div>
+
+<aside class="dc-right">
+  <div class="pv">
+    <div class="row"><h4 class="grow" id="pv-side">Front</h4><button class="btn sm" id="flip-btn"><i data-icon="refresh"></i>Flip</button></div>
+    <div class="pv-stage"><span class="bc big t-signature" id="pv"><span class="bc-in"><div class="bc-face bc-front"><div class="bc-brand"><span class="bc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.500 12 3l9 7.500V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><b>homes<i>.</i>me</b></div><span class="bc-tag" data-s="tagline">Off-plan homes in Dubai and Abu Dhabi</span><span class="bc-co" data-s="company">Emigeo Homes Real Estate LLC</span></div>
+<div class="bc-face bc-back"><div class="bc-who"><b data-f="name">Rocky Khan</b><span data-f="title">Property Consultant</span><em>BRN <span data-f="brn">54321</span></em></div>
+<div class="bc-lines"><span><u>T</u><span data-f="phone">+971 50 123 4567</span></span><span data-s="waline"><u>W</u><span data-f="wa">+971 50 123 4567</span></span><span><u>E</u><span data-f="email">rocky@homes.me</span></span><span><u>W</u><span data-f="web">homes.me</span></span><span class="bc-addr"><span data-f="a1">Floor 16, Office 12, The Bayswater by Omniyat</span><br><span data-f="a2">Business Bay, Dubai</span></span></div>
+<div class="bc-qr" data-s="qr"><div class="qr"></div><span>WhatsApp</span></div><span class="bc-co2" data-s="company">Emigeo Homes Real Estate LLC</span></div></span><span class="bc-safe"></span></span></div>
+    <div class="row between small muted"><span id="pv-size">85 × 55 mm</span><span>Click the card to flip it</span></div>
+  </div>
+  <section class="card">
+    <div class="switch-row" style="padding:0"><span class="card-icon"><i data-icon="link"></i></span><div class="txt"><b>Public card link</b><span id="pub-s">Anyone with the link sees your card</span></div><label class="switch"><input type="checkbox" id="pub" checked><span class="track"></span></label></div>
+    <div class="pub-link" id="pub-box"><span class="grow truncate" id="pub-url">homes.me/card/rocky</span><button class="btn sm" id="pub-copy"><i data-icon="copy"></i>Copy link</button></div>
+    <div class="card-foot" id="pub-foot"><i data-icon="eye" class="i-sm"></i>Opened 14 times this month</div>
+  </section>
+</aside>
+</div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))}, owner=HM.role==='owner';
+  var me = owner ? {name:'Emir Dulovic',title:'Founder & CEO',brn:'10001',phone:'+971 50 000 0001',email:'emir@homes.me',slug:'emir'} : {name:'Rocky Khan',title:'Property Consultant',brn:'54321',phone:'+971 50 123 4567',email:'rocky@homes.me',slug:'rocky'};
+  var base={name:me.name,title:me.title,brn:me.brn,phone:me.phone,wa:me.phone,email:me.email,web:'homes.me',a1:'Floor 16, Office 12, The Bayswater by Omniyat',a2:'Business Bay, Dubai'};
+  var theme='signature', step=1, size='mm', cards=$$('.bc'), pv=$('#pv');
+  /* fake QR */
+  $$('.qr').forEach(function(q){ var h='', s=7; for(var y=0;y<13;y++)for(var x=0;x<13;x++){ var c=function(a,b){return x>=a&&x<a+3&&y>=b&&y<b+3}, on; if(c(0,0)||c(10,0)||c(0,10)) on=!(x%13===1&&y===1)&&!((x===1||x===11)&&(y===1||y===11)); else { s=(s*31+x*7+y*13)%97; on=s%2===0; } h+='<i'+(on?'':' class="o"')+'></i>'; } q.innerHTML=h; });
+  function bind(k,v){ $$('[data-f="'+k+'"]').forEach(function(n){ n.textContent=v; }); }
+  function fill(){ Object.keys(base).forEach(function(k){ var i=$('[data-b="'+k+'"]'); i.value=base[k]; bind(k,base[k]); }); $('#wa-same').checked=true; $('[data-b="wa"]').disabled=true; tog(); }
+  $$('[data-b]').forEach(function(i){ i.addEventListener('input',function(){ bind(i.dataset.b,i.value); if(i.dataset.b==='phone'&&$('#wa-same').checked){ $('[data-b="wa"]').value=i.value; bind('wa',i.value); } i.closest('.field').classList.remove('invalid'); }); });
+  function tog(){ var t={}; $$('[data-t]').forEach(function(i){ t[i.dataset.t]=i.checked; });
+    $$('[data-s="tagline"]').forEach(function(n){ n.classList.toggle('hide',!t.tagline); }); $$('[data-s="qr"]').forEach(function(n){ n.classList.toggle('hide',!t.qr); });
+    $$('[data-s="company"]').forEach(function(n){ n.classList.toggle('hide',!t.company); }); $$('[data-s="waline"]').forEach(function(n){ n.classList.toggle('hide',$('#wa-same').checked); });
+    cards.forEach(function(c){ c.classList.toggle('sq',!t.round); }); pv.classList.toggle('safe',t.safe); }
+  $$('[data-t]').forEach(function(i){ i.addEventListener('change',tog); });
+  $('#wa-same').addEventListener('change',function(){ var w=$('[data-b="wa"]'); w.disabled=this.checked; if(this.checked){ w.value=$('[data-b="phone"]').value; w.closest('.field').classList.remove('invalid'); } else { w.value=''; w.focus(); } bind('wa',w.value); tog(); });
+  $('#fill-btn').addEventListener('click',function(){ fill(); HM.toast('Details taken from your profile'); });
+  /* design */
+  function setTheme(t){ theme=t; [pv,$('#mock-a'),$('#mock-b')].forEach(function(c){ c.classList.remove('t-signature','t-reverse','t-light'); c.classList.add('t-'+t); }); $$('#designs .dz-opt').forEach(function(b){ b.classList.toggle('on',b.dataset.value===t); }); meta(); }
+  $$('#designs .dz-opt').forEach(function(b){ b.addEventListener('click',function(){ setTheme(b.dataset.value); }); });
+  $('#cmp-btn').addEventListener('click',function(){ var c=$('#cmp'); c.hidden=!c.hidden; this.classList.toggle('dark',!c.hidden); });
+  function flip(){ pv.classList.toggle('flip'); $('#pv-side').textContent=pv.classList.contains('flip')?'Back':'Front'; }
+  $('#flip-btn').addEventListener('click',flip); pv.addEventListener('click',flip);
+  $('#dc-size').addEventListener('hm:change',function(e){ size=e.detail.value; cards.forEach(function(c){ c.classList.toggle('in',size==='in'); }); $('#pv-size').textContent=size==='in'?'3.5 × 2 in':'85 × 55 mm'; meta(); });
+  function meta(){ $('#dl-meta').textContent=theme.charAt(0).toUpperCase()+theme.slice(1)+' · '+(size==='in'?'3.5 × 2 in':'85 × 55 mm')+' · front and back'; }
+  /* steps */
+  function valid(){ var ok=true, first; $$('#dc-form [data-b]').forEach(function(i){ if(i.disabled) return; var v=i.value.trim(), bad=(i.required&&!v)||(v&&i.dataset.min&&v.length<+i.dataset.min)||(v&&i.dataset.re&&!new RegExp(i.dataset.re).test(v)), f=i.closest('.field');
+      f.classList.toggle('invalid',!!bad); if(bad){ var e=f.querySelector('.error'); if(!e){ e=document.createElement('span'); e.className='error'; f.appendChild(e); } e.textContent=i.dataset.error||'Please fill this in.'; ok=false; first=first||i; } });
+    if(first) first.focus(); return ok; }
+  function go(n){ if(n>2 && !valid()){ if(step!==2) show(2); HM.toast('Check the red fields first'); return; } show(n); }
+  function show(n){ step=n; $$('[data-s-panel]').forEach(function(p){ p.hidden=+p.dataset.sPanel!==n; });
+    $$('#steps .step').forEach(function(s){ var k=+s.dataset.step; s.classList.toggle('on',k===n); s.classList.toggle('done',k<n); }); $$('#steps .line').forEach(function(l,i){ l.classList.toggle('done',i<n-1); });
+    $('#st-back').disabled=n===1; $('#st-note').textContent='Step '+n+' of 3';
+    $('#st-next').innerHTML = n===1?'Next: details'+HM.icon('arrow-right') : n===2?'Next: download'+HM.icon('arrow-right') : HM.icon('download')+'Download all 4';
+    if(n===2 && !pv.classList.contains('flip')) flip(); if(n===1 && pv.classList.contains('flip')) flip(); }
+  $$('#steps .step').forEach(function(s){ s.addEventListener('click',function(){ go(+s.dataset.step); }); });
+  $('#st-back').addEventListener('click',function(){ go(step-1); });
+  function file(ext){ return ($('[data-b="name"]').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-')||'card')+'-card-'+theme+'.'+ext; }
+  $('#st-next').addEventListener('click',function(){ if(step<3) go(step+1); else HM.toast('4 files are downloading: PDF, PNG, JPG and the mockup'); });
+  $$('.dl').forEach(function(b){ b.addEventListener('click',function(){ HM.toast(file(b.dataset.ext)+' is downloading'); }); });
+  /* public link */
+  $('#pub-url').textContent='homes.me/card/'+me.slug;
+  $('#pub').addEventListener('change',function(){ $('#pub-box').classList.toggle('off',!this.checked); $('#pub-copy').disabled=!this.checked; $('#pub-s').textContent=this.checked?'Anyone with the link sees your card':'Off · only you can see your card'; $('#pub-foot').style.visibility=this.checked?'':'hidden'; HM.toast(this.checked?'Your card link is public':'Your card link is switched off'); });
+  $('#pub-copy').addEventListener('click',function(){ try{ navigator.clipboard.writeText('https://homes.me/card/'+me.slug); }catch(e){} HM.toast('Link copied · homes.me/card/'+me.slug); });
+  fill(); meta();
+})();
+</script>
+</body>
+</html>

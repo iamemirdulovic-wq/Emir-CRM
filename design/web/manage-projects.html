@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manage projects · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+  .tiles .card{flex-direction:row;align-items:center;gap:16px;padding:18px 22px}
+  #prj td{height:76px}
+  #prj .ph{width:84px;height:52px;min-height:0;border-radius:12px;flex:none}
+  #prj tr.hid .ph{filter:grayscale(1);opacity:.55}
+  #prj td.act{width:140px}
+  .up{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1.5px dashed var(--line-2);cursor:pointer;transition:.15s}
+  .up:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .up.has{border-style:solid;border-color:transparent;background:var(--green-soft)}
+</style>
+</head>
+<body data-page="manage-projects" data-role="owner" data-back="projects.html|Projects" data-title="Manage projects">
+<main>
+  <div class="page-head">
+    <span class="sub">Agents see only projects that are “Selling now” or “Launching soon”.</span>
+    <span class="grow"></span>
+    <a class="btn" href="projects.html"><i data-icon="eye"></i>See as an agent</a>
+    <a class="btn" href="home-banners.html"><i data-icon="image"></i>Home banners</a>
+    <button class="btn primary" id="add"><i data-icon="plus"></i>Add project</button>
+  </div>
+
+  <div class="tiles">
+    <section class="card"><b class="num" id="n-sell">3</b><div><b class="bold">Selling now</b><div class="small muted">Agents can send brochures</div></div></section>
+    <section class="card"><b class="num" id="n-soon">1</b><div><b class="bold">Launching soon</b><div class="small muted">Shown with a “soon” tag</div></div></section>
+    <section class="card"><b class="num" id="n-hid">1</b><div><b class="bold">Hidden</b><div class="small muted">Only owners and admin see it</div></div></section>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table" id="prj">
+      <thead><tr><th>Project</th><th>Starting from</th><th>Brochure</th><th class="t-right">Leads</th><th>Status · who sees it</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- add / edit panel -->
+<aside class="panel" id="prj-panel" aria-label="Project">
+  <form data-form data-keep id="form" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="panel-head"><h2 id="f-title">Add project</h2><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="field" id="fld-name"><label for="f-name">Project name <span class="req">*</span></label><input class="input" id="f-name" required data-error="Write the project name." placeholder="Sei Saadiyat"></div>
+    <div class="field"><label for="f-dev">Developer <span class="req">*</span></label><input class="input" id="f-dev" required data-error="Write the developer." placeholder="Aldar"></div>
+    <div class="form-grid">
+      <div class="field"><label for="f-area">Area</label><input class="input" id="f-area" placeholder="Saadiyat Island"></div>
+      <div class="field"><label for="f-price">Starting price</label><div class="input-icon"><i data-icon="tag"></i><input class="input" id="f-price" placeholder="AED 1.6M"></div></div>
+    </div>
+    <div class="field"><span class="field-label">Brochure</span>
+      <label class="up" id="up"><span class="card-icon"><i data-icon="file"></i></span><span class="grow"><b class="bold" id="up-name">Upload brochure</b><div class="small muted" id="up-info">PDF · up to 30 MB</div></span><input type="file" id="f-file" accept=".pdf" hidden><span class="btn sm">Choose file</span></label>
+      <span class="error" id="up-err"></span></div>
+    <div class="field"><span class="field-label">Status</span>
+      <div class="seg block" data-seg id="f-status"><button type="button">Selling now</button><button type="button">Launching soon</button><button type="button" class="on">Hidden</button></div>
+      <span class="hint" id="f-hint">A new project starts Hidden. Agents see it when you choose “Selling now” or “Launching soon”.</span></div>
+  </div>
+  <div class="panel-foot"><button type="button" class="btn danger" id="f-del" data-confirm="Tap again to delete">Delete</button><span class="grow"></span><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="f-save">Save project</button></div>
+  </form>
+</aside>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  // name, developer, area, price, plan, brochure, leads, status, photo class
+  var P=[
+    ['The Archive','Imtiaz','Business Bay','AED 1.6M','60 / 40 · Q4 2027','Archive-brochure.pdf · 12 MB',115,'Selling now',''],
+    ['Shahrukhz','Danube','Sheikh Zayed Road','AED 1.2M','1% monthly','Shahrukhz.pdf · 9 MB',64,'Selling now','p2'],
+    ['Damac Islands','Damac','Dubailand','AED 2.7M','75 / 25','Damac-Islands.pdf · 21 MB',52,'Selling now','p3'],
+    ['Valia','Emaar','The Oasis','AED 1.4M','80 / 20','Valia-teaser.pdf · 6 MB',28,'Launching soon','p4'],
+    ['Sei Saadiyat','Aldar','Saadiyat Island','–','–','',0,'Hidden','p5']
+  ];
+  var ST=['Selling now','Launching soon','Hidden'], edit=-1, file='', armed=null;
+  function esc(t){ var d=document.createElement('i'); d.textContent=t; return d.innerHTML; }
+  function draw(){
+    $('#prj tbody').innerHTML=P.map(function(p,i){
+      return '<tr data-i="'+i+'"'+(p[7]==='Hidden'?' class="hid"':'')+'><td><div class="row"><span class="photo ph '+p[8]+'"></span><div><b class="t-main">'+esc(p[0])+'</b><div class="t-sub">'+esc(p[1])+(p[2]!=='–'?' · '+esc(p[2]):'')+'</div></div></div></td><td><b>'+(p[3]==='–'?'<span class="muted">Not set</span>':esc(p[3]))+'</b>'+(p[4]!=='–'?'<div class="t-sub">'+p[4]+'</div>':'')+'</td>'+
+        '<td>'+(p[5]?'<span class="chip green"><i data-icon="file" class="i-sm"></i>PDF</span> <span class="t-sub">'+esc(p[5].split(' · ')[1]||'')+'</span>':'<button class="btn xs" data-edit="'+i+'"><i data-icon="upload"></i>Upload</button>')+'</td>'+
+        '<td class="t-right">'+(p[6]?'<a href="all-leads.html?project='+encodeURIComponent(p[0].toLowerCase().replace(/ /g,'-'))+'"><b>'+p[6]+'</b></a>':'<span class="muted">0</span>')+'</td>'+
+        '<td><div class="seg sm" data-seg data-st="'+i+'">'+ST.map(function(s){return '<button'+(s===p[7]?' class="on"':'')+'>'+s+'</button>'}).join('')+'</div></td>'+
+        '<td class="act"><div class="row-actions show"><button class="btn xs" data-edit="'+i+'"><i data-icon="edit"></i>Edit</button><a class="btn xs" href="project.html" data-tip="See as an agent"><i data-icon="eye"></i>View</a></div></td></tr>';
+    }).join('');
+    $('#n-sell').textContent=P.filter(function(p){return p[7]===ST[0]}).length; $('#n-soon').textContent=P.filter(function(p){return p[7]===ST[1]}).length; $('#n-hid').textContent=P.filter(function(p){return p[7]===ST[2]}).length;
+    HM.refresh($('#prj'));
+  }
+  draw();
+  var SAY={'Selling now':'agents see it and can send the brochure','Launching soon':'agents see it with a “soon” tag','Hidden':'agents do not see it now'};
+  $('#prj').addEventListener('hm:change',function(e){
+    var s=e.target.closest('[data-st]'); if(!s) return; var p=P[+s.getAttribute('data-st')], old=p[7]; if(old===e.detail.value) return;
+    if(e.detail.value==='Hidden' && p[6] && armed!==p){ armed=p; draw(); HM.toast('Tap “Hidden” again to hide '+p[0]+'. Agents will not see it. Its '+p[6]+' leads stay as they are.'); setTimeout(function(){ if(armed===p) armed=null; },5000); return; }
+    armed=null; p[7]=e.detail.value; draw();
+    var msg=p[0]+' is now “'+p[7]+'” · '+SAY[p[7]]; if(p[7]==='Selling now' && !p[5]) msg=p[0]+' is now “Selling now” · agents see it, but there is no brochure yet. Upload one.';
+    HM.toast(msg,{undo:function(){p[7]=old; draw();}});
+  });
+
+  /* ---- panel ---- */
+  function setUp(name,info){ file=name; $('#up').classList.toggle('has',!!name); $('#up-name').textContent=name||'Upload brochure'; $('#up-info').textContent=name?info:'PDF · up to 30 MB'; $('#up-err').style.display='none'; }
+  function setSeg(v){ $$('#f-status button').forEach(function(b){b.classList.toggle('on',b.textContent===v)}); }
+  function openForm(i){
+    edit=i; var p=i<0?['','','','','','',0,'Hidden','p5']:P[i];
+    $('#f-title').textContent=i<0?'Add project':'Edit '+p[0];
+    $('#f-name').value=p[0]; $('#f-dev').value=p[1]; $('#f-area').value=p[2]; $('#f-price').value=p[3]==='–'?'':p[3];
+    var b=p[5].split(' · '); setUp(b[0],b[1]||''); setSeg(p[7]);
+    $('#f-hint').style.display=i<0?'':'none'; $('#f-del').style.display=i<0?'none':'';
+    $$('#form .invalid').forEach(function(f){f.classList.remove('invalid')}); $('#f-file').value='';
+    HM.open('#prj-panel'); setTimeout(function(){$('#f-name').focus()},250);
+  }
+  $('#add').addEventListener('click',function(){openForm(-1)});
+  document.addEventListener('click',function(e){var b=e.target.closest('[data-edit]'); if(b) openForm(+b.getAttribute('data-edit'))});
+  $('#f-file').addEventListener('change',function(){
+    var f=this.files[0], err=$('#up-err'); if(!f) return;
+    if(!/\.pdf$/i.test(f.name)){ err.textContent='Only a PDF file can be a brochure.'; err.style.display='block'; this.value=''; return; }
+    if(f.size>30*1024*1024){ err.textContent='This file is bigger than 30 MB. Make it smaller and try again.'; err.style.display='block'; this.value=''; return; }
+    setUp(f.name,Math.max(1,Math.round(f.size/1048576))+' MB · ready');
+  });
+  // unique name: stop the save before the shared validator closes anything
+  $('#form').addEventListener('submit',function(e){
+    var n=$('#f-name').value.trim().toLowerCase(), dup=P.some(function(p,i){return i!==edit&&p[0].toLowerCase()===n});
+    var pr=$('#f-price').value.trim(), pf=$('#f-price').closest('.field');
+    if(pr && !/\d/.test(pr)){ e.preventDefault(); e.stopPropagation(); pf.classList.add('invalid'); var pe=$('.error',pf)||pf.appendChild(document.createElement('span')); pe.className='error'; pe.textContent='Write a number, like AED 1.6M.'; $('#f-price').focus(); }
+    if(n&&dup){ e.preventDefault(); e.stopPropagation(); var f=$('#fld-name'); f.classList.add('invalid'); var er=$('.error',f)||f.appendChild(document.createElement('span')); er.className='error'; er.textContent='There is already a project with this name.'; $('#f-name').focus(); }
+  },true);
+  $('#form').addEventListener('hm:submit',function(){
+    var st=$('#f-status .on').textContent, row=[$('#f-name').value.trim(),$('#f-dev').value.trim(),$('#f-area').value.trim()||'–',$('#f-price').value.trim()||'–',edit<0?'–':P[edit][4],file?file+' · '+($('#up-info').textContent.split(' · ')[0]||'PDF'):'',edit<0?0:P[edit][6],st,edit<0?'p5':P[edit][8]];
+    if(edit<0) P.push(row); else P[edit]=row;
+    draw(); HM.close(); HM.toast(edit<0?row[0]+' is added · status '+st:row[0]+' is saved');
+    var tr=$('#prj tr[data-i="'+(edit<0?P.length-1:edit)+'"]'); if(tr) tr.classList.add('pulse-row');
+  });
+  $('#f-del').addEventListener('hm:confirm',function(){
+    var p=P[edit]; if(p[6]){ HM.toast(p[0]+' has '+p[6]+' leads. Set it to Hidden; a project with leads cannot be deleted.',{error:true}); return; }
+    var i=edit; P.splice(i,1); draw(); HM.close(); HM.toast(p[0]+' is deleted',{undo:function(){P.splice(i,0,p); draw();}});
+  });
+})();
+</script>
+</body>
+</html>

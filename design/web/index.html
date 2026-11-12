@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);padding:14px;gap:14px}
+  /* left: brand panel */
+  .brand{position:relative;border-radius:28px;background:var(--hero);color:#fff;overflow:hidden;padding:40px 44px;display:flex;flex-direction:column;isolation:isolate;min-height:calc(100vh - 28px)}
+  .brand::before{content:"";position:absolute;z-index:-1;right:-180px;top:-220px;width:640px;height:640px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,90,46,.42),transparent 70%)}
+  .brand::after{content:"";position:absolute;z-index:-1;left:-200px;bottom:-260px;width:560px;height:560px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,90,46,.14),transparent 70%)}
+  .logo{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:750;letter-spacing:-.03em}
+  .logo .sb-mark{width:38px;height:38px;border-radius:12px}.logo .sb-mark i{width:20px;height:20px}
+  .logo b span{color:var(--accent)}
+  .brand h1{font-size:54px;line-height:1.02;letter-spacing:-.045em;font-weight:750;margin-top:auto;max-width:520px}
+  .brand h1 em{font-style:normal;color:var(--accent)}
+  .brand .lead{color:var(--hero-ink-2);font-size:16px;margin-top:16px;max-width:440px}
+  .preview{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;margin-top:36px}
+  .pv{border-radius:20px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0;backdrop-filter:blur(6px)}
+  .pv .label{color:var(--hero-ink-2);font-size:12px}
+  .pv .num{font-size:34px}
+  .pv.or{background:var(--accent);box-shadow:0 18px 40px -18px var(--accent)}.pv.or .label{color:rgba(255,255,255,.85)}
+  .pv .bars{height:44px;gap:5px;margin-top:6px}.pv .bar-track>i{background:rgba(255,255,255,.2);border-radius:5px}.pv .bar-col.now .bar-track>i{background:var(--accent)}
+  .pv .arow{height:34px;font-size:12.5px;font-weight:600}.pv .arow:first-of-type{border-top:0}
+  .foot{display:flex;gap:18px;margin-top:28px;font-size:12.5px;color:var(--hero-ink-3)}
+  /* right: form */
+  .side{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+  .form{width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px}
+  .form h2{font-size:30px;letter-spacing:-.035em}
+  .form .sub{color:var(--ink-3);margin-top:-8px}
+  .form-error{display:none}
+  .form.bad .form-error{display:flex}
+  .or-line{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);margin-top:8px}
+  .or-line::before,.or-line::after{content:"";flex:1;height:1px;background:var(--line-2)}
+  .roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .role{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow-1);text-align:left;transition:.15s;min-width:0}
+  .role:hover{transform:translateY(-2px);box-shadow:var(--shadow-2)}
+  .role .who{min-width:0;line-height:1.25;flex:1}.role .who b{display:block;font-weight:650;white-space:nowrap}.role .who span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+  .role>i{color:var(--ink-4)}.role:hover>i{color:var(--accent)}
+  .code{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .code input{height:56px;text-align:center;font-size:24px;font-weight:700;padding:0;border-radius:14px}
+  .step2{display:none}.form.two .step1{display:none}.form.two .step2{display:flex}
+  .step1,.step2{flex-direction:column;gap:16px}.step1{display:flex}
+  .topline{position:absolute;top:28px;right:32px;display:flex;align-items:center;gap:10px}
+  .side{position:relative}
+</style>
+</head>
+<body data-page="login" data-shell="none">
+
+<section class="brand" aria-hidden="false">
+  <div class="logo"><span class="sb-mark"><i data-icon="home"></i></span><b>homes<span>.</span>me</b><span class="chip" style="background:rgba(255,255,255,.1);color:#fff;margin-left:6px">CRM</span></div>
+  <h1>Every lead called.<br><em>On time.</em></h1>
+  <p class="lead">One screen tells you who to call now, what is late and what your team is doing. Dubai off-plan, made simple.</p>
+  <div class="preview">
+    <div class="pv">
+      <span class="label">Needs you now</span>
+      <div class="arow"><span class="vip-tag">VIP</span><span class="grow truncate">Khalid Al Mansoori</span><b data-countdown="24:12" data-countdown-total="30:00" style="color:var(--accent)"></b></div>
+      <div class="arow"><span class="dot red"></span><span class="grow truncate">Follow-up overdue · Sara Nunes</span></div>
+      <div class="arow"><span class="dot green"></span><span class="grow truncate">16:30 Site visit · Lucas Martin</span></div>
+    </div>
+    <div class="pv">
+      <span class="label">Calls today</span><b class="num" data-count>214</b>
+      <div class="bars" style="--max:46">
+        <div class="bar-col"><div class="bar-track"><i style="--v:28"></i></div></div><div class="bar-col"><div class="bar-track"><i style="--v:46"></i></div></div><div class="bar-col"><div class="bar-track"><i style="--v:41"></i></div></div>
+        <div class="bar-col"><div class="bar-track"><i style="--v:22"></i></div></div><div class="bar-col"><div class="bar-track"><i style="--v:39"></i></div></div><div class="bar-col now"><div class="bar-track"><i style="--v:38"></i></div></div>
+      </div>
+    </div>
+    <div class="pv or">
+      <span class="label">In office now</span><b class="num">6 <span style="font-size:15px;font-weight:600;letter-spacing:0;opacity:.85">of 10</span></b>
+      <span class="label" style="margin-top:auto">1 late · 1 outside · 1 leave · 1 absent</span>
+    </div>
+  </div>
+  <div class="foot"><span>Emigeo Homes Real Estate LLC</span><span>Wednesday, 11 November 2026 · 14:55</span></div>
+</section>
+
+<section class="side">
+  <div class="topline">
+    <div class="seg sm" data-seg id="lang"><button class="on">English</button><button>العربية</button></div>
+    <button class="btn icon sm ghost" data-theme-toggle data-tip="Light / dark" aria-label="Light or dark theme"><i data-icon="moon"></i></button>
+  </div>
+
+  <form class="form" id="login" novalidate>
+    <div class="step1">
+      <h2>Sign in</h2>
+      <p class="sub">Use your work email and your password.</p>
+      <div class="banner red form-error" role="alert"><i data-icon="alert"></i><span class="grow" id="err">Write your work email and your password.</span></div>
+      <div class="field"><label for="email">Work email</label><div class="input-icon"><i data-icon="mail"></i><input class="input lg" id="email" type="email" placeholder="name@homes.me" autocomplete="username"></div></div>
+      <div class="field"><label for="pass">Password</label><div class="input-icon"><i data-icon="lock"></i><input class="input lg" id="pass" type="password" placeholder="At least 4 letters or numbers" autocomplete="current-password"><button type="button" class="btn xs ghost" id="show">Show</button></div></div>
+      <div class="row"><label class="check grow"><input type="checkbox" checked>Keep me signed in</label><button type="button" class="link small" id="forgot">Forgot password?</button></div>
+      <button class="btn primary lg block">Sign in <i data-icon="arrow-right"></i></button>
+      <a class="card-link" href="install-guide.html" style="align-self:center"><i data-icon="download" class="i-sm"></i>Put homes.me on your phone · install guide</a>
+
+      <div class="or-line">Demo only · open as</div>
+      <div class="roles">
+        <button type="button" class="role" data-go="agent"><span class="av c5">RK</span><span class="who"><b>Agent · Rocky</b><span>My Day</span></span><i data-icon="arrow-right"></i></button>
+        <button type="button" class="role" data-go="owner"><span class="av me">ED</span><span class="who"><b>Owner · Emir</b><span>Dashboard</span></span><i data-icon="arrow-right"></i></button>
+      </div>
+    </div>
+
+    <div class="step2">
+      <span class="card-icon accent" style="width:48px;height:48px;border-radius:16px"><i data-icon="shield" class="i-lg"></i></span>
+      <h2>Two-step sign-in</h2>
+      <p class="sub">Owners and admin need a second step. Write the 6 digits from your code app.</p>
+      <div class="banner red form-error" role="alert"><i data-icon="alert"></i><span class="grow">Write the 6 digits.</span></div>
+      <div class="code" id="code"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 1"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 2"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 3"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 4"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 5"><input class="input" inputmode="numeric" maxlength="1" aria-label="Digit 6"></div>
+      <button class="btn primary lg block">Confirm and open the dashboard</button>
+      <button type="button" class="btn ghost block" id="back"><i data-icon="arrow-left"></i>Back</button>
+      <p class="small muted center">Demo: any 6 digits work.</p>
+    </div>
+  </form>
+</section>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, f=$('#login'), email=$('#email'), pass=$('#pass');
+  function go(role){ localStorage.setItem('hmRole',role); location.href = role==='agent' ? 'my-day.html' : 'owner-home.html'; }
+  [].forEach.call(document.querySelectorAll('[data-go]'),function(b){ b.addEventListener('click',function(){ go(b.getAttribute('data-go')); }); });
+  $('#show').addEventListener('click',function(){ var s=pass.type==='password'; pass.type=s?'text':'password'; this.textContent=s?'Hide':'Show'; });
+  $('#forgot').addEventListener('click',function(){ HM.toast('Ask Emir, George or Abdullah. They send a reset link to your work email.'); });
+  $('#back').addEventListener('click',function(){ f.classList.remove('two','bad'); });
+  $('#lang').addEventListener('hm:change',function(e){ if(e.detail.value!=='English'){ HM.toast('Arabic comes in a later phase.'); var b=this.children; setTimeout(function(){ b[0].classList.add('on'); b[1].classList.remove('on'); },600); } });
+  var boxes=[].slice.call(document.querySelectorAll('#code input'));
+  boxes.forEach(function(b,i){
+    b.addEventListener('input',function(){ b.value=b.value.replace(/\D/g,''); if(b.value&&boxes[i+1]) boxes[i+1].focus(); f.classList.remove('bad'); });
+    b.addEventListener('keydown',function(e){ if(e.key==='Backspace'&&!b.value&&boxes[i-1]) boxes[i-1].focus(); });
+    b.addEventListener('paste',function(e){ var d=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6); if(d){ e.preventDefault(); boxes.forEach(function(x,j){ x.value=d[j]||''; }); } });
+  });
+  [email,pass].forEach(function(i){ i.addEventListener('input',function(){ f.classList.remove('bad'); }); });
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    if(f.classList.contains('two')){
+      if(boxes.some(function(b){return !b.value})){ f.classList.add('bad'); return; }
+      go('owner'); return;
+    }
+    var okMail=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim()), okPass=pass.value.length>=4;
+    if(!okMail||!okPass){
+      $('#err').textContent = !email.value.trim()||!pass.value ? 'Write your work email and your password.' : (!okMail ? 'This email does not look right. Example: name@homes.me' : 'The password needs at least 4 letters or numbers.');
+      f.classList.add('bad'); (okMail?pass:email).focus(); return;
+    }
+    f.classList.remove('bad');
+    if(/^(emir|george|abdullah)/i.test(email.value.trim())){ f.classList.add('two'); boxes[0].focus(); }
+    else go('agent');
+  });
+})();
+</script>
+</body>
+</html>

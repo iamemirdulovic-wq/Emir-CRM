@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Best of Homes · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .top-tabs{margin-bottom:16px}
+  .top-tabs .tab{font-size:15px;padding-left:4px;padding-right:4px;margin-right:22px}
+  .row1{grid-template-rows:372px}
+  /* podium */
+  #podium-card{padding-bottom:0;overflow:hidden}
+  .podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:12px;align-items:end;flex:1;margin-top:8px}
+  .pod{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+  .pod .av{box-shadow:0 0 0 3px var(--hero),0 0 0 5px rgba(255,255,255,.18)}
+  .pod.first .av{box-shadow:0 0 0 3px var(--hero),0 0 0 5px var(--accent)}
+  .pod b.nm{font-size:16px;font-weight:680;margin-top:8px;color:#fff}
+  .pod .pts{font-size:26px;font-weight:740;letter-spacing:-.035em;line-height:1.1;color:#fff}
+  .pod.first .pts{font-size:36px}
+  .pod .sm{font-size:12px;color:var(--hero-ink-2);white-space:nowrap}
+  .pod .block{width:100%;border-radius:16px 16px 0 0;background:var(--hero-3);margin-top:12px;display:flex;justify-content:center;padding-top:8px;font-size:30px;line-height:1.2;font-weight:760;letter-spacing:-.04em;color:var(--hero-ink-3);height:var(--h);animation:rise .7s var(--ease) both}
+  .pod.first .block{background:linear-gradient(180deg,var(--accent),#C23E17);color:rgba(255,255,255,.9)}
+  @keyframes rise{from{height:0;opacity:0}to{height:var(--h);opacity:1}}
+  /* you card */
+  .quote{font-size:26px;font-weight:720;letter-spacing:-.03em;line-height:1.15}
+  .quote em{font-style:normal;color:var(--accent-ink)}
+  .lvl{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--surface-2)}
+  .lvl .n{width:44px;height:44px;border-radius:14px;background:var(--hero);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:740;flex:none}
+  .lvl .grow b{display:block;font-weight:680}
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .trio div b{display:block;font-size:22px;font-weight:720;letter-spacing:-.03em;line-height:1.15}
+  .trio div span{font-size:12px;color:var(--ink-3)}
+  /* ranking */
+  #rank td{height:48px}
+  #rank .rk{font-size:17px;font-weight:740;width:44px;letter-spacing:-.02em}
+  #rank tr.you td{background:var(--accent-soft)}
+  #rank tr.you td:first-child{border-radius:12px 0 0 12px}#rank tr.you td:last-child{border-radius:0 12px 12px 0}
+  #rank .pt{font-weight:720;font-size:15px}
+  #rank .bar{width:110px}
+  .badge-grid{display:grid;grid-template-columns:1fr;gap:6px}
+  .bdg{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:14px;background:var(--surface-2);min-width:0}
+  .bdg .ic{width:34px;height:34px;border-radius:11px;background:var(--hero);color:#fff;display:grid;place-items:center;flex:none}
+  .bdg b{display:block;font-weight:650;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bdg span span{font-size:11.5px;color:var(--ink-3);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bdg>span:last-child{min-width:0}
+  .bdg.locked{background:none;box-shadow:inset 0 0 0 1px var(--line)}
+  .bdg.locked .ic{background:var(--surface-3);color:var(--ink-3)}
+  .bdg.locked b{color:var(--ink-3)}
+</style>
+</head>
+<body data-page="best-of-homes" data-role="any" data-title="Best of Homes" data-sub="Week 46 · Mon 9 – Sun 15 Nov · ends Sunday 23:59">
+<main>
+
+  <div class="tabs top-tabs">
+    <a class="tab" href="team.html">Meet the team</a>
+    <a class="tab on" href="best-of-homes.html">Best of Homes</a>
+    <span style="flex:1"></span>
+    <div class="seg sm" data-seg id="period" style="margin-bottom:8px"><button class="on" data-value="week">Week 46</button><button data-value="last">Last week</button><button data-value="month">November</button></div>
+  </div>
+
+  <div class="bento row1">
+    <!-- podium -->
+    <section class="card hero c-7" id="podium-card">
+      <div class="row"><h2 class="grow" id="pod-title">Podium · week 46</h2><span class="hero-chip" id="pod-chip">Live · 4 days left</span></div>
+      <div class="podium" id="podium"></div>
+    </section>
+
+    <!-- you (agent) -->
+    <section class="card c-5" data-only="agent">
+      <div class="card-head"><h3 id="you-h">You are 2nd</h3><span class="chip green">+240 points today</span></div>
+      <p class="quote"><em>6 calls or 1 meeting</em> puts you in first place.</p>
+      <div class="lvl mt-16"><span class="n">7</span><div class="grow"><b>Level 7 · Closer</b><div class="bar accent mt-8" style="--v:87%"><i></i></div><div class="small muted mt-4">1,740 of 2,000 points · 260 to Level 8 · Top closer</div></div></div>
+      <div class="trio mt-16"><div><b>12 days</b><span>streak</span></div><div><b>188</b><span>calls this week</span></div><div><b>5</b><span>meetings this week</span></div></div>
+      <div class="card-foot" style="margin-top:auto;padding-top:14px"><a class="btn primary" href="calling.html"><i data-icon="phone"></i>Start calling · 12 ready</a><a class="btn ghost" href="calendar.html#new">Book a meeting</a></div>
+    </section>
+
+    <!-- week in numbers (owner) -->
+    <section class="card c-5" data-only="owner">
+      <div class="card-head"><h3>Week 46 in numbers</h3><a class="card-link" href="dashboard.html">Dashboard <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="stat-row"><b class="num-hero" data-count>1,099</b><span class="delta up">9% vs last week</span></div><span class="label mt-4">Calls by the team so far</span>
+      <div class="trio mt-24"><div><b>26</b><span>meetings</span></div><div><b>4</b><span>units booked</span></div><div><b>10,200</b><span>points given</span></div></div>
+      <div class="banner mt-auto"><i data-icon="alert"></i><span class="grow"><b>Bassam has 180 points.</b> He is absent today.</span><a class="btn xs" href="team-attendance.html">See</a></div>
+    </section>
+  </div>
+
+  <div class="bento">
+    <!-- ranking -->
+    <section class="card c-8" style="padding-bottom:12px">
+      <div class="card-head"><h3>Ranking</h3><span class="small muted" id="rank-sub">10 agents · calls · meetings · points</span></div>
+      <table class="table no-lines" id="rank">
+        <thead><tr><th>#</th><th>Agent</th><th class="t-right">Calls</th><th class="t-right">Meetings</th><th class="t-right">Points</th><th></th><th class="t-right" id="rank-vs">vs last week</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <div class="stack c-4">
+      <section class="card">
+        <div class="card-head"><h3 data-only="agent">Your badges</h3><h3 data-only="owner">Badges this month</h3><span class="small muted" data-only="agent">4 of 6</span></div>
+        <div class="badge-grid" data-only="agent">
+          <div class="bdg"><span class="ic"><i data-icon="fire"></i></span><span><b>12 days streak</b><span>Calls every working day</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="zap"></i></span><span><b>Fast reply</b><span>First call under 10 min</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="calendar"></i></span><span><b>Meeting maker</b><span>9 meetings in a month</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="trophy"></i></span><span><b>4 deals in November</b><span>Best month so far</span></span></div>
+          <div class="bdg locked"><span class="ic"><i data-icon="lock"></i></span><span><b>Top closer</b><span>Reach Level 8</span></span></div>
+          <div class="bdg locked"><span class="ic"><i data-icon="lock"></i></span><span><b>30 days streak</b><span>18 days to go</span></span></div>
+        </div>
+        <div class="badge-grid" data-only="owner">
+          <div class="bdg"><span class="ic"><i data-icon="trophy"></i></span><span><b>Top closer · Talha</b><span>7 deals in November</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="fire"></i></span><span><b>30 days streak · Talha</b><span>Calls every working day</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="zap"></i></span><span><b>Fast reply · Yuliia</b><span>5 min average</span></span></div>
+          <div class="bdg"><span class="ic"><i data-icon="pin"></i></span><span><b>Most site visits · Nelson</b><span>8 this month</span></span></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head mb-8"><h3>How you get points</h3></div>
+        <dl class="kv">
+          <div class="kv-row"><dt style="flex:1;width:auto">A call with a result</dt><dd style="flex:none"><b>+15</b></dd></div>
+          <div class="kv-row"><dt style="flex:1;width:auto">A new lead you add</dt><dd style="flex:none"><b>+10</b></dd></div>
+          <div class="kv-row"><dt style="flex:1;width:auto">A booked unit (Won)</dt><dd style="flex:none"><b>+300</b></dd></div>
+          <div class="kv-row"><dt style="flex:1;width:auto">Feedback about the CRM</dt><dd style="flex:none"><b>+15</b></dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var owner=HM.role==='owner';
+  // [name, calls, meetings, points, change vs last week]
+  var DATA={
+    week:[['Talha',212,6,1980,1],['Rocky Khan',188,5,1740,1],['Nelson',141,4,1310,1],['Yuliia',126,3,1120,-3],['Sultan',98,2,960,1],['Olga',92,2,870,1],['Srdjan',85,2,790,1],['Shan',71,1,640,-3],['Tej',66,1,610,1],['Bassam',20,0,180,-1]],
+    last:[['Yuliia',241,7,2210,1],['Talha',236,6,2140,-1],['Rocky Khan',204,5,1890,0],['Nelson',168,5,1620,1],['Shan',150,3,1340,2],['Sultan',139,3,1220,-1],['Olga',121,2,1050,0],['Srdjan',104,2,930,0],['Bassam',88,2,820,0],['Tej',80,1,700,0]],
+    month:[['Talha',702,14,6480,0],['Yuliia',655,11,5720,0],['Rocky Khan',611,9,5410,1],['Nelson',498,8,4630,-1],['Shan',402,5,3310,0],['Olga',377,6,3190,1],['Srdjan',340,5,2900,-1],['Sultan',318,3,2540,0],['Tej',262,4,2210,0],['Bassam',190,2,1420,0]]
+  };
+  var TT={week:'week 46',last:'week 45',month:'November'};
+  function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+  function short(n){return n.split(' ')[0]}
+  function render(k){
+    var d=DATA[k], top=d[0][3];
+    $('#pod-title').textContent='Podium · '+TT[k];
+    var order=[[d[1],2,'92px',''],[d[0],1,'134px','first'],[d[2],3,'62px','']];
+    $('#podium').innerHTML=order.map(function(o){var a=o[0];
+      return '<div class="pod '+o[3]+'"><span class="av '+(o[1]===1?'xl':'lg')+'" data-name="'+a[0]+'"></span><b class="nm">'+short(a[0])+(!owner&&a[0]===HM.me.name?' · you':'')+'</b><span class="pts">'+fmt(a[3])+'</span><span class="sm">'+a[1]+' calls · '+a[2]+' meetings</span><div class="block" style="--h:'+o[2]+'">'+o[1]+'</div></div>';
+    }).join('');
+    $('#rank tbody').innerHTML=d.map(function(a,i){ var you=!owner&&a[0]===HM.me.name, ch=a[4];
+      return '<tr class="'+(you?'you':'')+'"'+(owner?' data-href="all-leads.html"':'')+'><td class="rk">'+(i+1)+'</td><td><span class="person"><span class="av sm" data-name="'+a[0]+'"></span><b class="bold">'+a[0]+'</b>'+(you?' <span class="chip dark">You</span>':'')+'</span></td><td class="t-right">'+a[1]+'</td><td class="t-right">'+a[2]+'</td><td class="t-right pt">'+fmt(a[3])+'</td><td><div class="bar'+(i===0||you?' accent':'')+'" style="--v:'+Math.round(a[3]/top*100)+'%"><i></i></div></td>'+
+        '<td class="t-right">'+(ch>0?'<span class="delta up">'+ch+' place'+(ch>1?'s':'')+'</span>':ch<0?'<span class="delta down">'+(-ch)+' place'+(ch<-1?'s':'')+'</span>':'<span class="muted small">same</span>')+'</td></tr>';
+    }).join('');
+    $('#pod-chip').textContent={week:'Live · 4 days left',last:'Finished · Sun 8 Nov',month:'Live · 19 days left'}[k];
+    $('#rank-vs').textContent={week:'vs last week',last:'vs week 44',month:'vs October'}[k];
+    var pos=0; d.forEach(function(a,i){ if(a[0]===HM.me.name) pos=i+1; });
+    if($('#you-h')&&pos) $('#you-h').textContent=(k==='last'?'You were ':'You are ')+pos+(['st','nd','rd'][pos-1]||'th')+{week:'',last:' last week',month:' in November'}[k];
+    $('#rank-sub').textContent='10 agents · '+TT[k]+' · calls · meetings · points';
+    HM.refresh(document.querySelector('main'));
+  }
+  $('#period').addEventListener('hm:change',function(e){render(e.detail.value)});
+  render('week');
+})();
+</script>
+</body>
+</html>

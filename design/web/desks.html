@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desks · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.dk-sum{flex-direction:row;align-items:center;gap:40px}
+.dk-sum>div{display:flex;flex-direction:column;gap:6px}
+.desk{gap:0}
+.desk-top{display:flex;align-items:center;gap:14px}
+.desk-top h2{font-size:20px}
+.desk-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px;margin-top:14px}
+.dm{display:flex;align-items:center;gap:10px;height:40px;min-width:0}
+.dm .nm{width:76px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm .bar{flex:1}
+.dm .v{width:64px;text-align:right;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+.dm .v b{color:var(--ink);font-size:14px}
+.dm.over .v b{color:var(--red-ink)}
+.desk-max{display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body data-page="desks" data-role="owner" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" class="on" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Desks</h1><p>Groups of agents. Each desk has a limit of open leads per agent.</p></div><button class="btn primary" id="dk-add"><i data-icon="plus"></i>Add a desk</button></div>
+<div class="dk-sum card">
+  <div><span class="label">Desks</span><b class="num" id="dk-n">3</b></div>
+  <div><span class="label">Agents on a desk</span><div class="stat-row"><b class="num" id="dk-ag">10</b><span class="delta" id="dk-two">Rocky sits on 2</span></div></div>
+  <div class="grow"><span class="label">Over the limit now</span><div class="stat-row"><b class="num t-red" id="dk-over">2</b><span class="small muted" id="dk-over-who">Shan 57 of 50 · Bassam 44 of 40</span></div></div>
+  <a class="btn" href="all-leads.html"><i data-icon="swap"></i>Move leads</a>
+</div>
+<div id="desks" class="col gap-16"></div>
+<p class="small muted">An agent over the limit gets no new leads from “Share equally” and from imports. You can still give a lead by hand.</p>
+
+<aside class="panel" id="desk-panel" aria-label="Desk">
+  <form data-form id="desk-form" style="display:contents">
+  <div class="panel-head"><h2 id="dp-title">New desk</h2><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="field" id="dp-name-f"><label>Desk name <span class="req">*</span></label><input class="input" id="dp-name" required data-min="2" data-error="Write a desk name." placeholder="Russian desk"></div>
+    <div class="field"><span class="field-label">Max open leads per agent</span><div class="seg block" data-seg id="dp-max"><button type="button">40</button><button type="button">50</button><button type="button" class="on">60</button><button type="button">80</button></div><span class="hint">Above this number the bar turns red and new leads skip the agent.</span></div>
+    <div class="field" id="dp-mem-f"><span class="field-label">Members <span class="muted" id="dp-count">· 0 chosen</span></span><div class="opt-list" data-chips="multi" id="dp-members"></div><span class="error">Choose at least one agent.</span></div>
+  </div>
+  <div class="panel-foot"><button type="button" class="btn danger" id="dp-del" data-confirm="Tap again to delete">Delete desk</button><span class="grow"></span><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="dp-save">Save desk</button></div>
+  </form>
+</aside>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var A={Talha:[22,'office','English, Urdu, Hindi'],Rocky:[14,'office','English, Arabic, Hindi'],Yuliia:[18,'office','English, Russian, Ukrainian'],Olga:[12,'office','English, Russian'],Srdjan:[16,'office','English, Serbian'],Tej:[11,'office','English, Hindi, Punjabi'],Shan:[57,'late','English, Arabic, Urdu'],Nelson:[9,'outside','English, Portuguese'],Sultan:[31,'leave','English, Arabic'],Bassam:[44,'absent','English, Arabic']};
+  var desks=[{id:1,name:'Dubai off-plan',max:60,m:['Talha','Rocky','Yuliia','Olga','Srdjan','Tej']},{id:2,name:'Arabic desk',max:50,m:['Shan','Sultan','Rocky']},{id:3,name:'Abu Dhabi',max:40,m:['Nelson','Bassam']}], seq=4, editing=null;
+  function esc(s){ var d=document.createElement('i'); d.textContent=s; return d.innerHTML; }
+  function draw(){
+    var over=[]; $('#desks').innerHTML=desks.map(function(d){
+      var tot=d.m.reduce(function(s,n){return s+A[n][0]},0);
+      return '<section class="card desk" data-id="'+d.id+'"><div class="desk-top"><div class="grow"><h2>'+esc(d.name)+'</h2><div class="small muted mt-4">'+d.m.length+' agent'+(d.m.length===1?'':'s')+' · '+tot+' open leads</div></div>'+
+        '<div class="desk-max"><span class="small muted">Max open leads</span><div class="seg sm" data-seg data-max>'+[40,50,60,80].map(function(v){return '<button'+(v===d.max?' class="on"':'')+'>'+v+'</button>'}).join('')+'</div></div>'+
+        '<button class="btn sm" data-edit-desk><i data-icon="edit"></i>Edit</button><button class="btn sm danger" data-confirm="Tap again to delete" data-del-desk>Delete</button></div>'+
+        '<div class="desk-grid">'+d.m.slice().sort(function(a,b){return A[b][0]-A[a][0]}).map(function(n){ var v=A[n][0], o=v>d.max; if(o) over.push(n+' '+v+' of '+d.max);
+          return '<div class="dm'+(o?' over':'')+'"><span class="av sm" data-name="'+(n==='Rocky'?'Rocky Khan':n)+'" data-status="'+A[n][1]+'"></span><span class="nm">'+n+'</span><div class="bar load'+(o?' red':'')+'" style="--v:'+Math.min(100,v/80*100)+'%;--max:'+(d.max/80*100)+'%"><i></i></div><span class="v"><b>'+v+'</b> / '+d.max+'</span></div>'; }).join('')+'</div></section>';
+    }).join('') || '<div class="card"><div class="empty"><span class="ic"><i data-icon="layout" class="i-xl"></i></span><b>No desks yet</b><p>Add a desk to set a lead limit for a group of agents.</p></div></div>';
+    $('#dk-n').textContent=desks.length; $('#dk-over').textContent=over.length; $('#dk-over').classList.toggle('t-red',over.length>0); $('#dk-over-who').textContent=over.length?over.join(' · '):'Everyone is under the limit';
+    var cnt2={}; desks.forEach(function(d){ d.m.forEach(function(n){ cnt2[n]=(cnt2[n]||0)+1; }); });
+    var onDesk=Object.keys(cnt2), two=onDesk.filter(function(n){return cnt2[n]>1}), free=Object.keys(A).length-onDesk.length;
+    $('#dk-ag').textContent=onDesk.length; $('#dk-two').textContent = two.length>2 ? two.length+' agents sit on 2 desks' : two.length ? two.join(', ')+(two.length===1?' sits':' sit')+' on 2' : (free ? free+' with no desk' : 'One desk each'); $('#dk-two').hidden=false;
+    HM.refresh($('#desks'));
+  }
+  function find(el){ var id=+el.closest('.desk').dataset.id; return desks.filter(function(d){return d.id===id})[0]; }
+  $('#desks').addEventListener('hm:change',function(e){ if(!e.target.hasAttribute('data-max')) return; var d=find(e.target), old=d.max; d.max=+e.detail.value; draw(); HM.toast(d.name+' · max '+d.max+' open leads per agent',{undo:function(){ d.max=old; draw(); }}); });
+  $('#desks').addEventListener('hm:confirm',function(e){ if(!e.target.hasAttribute('data-del-desk')) return; var d=find(e.target), i=desks.indexOf(d); desks.splice(i,1); draw(); HM.toast(d.name+' deleted. The agents keep their leads.',{undo:function(){ desks.splice(i,0,d); draw(); }}); });
+  function openPanel(d){ editing=d; $('#dp-title').textContent=d?'Edit '+d.name:'New desk'; $('#dp-name').value=d?d.name:''; $('#dp-del').style.display=d?'':'none';
+    $$('#dp-max button').forEach(function(b){ b.classList.toggle('on',+b.textContent===(d?d.max:60)); });
+    $('#dp-members').innerHTML=Object.keys(A).map(function(n){ var on=d&&d.m.indexOf(n)>-1, other=desks.filter(function(x){return x!==d&&x.m.indexOf(n)>-1}).map(function(x){return x.name});
+      return '<button type="button" class="opt'+(on?' on':'')+'" data-value="'+n+'"><span class="av" data-name="'+(n==='Rocky'?'Rocky Khan':n)+'" data-status="'+A[n][1]+'"></span><span class="grow"><b class="bold">'+n+'</b><div class="small muted truncate">'+(other.length?(on?'Also on ':'On ')+other.join(', '):A[n][2])+'</div></span><span class="small muted">'+A[n][0]+' open</span></button>'; }).join('');
+    HM.refresh($('#dp-members')); cnt(); $$('#desk-form .invalid').forEach(function(f){f.classList.remove('invalid')}); HM.open('#desk-panel'); setTimeout(function(){ $('#dp-name').focus(); },250); }
+  function cnt(){ $('#dp-count').textContent='· '+$$('#dp-members .on').length+' chosen'; }
+  $('#dp-members').addEventListener('hm:change',function(){ cnt(); $('#dp-mem-f').classList.remove('invalid'); });
+  $('#dk-add').addEventListener('click',function(){ openPanel(null); });
+  $('#desks').addEventListener('click',function(e){ if(e.target.closest('[data-edit-desk]')) openPanel(find(e.target)); });
+  window.addEventListener('submit',function(e){ if(e.target.id!=='desk-form') return; var name=$('#dp-name').value.trim().toLowerCase(), mem=$$('#dp-members .on'), bad=false;
+    if(name && desks.some(function(d){return d!==editing&&d.name.toLowerCase()===name})){ var f=$('#dp-name-f'), er=f.querySelector('.error')||f.appendChild(Object.assign(document.createElement('span'),{className:'error'})); er.textContent='There is already a desk with this name.'; f.classList.add('invalid'); bad=true; }
+    if(name.length>=2 && !mem.length){ $('#dp-mem-f').classList.add('invalid'); bad=true; }
+    if(bad){ e.preventDefault(); e.stopPropagation(); } },true);
+  $('#desk-form').addEventListener('hm:submit',function(){ var name=$('#dp-name').value.trim(), max=+$('#dp-max .on').textContent, m=$$('#dp-members .on').map(function(b){return b.dataset.value});
+    if(editing){ editing.name=name; editing.max=max; editing.m=m; HM.toast(name+' saved'); } else { desks.push({id:seq++,name:name,max:max,m:m}); HM.toast(name+' added · '+m.length+' agent'+(m.length===1?'':'s')); }
+    draw(); });
+  $('#dp-del').addEventListener('hm:confirm',function(){ var d=editing, i=desks.indexOf(d); desks.splice(i,1); draw(); HM.close(); HM.toast(d.name+' deleted. The agents keep their leads.',{undo:function(){ desks.splice(i,0,d); draw(); }}); });
+  draw();
+})();
+</script>
+</body>
+</html>

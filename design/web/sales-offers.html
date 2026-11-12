@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales offers · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.so-top{display:flex;align-items:flex-end;gap:44px;margin:10px 0 20px}
+.so-stat{display:flex;flex-direction:column;gap:6px}
+.so-top .btn{align-self:center}
+#so td{height:52px}
+.doc{border-radius:18px;padding:18px;box-shadow:inset 0 0 0 1px var(--line-2);display:flex;flex-direction:column;gap:14px;background:var(--surface)}
+.doc-brand{font-size:17px;font-weight:750;letter-spacing:-.03em}.doc-brand span{color:var(--accent)}
+.doc-price{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:14px;background:var(--surface-2)}
+.doc-price b{font-size:30px;font-weight:740;letter-spacing:-.03em}
+.pub-link{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--surface-2);font-weight:600;font-size:13px}
+.pub-link>i{color:var(--ink-3)}
+.btn>svg{width:16px;height:16px;flex:none}
+</style>
+</head>
+<body data-page="sales-offers" data-role="any">
+<main>
+<div class="so-top">
+  <div class="so-stat"><b class="num" id="s-n">9</b><span class="label">offers this month</span></div>
+  <div class="so-stat"><b class="num" id="s-v">AED 20.9M</b><span class="label">total value</span></div>
+  <div class="so-stat"><b class="num t-green" id="s-a">2</b><span class="label">accepted</span></div>
+  <div class="so-stat"><b class="num" id="s-o">4</b><span class="label">shared, waiting for the client</span></div>
+  <span class="grow"></span>
+  <button class="btn primary" id="so-new"><i data-icon="plus"></i>New sales offer</button>
+</div>
+<div class="tabs pills" id="so-tabs">
+  <button class="tab on" data-st="">All <span class="count" data-c=""></span></button><button class="tab" data-st="Draft">Draft <span class="count" data-c="Draft"></span></button><button class="tab" data-st="Shared">Shared <span class="count" data-c="Shared"></span></button><button class="tab" data-st="Accepted">Accepted <span class="count" data-c="Accepted"></span></button>
+</div>
+<div class="filters">
+  <div class="input-icon"><i data-icon="search"></i><input class="input sm" id="so-q" placeholder="Search lead, unit or number"></div>
+  <select class="select sm" id="so-p"><option value="">Project: all</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option><option>Valia</option></select>
+  <select class="select sm" id="so-a" data-only="owner"><option value="">Agent: all</option><option>Rocky</option><option>Talha</option><option>Nelson</option><option>Yuliia</option></select>
+  <button class="btn xs ghost" id="so-clear" hidden>Clear all</button>
+  <span class="grow"></span><span class="result-count" id="so-count"></span>
+</div>
+<div class="table-wrap"><table class="table" id="so"><thead><tr><th>Lead</th><th>Project</th><th>Unit</th><th class="t-right">Price</th><th>Status</th><th data-only="owner">Agent</th><th>Date</th><th></th></tr></thead><tbody></tbody></table>
+<div class="empty" id="so-empty" hidden><span class="ic"><i data-icon="tag" class="i-xl"></i></span><b>No sales offers here</b><p>Change the filters, or make a new offer for a lead.</p></div></div>
+<p class="small muted mt-12">A sales offer is a one-page price sheet for one unit. You share the link yourself in WhatsApp. The CRM shows when the client opens it.</p>
+
+<aside class="panel" id="so-panel" aria-label="Sales offer">
+  <div class="panel-head"><h2 id="p-no">SO-0148</h2><span id="p-st"></span><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="doc">
+      <div class="row between"><b class="doc-brand">homes<span>.</span>me</b><span class="tiny muted">SALES OFFER · <span id="d-no"></span></span></div>
+      <div class="photo" id="d-photo" style="min-height:96px"></div>
+      <div><div class="small muted">Prepared for</div><b class="big bold" id="d-lead"></b></div>
+      <div class="doc-price"><span class="small muted" id="d-unit"></span><b id="d-price"></b></div>
+      <dl class="kv"><div class="kv-row"><dt>Project</dt><dd id="d-proj"></dd></div><div class="kv-row"><dt>Payment plan</dt><dd id="d-plan"></dd></div><div class="kv-row"><dt>Handover</dt><dd id="d-hand"></dd></div><div class="kv-row"><dt>Valid until</dt><dd id="d-valid"></dd></div><div class="kv-row"><dt>Your agent</dt><dd id="d-agent"></dd></div></dl>
+    </div>
+    <div class="banner blue" id="p-open"><i data-icon="eye"></i><span class="grow" id="p-open-t"></span></div>
+    <div class="pub-link"><i data-icon="link"></i><span class="grow truncate" id="p-link"></span><button class="btn xs" id="p-copy">Copy link</button></div>
+    <div class="btn-row"><button class="btn" id="p-wa"><i data-icon="whatsapp"></i>Share on WhatsApp</button><button class="btn" id="p-tg"><i data-icon="telegram"></i>Telegram</button><button class="btn" id="p-pdf"><i data-icon="download"></i>PDF</button></div>
+  </div>
+  <div class="panel-foot"><a class="btn" href="lead.html" id="p-lead">Open the lead</a><span class="grow"></span><button class="btn danger" id="p-del" data-confirm="Tap again to delete">Delete draft</button><button class="btn green" id="p-acc" data-confirm="Tap again · client said yes">Mark as accepted</button></div>
+</aside>
+
+<aside class="panel" id="so-form-panel" aria-label="New sales offer">
+  <form data-form id="so-form" style="display:contents">
+  <div class="panel-head"><h2>New sales offer</h2><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="field"><label>Lead <span class="req">*</span></label><select class="select" id="f-lead" required data-error="Choose a lead from your list."><option value="">Choose a lead…</option></select><span class="hint"><span data-only="agent">Only your open leads. </span>The offer is saved on the lead timeline.</span></div>
+    <div class="field"><span class="field-label">Project <span class="t-accent">*</span></span><div class="chips" data-chips id="f-proj"><button type="button" class="chip-opt on">The Archive</button><button type="button" class="chip-opt">Shahrukhz</button><button type="button" class="chip-opt">Damac Islands</button><button type="button" class="chip-opt">Valia</button></div></div>
+    <div class="form-grid">
+      <div class="field"><label>Unit <span class="req">*</span></label><input class="input" id="f-unit" required data-min="2" data-error="Write the unit, like 2BR · 1204." placeholder="2BR · 1204"></div>
+      <div class="field" id="f-price-f"><label>Price in AED <span class="req">*</span></label><input class="input" id="f-price" required inputmode="numeric" data-error="Write the price in numbers." placeholder="2,050,000"><span class="hint" id="f-from">The Archive starts from AED 1.6M</span></div>
+      <div class="field"><label>Payment plan</label><input class="input" id="f-plan" value="60 / 40"></div>
+      <div class="field" id="f-valid-f"><label>Valid until <span class="req">*</span></label><input class="input" type="date" id="f-valid" required min="2026-11-11" value="2026-11-18" data-error="Choose a day."><span class="error">The day cannot be in the past.</span></div>
+      <div class="field full"><label>Note for the client</label><textarea class="textarea" id="f-note" placeholder="High floor, canal view. Price from the developer list of 10 Nov."></textarea></div>
+    </div>
+    <div class="banner"><i data-icon="info"></i><span class="grow">It is saved as a draft. Nothing goes to the client until you share the link yourself.</span></div>
+  </div>
+  <div class="panel-foot"><button type="button" class="btn ghost" data-close>Cancel</button><span class="grow"></span><button class="btn primary">Save as draft</button></div>
+  </form>
+</aside>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))}, owner=HM.role==='owner';
+  var PR={'The Archive':['60 / 40','Q4 2027','','AED 1.6M'],'Shahrukhz':['1% monthly','Q2 2028','p2','AED 1.2M'],'Damac Islands':['75 / 25','Q1 2029','p3','AED 2.7M'],'Valia':['80 / 20','Q3 2029','p4','AED 1.4M']};
+  var O=[
+   {no:148,lead:'Marco Bellini',proj:'The Archive',unit:'2BR · 1204',price:2050000,st:'Shared',agent:'Rocky',date:'Today 10:42',opens:2,last:'today 11:15'},
+   {no:147,lead:'Elena Kuznetsova',proj:'Damac Islands',unit:'4BR villa · V-32',price:4100000,st:'Shared',agent:'Rocky',date:'Tue 10 Nov',opens:5,last:'today 09:20'},
+   {no:146,lead:'Aisha Noor',proj:'Damac Islands',unit:'3BR townhouse · TH-118',price:2900000,st:'Accepted',agent:'Talha',date:'Tue 10 Nov',opens:4,last:'Tue 10 Nov',vip:1},
+   {no:145,lead:'Lucas Martin',proj:'The Archive',unit:'3BR · 2301',price:2480000,st:'Draft',agent:'Rocky',date:'Today 13:10',opens:0},
+   {no:144,lead:'Priya Shah',proj:'Valia',unit:'1BR · A-506',price:1410000,st:'Draft',agent:'Rocky',date:'Mon 9 Nov',opens:0},
+   {no:143,lead:'Daniel Rossi',proj:'The Archive',unit:'2BR · 0907',price:1980000,st:'Shared',agent:'Nelson',date:'Mon 9 Nov',opens:1,last:'Mon 9 Nov',vip:1},
+   {no:142,lead:'Dave Patel',proj:'Shahrukhz',unit:'2BR · 1811',price:1650000,st:'Shared',agent:'Rocky',date:'Fri 6 Nov',opens:0},
+   {no:141,lead:'Omar Khalil',proj:'Valia',unit:'2BR · B-1102',price:2200000,st:'Accepted',agent:'Rocky',date:'Thu 5 Nov',opens:3,last:'Fri 6 Nov'},
+   {no:140,lead:'Fatima Al Zaabi',proj:'Valia',unit:'2BR · C-804',price:2150000,st:'Draft',agent:'Yuliia',date:'Wed 4 Nov',opens:0}];
+  if(!owner) O=O.filter(function(o){return o.agent==='Rocky'});
+  var seq=149, st='', cur=null, CH={Draft:'chip',Shared:'chip blue pip',Accepted:'chip green pip'};
+  function money(n){ return 'AED '+n.toLocaleString('en-US'); }
+  function short(n){ return 'AED '+(n/1e6).toFixed(1)+'M'; }
+  function esc(s){ var d=document.createElement('i'); d.textContent=s; return d.innerHTML; }
+  function draw(){ var q=$('#so-q').value.trim().toLowerCase(), p=$('#so-p').value, ag=$('#so-a')?$('#so-a').value:'';
+    var base=O.filter(function(o){ return (!p||o.proj===p)&&(!ag||o.agent===ag)&&(!q||(o.lead+' '+o.unit+' so-0'+o.no+' '+o.proj).toLowerCase().indexOf(q)>-1); });
+    $$('[data-c]').forEach(function(c){ var k=c.dataset.c; c.textContent=base.filter(function(o){return !k||o.st===k}).length; });
+    var rows=base.filter(function(o){return !st||o.st===st});
+    $('#so tbody').innerHTML=rows.map(function(o){ return '<tr data-no="'+o.no+'"><td><span class="person"><span class="av sm" data-name="'+esc(o.lead)+'"></span><span><span class="t-main">'+esc(o.lead)+'</span>'+(o.vip?' <span class="vip-tag">VIP</span>':'')+'<div class="t-sub">SO-0'+o.no+'</div></span></span></td><td>'+o.proj+'</td><td>'+esc(o.unit)+'</td><td class="t-right t-main">'+money(o.price)+'</td><td><span class="'+CH[o.st]+'">'+o.st+'</span>'+(o.st==='Shared'?'<span class="t-sub" style="margin-left:8px">'+(o.opens?'opened '+o.opens+' time'+(o.opens>1?'s':''):'not opened yet')+'</span>':'')+'</td>'+(owner?'<td><span class="person"><span class="av xs" data-name="'+(o.agent==='Rocky'?'Rocky Khan':o.agent)+'"></span>'+o.agent+'</span></td>':'')+'<td class="t-sub">'+o.date+'</td><td><div class="row-actions">'+(o.st==='Draft'?'<button class="btn xs" data-share><i data-icon="whatsapp"></i>Share</button>':'<button class="btn xs" data-copy><i data-icon="copy"></i>Copy link</button>')+'</div></td></tr>'; }).join('');
+    $('#so').style.display=rows.length?'':'none'; $('#so-empty').hidden=!!rows.length; HM.refresh($('#so'));
+    $('#so-count').textContent=rows.length+' of '+O.length+' offers'; $('#so-clear').hidden=!(q||p||ag||st);
+    $('#s-n').textContent=O.length; $('#s-v').textContent=short(O.reduce(function(s,o){return s+o.price},0)); $('#s-a').textContent=O.filter(function(o){return o.st==='Accepted'}).length; $('#s-o').textContent=O.filter(function(o){return o.st==='Shared'}).length; }
+  function get(no){ return O.filter(function(o){return o.no===+no})[0]; }
+  function link(o){ return 'homes.me/o/'+o.lead.split(' ')[0].toLowerCase()+'-'+o.no; }
+  function panel(o){ cur=o; var p=PR[o.proj]; $('#p-no').textContent='SO-0'+o.no; $('#d-no').textContent='SO-0'+o.no; $('#p-st').className=CH[o.st]; $('#p-st').textContent=o.st;
+    $('#d-lead').textContent=o.lead; $('#d-unit').textContent=o.proj+' · '+o.unit; $('#d-price').textContent=money(o.price); $('#d-proj').textContent=o.proj; $('#d-plan').textContent=o.plan||p[0]; $('#d-hand').textContent=p[1]; $('#d-valid').textContent=o.valid||'Wed 18 Nov 2026'; $('#d-agent').textContent=(o.agent==='Rocky'?'Rocky Khan':o.agent==='Emir'?'Emir Dulovic':o.agent)+' · homes.me';
+    $('#d-photo').className='photo '+p[2]; $('#p-link').textContent=link(o);
+    var b=$('#p-open'); b.className='banner '+(o.st==='Draft'?'':o.st==='Accepted'?'green':'blue');
+    $('#p-open-t').textContent = o.st==='Draft' ? 'Draft. The client cannot see it yet.' : o.st==='Accepted' ? 'The client said yes. Next: mark the lead as Won with the booking form.' : (o.opens ? o.lead.split(' ')[0]+' opened the link '+o.opens+' time'+(o.opens>1?'s':'')+' · last '+o.last : 'Shared. The client did not open the link yet.');
+    $('#p-del').style.display=o.st==='Draft'?'':'none'; $('#p-acc').style.display=o.st==='Shared'?'':'none'; HM.open('#so-panel'); }
+  function share(o,app){ var was=o.st; if(o.st==='Draft'){ o.st='Shared'; o.date='Today 14:55'; } draw(); if(cur===o && $('#so-panel').classList.contains('open')) panel(o);
+    HM.toast(app+' opens with the link for '+o.lead.split(' ')[0]+'. You press send.',{undo:function(){ o.st=was; draw(); if(cur===o) panel(o); }}); }
+  function copy(o){ try{ navigator.clipboard.writeText('https://'+link(o)); }catch(e){} HM.toast('Link copied · '+link(o)); }
+  $('#so tbody').addEventListener('click',function(e){ var tr=e.target.closest('tr'); if(!tr) return; var o=get(tr.dataset.no);
+    if(e.target.closest('[data-share]')){ share(o,'WhatsApp'); return; } if(e.target.closest('[data-copy]')){ copy(o); return; } panel(o); });
+  $('#p-wa').addEventListener('click',function(){ share(cur,'WhatsApp'); }); $('#p-tg').addEventListener('click',function(){ share(cur,'Telegram'); });
+  $('#p-copy').addEventListener('click',function(){ copy(cur); }); $('#p-pdf').addEventListener('click',function(){ HM.toast('SO-0'+cur.no+'-'+cur.lead.replace(/ /g,'-')+'.pdf is downloading'); });
+  $('#p-acc').addEventListener('hm:confirm',function(){ var o=cur; o.st='Accepted'; draw(); panel(o); HM.toast(o.lead+' accepted the offer',{undo:function(){ o.st='Shared'; draw(); panel(o); }}); });
+  $('#p-del').addEventListener('hm:confirm',function(){ var o=cur, i=O.indexOf(o); O.splice(i,1); draw(); HM.close(); HM.toast('Draft SO-0'+o.no+' deleted',{undo:function(){ O.splice(i,0,o); draw(); }}); });
+  $$('#so-tabs .tab').forEach(function(t){ t.addEventListener('click',function(){ st=t.dataset.st; $$('#so-tabs .tab').forEach(function(x){x.classList.toggle('on',x===t)}); draw(); }); });
+  $('#so-q').addEventListener('input',draw); $('#so-p').addEventListener('change',draw); if($('#so-a')) $('#so-a').addEventListener('change',draw);
+  $('#so-clear').addEventListener('click',function(){ $('#so-q').value=''; $('#so-p').value=''; if($('#so-a')) $('#so-a').value=''; $('#so-tabs .tab').click(); });
+  /* new offer */
+  var leads=owner?['Khalid Al Mansoori','Marco Bellini','Lucas Martin','Priya Shah','Daniel Rossi','Aisha Noor','Fatima Al Zaabi','Elena Kuznetsova','Dave Patel','Hanna Alabbas']:['Khalid Al Mansoori','Sara Nunes','Marco Bellini','Priya Shah','Lucas Martin','Ahmed Hassan','Hanna Alabbas','Dave Patel','Vanessa Pecoraro','Elena Kuznetsova','Bridget Cardoso','Omar Khalil'];
+  $('#f-lead').innerHTML+=leads.map(function(l){return '<option>'+l+'</option>'}).join('');
+  $('#so-new').addEventListener('click',function(){ $$('#so-form .invalid').forEach(function(f){f.classList.remove('invalid')}); HM.open('#so-form-panel'); });
+  $('#f-proj').addEventListener('hm:change',function(e){ var p=PR[e.detail.value]; $('#f-plan').value=p[0]; $('#f-from').textContent=e.detail.value+' starts from '+p[3]; });
+  $('#f-price').addEventListener('input',function(){ var d=this.value.replace(/\D/g,''); this.value=d?(+d).toLocaleString('en-US'):''; });
+  window.addEventListener('submit',function(e){ if(e.target.id!=='so-form') return; var bad=false, d=$('#f-price').value.replace(/\D/g,''), f=$('#f-price-f');
+    if(d && +d<100000){ var er=f.querySelector('.error')||f.appendChild(Object.assign(document.createElement('span'),{className:'error'})); er.textContent='This price looks too low. Write the full price in AED.'; f.classList.add('invalid'); bad=true; }
+    var v=$('#f-valid').value; if(v && v<'2026-11-11'){ $('#f-valid-f').classList.add('invalid'); $('#f-valid-f .error').textContent='The day cannot be in the past.'; bad=true; }
+    if(bad){ e.preventDefault(); e.stopPropagation(); } },true);
+  $('#so-form').addEventListener('hm:submit',function(){ var d=new Date($('#f-valid').value+'T12:00:00');
+    var o={no:seq++,lead:$('#f-lead').value,proj:$('#f-proj .on').textContent.trim(),unit:$('#f-unit').value.trim(),price:+$('#f-price').value.replace(/\D/g,''),st:'Draft',agent:owner?'Emir':'Rocky',date:'Today 14:55',opens:0,plan:$('#f-plan').value.trim(),
+      valid:d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}).replace(',','')};
+    O.unshift(o); st=''; $$('#so-tabs .tab').forEach(function(x,i){x.classList.toggle('on',i===0)}); draw(); this.reset(); $('#f-plan').value='60 / 40'; $('#f-valid').value='2026-11-18'; $$('#f-proj .chip-opt').forEach(function(b,i){b.classList.toggle('on',i===0)}); $('#f-from').textContent='The Archive starts from AED 1.6M';
+    var tr=$('#so tbody tr'); if(tr) tr.classList.add('pulse-row'); HM.toast('Draft SO-0'+o.no+' saved for '+o.lead); setTimeout(function(){ panel(o); },350); });
+  draw();
+})();
+</script>
+</body>
+</html>

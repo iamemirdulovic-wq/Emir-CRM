@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.later-banner .grow{flex:1}
+.lt-note{font-size:12.5px;color:var(--ink-3)}
+.btn>svg{width:16px;height:16px;flex:none}
+
+.em{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.ib-pad{padding:14px 14px 10px}
+.em-list{padding:0 8px 8px;display:flex;flex-direction:column}
+.ml{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:14px;text-align:left;transition:background .12s;min-width:0}
+.ml:hover{background:var(--surface-2)}.ml.on{background:var(--accent-soft)}
+.ml b{font-weight:650}.ml .sj{font-size:13px;font-weight:560}.ml .sub{font-size:12.5px;color:var(--ink-3)}
+.em-bar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.em-meta{padding:12px 20px;display:flex;flex-direction:column;gap:4px;font-size:13px;border-bottom:1px solid var(--line)}
+.em-meta div{display:flex;gap:10px}.em-meta span{width:60px;color:var(--ink-3)}.em-meta b{font-weight:600}
+.em-stage{background:var(--surface-2);padding:24px;display:grid;place-items:start center;border-radius:0 0 22px 22px}
+.em-mail{width:560px;max-width:100%;background:#fff;color:#16151A;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-2);transition:width .25s var(--ease)}
+.em-mail.ph{width:340px}
+.em-top{display:flex;align-items:center;gap:10px;padding:16px 22px;background:#141317;color:#fff}
+.em-top b{font-size:17px;font-weight:750;letter-spacing:-.03em}.em-top b span{color:#FF5A2E}
+.em-logo{width:30px;height:30px;border-radius:9px;background:#FF5A2E;display:grid;place-items:center}.em-logo i{width:16px;height:16px}
+.em-vip{font-size:10.5px;font-weight:700;letter-spacing:.14em;color:#FF5A2E}
+.em-body{padding:24px 26px;display:flex;flex-direction:column;gap:14px;font-size:14.5px;line-height:1.6}
+.em-body h2{font-size:20px}.em-body p{color:#4E4B54}
+.em-box{border-radius:14px;background:#F7F5F2;padding:6px 16px}
+.em-box div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:13.5px}.em-box div+div{border-top:1px solid #EAE6E0}.em-box span{color:#86828C}.em-box b{font-weight:650;text-align:right}
+.em-cta{align-self:flex-start;background:#FF5A2E;color:#fff;font-weight:650;padding:12px 20px;border-radius:12px}
+.em-sign{display:flex;gap:12px;align-items:center;padding-top:14px;border-top:1px solid #EAE6E0}
+.em-sign b{display:block}.em-sign span{display:block;font-size:12.5px;color:#86828C}
+.em-foot{padding:14px 26px;background:#F7F5F2;font-size:11.5px;color:#86828C;line-height:1.5}
+</style>
+</head>
+<body data-page="email" data-role="any" data-sub="Email to clients from the CRM · later phase">
+<main>
+<div class="later-banner"><span class="tag">LATER PHASE</span><p><b>Not in the first build.</b> For now WhatsApp and Telegram open on the agent's phone and every tap is logged.</p><span class="grow"></span><a class="btn sm" href="templates.html">See the templates</a></div>
+<div class="em">
+  <section class="card pad-0">
+    <div class="ib-pad"><div class="row"><div class="seg sm" data-seg><button>Inbox · 4</button><button class="on">Drafts · 2</button><button>Sent</button></div><span class="grow"></span><button class="btn sm" id="em-new"><i data-icon="edit"></i>Write</button></div></div>
+    <div class="em-list" id="em-list"><button class="ml on"><span class="row gap-6"><b class="truncate grow">Khalid Al Mansoori</b><span class="vip-tag">VIP</span><span class="tiny muted">14:53</span></span><span class="sj truncate">Your private viewing at The Archive</span><span class="row gap-6"><span class="sub truncate grow">Dear Mr Khalid, thank you for your message to Emir…</span><span class="chip amber">Draft</span></span></button><button class="ml"><span class="row gap-6"><b class="truncate grow">Marco Bellini</b><span class="tiny muted">14:44</span></span><span class="sj truncate">The Archive · payment plan 60 / 40</span><span class="row gap-6"><span class="sub truncate grow">Hello Marco, here is the payment plan you asked for…</span><span class="chip amber">Draft</span></span></button><button class="ml"><span class="row gap-6"><b class="truncate grow">Elena Kuznetsova</b><span class="tiny muted">Tue</span></span><span class="sj truncate">Damac Islands · your offer</span><span class="row gap-6"><span class="sub truncate grow">Dear Elena, please find the sales offer for villa V-32…</span><span class="chip green">Opened 2 times</span></span></button><button class="ml"><span class="row gap-6"><b class="truncate grow">Daniel Rossi</b><span class="vip-tag">VIP</span><span class="tiny muted">Mon</span></span><span class="sj truncate">Welcome to homes.me</span><span class="row gap-6"><span class="sub truncate grow">Dear Daniel, I am your agent for The Archive…</span><span class="chip green">Opened</span></span></button><button class="ml"><span class="row gap-6"><b class="truncate grow">Priya Shah</b><span class="tiny muted">Mon</span></span><span class="sj truncate">Valia by Emaar · launching soon</span><span class="row gap-6"><span class="sub truncate grow">Hello Priya, Valia opens for booking this month…</span><span class="chip">Not opened</span></span></button><button class="ml"><span class="row gap-6"><b class="truncate grow">Lucas Martin</b><span class="tiny muted">Mon</span></span><span class="sj truncate">Site visit · Wed 11 Nov 16:30</span><span class="row gap-6"><span class="sub truncate grow">Hello Lucas, this is to confirm our site visit…</span><span class="chip green">Opened</span></span></button></div>
+  </section>
+  <section class="card pad-0 em-view">
+    <div class="em-bar"><div class="grow"><div class="row gap-8"><h3>VIP email · preview</h3><span class="vip-tag">VIP</span></div><div class="small muted mt-4">This is what a VIP lead gets when the owner gives the lead to an agent.</div></div><div class="seg sm" data-seg id="em-dev"><button class="on">Computer</button><button>Phone</button></div><button class="btn sm" id="em-send"><i data-icon="mail"></i>Send email</button></div>
+    <div class="em-meta"><div><span>From</span><b>Rocky Khan · homes.me &lt;rocky@homes.me&gt;</b></div><div><span>To</span><b>Khalid Al Mansoori</b></div><div><span>Subject</span><b>Your private viewing at The Archive</b></div></div>
+    <div class="em-stage"><div class="em-mail" id="em-mail">
+      <div class="em-top"><span class="em-logo"><i data-icon="home"></i></span><b>homes<span>.</span>me</b><span class="grow"></span><span class="em-vip">PRIVATE CLIENT</span></div>
+      <div class="photo" style="min-height:130px;border-radius:0"></div>
+      <div class="em-body">
+        <h2>Dear Mr Khalid,</h2>
+        <p>Thank you for your message to Emir. I am Rocky Khan, your personal agent at homes.me. I will take care of everything for you at The Archive by Imtiaz.</p>
+        <div class="em-box"><div><span>Project</span><b>The Archive · Business Bay</b></div><div><span>You asked for</span><b>2 bedrooms · about AED 2.5M</b></div><div><span>Payment plan</span><b>60 / 40 · handover Q4 2027</b></div></div>
+        <p>The show flat is open this week. I can meet you there on a day and time that is good for you.</p>
+        <span class="em-cta">Choose a time for the show flat</span>
+        <div class="em-sign"><span class="av lg" data-name="Rocky Khan"></span><div><b>Rocky Khan</b><span>Property Consultant · BRN 54321</span><span>+971 50 123 4567 · rocky@homes.me</span></div></div>
+      </div>
+      <div class="em-foot">Emigeo Homes Real Estate LLC · Floor 16, Office 12, The Bayswater by Omniyat, Business Bay, Dubai · homes.me</div>
+    </div></div>
+  </section>
+</div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function later(){ HM.toast('Later phase. Email from the CRM is not in the first build.'); }
+  $('#em-send').addEventListener('click',later); $('#em-new').addEventListener('click',later);
+  $('#em-dev').addEventListener('hm:change',function(e){ $('#em-mail').classList.toggle('ph',e.detail.value==='Phone'); });
+  $$('.ml').forEach(function(b,i){ b.addEventListener('click',function(){ if(i===0){ $$('.ml').forEach(function(x){x.classList.toggle('on',x===b)}); return; } HM.toast('Only the VIP email is drawn in this preview.'); }); });
+})();
+</script>
+</body>
+</html>

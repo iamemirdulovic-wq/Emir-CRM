@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home banners · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .hb{display:grid;grid-template-columns:minmax(0,1fr) 500px;gap:16px;align-items:start}
+  .prev{position:relative;aspect-ratio:12/5;border-radius:20px;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;padding:22px 24px;min-height:0}
+  .prev::after{background:linear-gradient(90deg,rgba(10,10,12,.72),rgba(10,10,12,.1) 75%);inset:0;height:auto}
+  .prev>*{position:relative;z-index:1}
+  .prev .lab{align-self:flex-start;height:22px;padding:0 9px;border-radius:7px;background:var(--accent);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;margin-bottom:auto}
+  .prev h2{font-size:24px;letter-spacing:-.02em;color:#fff;max-width:75%}
+  .prev p{font-size:13.5px;opacity:.85;margin-top:4px;max-width:70%}
+  .prev .cta{align-self:flex-start;margin-top:12px;height:32px;padding:0 14px;border-radius:10px;background:#fff;color:#16151A;font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;gap:6px}
+  .prev .cta:empty{display:none}
+  .sw{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sw button.photo{width:58px;height:36px;min-height:0;border-radius:10px;flex:none}
+  .sw button.photo.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+  .bn{display:flex;align-items:center;gap:12px;padding:10px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow-1);cursor:pointer;transition:.15s;min-width:0}
+  .bn:hover{box-shadow:var(--shadow-2)}
+  .bn.on{box-shadow:inset 0 0 0 2px var(--accent)}
+  .bn.drag{opacity:.4}.bn.over{box-shadow:0 -3px 0 var(--accent),var(--shadow-1)}
+  .bn .grip{color:var(--ink-4);cursor:grab;display:grid;place-items:center;width:20px}
+  .bn .photo{width:96px;height:40px;min-height:0;border-radius:10px;flex:none}
+  .bn .grow b{display:block;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bn .grow span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bn.ended .photo{filter:grayscale(1);opacity:.6}
+  .field[hidden],.banner[hidden]{display:none}
+</style>
+</head>
+<body data-page="home-banners" data-role="owner" data-back="projects.html|Projects" data-title="Home banners">
+<main>
+  <div class="page-head">
+    <span class="sub">The banners at the top of every agent's My Day. Up to 5 · they change every 4.5 seconds.</span>
+    <span class="grow"></span>
+    <span class="chip lg" id="used">4 of 5 used</span>
+    <button class="btn" id="new"><i data-icon="plus"></i>New banner</button>
+  </div>
+
+  <div class="hb">
+    <!-- LEFT: preview + list -->
+    <div class="col gap-16">
+      <section class="card">
+        <div class="card-head"><h3>Preview</h3><span class="small muted">How agents see it · 1200 × 500 px</span></div>
+        <div class="photo prev" id="prev"><span class="lab" id="pv-lab">From Emir</span><h2 id="pv-title"></h2><p id="pv-text"></p><span class="cta" id="pv-btn"></span></div>
+      </section>
+      <div class="row"><h3 class="grow">Your banners</h3><span class="small muted">Drag to change the order</span></div>
+      <div class="col gap-8" id="list"></div>
+    </div>
+
+    <!-- RIGHT: form -->
+    <section class="card" aria-label="Banner form">
+      <form data-form data-keep id="form" class="col gap-16">
+        <div class="card-head mb-0"><h3 id="f-head">Change banner</h3><button type="button" class="btn xs danger" id="f-del" data-confirm="Tap again to remove">Remove</button></div>
+        <div class="field"><span class="field-label">Picture</span>
+          <div class="sw" id="f-photo"><button type="button" class="photo on" data-v="" data-tip="The Archive"></button><button type="button" class="photo p2" data-v="p2" data-tip="Shahrukhz"></button><button type="button" class="photo p3" data-v="p3" data-tip="Damac Islands"></button><button type="button" class="photo p4" data-v="p4" data-tip="Valia"></button><button type="button" class="photo p5" data-v="p5" data-tip="Plain"></button>
+            <label class="btn sm"><i data-icon="upload"></i>Upload<input type="file" id="f-img" accept="image/*" hidden></label></div>
+          <span class="hint" id="img-hint">Use a project photo or upload your own · 1200 × 500 px</span></div>
+        <div class="field"><span class="field-label">Label</span>
+          <div class="chips" data-chips id="f-lab"><button type="button" class="chip-opt on">From Emir</button><button type="button" class="chip-opt">Office</button><button type="button" class="chip-opt">Project</button><button type="button" class="chip-opt">Best of Homes</button><button type="button" class="chip-opt">Training</button></div></div>
+        <div class="field"><label for="f-title">Title <span class="req">*</span></label><input class="input" id="f-title" required maxlength="48" data-error="Write a title."></div>
+        <div class="field"><label for="f-text">Short text</label><input class="input" id="f-text" maxlength="90"></div>
+        <div class="form-grid">
+          <div class="field"><label for="f-btn">Button text</label><input class="input" id="f-btn" maxlength="22" placeholder="See the plan"></div>
+          <div class="field"><label for="f-opens">Opens</label><select class="select" id="f-opens"><option>Project page</option><option>Best of Homes</option><option>Team wall</option><option>A web link</option></select></div>
+          <div class="field full" id="fld-url" hidden><label for="f-url">Web link</label><div class="input-icon"><i data-icon="link"></i><input class="input" id="f-url" placeholder="https://"></div></div>
+          <div class="field"><label for="f-from">Show from</label><input class="input" type="date" id="f-from" min="2026-11-11"></div>
+          <div class="field" id="fld-until"><label for="f-until">Until</label><input class="input" type="date" id="f-until" min="2026-11-11"></div>
+        </div>
+        <div class="field"><span class="field-label">Who sees it</span>
+          <div class="row wrap"><div class="seg" data-seg id="f-who"><button type="button" class="on">Everyone</button><button type="button">Agents</button><button type="button">One desk</button></div>
+          <select class="select sm" id="f-desk" style="width:auto" hidden><option>Dubai off-plan</option><option>Arabic desk</option><option>Abu Dhabi</option></select></div></div>
+        <div class="banner red" id="f-err" hidden><i data-icon="alert"></i><span class="grow" id="f-err-txt"></span></div>
+        <div class="row"><span class="small muted grow" id="f-seen"></span><button class="btn primary" id="f-go">Publish</button></div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  // photo, label, title, text, button, opens, from, until, who, state, seen
+  var B=[
+    {ph:'',lab:'From Emir',title:'Cityscape Global · 17–19 Nov',text:'We are at DWTC, stand B12. Bring your hot leads to the stand.',btn:'See the plan',opens:'Team wall',from:'2026-11-09',until:'2026-11-19',who:'Everyone',seen:9},
+    {ph:'p4',lab:'Project',title:'Valia launches soon',text:'Emaar · The Oasis · from AED 1.4M · payment plan 80 / 20.',btn:'Open Valia',opens:'Project page',from:'2026-11-06',until:'2026-11-30',who:'Agents',seen:7},
+    {ph:'p3',lab:'Best of Homes',title:'Talha leads week 46',text:'1,980 points. 6 calls or 1 meeting puts you in first place.',btn:'See the ranking',opens:'Best of Homes',from:'2026-11-09',until:'2026-11-15',who:'Everyone',seen:10},
+    {ph:'p2',lab:'Training',title:'Payment plans in 20 minutes',text:'Monday 16 Nov · 09:15 · meeting room. Short and useful.',btn:'',opens:'Team wall',from:'2026-11-16',until:'2026-11-16',who:'Agents',seen:0},
+    {ph:'p5',lab:'Office',title:'New rule: book the meeting room',text:'Use the calendar before you bring a client.',btn:'Open calendar',opens:'A web link',url:'https://crm.homes.me/calendar',from:'2026-10-20',until:'2026-10-31',who:'Everyone',seen:10}
+  ];
+  var TODAY='2026-11-11', cur=0, MAX=5;
+  function state(b){return b.until&&b.until<TODAY?'Ended':b.from>TODAY?'Scheduled':'Live'}
+  function d(s){ if(!s) return ''; var p=s.split('-'); return +p[2]+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]-1]; }
+  function active(){return B.filter(function(b){return state(b)!=='Ended'}).length}
+  function list(){
+    $('#list').innerHTML=B.map(function(b,i){
+      var st=state(b), aud=b.who==='Everyone'?13:b.who==='Agents'?10:(b.desk==='Dubai off-plan'?6:b.desk==='Arabic desk'?3:2);
+      return '<div class="bn'+(i===cur?' on':'')+(st==='Ended'?' ended':'')+'" draggable="true" data-i="'+i+'"><span class="grip" data-tip="Drag"><i data-icon="more"></i></span><span class="photo '+b.ph+'"'+(b.img?' style="background:url('+b.img+') center/cover"':'')+'></span><span class="grow"><b>'+b.title.replace(/</g,'&lt;')+'</b><span>'+b.lab+' · '+d(b.from)+(b.until&&b.until!==b.from?' – '+d(b.until):'')+' · '+b.who+(b.who==='One desk'?': '+b.desk:'')+'</span></span>'+
+        (st==='Live'?'<span class="small muted nowrap">seen by '+Math.min(b.seen,aud===13?10:aud)+' of '+(aud===13?10:aud)+'</span>':'')+'<span class="chip '+({Live:'green pip',Scheduled:'blue',Ended:''})[st]+'">'+st+'</span></div>'}).join('');
+    $('#used').textContent=active()+' of '+MAX+' used'; $('#used').className='chip lg'+(active()>=MAX?' amber':'');
+    HM.refresh($('#list'));
+  }
+  function val(){ return {ph:($('#f-photo .photo.on')||{getAttribute:function(){return ''}}).getAttribute('data-v'),lab:$('#f-lab .on').textContent,title:$('#f-title').value.trim(),text:$('#f-text').value.trim(),btn:$('#f-btn').value.trim(),opens:$('#f-opens').value,url:$('#f-url').value.trim(),from:$('#f-from').value||TODAY,until:$('#f-until').value,who:$('#f-who .on').textContent,desk:$('#f-desk').value}; }
+  var img='';
+  function preview(){
+    var v=val(), p=$('#prev');
+    p.className='photo prev '+v.ph; p.style.background=img?'url('+img+') center/cover':'';
+    $('#pv-lab').textContent=v.lab; $('#pv-title').textContent=v.title||'Your title shows here'; $('#pv-text').textContent=v.text; $('#pv-btn').textContent=v.btn;
+    $('#fld-url').hidden=v.opens!=='A web link'; $('#f-desk').hidden=v.who!=='One desk';
+  }
+  function load(i){
+    cur=i; var b=i<0?{ph:'',lab:'From Emir',title:'',text:'',btn:'',opens:'Project page',url:'',from:TODAY,until:'',who:'Everyone',desk:'Dubai off-plan'}:B[i];
+    img=b.img||'';
+    $$('#f-photo .photo').forEach(function(x){x.classList.toggle('on',!img&&x.getAttribute('data-v')===b.ph)});
+    $$('#f-lab .chip-opt').forEach(function(x){x.classList.toggle('on',x.textContent===b.lab)});
+    $('#f-title').value=b.title; $('#f-text').value=b.text; $('#f-btn').value=b.btn; $('#f-opens').value=b.opens; $('#f-url').value=b.url||''; $('#f-from').value=b.from; $('#f-until').value=b.until;
+    $$('#f-who button').forEach(function(x){x.classList.toggle('on',x.textContent===b.who)}); $('#f-desk').value=b.desk||'Dubai off-plan';
+    $('#f-head').textContent=i<0?'New banner':'Change banner'; $('#f-del').style.display=i<0?'none':''; $('#f-go').textContent=i<0?'Publish':'Save and publish';
+    $('#f-seen').textContent=i<0?'Agents see it from the start day.':state(b)==='Live'?'Live now · seen by '+b.seen+' of 10 agents':state(b)==='Scheduled'?'Starts '+d(b.from):'Ended '+d(b.until)+' · set new days to show it again';
+    $('#f-err').hidden=true; $$('#form .invalid').forEach(function(f){f.classList.remove('invalid')});
+    $('#img-hint').textContent='Use a project photo or upload your own · 1200 × 500 px';
+    preview(); list();
+  }
+  $('#form').addEventListener('input',preview); $('#form').addEventListener('change',preview);
+  $('#f-lab').addEventListener('hm:change',preview); $('#f-who').addEventListener('hm:change',preview);
+  $('#f-photo').addEventListener('click',function(e){var b=e.target.closest('button.photo'); if(!b) return; img=''; $$('#f-photo .photo').forEach(function(x){x.classList.toggle('on',x===b)}); preview();});
+  $('#f-img').addEventListener('change',function(){
+    var f=this.files[0]; if(!f) return;
+    if(!/^image\//.test(f.type)){ $('#img-hint').textContent='This is not a picture. Use JPG or PNG.'; return; }
+    img=URL.createObjectURL(f); $$('#f-photo .photo').forEach(function(x){x.classList.remove('on')}); $('#img-hint').textContent=f.name+' · we cut it to 1200 × 500 px'; preview();
+  });
+  function fail(t){ $('#f-err').hidden=false; $('#f-err-txt').textContent=t; return false; }
+  $('#form').addEventListener('submit',function(e){ // extra rules before the shared validator saves
+    var v=val(), bad='';
+    if(v.until&&v.until<v.from) bad='“Until” is before “Show from”. Choose a later day.';
+    else if(v.from<TODAY&&cur<0) bad='The start day is in the past.';
+    else if(v.opens==='A web link'&&!/^https:\/\/\S+\.\S+/.test(v.url)) bad='Write the full web link. It starts with https://';
+    else if(v.btn&&v.opens==='A web link'&&!v.url) bad='Write the web link.';
+    else if((cur<0||state(B[cur])==='Ended')&&(!v.until||v.until>=TODAY)&&active()>=MAX) bad='You can have 5 banners. Remove one or let one end first.';
+    if(bad&&v.title){ e.preventDefault(); e.stopPropagation(); fail(bad); } else $('#f-err').hidden=true;
+  },true);
+  $('#form').addEventListener('hm:submit',function(){
+    var v=val(); v.img=img; v.seen=cur<0?0:B[cur].seen;
+    if(cur<0){ B.unshift(v); cur=0; } else B[cur]=v;
+    load(cur); HM.toast(state(v)==='Scheduled'?'Banner saved · it starts '+d(v.from):state(v)==='Ended'?'Banner saved · it has ended':'Banner is live on My Day');
+  });
+  $('#f-del').addEventListener('hm:confirm',function(){
+    var b=B[cur], i=cur; B.splice(i,1); load(Math.min(i,B.length-1));
+    HM.toast('Banner removed',{undo:function(){B.splice(i,0,b); load(i);}});
+  });
+  $('#new').addEventListener('click',function(){ load(-1); $('#f-title').focus(); if(active()>=MAX) fail('You already have 5 banners. Remove one or let one end first.'); });
+
+  /* list: click to edit, drag to reorder */
+  var L=$('#list'), from=-1;
+  L.addEventListener('click',function(e){var r=e.target.closest('.bn'); if(r) load(+r.getAttribute('data-i'))});
+  L.addEventListener('dragstart',function(e){var r=e.target.closest('.bn'); if(!r) return; from=+r.getAttribute('data-i'); r.classList.add('drag'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',from);});
+  L.addEventListener('dragover',function(e){var r=e.target.closest('.bn'); if(!r) return; e.preventDefault(); $$('.bn.over').forEach(function(x){x.classList.remove('over')}); r.classList.add('over');});
+  L.addEventListener('dragend',function(){$$('.bn').forEach(function(x){x.classList.remove('drag','over')})});
+  L.addEventListener('drop',function(e){
+    var r=e.target.closest('.bn'); if(!r||from<0) return; e.preventDefault(); var to=+r.getAttribute('data-i'); if(to===from){list();return;}
+    var sel=B[cur], it=B.splice(from,1)[0]; B.splice(to,0,it); cur=B.indexOf(sel); from=-1; list(); HM.toast('Order saved · agents see the new order now');
+  });
+
+  load(0);
+})();
+</script>
+</body>
+</html>

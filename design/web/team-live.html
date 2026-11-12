@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team live · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .row1{grid-template-rows:372px}
+  .now-list{display:flex;flex-direction:column;margin-top:14px;overflow:auto;flex:1;min-height:0;position:relative}
+  .now-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--hero-line);min-width:0}
+  .now-row .grow b{display:block;font-weight:620;font-size:13.5px}
+  .now-row .grow span{display:block;font-size:12.5px;color:var(--hero-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .now-row .ago{font-size:12px;color:var(--hero-ink-3);white-space:nowrap}
+  .now-row.fresh .ago{color:var(--accent);font-weight:650}
+  .trio{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:20px;align-items:end}
+  #hours{flex:1;height:auto;min-height:0;margin-top:40px}
+  #agents td{height:44px}
+  .cellnum{font-weight:650}
+  .away{display:flex;align-items:center;gap:12px;padding:10px 0}
+</style>
+</head>
+<body data-page="team-live" data-role="owner" data-sub="What the team does right now">
+<main>
+  <div data-topbar>
+    <div class="seg"><a href="team-activity.html">Activity</a><a class="on" href="team-live.html">Live</a><a href="messaging-report.html">Messaging</a></div>
+    <span class="live">Live · 14:55</span>
+  </div>
+
+  <div class="ai-line fade-in">
+    <span class="ai-tag"><i data-icon="sparkles" class="i-sm"></i>Homes AI</span>
+    <p>Calls fell after 12:00 and <a href="all-leads.html?agent=bassam">Bassam's 44 leads</a> got no call today. Move his 3 overdue follow-ups to Tej, who has the fewest leads.</p>
+    <a class="btn sm ghost" href="all-leads.html?agent=bassam">Move leads <i data-icon="arrow-right"></i></a>
+  </div>
+
+  <div class="bento row1">
+    <!-- HERO: right now -->
+    <section class="card hero c-5" aria-label="Right now">
+      <div class="hero-top row gap-16">
+        <b class="num-hero" data-count>8</b>
+        <div class="grow"><h2 style="font-size:20px">Right now · 8 online</h2><p class="muted small">Of 10 agents · 2 are away</p></div>
+        <span class="hero-chip">Live</span>
+      </div>
+      <div class="now-list" id="now"></div>
+    </section>
+
+    <!-- clicks today + by hour -->
+    <section class="card c-7" aria-label="Clicks today">
+      <div class="card-head"><h3>Clicks today</h3>
+        <div class="seg sm" data-seg id="kind"><button class="on" data-value="c">Calls</button><button data-value="w">WhatsApp</button></div>
+        <a class="card-link" href="messaging-report.html">Messaging report <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="trio">
+        <div class="stat"><div class="stat-row"><b class="num-hero" id="n-calls">214</b><span class="delta up">12% vs yesterday</span></div><span class="label">Call clicks</span></div>
+        <a class="stat" href="messaging-report.html"><div class="stat-row"><b class="num" id="n-wa">104</b><span class="delta up">9</span></div><span class="label">WhatsApp clicks</span></a>
+        <a class="stat" href="messaging-report.html"><div class="stat-row"><b class="num" id="n-tg">28</b><span class="delta">same</span></div><span class="label">Telegram clicks</span></a>
+      </div>
+      <div class="bars grow-in" id="hours" style="--max:46"></div>
+      <div class="card-foot"><i data-icon="info" class="i-sm"></i><span>A click is counted when an agent presses Call, WhatsApp or Telegram on a lead.</span><span class="right">Best hour <b class="ink-2">10:00</b></span></div>
+    </section>
+  </div>
+
+  <div class="bento mt-16">
+    <section class="card c-8" aria-label="Today by agent">
+      <div class="card-head"><h3>Today by agent</h3><span class="small muted">Rows flash when a new click comes in</span></div>
+      <table class="table" id="agents">
+        <thead><tr><th>Agent</th><th>Doing now</th><th class="t-right">Calls</th><th class="t-right">WhatsApp</th><th class="t-right">Telegram</th><th>By hour</th><th class="t-right">Last click</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <div class="stack c-4">
+      <section class="card" aria-label="Attendance">
+        <div class="card-head"><h3>Attendance</h3><a class="card-link" href="team-attendance.html">Open <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <div class="segbar tall">
+          <a class="green" style="--v:6" href="team-attendance.html?show=office" data-tip="6 in office"></a><a class="amber" style="--v:1" href="team-attendance.html?show=late" data-tip="1 late"></a><a class="blue" style="--v:1" href="team-attendance.html?show=outside" data-tip="1 outside"></a><a class="violet" style="--v:1" href="team-attendance.html?show=leave" data-tip="1 on leave"></a><a class="red" style="--v:1" href="team-attendance.html?show=absent" data-tip="1 absent"></a>
+        </div>
+        <div class="legend mt-12"><span><span class="dot green"></span><b>6</b> In office</span><span><span class="dot amber"></span><b>1</b> Late</span><span><span class="dot blue"></span><b>1</b> Outside</span><span><span class="dot violet"></span><b>1</b> Leave</span><span><span class="dot red"></span><b>1</b> Absent</span></div>
+        <div class="divide mt-12">
+          <div class="away"><span class="av" data-name="Bassam" data-status="absent"></span><span class="grow"><b class="bold">Bassam</b><div class="small muted">Absent · no clicks today</div></span><a class="btn sm" href="team-attendance.html?show=absent">See</a></div>
+          <div class="away"><span class="av" data-name="Sultan" data-status="leave"></span><span class="grow"><b class="bold">Sultan</b><div class="small muted">Annual leave · back Thursday</div></span><a class="btn sm" href="all-leads.html?agent=sultan">His leads</a></div>
+        </div>
+      </section>
+      <section class="card" style="flex:none" aria-label="Not checked in">
+        <div class="card-head mb-0"><h3>Calls marked “not checked in”</h3></div>
+        <div class="row gap-16 mt-8"><b class="num">2</b><span class="small muted">Shan called 2 leads at 09:12 and 09:18, before his check-in at 09:24.</span></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  // name, status, doing, calls, wa, tg, spark, last (min ago)
+  var A=[
+    ['Talha','office','On a call · Aisha Noor',41,20,3,'6,9,8,5,7,6',0],
+    ['Yuliia','office','WhatsApp · Elena Kuznetsova',36,17,9,'5,8,7,4,6,6',1],
+    ['Olga','office','Reading a lead · Ivan Petrov',27,13,8,'4,6,5,3,5,4',3],
+    ['Nelson','outside','Outside · viewing at Valia',27,12,1,'0,7,6,4,5,5',12],
+    ['Srdjan','office','Calling list · lead 9 of 15',24,11,4,'3,5,5,2,5,4',2],
+    ['Tej','office','On a call · Arjun Mehta',22,12,2,'3,5,4,2,4,4',0],
+    ['Shan','late','Writing a note · Faisal Noor',19,10,0,'1,4,4,2,4,4',6],
+    ['Rocky','office','Opened the VIP lead · Khalid',18,9,1,'6,2,2,4,3,1',4]
+  ];
+  function ago(m){return m===0?'now':m+' min ago'}
+  function draw(){
+    $('#now').innerHTML=A.slice().sort(function(a,b){return a[7]-b[7]}).map(function(a){
+      return '<a class="now-row'+(a[7]===0?' fresh':'')+'" href="team.html"><span class="av" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><span class="grow"><b>'+a[0]+'</b><span>'+a[2]+'</span></span><span class="ago">'+ago(a[7])+'</span></a>'}).join('');
+    $('#agents tbody').innerHTML=A.map(function(a,i){
+      return '<tr data-href="team.html" data-i="'+i+'"><td><span class="person"><span class="av sm" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><b>'+a[0]+'</b></span></td><td class="t-sub">'+a[2]+'</td><td class="t-right cellnum">'+a[3]+'</td><td class="t-right">'+a[4]+'</td><td class="t-right">'+(a[5]||'<span class="muted">0</span>')+'</td><td><svg class="spark" data-spark="'+a[6]+'"></svg></td><td class="t-right t-sub">'+ago(a[7])+'</td></tr>'}).join('');
+    HM.refresh($('main'));
+  }
+  draw();
+
+  /* clicks by hour */
+  var H={c:[28,46,41,22,39,38],w:[12,22,20,11,19,20]}, LAB=['09','10','11','12','13','14','15','16','17'];
+  function bars(k){
+    var v=H[k], mx=Math.max.apply(0,v), el=$('#hours'); el.style.setProperty('--max',mx);
+    el.innerHTML=LAB.map(function(l,i){
+      if(i>5) return '<div class="bar-col future"><div class="bar-track"><i></i></div><span class="bar-lab">'+l+'</span></div>';
+      return '<div class="bar-col'+(v[i]===mx?' best':'')+(i===5?' now':'')+'"><div class="bar-track"><i style="--v:'+v[i]+'" data-val="'+v[i]+'"></i></div><span class="bar-lab">'+l+'</span></div>'}).join('')+'<div class="bars-now" style="--x:65.6%"><span>now</span></div>';
+  }
+  bars('c');
+  $('#kind').addEventListener('hm:change',function(e){bars(e.detail.value)});
+
+  /* live: a new click every few seconds */
+  var DO=['On a call','WhatsApp opened','Telegram opened','On a call'], calls=214, wa=104, tg=28;
+  setInterval(function(){
+    A.forEach(function(a){ if(a[7]>0||Math.random()<.5) a[7]++; });
+    var i=[0,1,2,4,5,6,7][Math.floor(Math.random()*7)], a=A[i], k=Math.floor(Math.random()*4);
+    a[7]=0; a[2]=DO[k]+' · next lead';
+    if(k===1){a[4]++; wa++; H.w[5]++;} else if(k===2){a[5]++; tg++;} else {a[3]++; calls++; H.c[5]++;}
+    $('#n-calls').textContent=calls; $('#n-wa').textContent=wa; $('#n-tg').textContent=tg;
+    draw(); bars(($('#kind .on')||{}).getAttribute('data-value')||'c');
+    var tr=$('#agents tr[data-i="'+i+'"]'); if(tr) tr.classList.add('pulse-row');
+  },4500);
+})();
+</script>
+</body>
+</html>

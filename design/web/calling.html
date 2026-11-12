@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calling list · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .call-grid{display:grid;grid-template-columns:minmax(0,1fr) 332px;gap:16px;align-items:start}
+  .topline{display:flex;align-items:center;gap:16px;margin:2px 0 12px}
+  .topline .pos{font-size:22px;font-weight:720;letter-spacing:-.02em;white-space:nowrap}
+  .topline .pos span{color:var(--ink-3);font-weight:600}
+  .topline .bar{max-width:none}
+  .counts{display:flex;gap:14px;font-size:12.5px;color:var(--ink-3);white-space:nowrap}.counts b{color:var(--ink);font-weight:700}
+  #lead{padding:24px 26px;gap:0;flex-direction:row;gap:28px}
+  #lead .l{flex:1;min-width:0;display:flex;flex-direction:column}
+  #lead .r{width:300px;flex:none;display:flex;flex-direction:column;gap:12px}
+  .c-name{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:660}
+  .c-phone{font-size:50px;font-weight:770;letter-spacing:-.05em;line-height:1;margin:10px 0 10px;white-space:nowrap}
+  .c-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--hero-ink-2)}
+  .c-meta b{color:#fff;font-weight:620}
+  .c-why{margin-top:12px;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:6px 12px;border-radius:10px;background:rgba(255,90,46,.18);color:#FFB59C;font-size:13px;font-weight:620}
+  .c-btns{display:flex;gap:10px;margin-top:18px;align-items:center}
+  .logged{font-size:12px;color:var(--hero-ink-3);margin-top:10px}
+  .c-kv{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;font-size:13px}
+  .c-kv dt{color:var(--hero-ink-3)}.c-kv dd{margin:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .say{border-radius:16px;background:rgba(255,255,255,.07);padding:12px 14px;font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.86);flex:1}
+  .say b{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+  /* outcomes */
+  #out{margin-top:16px;padding:20px 22px}
+  .outs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+  .outb{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line-2);font-weight:640;font-size:13px;text-align:left;transition:.15s;white-space:nowrap}
+  .outb i{color:var(--ink-3)}
+  .outb:hover{box-shadow:inset 0 0 0 1px var(--ink-4);background:var(--surface-2)}
+  .outb.on{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-soft)}.outb.on i{color:var(--accent-ink)}
+  #out.locked .outs{opacity:.4;pointer-events:none}
+  .lockmsg{display:none;align-items:center;gap:8px;font-size:12.5px;font-weight:620;color:var(--amber-ink);background:var(--amber-soft);padding:5px 10px;border-radius:9px}
+  #out.locked .lockmsg{display:inline-flex}
+  .sub{display:none;flex-direction:column;gap:10px;margin-top:14px;padding:14px;border-radius:16px;background:var(--surface-2)}
+  .sub.on{display:flex}
+  .sub .chip-opt{height:32px}
+  .saved-box{display:none;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--green-soft);color:var(--green-ink);font-weight:600}
+  #out.saved .saved-box{display:flex}#out.saved .outs,#out.saved .sub,#out.saved #save-row{display:none!important}
+  .navrow{display:flex;align-items:center;gap:10px;margin-top:16px}
+  /* queue */
+  .q{padding:16px 14px 14px}
+  .qrow{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:12px;min-width:0;cursor:pointer;transition:background .12s;width:100%;text-align:left}
+  .qrow:hover{background:var(--surface-2)}
+  .qrow .n{width:22px;height:22px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink-3);flex:none}
+  .qrow .t{flex:1;min-width:0;line-height:1.25}
+  .qrow .t b{font-weight:620;font-size:13px;display:flex;gap:6px;align-items:center;white-space:nowrap}
+  .qrow .t>span{font-size:11.5px;color:var(--ink-3);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qrow.cur{background:var(--accent-soft)}.qrow.cur .n{background:var(--accent);color:#fff}
+  .qrow.done .n{background:var(--green);color:#fff;font-size:0}.qrow.done .n::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+  .qrow.done .t b{color:var(--ink-3)}
+  .qrow.skip .t b{color:var(--ink-3)}
+  .sumgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .sumgrid div{border-radius:16px;background:var(--surface-2);padding:14px;text-align:center}
+  .sumgrid b{display:block;font-size:34px;font-weight:720;letter-spacing:-.04em;line-height:1.05}
+  .sumgrid span{font-size:12.5px;color:var(--ink-3)}
+</style>
+</head>
+<body data-page="calling" data-role="agent" data-back="my-leads.html|My leads">
+<main>
+
+  <div class="banner amber mb-16 hide" id="gate-bar" style="margin-bottom:12px"><i data-icon="alert"></i><span class="grow"><b>You are not checked in.</b> Calls you make now are marked “not checked in”, and owners see it.</span><a class="btn xs ghost" href="attendance.html#outside">I'm working outside</a><button class="btn xs" id="gate-in">Check in now</button></div>
+
+  <div class="topline">
+    <span class="pos" id="pos">Lead 1 <span>of 12</span></span>
+    <div class="bar accent" id="prog" style="--v:0%"><i></i></div>
+    <div class="counts"><span><b id="n-calls">0</b> calls</span><span><b id="n-wa">0</b> WhatsApp</span><span><b id="n-res">0</b> results saved</span></div>
+    <span class="chip green">+15 points per call</span>
+    <button class="btn sm" id="end">End session</button>
+  </div>
+
+  <div class="call-grid">
+    <div>
+      <!-- one lead at a time -->
+      <section class="card hero" id="lead" aria-label="Lead">
+        <div class="l">
+          <div class="c-name"><span id="c-name">Khalid Al Mansoori</span><span class="vip-tag" id="c-vip">VIP</span><span class="hero-chip" id="c-stage" style="height:24px">New</span></div>
+          <div class="c-phone" id="c-phone">+971 50 555 0101</div>
+          <div class="c-meta"><span><i data-icon="clock" class="i-sm"></i> <b id="c-time">Dubai 14:55</b> local time</span><span>Speaks <b id="c-lang">Arabic, English</b></span></div>
+          <div class="c-why"><i data-icon="zap" class="i-sm"></i><span id="c-why">VIP lead from Emir · 30 min to call</span></div>
+          <div class="c-btns">
+            <button class="btn lg on-dark primary" id="b-call"><i data-icon="phone"></i>Call</button>
+            <button class="btn lg on-dark" id="b-wa"><i data-icon="whatsapp"></i>WhatsApp</button>
+            <a class="btn lg on-dark" href="lead.html" id="b-open">Open the lead</a>
+          </div>
+          <span class="logged" id="logged">Every tap is logged</span>
+        </div>
+        <div class="r">
+          <dl class="c-kv"><dt>Project</dt><dd id="c-proj">The Archive</dd><dt>Budget</dt><dd id="c-bud">AED 2.5M</dd><dt>Wants</dt><dd id="c-wants">2BR · show flat this week</dd></dl>
+          <div class="say"><b>Say</b><span id="c-say"></span></div>
+        </div>
+      </section>
+
+      <!-- outcome -->
+      <section class="card locked" id="out" aria-label="Result">
+        <div class="card-head"><h3>What happened?</h3><span class="lockmsg"><i data-icon="lock" class="i-sm"></i>Click Call or WhatsApp first</span></div>
+        <div class="outs" id="outs">
+          <button class="outb" data-o="Interested"><i data-icon="star"></i>Interested</button>
+          <button class="outb" data-o="No answer"><i data-icon="phone"></i>No answer</button>
+          <button class="outb" data-o="Busy"><i data-icon="clock"></i>Busy</button>
+          <button class="outb" data-o="Call back"><i data-icon="calendar"></i>Call back</button>
+          <button class="outb" data-o="Wrong number"><i data-icon="flag"></i>Wrong number</button>
+          <button class="outb" data-o="Not interested"><i data-icon="x"></i>Not interested</button>
+        </div>
+
+        <div class="sub" data-s="Interested"><div class="field" id="f-int"><span class="field-label">Next step <span class="t-accent">*</span></span><div class="chips" data-chips id="s-int"><button class="chip-opt">Send payment plan on WhatsApp</button><button class="chip-opt">Book a meeting or site visit</button><button class="chip-opt">Call back tomorrow 11:00</button><button class="chip-opt">Send brochure + location</button></div><span class="error">Choose the next step.</span></div></div>
+        <div class="sub" data-s="No answer"><div class="row"><i data-icon="refresh"></i><span class="grow">The lead comes back in your list in <b>2 hours · 16:55</b>.</span></div><label class="check"><input type="checkbox" id="s-na-wa">Also open WhatsApp with a short “I tried to call you” message</label></div>
+        <div class="sub" data-s="Busy"><div class="row"><i data-icon="refresh"></i><span class="grow">The lead comes back in your list in <b>1 hour · 15:55</b>.</span></div></div>
+        <div class="sub" data-s="Call back"><div class="form-grid" style="grid-template-columns:170px 120px 1fr"><div class="field" id="f-cb-d"><label for="cb-date">Day</label><input class="input" type="date" id="cb-date" min="2026-11-11" value="2026-11-12"><span class="error">Not in the past.</span></div><div class="field"><label for="cb-time">Time</label><input class="input" type="time" id="cb-time" value="11:00"></div><div class="field" id="f-cb-w"><label for="cb-why">Why <span class="req">*</span></label><input class="input" id="cb-why" placeholder="In a meeting, asked for the evening…"><span class="error">Write why in a few words.</span></div></div></div>
+        <div class="sub" data-s="Wrong number"><div class="seg" data-seg id="s-wrong" style="align-self:flex-start"><button class="on" data-value="flag">Flag for owner</button><button data-value="new">I have the new number</button></div><div class="field hide" id="f-newnum"><input class="input" id="newnum" placeholder="New number with country code" inputmode="numeric"><span class="error">Digits only, at least 7.</span></div><span class="small muted" id="wrong-hint">The lead leaves your list. Emir and George see “wrong number” on it.</span></div>
+        <div class="sub" data-s="Not interested"><div class="field" id="f-ni"><span class="field-label">Reason <span class="t-accent">*</span></span><div class="chips" data-chips id="s-ni"></div><span class="error">Choose a reason. The lead moves to Lost.</span></div><label class="check"><input type="checkbox" id="s-ni-again" checked>Try again in 3 months</label></div>
+
+        <div class="row mt-16 hide" id="save-row"><span class="small muted grow" id="save-hint"></span><button class="btn dark" id="save">Save result</button></div>
+        <div class="saved-box"><i data-icon="check"></i><span class="grow" id="saved-t"></span><button class="btn xs" id="undo"><i data-icon="undo"></i>Undo</button></div>
+
+        <div class="navrow">
+          <button class="btn" id="prev"><i data-icon="arrow-left"></i>Previous</button>
+          <span class="grow small muted center" id="nav-hint">Save a result before Next, or skip this lead.</span>
+          <button class="btn ghost" id="skip">Skip</button>
+          <button class="btn disabled" id="next">Next lead<i data-icon="arrow-right"></i></button>
+        </div>
+      </section>
+    </div>
+
+    <!-- queue -->
+    <aside class="card q" style="position:sticky;top:calc(var(--tb-h) + 4px)">
+      <div class="card-head" style="padding:0 8px;margin-bottom:8px"><h3>Today's list</h3><span class="small muted">VIP first</span></div>
+      <div id="queue"></div>
+      <button class="card-link" id="demo-out" style="margin:10px 8px 0">Demo: show “not checked in”</button>
+    </aside>
+  </div>
+</main>
+
+<!-- end summary -->
+<div class="dialog" id="sum-dlg" role="dialog" aria-label="Session summary">
+  <div class="dialog-head"><div class="grow"><h3 id="sum-t">Good work, Rocky</h3><p id="sum-s">Your calling session</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="sumgrid"><div><b id="s-calls">0</b><span>Calls</span></div><div><b id="s-wa">0</b><span>WhatsApps</span></div><div><b id="s-res">0</b><span>Results saved</span></div></div>
+    <div class="banner green"><i data-icon="trophy"></i><span class="grow" id="s-points">+0 points</span></div>
+    <p class="small muted" id="s-left"></p>
+  </div>
+  <div class="dialog-foot"><button class="btn ghost" data-close id="s-keep">Keep calling</button><a class="btn primary" href="my-day.html">Back to My Day</a></div>
+</div>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  LK.skipWhat=true;
+  var Q=LK.leads.filter(function(l){return /today/.test(l.tabs)}).map(function(l){ return {l:l,contact:false,wa:false,res:null,skip:false}; });
+  var WANTS={'Khalid Al Mansoori':'2BR · show flat this week','Sara Nunes':'Villa · 4 bedrooms','Marco Bellini':'2BR · high floor · 60 / 40','Priya Shah':'1BR · to invest','Lucas Martin':'3BR · compares with Valia','Ahmed Hassan':'1BR · 1% monthly plan'};
+  var i=0, calls=0, was=0;
+  $('#s-ni').innerHTML=LK.lost.map(function(r){return '<button class="chip-opt">'+r+'</button>'}).join('');
+
+  function budget(l){ var m=l.d.match(/AED [\d.]+M/); return m?m[0]:'Not said yet'; }
+  function queue(){
+    $('#queue').innerHTML=Q.map(function(q,k){
+      return '<button class="qrow'+(k===i?' cur':'')+(q.res?' done':q.skip?' skip':'')+'" data-k="'+k+'"><span class="n">'+(k+1)+'</span><span class="t"><b>'+q.l.n+(q.l.vip?'<span class="vip-tag">VIP</span>':'')+'</b><span>'+(q.res?q.res:q.skip?'Skipped':q.l.why)+'</span></span></button>';
+    }).join('');
+    var done=Q.filter(function(q){return q.res}).length;
+    $('#prog').style.setProperty('--v',(done/Q.length*100)+'%');
+    $('#n-calls').textContent=calls; $('#n-wa').textContent=was; $('#n-res').textContent=done;
+  }
+  function lockState(){
+    var q=Q[i], out=$('#out');
+    out.classList.toggle('locked',!q.contact&&!q.res); out.classList.toggle('saved',!!q.res);
+    $('#saved-t').textContent=q.res?'Saved · '+q.res:'';
+    var nx=$('#next'), last=i===Q.length-1;
+    nx.classList.toggle('disabled',!q.res); nx.classList.toggle('primary',!!q.res); $('#b-call').classList.toggle('primary',!q.res);
+    nx.firstChild.textContent=last?'Finish':'Next lead';
+    $('#nav-hint').textContent=q.res?(last?'That was the last lead.':'Next: '+Q[i+1].l.n):q.contact?'Choose what happened, then save.':'Save a result before Next, or skip this lead.';
+    $('#logged').textContent=q.contact?(q.wa&&!q.called?'WhatsApp tap logged 14:55':'Call click logged 14:55'):'Every tap is logged';
+    $('#prev').classList.toggle('disabled',i===0);
+  }
+  function show(k){
+    i=Math.max(0,Math.min(Q.length-1,k)); var q=Q[i], l=q.l;
+    $('#pos').innerHTML='Lead '+(i+1)+' <span>of '+Q.length+'</span>';
+    $('#c-name').textContent=l.n; $('#c-vip').classList.toggle('hide',!l.vip); $('#c-stage').textContent=LK.stage[l.s];
+    $('#c-phone').textContent=l.p; $('#c-time').textContent=l.c+' '+l.t; $('#c-lang').textContent=l.lang; $('#c-why').textContent=l.why;
+    $('#b-open').href=LK.url(l.n); $('#b-wa').classList.toggle('primary',false);
+    $('#c-proj').textContent=l.pr; $('#c-bud').textContent=budget(l); $('#c-wants').textContent=WANTS[l.n]||l.d; $('#c-say').textContent='“'+l.say+'”';
+    $$('.outb').forEach(function(b){b.classList.remove('on')}); $$('.sub').forEach(function(s){s.classList.remove('on')}); $('#save-row').classList.add('hide');
+    $$('#out .invalid').forEach(function(f){f.classList.remove('invalid')}); $$('#out .chip-opt.on').forEach(function(c){c.classList.remove('on')}); $('#cb-why').value=''; $('#newnum').value='';
+    var card=$('#lead'); card.classList.remove('fade-in'); void card.offsetWidth; card.classList.add('fade-in');
+    queue(); lockState();
+  }
+  $('#queue').addEventListener('click',function(e){ var r=e.target.closest('.qrow'); if(r) show(+r.getAttribute('data-k')); });
+
+  /* must click Call or WhatsApp before an outcome */
+  $('#b-call').addEventListener('click',function(){ LK.call(Q[i].l.n,Q[i].l.p); });
+  $('#b-wa').addEventListener('click',function(){ LK.message('whatsapp',Q[i].l.n,Q[i].l.p); });
+  document.addEventListener('lk:call',function(){ var q=Q[i]; if(!q.called){ q.called=true; calls++; } q.contact=true; queue(); lockState(); });
+  document.addEventListener('lk:msg',function(){ var q=Q[i]; if(!q.wa){ q.wa=true; was++; } q.contact=true; queue(); lockState(); });
+
+  /* outcomes */
+  var cur='';
+  $('#outs').addEventListener('click',function(e){
+    var b=e.target.closest('.outb'); if(!b) return; cur=b.getAttribute('data-o');
+    $$('.outb').forEach(function(x){x.classList.toggle('on',x===b)}); $$('.sub').forEach(function(s){s.classList.toggle('on',s.getAttribute('data-s')===cur)});
+    $('#save-row').classList.remove('hide');
+    $('#save-hint').textContent={'Interested':'The stage becomes Interested.','No answer':Q[i].called?'Counted as a call. Stage stays.':'Saved as “no reply”. Stage stays.','Busy':Q[i].called?'Counted as a call. Stage stays.':'Stage stays.','Call back':'A follow-up is added to your tasks.','Wrong number':'The lead is flagged.','Not interested':'The lead moves to Lost.'}[cur];
+  });
+  $('#s-wrong').addEventListener('hm:change',function(e){ var n=e.detail.value==='new'; $('#f-newnum').classList.toggle('hide',!n); $('#wrong-hint').textContent=n?'The old number is kept in the history. Call the new one now.':'The lead leaves your list. Emir and George see “wrong number” on it.'; });
+  ['#s-int','#s-ni'].forEach(function(id){ $(id).addEventListener('hm:change',function(){ this.closest('.field').classList.remove('invalid'); }); });
+  function inv(id,bad){ $(id).classList.toggle('invalid',!!bad); return bad?1:0; }
+  $('#save').addEventListener('click',function(){
+    var q=Q[i], res=cur, bad=0, on;
+    if(cur==='Interested'){ on=$('#s-int .on'); bad+=inv('#f-int',!on); if(on) res+=' · '+on.textContent; }
+    if(cur==='No answer') res+=' · retry 16:55';
+    if(cur==='Busy') res+=' · retry 15:55';
+    if(cur==='Call back'){ var d=$('#cb-date').value, t=$('#cb-time').value; bad+=inv('#f-cb-d',!d||new Date(d+'T'+(t||'23:59'))<new Date('2026-11-11T14:55')); bad+=inv('#f-cb-w',$('#cb-why').value.trim().length<3); res+=' · '+(d==='2026-11-12'?'tomorrow':d==='2026-11-11'?'today':d.slice(8)+' Nov')+' '+t; }
+    if(cur==='Wrong number'){ var nw=$('#s-wrong .on').getAttribute('data-value')==='new', v=$('#newnum').value.replace(/[\s+()-]/g,''); if(nw){ bad+=inv('#f-newnum',v.length<7||/\D/.test(v)); res+=' · new number saved'; } else res+=' · flagged for owner'; }
+    if(cur==='Not interested'){ on=$('#s-ni .on'); bad+=inv('#f-ni',!on); if(on) res+=' · '+on.textContent+($('#s-ni-again').checked?' · try again in 3 months':''); }
+    if(bad) return;
+    q.res=res; q.skip=false; queue(); lockState(); LK.remember(q.l.n,res);
+    var k=i; HM.toast('Saved · '+q.l.n+': '+res,{undo:function(){ undo(k); }});
+    if(cur==='No answer'&&$('#s-na-wa').checked){ $('#s-na-wa').checked=false; setTimeout(function(){ LK.message('whatsapp',q.l.n,q.l.p,{text:'Hello '+LK.first(q.l.n)+', this is Rocky from homes.me. I tried to call you about '+q.l.pr+'. When is a good time to talk?'}); },500); }
+  });
+  function undo(k){ var q=Q[k]; if(!q||!q.res) return; q.res=null; LK.remember(q.l.n,'Call clicked'); show(k); HM.toast('Result removed for '+LK.first(q.l.n)+' · choose again'); }
+  $('#undo').addEventListener('click',function(){ undo(i); });
+
+  /* prev / skip / next */
+  $('#prev').addEventListener('click',function(){ show(i-1); });
+  $('#skip').addEventListener('click',function(){ var q=Q[i]; if(!q.res) q.skip=true; if(i===Q.length-1) summary(); else show(i+1); });
+  $('#next').addEventListener('click',function(){ if(!Q[i].res) return; if(i===Q.length-1) summary(); else show(i+1); });
+
+  /* end summary */
+  function summary(){
+    var done=Q.filter(function(q){return q.res}).length, left=Q.length-done;
+    $('#s-calls').textContent=calls; $('#s-wa').textContent=was; $('#s-res').textContent=done;
+    $('#s-points').innerHTML='<b>+'+(calls*15)+' points</b> · '+(18+calls)+' of 40 calls today';
+    $('#s-left').textContent=left?left+' lead'+(left===1?'':'s')+' still in today\'s list. They stay there.':'Today\'s list is done. Well done.';
+    $('#sum-s').textContent=done+' of '+Q.length+' leads have a result';
+    if(!left) HM.confetti(); queue(); HM.open('#sum-dlg');
+  }
+  $('#end').addEventListener('click',summary);
+
+  /* not checked in */
+  function gate(){ $('#gate-bar').classList.toggle('hide',!LK.checkedOut()); }
+  $('#gate-in').addEventListener('click',function(){ HM.setCheckin('in'); gate(); HM.toast('Checked in · 14:55 · In office'); });
+  $('#demo-out').addEventListener('click',function(){ HM.setCheckin(LK.checkedOut()?'in':'out'); gate(); });
+  document.addEventListener('lk:checkin',gate);
+  gate(); show(0);
+})();
+</script>
+</body>
+</html>

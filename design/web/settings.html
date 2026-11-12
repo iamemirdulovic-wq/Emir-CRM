@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.th-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.th{display:flex;flex-direction:column;gap:12px;padding:10px 10px 14px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);text-align:left;transition:.15s}
+.th:hover{box-shadow:inset 0 0 0 1px var(--ink-4)}
+.th.on{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-soft)}
+.th-lab{display:flex;flex-direction:column;padding:0 6px}.th-lab b{font-weight:650;font-size:14.5px}.th-lab span{font-size:12.5px;color:var(--ink-3)}
+.th-pre{position:relative;display:block;height:118px;border-radius:12px;overflow:hidden;--b:#F2F0EC;--s:#fff;--k:#16151A;--l:#DAD5CD;background:var(--b)}
+.th-pre.dk{--b:#0C0C0E;--s:#1E1E22;--k:#34333A;--l:#37373D}
+.th-pre.au{background:linear-gradient(105deg,#F2F0EC 50%,#0C0C0E 50%)}
+.th-pre i{position:absolute;left:8px;top:8px;bottom:8px;width:26%;border-radius:8px;background:var(--s);box-shadow:inset 0 14px 0 -8px var(--l)}
+.th-pre b{position:absolute;left:calc(26% + 16px);top:8px;width:34%;height:52%;border-radius:8px;background:var(--k)}
+.th-pre b::after{content:"";position:absolute;left:8px;bottom:8px;width:34px;height:10px;border-radius:5px;background:#FF5A2E}
+.th-pre u{position:absolute;right:8px;top:8px;width:calc(40% - 40px);min-width:60px;height:52%;border-radius:8px;background:var(--s)}
+.th-pre em{position:absolute;left:calc(26% + 16px);right:8px;bottom:8px;height:calc(48% - 24px);border-radius:8px;background:var(--s)}
+.th-pre.au i{background:#fff}.th-pre.au b{background:#16151A}.th-pre.au u,.th-pre.au em{background:#1E1E22}
+.office-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.office-grid .shortcut small{display:block;font-size:12.5px;font-weight:450;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-grid .shortcut>i:first-child{color:var(--ink-2)}
+.ntf-top{flex-direction:row;align-items:center;gap:16px}
+.ntf-top.off .card-icon{background:var(--surface-3);color:var(--ink-3)}
+.switch-row>.chip{flex:none}
+#snd-more.off{opacity:.4;pointer-events:none}
+.ntf-pop{position:fixed;right:20px;top:84px;z-index:130;width:360px;display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:var(--surface);box-shadow:var(--shadow-3);transform:translateX(420px);transition:transform .35s var(--ease)}
+.ntf-pop.show{transform:none}
+.ntf-pop b{display:block;font-weight:650}.ntf-pop .grow span{font-size:12.5px;color:var(--ink-2)}
+.ntf-pop .sb-mark{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+</style>
+</head>
+<body data-page="settings" data-role="any">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="#general" data-tab="general" class="on"><i data-icon="settings"></i>General</a><a href="#notifications" data-tab="notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav>
+<div data-panel="general" class="set-body">
+  <div class="set-title"><div class="grow"><h1>General</h1><p>How the CRM looks and sounds on this computer.</p></div></div>
+  <section class="card">
+    <div class="card-head"><h3>Appearance</h3><span class="small muted" id="th-note">Light theme</span></div>
+    <div class="th-grid" id="theme-opts">
+      <button class="th" data-value="light"><span class="th-pre lt"><i></i><b></b><u></u><em></em></span><span class="th-lab"><b>Light</b><span>Bright office</span></span></button>
+      <button class="th" data-value="dark"><span class="th-pre dk"><i></i><b></b><u></u><em></em></span><span class="th-lab"><b>Dark</b><span>Easy at night</span></span></button>
+      <button class="th" data-value="auto"><span class="th-pre au"><i></i><b></b><u></u><em></em></span><span class="th-lab"><b>Auto</b><span>Follows this computer</span></span></button>
+    </div>
+  </section>
+  <section class="card">
+    <div class="set-row"><div class="lab"><b>Sounds</b><span>A short sound when something needs you.</span></div>
+      <div>
+        <div class="switch-row" style="padding-top:0"><div class="txt"><b>Play sounds</b><span>Turn off for a silent CRM</span></div><button class="btn sm" id="snd-test"><i data-icon="play"></i>Test sound</button><label class="switch"><input type="checkbox" id="snd-on" checked><span class="track"></span></label></div>
+        <div id="snd-more">
+        <div class="switch-row"><div class="txt"><b>New lead and VIP lead</b><span>Two rising notes</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        <div class="switch-row"><div class="txt"><b>Won · unit booked</b><span>With confetti</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        <div class="switch-row" style="padding-bottom:0"><div class="txt"><b>Volume</b><span>For all CRM sounds</span></div><div class="seg" data-seg id="snd-vol"><button data-value="0.04">Quiet</button><button class="on" data-value="0.12">Normal</button><button data-value="0.3">Loud</button></div></div>
+        </div>
+      </div></div>
+    <div class="set-row"><div class="lab"><b>Language</b><span>For menus and buttons. Lead notes stay as you wrote them.</span></div>
+      <div class="opt-list" id="lang" style="display:grid;grid-template-columns:1fr 1fr">
+        <button class="opt on" data-value="en"><span class="card-icon">EN</span><span class="grow"><b class="bold">English</b><div class="small muted">Used now</div></span><i data-icon="check"></i></button>
+        <button class="opt" data-value="ar"><span class="card-icon">ع</span><span class="grow"><b class="bold">العربية</b><div class="small muted">Arabic · comes later</div></span><span class="chip">later</span></button>
+      </div></div>
+    <div class="set-row"><div class="lab"><b>Date and time</b><span>The same for the whole office.</span></div>
+      <div class="row wrap gap-8"><span class="chip lg"><i data-icon="clock" class="i-sm"></i>24-hour clock · 14:55</span><span class="chip lg"><i data-icon="globe" class="i-sm"></i>Dubai time</span><span class="chip lg"><i data-icon="calendar" class="i-sm"></i>Week starts on Monday</span></div></div>
+  </section>
+  <section class="card" data-only="owner">
+    <div class="card-head"><h3>Office settings</h3><span class="chip"><i data-icon="lock" class="i-sm"></i>Owners and admin</span></div>
+    <div class="office-grid">
+      <a class="shortcut" href="settings-team.html"><i data-icon="users"></i><span class="grow">Team and roles<small>13 people · 9 have notifications on</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="settings-attendance.html"><i data-icon="pin"></i><span class="grow">Attendance rules<small>Shift 09:00 – 18:00 · late after 09:10</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="desks.html"><i data-icon="layout"></i><span class="grow">Desks<small>3 desks · 10 agents</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="automations.html"><i data-icon="zap"></i><span class="grow">Automations<small>Take-back: VIP 30 min · imported 24 hours</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="company.html"><i data-icon="building"></i><span class="grow">Company<small>Logo, names, ORN, TRN, address</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="ai-settings.html"><i data-icon="sparkles"></i><span class="grow">Homes AI<small>$38 of $100 used this month</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="system-health.html"><i data-icon="shield"></i><span class="grow">System health<small>5 of 6 services are fine</small></span><i data-icon="arrow-right"></i></a>
+      <a class="shortcut" href="feedback-inbox.html"><i data-icon="inbox"></i><span class="grow">Feedback inbox<small>Bugs and ideas from the team</small></span><i data-icon="arrow-right"></i></a>
+    </div>
+  </section>
+  <section class="card" style="flex-direction:row;align-items:center;gap:16px">
+    <span class="av me lg" id="so-av"></span><div class="grow"><b class="bold" id="so-name"></b><div class="small muted">Signed in on this computer · Chrome on Windows · since 08:41</div></div>
+    <a class="btn" href="profile.html#security"><i data-icon="lock"></i>Security</a><a class="btn danger" href="login.html"><i data-icon="logout"></i>Sign out</a>
+  </section>
+</div>
+
+<div data-panel="notifications" class="set-body" hidden>
+  <div class="set-title"><div class="grow"><h1>My notifications</h1><p>Choose what reaches you. Each alert opens the exact page when you tap it.</p></div></div>
+  <section class="card ntf-top">
+    <span class="card-icon accent" style="width:52px;height:52px;border-radius:16px"><i data-icon="bell" class="i-lg"></i></span>
+    <div class="grow"><h2 id="ntf-state">Notifications are on</h2><p class="small muted mt-4" id="ntf-sub">Phone app and this computer · last test today 09:02</p></div>
+    <button class="btn primary" id="ntf-test"><i data-icon="bell"></i>Send a test</button>
+  </section>
+  <section class="card">
+    <div class="card-head"><h4>Where alerts go</h4></div>
+    <div>
+      <div class="switch-row" style="padding-top:0"><span class="card-icon"><i data-icon="phone"></i></span><div class="txt"><b>Phone app</b><span>The main place. Works when the CRM is closed.</span></div><span class="chip green pip">On · iPhone</span><a class="btn sm" href="install-guide.html">How to install</a></div>
+      <div class="switch-row" style="padding-bottom:0"><span class="card-icon"><i data-icon="laptop"></i></span><div class="txt"><b>This computer</b><span>Browser notifications are optional. Chrome on Windows.</span></div><label class="switch"><input type="checkbox" id="ntf-pc" checked><span class="track"></span></label></div>
+    </div>
+  </section>
+  <div data-only="agent" class="col gap-16"><section class="card"><div class="card-head"><h4 class="grow">My leads</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>VIP lead from the owner</b><span>You have a time limit to call. This alert is always loud.</span></div><span class="chip orange">always on</span><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>New lead given to me</b><span>From the owner, an import or a transfer</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Lead goes back soon</b><span>10 min before a VIP lead and 1 hour before an imported lead goes back to Incoming</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Client opened my link</b><span>Brochure, payment plan or location link</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Transfer request for me</b><span>A colleague wants to give you a lead · answer by 18:00</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>"What happened?" reminders</b><span>When a WhatsApp or Telegram tap has no update yet</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">My day</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>Follow-up is due</b><span>At the time you planned</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Meeting or site visit</b><span>2 hours before, and again 15 min before</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>"How did it go?"</b><span>After each meeting · answer before 21:00</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Task from the owner</b><span>A new task or a change</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Check-in reminder</b><span>09:00 on working days, only if you are not checked in</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">Team and office</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>Leave request answered</b><span>Approved or refused</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>News from the owner</b><span>Home banners and owner posts on the Team wall</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Team wall and Best of Homes</b><span>New posts, reactions, weekly results</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div></div></section></div>
+  <div data-only="owner" class="col gap-16"><section class="card"><div class="card-head"><h4 class="grow">Leads</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>VIP lead not called in time</b><span>The lead came back to Incoming</span></div><span class="chip orange">always on</span><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Leads waiting in Incoming</b><span>When a lead waits more than 15 min</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Transfer needs my approval</b><span>Leads in Meeting or Offer stage</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Unit booked</b><span>An agent marks a lead as Won</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Wrong number flagged</b><span>An agent says the number is wrong</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Import finished</b><span>Result per agent</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">Team</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>Leave requests</b><span>A new request to answer</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Agent absent</b><span>No check-in and no leave at 10:00</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Agent late</b><span>Check-in after 09:10</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Working outside</b><span>An agent starts or ends work outside</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Meeting result missing</b><span>Not answered by 21:00</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div></div></section><section class="card"><div class="card-head"><h4 class="grow">System</h4><button class="btn xs ghost" data-allon>Turn all on</button></div><div><div class="switch-row"><div class="txt"><b>New or unusual sign-in</b><span>A new device or a new place</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Blocking bug report</b><span>Feedback marked "Blocking my work"</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>System health problem</b><span>A service is slow or down</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Homes AI budget</b><span>At 80% and at 100% of the month</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div></div></section></div>
+  <section class="card">
+    <div class="set-row"><div class="lab"><b>Quiet hours</b><span>No sound and no pop-up in this time. Alerts wait in the bell.</span></div>
+      <div class="col"><div class="chips" data-chips id="quiet"><button class="chip-opt">Off</button><button class="chip-opt on">22:00 – 08:00</button><button class="chip-opt">20:00 – 09:00</button></div>
+      <div class="banner" id="quiet-note"><i data-icon="moon"></i><span class="grow">Quiet from 22:00 to 08:00. Now it is 14:55, so alerts reach you.</span></div></div></div>
+    <div class="set-row"><div class="lab"><b>VIP exception</b><span>A VIP lead has a time limit. It should not wait until morning.</span></div>
+      <div class="switch-row" style="padding:0"><div class="txt"><b>VIP lead alerts ignore quiet hours</b><span id="vip-note">A VIP lead alert rings at any time.</span></div><label class="switch"><input type="checkbox" id="vip-ex" checked><span class="track"></span></label></div></div>
+  </section>
+  <p class="small muted">The owner chooses the office rules in Automations. Here you only choose what you want to hear about.</p>
+</div>
+</div>
+<div class="ntf-pop" id="ntf-pop"><span class="sb-mark"><i data-icon="home"></i></span><div class="grow"><b>homes.me · Test notification</b><span>It works. This is how an alert looks on this computer.</span></div><span class="tiny muted">now</span></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var LS=window.localStorage, H=document.documentElement, $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  /* ---- appearance: Light / Dark / Auto ---- */
+  var mq=window.matchMedia('(prefers-color-scheme: dark)'), cards=$$('#theme-opts .th');
+  function mode(){ return LS.getItem('hmThemeMode')==='auto' ? 'auto' : (H.getAttribute('data-theme')||'light'); }
+  function paint(){ var m=mode(); cards.forEach(function(c){c.classList.toggle('on',c.dataset.value===m)});
+    $('#th-note').textContent = m==='auto' ? 'Auto · this computer is '+(mq.matches?'dark':'light')+' now' : (m==='dark'?'Dark theme':'Light theme'); }
+  cards.forEach(function(c){ c.addEventListener('click',function(){ var v=c.dataset.value;
+    if(v==='auto'){ LS.setItem('hmThemeMode','auto'); HM.setTheme(mq.matches?'dark':'light'); } else { LS.removeItem('hmThemeMode'); HM.setTheme(v); }
+    paint(); HM.toast(v==='auto'?'Theme follows this computer':(v==='dark'?'Dark theme is on':'Light theme is on')); }); });
+  if(mq.addEventListener) mq.addEventListener('change',function(){ if(mode()==='auto'){ HM.setTheme(mq.matches?'dark':'light'); paint(); } });
+  document.addEventListener('change',function(e){ if(e.target.matches && e.target.matches('[data-theme-toggle]')){ LS.removeItem('hmThemeMode'); setTimeout(paint,0); } });
+  paint();
+  /* ---- sounds ---- */
+  var vol=0.12; $('#snd-vol').addEventListener('hm:change',function(e){ vol=+e.detail.value; beep(); });
+  function beep(){ try{ var C=window.AudioContext||window.webkitAudioContext, c=new C(); [[660,0],[880,.13]].forEach(function(n){ var o=c.createOscillator(), g=c.createGain(); o.type='sine'; o.frequency.value=n[0]; g.gain.setValueAtTime(vol,c.currentTime+n[1]); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+n[1]+.22); o.connect(g); g.connect(c.destination); o.start(c.currentTime+n[1]); o.stop(c.currentTime+n[1]+.24); }); }catch(e){} }
+  $('#snd-test').addEventListener('click',function(){ if(!$('#snd-on').checked){ HM.toast('Sounds are off. Turn them on first.'); return; } beep(); HM.toast('This is the new lead sound'); });
+  $('#snd-on').addEventListener('change',function(){ $('#snd-more').classList.toggle('off',!this.checked); HM.toast(this.checked?'Sounds are on':'Sounds are off'); });
+  /* ---- language ---- */
+  $$('#lang .opt').forEach(function(o){ o.addEventListener('click',function(){ if(o.dataset.value==='ar') HM.toast('Arabic comes in a later phase. The CRM stays in English for now.'); }); });
+  /* ---- account row ---- */
+  $('#so-av').textContent=HM.initials(HM.me.name); $('#so-name').textContent=HM.me.name+' · '+HM.me.title;
+  /* ---- notifications ---- */
+  var pop=$('#ntf-pop'), t;
+  $('#ntf-test').addEventListener('click',function(){
+    if(!$('#ntf-pc').checked){ HM.toast('Test sent to your phone. This computer is switched off below.'); return; }
+    pop.classList.add('show'); clearTimeout(t); t=setTimeout(function(){pop.classList.remove('show')},4500);
+    if($('#snd-on').checked) beep();
+    $('#ntf-sub').textContent='Phone app and this computer · last test today 14:55';
+    HM.toast('Notifications are on · test sent');
+  });
+  $('#ntf-pc').addEventListener('change',function(){ $('#ntf-sub').textContent=(this.checked?'Phone app and this computer':'Phone app only')+' · last test today 09:02'; HM.toast(this.checked?'This computer shows alerts':'This computer stays silent. Your phone still gets alerts.'); });
+  $$('[data-allon]').forEach(function(b){ b.addEventListener('click',function(){ var boxes=[].slice.call(b.closest('.card').querySelectorAll('.switch input')); var all=boxes.every(function(x){return x.checked});
+    boxes.forEach(function(x,i){ x.checked = all ? i===0&&!!x.closest('.switch-row').querySelector('.chip.orange') : true; }); b.textContent=all?'Turn all on':'Turn all off'; HM.toast(all?'This group is off':'This group is on'); }); });
+  $$('[data-panel="notifications"] .card .switch-row').forEach(function(r){ var i=r.querySelector('.switch input'); if(!i||i.id) return;
+    if(r.querySelector('.chip.orange')){ i.addEventListener('change',function(){ i.checked=true; HM.toast('VIP alerts stay on. The time limit is short.'); }); return; }
+    i.addEventListener('change',function(){ HM.toast(r.querySelector('.txt b').textContent+(i.checked?' · on':' · off')); }); });
+  $$('[data-allon]').forEach(function(b){ var boxes=[].slice.call(b.closest('.card').querySelectorAll('.switch input')); if(boxes.every(function(x){return x.checked})) b.textContent='Turn all off'; });
+  function quiet(){ var v=$('#quiet .on').textContent.trim(), vip=$('#vip-ex').checked, n=$('#quiet-note .grow');
+    n.textContent = v==='Off' ? 'Quiet hours are off. Alerts reach you at any time.' : 'Quiet from '+v.replace(' – ',' to ')+'. Now it is 14:55, so alerts reach you.';
+    $('#vip-note').textContent = vip ? 'A VIP lead alert rings at any time.' : 'A VIP lead alert waits until quiet hours end. The time limit still runs.';
+    $('#vip-ex').closest('.set-row').style.opacity = v==='Off' ? .5 : 1; }
+  $('#quiet').addEventListener('hm:change',function(){ quiet(); HM.toast('Quiet hours saved'); });
+  $('#vip-ex').addEventListener('change',function(){ quiet(); HM.toast(this.checked?'VIP alerts ignore quiet hours':'VIP alerts wait in quiet hours'); });
+})();
+</script>
+</body>
+</html>

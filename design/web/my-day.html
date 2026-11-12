@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Day · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .ai-line .seg{margin-left:4px}
+  .demo-lab{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);white-space:nowrap}
+  .row1{grid-template-rows:268px}
+  /* hero: one state is visible at a time */
+  #hero{padding:22px 26px}
+  #hero>.hs{display:none;flex:1;min-height:0;align-items:stretch;gap:28px}
+  #hero[data-state="vip"]>.h-vip,#hero[data-state="ready"]>.h-ready,#hero[data-state="outside"]>.h-ready,
+  #hero[data-state="out"]>.h-out,#hero[data-state="over"]>.h-over{display:flex}
+  .hs .left{flex:1;min-width:0;display:flex;flex-direction:column}
+  .hs .side{flex:none;width:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+  .hero-phone{font-size:46px;font-weight:760;letter-spacing:-.045em;line-height:1;margin-top:12px;white-space:nowrap;transition:color .15s}
+  a.hero-phone:hover{color:var(--accent)}
+  .hero-who{margin-top:8px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero-who b{font-weight:680}.hero-who span{color:var(--hero-ink-2)}
+  .hero-note{margin-top:8px;font-size:13px;line-height:1.4;color:var(--hero-ink-2);padding-left:12px;border-left:2px solid var(--accent);max-width:470px}
+  .hero-note b{color:#fff;font-weight:620}
+  .hero-btns{margin-top:auto;display:flex;align-items:center;gap:10px;padding-top:12px}
+  .hero-btns .said{font-size:12.5px;color:var(--hero-ink-2)}
+  #hero .ring.lg{--size:164px}
+  #hero .ring.lg b{font-size:36px;color:#fff}
+  #hero .ring b.warn{color:var(--amber)}#hero .ring b.over{color:var(--red);font-size:16px}
+  .ring-cap{font-size:12px;color:var(--hero-ink-2)}
+  #hero.accepted .only-wait{display:none}#hero:not(.accepted) .only-acc{display:none}
+  #hero.called .only-acc,#hero.called .only-wait{display:none}#hero:not(.called) .only-called{display:none}
+  .crow .nm>span.did{color:var(--green-ink);font-weight:600}
+  .mini-stats a.red.zero{background:var(--surface-2);color:var(--ink-3)}.mini-stats a.red.zero b{color:var(--ink)}
+  .proj span{display:block}
+  .h-ready h2,.h-out h2,.h-over h2{font-size:30px;letter-spacing:-.03em;line-height:1.1}
+  .h-ready .num-hero{font-size:92px}
+  .goals{width:250px!important;align-items:stretch!important;text-align:left!important;gap:12px!important}
+  .goal{display:flex;flex-direction:column;gap:6px}
+  .goal .row{font-size:12.5px;color:var(--hero-ink-2);gap:6px}.goal .row b{color:#fff;font-weight:680;font-size:14px}
+  .streak{display:flex;gap:8px;margin-top:2px}
+  .streak span{flex:1;border-radius:12px;background:rgba(255,255,255,.07);padding:8px 10px;font-size:11.5px;color:var(--hero-ink-2);line-height:1.25}
+  .streak b{display:block;color:#fff;font-size:15px;font-weight:700}
+  .lockbox{width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.06);display:grid;place-items:center;color:var(--hero-ink-2)}
+  .lockbox i{width:44px;height:44px}
+  /* next plan */
+  .np-time{font-size:44px;font-weight:740;letter-spacing:-.045em;line-height:1}
+  .np-then{display:flex;flex-direction:column;gap:3px;margin-top:10px;font-size:12.5px;color:var(--ink-3)}
+  .np-then b{color:var(--ink-2);font-weight:650;display:inline-block;width:42px}
+  .np-ask{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border-radius:14px;background:var(--accent-soft);color:var(--accent-ink)}
+  .np-ask b{display:block;font-weight:680;font-size:13px}.np-ask span{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* four tiles */
+  .tile{padding:14px 20px;height:96px;justify-content:space-between}
+  .tile .label{display:flex;align-items:center;gap:6px}
+  .tile .stat-row{align-items:center;flex-wrap:nowrap}
+  .tile .state{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .tile>i{position:absolute;right:16px;top:14px;color:var(--ink-4);transition:.15s}.tile:hover>i{color:var(--accent);transform:translate(2px,-2px)}
+  /* call list */
+  .crow{display:flex;align-items:center;gap:10px;height:46px;padding:0 8px;margin:0 -8px;border-radius:12px;cursor:pointer;transition:background .12s;min-width:0}
+  .crow:hover{background:var(--surface-2)}
+  .crow .nm{flex:1;min-width:0;line-height:1.25}
+  .crow .nm b{font-weight:650;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .crow .nm b em{font-style:normal;overflow:hidden;text-overflow:ellipsis}
+  .crow .nm>span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crow .nm>span.red{color:var(--red-ink);font-weight:600}
+  .crow .chip{flex:none}
+  .crow.done{opacity:.5}.crow.done .nm b em{text-decoration:line-through}
+  /* day plan */
+  .dayplan .ev{padding:3px 10px}
+  .dayplan .ev.done{color:var(--ink-3);box-shadow:inset 3px 0 0 var(--line-2);text-decoration:line-through}
+  .dayplan .ev.half-l{right:50%}.dayplan .ev.half-r{left:calc(50% + 4px)}
+  .dayplan .ev.tall{height:34px}
+  .dayplan a.ev:hover{filter:brightness(.97)}
+  /* small right-hand cards */
+  .mini-stats{display:flex;gap:8px;margin-bottom:6px}
+  .mini-stats a{flex:1;border-radius:14px;background:var(--surface-2);padding:10px 12px;font-size:12px;color:var(--ink-3);transition:.15s}
+  .mini-stats a:hover{background:var(--surface-3)}
+  .mini-stats b{display:block;font-size:24px;font-weight:720;letter-spacing:-.03em;line-height:1.05;color:var(--ink)}
+  .mini-stats a.red{background:var(--red-soft);color:var(--red-ink)}.mini-stats a.red b{color:var(--red-ink)}
+  .srow{display:flex;align-items:center;gap:8px;padding:7px 0;min-width:0}
+  .srow .grow{line-height:1.25}
+  .srow .grow b{display:block;font-weight:630;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .srow .grow span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .srow .grow span.red{color:var(--red-ink);font-weight:600}
+  .tcard{border-radius:14px;background:var(--surface-2);padding:12px;display:flex;flex-direction:column;gap:8px}
+  /* below the fold */
+  .slide{display:none;flex:1;gap:16px;align-items:stretch;min-height:0}.slide.on{display:flex;animation:fade-in .35s var(--ease)}
+  .slide .photo{width:150px;min-height:0;flex:none}
+  .slide .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .slide h3{font-size:17px;line-height:1.25}
+  .dots{display:flex;gap:6px;align-items:center}
+  .dots button{width:8px;height:8px;border-radius:50%;background:var(--line-2);transition:.2s}.dots button.on{width:22px;border-radius:4px;background:var(--accent)}
+  .people{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
+  .people a{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 2px;border-radius:14px;font-size:12.5px;font-weight:600;transition:.15s;min-width:0}
+  .people a:hover{background:var(--surface-2)}
+  .people a span.s{font-size:11px;font-weight:500;color:var(--ink-3);white-space:nowrap}
+  .proj{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .proj a{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12.5px;transition:.15s}
+  .proj a:hover{transform:translateY(-2px)}
+  .proj .photo{min-height:74px;border-radius:14px}
+  .proj b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.proj span{color:var(--ink-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shortcuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .shortcuts .shortcut{background:var(--surface);box-shadow:var(--shadow-1)}
+  .shortcuts .shortcut:hover{box-shadow:var(--shadow-2);background:var(--surface)}
+</style>
+</head>
+<body data-page="my-day" data-role="agent" data-title="Good afternoon, Rocky" data-sub="Wednesday, 11 November 2026 · 14:55">
+<main>
+
+  <!-- Homes AI: one sentence · and the small demo state switch -->
+  <div class="ai-line fade-in">
+    <span class="ai-tag"><i data-icon="sparkles" class="i-sm"></i>Homes AI</span>
+    <p id="ai-text"><a href="lead.html?n=Marco%20Bellini">Marco Bellini opened your brochure link</a> 2 times. Call Khalid first.</p>
+    <span class="demo-lab">Demo state</span>
+    <div class="seg sm" data-seg id="demo">
+      <button data-value="vip" class="on">VIP lead</button><button data-value="ready">Start calling</button><button data-value="out">Not checked in</button><button data-value="outside">Outside</button>
+    </div>
+  </div>
+
+  <!-- working outside (only in that state) -->
+  <div class="banner blue mb-16 hide" id="outside-bar" style="margin-bottom:12px">
+    <i data-icon="pin"></i><span class="grow"><b>Outside</b> · The Archive sales centre · with Lucas Martin · back by 15:00</span>
+    <button class="btn xs ghost" data-open="#back-dlg">Show the 15:00 question</button>
+    <button class="btn xs" id="im-back">I'm back</button>
+  </div>
+
+  <!-- ROW 1 -->
+  <div class="bento row1">
+
+    <section class="card hero c-8" id="hero" data-state="vip" aria-label="What to do now">
+
+      <!-- (b) VIP lead waiting -->
+      <div class="hs h-vip">
+        <div class="left">
+          <div class="row gap-8"><span class="hero-chip"><span class="only-wait">VIP LEAD FROM EMIR · given 14:49</span><span class="only-acc">VIP LEAD · accepted · call now</span><span class="only-called">VIP LEAD · called 14:55 · clock stopped</span></span></div>
+          <a class="hero-phone" href="lead.html?n=Khalid%20Al%20Mansoori" data-tip="Open the lead">+971 50 555 0101</a>
+          <div class="hero-who"><b>Khalid Al Mansoori</b> <span>· The Archive · 2BR · AED 2.5M · Dubai 14:55</span></div>
+          <p class="hero-note"><b>Emir:</b> “Wrote to me by email. Serious, wants to see the show flat this week. Call him in English.”</p>
+          <div class="hero-btns">
+            <button class="btn on-dark primary only-wait" id="vip-accept"><i data-icon="check"></i>Accept VIP lead</button>
+            <button class="btn on-dark only-wait" id="vip-no" data-confirm="Tap again to send it back">I can't take it</button>
+            <button class="btn on-dark primary only-acc" data-call="Khalid Al Mansoori|+971 50 555 0101"><i data-icon="phone"></i>Call now</button>
+            <a class="btn on-dark only-acc" href="lead.html?n=Khalid%20Al%20Mansoori">Open the lead</a>
+            <span class="said only-acc">Emir is told you accepted.</span>
+            <button class="btn on-dark primary only-called" id="vip-what"><i data-icon="check"></i>What happened?</button>
+            <button class="btn on-dark only-called" data-call="Khalid Al Mansoori|+971 50 555 0101"><i data-icon="phone"></i>Call again</button>
+            <a class="btn on-dark only-called" href="lead.html?n=Khalid%20Al%20Mansoori">Open the lead</a>
+          </div>
+        </div>
+        <div class="side">
+          <div class="ring lg"><b id="vip-cd" data-countdown="24:12" data-countdown-total="30:00" data-over="Time is over"></b><span>left to call</span></div>
+          <span class="ring-cap" id="vip-cap">Not called in time → back to Incoming</span>
+        </div>
+      </div>
+
+      <!-- (c) checked in, nothing urgent -->
+      <div class="hs h-ready">
+        <div class="left">
+          <div class="row gap-16" style="align-items:center">
+            <b class="num-hero">12</b>
+            <div class="grow"><h2>Start calling</h2><p class="muted" style="margin-top:6px">12 leads are ready today, one at a time.</p></div>
+          </div>
+          <div class="hero-who" style="margin-top:14px"><span>Next:</span> <b id="ready-next">Sara Nunes</b> <span id="ready-why">· follow-up overdue since 11:00 · Lisbon 10:55</span></div>
+          <div class="hero-btns">
+            <a class="btn on-dark primary lg" href="calling.html"><i data-icon="phone"></i>Start calling · 12 ready</a>
+            <a class="btn on-dark lg" href="my-leads.html#today">See the list</a>
+          </div>
+        </div>
+        <div class="side goals">
+          <div class="goal"><div class="row"><b data-calls>18</b> of 40 calls today<span class="right" data-calls-pc>45%</span></div><div class="bar" data-calls-bar style="--v:45%"><i style="background:var(--accent)"></i></div></div>
+          <div class="goal"><div class="row"><b>9</b> of 20 WhatsApp</div><div class="bar thin" style="--v:45%"><i></i></div></div>
+          <div class="goal"><div class="row"><b>1</b> of 2 meetings</div><div class="bar thin" style="--v:50%"><i></i></div></div>
+          <div class="streak"><span><b>12 days</b>streak</span><span><b>+240</b>points today</span></div>
+        </div>
+      </div>
+
+      <!-- (a) not checked in -->
+      <div class="hs h-out">
+        <div class="left">
+          <div class="row"><span class="hero-chip">OFFICE WI-FI FOUND · homes.me-Office</span></div>
+          <h2 style="margin-top:16px;font-size:38px">Ready to start your day?</h2>
+          <p class="muted" style="margin-top:8px;font-size:15px">Shift 09:00 – 18:00 · late after 09:10 · check-in works only on the office network.</p>
+          <div class="hero-btns">
+            <button class="btn on-dark primary lg" id="checkin"><i data-icon="check"></i>Check in</button>
+            <a class="btn on-dark lg" href="attendance.html#outside"><i data-icon="pin"></i>I'm working outside today</a>
+          </div>
+        </div>
+        <div class="side">
+          <div class="lockbox"><i data-icon="lock"></i></div>
+          <span class="ring-cap"><b style="color:#fff">Check in to start calling</b><br>12 leads wait for you</span>
+        </div>
+      </div>
+
+      <!-- VIP time ended -->
+      <div class="hs h-over">
+        <div class="left">
+          <div class="row"><span class="hero-chip">VIP LEAD · 30 minutes passed</span></div>
+          <h2 style="margin-top:16px;font-size:38px">Time is over · back in Incoming</h2>
+          <p class="muted" style="margin-top:8px;font-size:15px">Khalid Al Mansoori was not called in 30 minutes. Emir is told and gives the lead again.</p>
+          <div class="hero-btns"><button class="btn on-dark lg" id="over-ok">OK, show my call list</button></div>
+        </div>
+        <div class="side"><div class="lockbox" style="color:var(--red)"><i data-icon="clock"></i></div></div>
+      </div>
+    </section>
+
+    <!-- Next plan -->
+    <section class="card c-4" aria-label="Next plan">
+      <div class="card-head" style="margin-bottom:8px"><h3>Next plan</h3><a class="card-link" href="calendar.html">Calendar <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="row gap-12" style="align-items:center"><b class="np-time" id="np-time">15:20</b><span class="chip amber" id="np-in">in 25 min</span></div>
+      <a class="bold" style="margin-top:8px;font-size:15px;display:block" href="lead.html?n=Khalid%20Al%20Mansoori" id="np-what">Call the VIP lead · Khalid Al Mansoori</a>
+      <div class="np-then" id="np-then">
+        <span><b>15:30</b>Send payment plan to Marco Bellini</span>
+        <span><b>16:30</b>Site visit · Lucas Martin</span>
+      </div>
+      <div class="np-ask" id="np-ask">
+        <i data-icon="help"></i>
+        <div class="grow"><b>How did it go?</b><span>Omar Khalil · 12:00 · before 21:00</span></div>
+        <button class="btn sm" data-open="#how-dlg">Answer</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ROW 2: four tiles -->
+  <div class="bento">
+    <a class="card c-3 tile click" href="my-leads.html#all"><span class="label">My leads</span><div class="stat-row"><b class="num" data-count>62</b><span class="delta up">3 new today</span></div><i data-icon="arrow-up-right" class="i-sm"></i></a>
+    <a class="card c-3 tile click" href="my-leads.html#today"><span class="label">To call today</span><div class="stat-row"><b class="num" data-count>12</b><span class="chip red pip" id="tile-over">1 overdue</span></div><i data-icon="arrow-up-right" class="i-sm"></i></a>
+    <a class="card c-3 tile click" href="my-leads.html#hot"><span class="label">Hot leads</span><div class="stat-row"><b class="num" data-count>6</b><span class="state">3 to call today</span></div><i data-icon="arrow-up-right" class="i-sm"></i></a>
+    <a class="card c-3 tile click" href="calendar.html"><span class="label">Meetings today</span><div class="stat-row"><b class="num" data-count>2</b><span class="chip orange">1 needs a result</span></div><i data-icon="arrow-up-right" class="i-sm"></i></a>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="bento">
+
+    <!-- Call list -->
+    <section class="card c-5" aria-label="Call list">
+      <div class="card-head" style="margin-bottom:8px"><h3>Call list <span class="muted" style="font-weight:500">· VIP first</span></h3><a class="card-link" href="calling.html" id="cl-start">One by one <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div id="clist"></div>
+      <div class="card-foot" style="padding-top:10px">
+        <span class="nowrap"><b class="ink-2" id="cl-done" data-calls>18</b> of 40 calls today</span>
+        <div class="bar accent" data-calls-bar style="--v:45%" id="cl-bar"><i></i></div>
+        <a class="card-link" href="my-leads.html#today">All 12 <i data-icon="arrow-right" class="i-sm"></i></a>
+      </div>
+    </section>
+
+    <!-- Today's plan -->
+    <section class="card c-4" aria-label="Today's plan">
+      <div class="card-head"><h3>Today's plan</h3><a class="card-link" href="tasks.html">Tasks <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="dayplan" id="plan">
+        <span class="hr">09:00</span><div class="slot"></div>
+        <span class="hr">10:00</span><div class="slot"><a class="ev done" style="top:11px" href="lead.html?n=Marco%20Bellini">10:30 Call Marco Bellini · done</a></div>
+        <span class="hr">11:00</span><div class="slot"><a class="ev red" href="tasks.html#follow-ups">11:00 Follow up Sara Nunes · overdue</a></div>
+        <span class="hr">12:00</span><div class="slot"><a class="ev accent" href="calendar.html">12:00 Meeting · Omar Khalil · result needed</a></div>
+        <span class="hr">13:00</span><div class="slot"></div>
+        <span class="hr">14:00</span><div class="slot"></div>
+        <span class="hr">15:00</span><div class="slot"><a class="ev accent half-l" style="top:8px" href="lead.html?n=Khalid%20Al%20Mansoori" id="ev-vip">15:20 VIP · Khalid</a><a class="ev half-r" style="top:8px" href="lead.html?n=Marco%20Bellini">15:30 Plan · Marco</a></div>
+        <span class="hr">16:00</span><div class="slot"><a class="ev blue tall" style="top:18px" href="calendar.html">16:30 Site visit · Lucas Martin</a></div>
+        <span class="hr">17:00</span><div class="slot"></div>
+        <span class="hr">18:00</span><div class="slot"></div>
+        <div class="now-line" id="now" style="top:213px"><span id="now-t">14:55</span></div>
+      </div>
+      <div class="card-foot" style="padding-top:4px"><span>Shift ends 18:00 · tomorrow starts with <b class="ink-2">Call Ahmed 10:00</b></span></div>
+    </section>
+
+    <!-- Follow-ups · Transfers · Waiting for your update -->
+    <div class="stack c-3">
+      <section class="card" style="flex:none;padding:18px 20px" aria-label="Follow-ups">
+        <div class="card-head" style="margin-bottom:10px"><h3>Follow-ups</h3><a class="card-link" href="tasks.html#follow-ups">All <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <div class="mini-stats">
+          <a class="red" href="tasks.html#follow-ups"><b id="fu-over">1</b>Overdue</a>
+          <a href="tasks.html#follow-ups"><b id="fu-today">4</b>Today</a>
+        </div>
+        <div id="fu-list">
+          <div class="srow" data-fu="Sara Nunes" data-over="1"><div class="grow"><b>Sara Nunes</b><span class="red">Overdue since 11:00</span></div><button class="btn xs" data-fu-done>Done</button></div>
+          <div class="srow" data-fu="Marco Bellini"><div class="grow"><b>Marco Bellini</b><span>15:30 · payment plan</span></div><button class="btn xs" data-fu-done>Done</button></div>
+          <div class="srow" data-fu="Priya Shah"><div class="grow"><b>Priya Shah</b><span>16:00 · after her meeting</span></div><button class="btn xs" data-fu-done>Done</button></div>
+        </div>
+      </section>
+
+      <section class="card" style="flex:none;padding:18px 20px" aria-label="Transfers">
+        <div class="card-head" style="margin-bottom:10px"><h3>Transfers</h3><span class="badge accent" id="tr-badge">1 for you</span></div>
+        <div class="tcard" id="tr-in">
+          <div class="person"><span class="av sm" data-name="Yuliia" data-status="office"></span><div class="who"><b>Fatima Al Zaabi</b><span>from Yuliia · speaks Arabic</span></div></div>
+          <div class="row gap-6"><button class="btn xs dark" id="tr-yes" style="flex:1">Accept</button><button class="btn xs" id="tr-no" style="flex:1" data-confirm="Tap again: no">No, thanks</button></div>
+          <span class="tiny muted">Answer by 18:00</span>
+        </div>
+        <a class="srow" href="transfers.html" style="margin-top:6px" id="tr-sent"><div class="grow"><b>Omar Khalil → Yuliia</b><span>You sent it · owner must approve</span></div><i data-icon="chevron-right" class="i-sm muted"></i></a>
+      </section>
+
+      <section class="card" style="flex:none;padding:18px 20px" aria-label="Waiting for your update">
+        <div class="card-head" style="margin-bottom:6px"><h3>Waiting for your update</h3><span class="badge" id="wu-n">2</span></div>
+        <div id="wu-list">
+          <div class="srow" data-wu="Marco Bellini"><div class="grow"><b>Marco Bellini</b><span>WhatsApp · 14:31</span></div><button class="btn xs" data-what="Marco Bellini|WhatsApp">What happened?</button></div>
+          <div class="srow" data-wu="Dave Patel"><div class="grow"><b>Dave Patel</b><span>Telegram · 13:10</span></div><button class="btn xs" data-what="Dave Patel|Telegram">What happened?</button></div>
+        </div>
+        <a class="srow" href="lead.html?n=Marco%20Bellini" style="border-top:1px solid var(--line);margin-top:4px;padding-top:10px"><span class="card-icon" style="width:28px;height:28px;border-radius:9px;background:var(--blue-soft);color:var(--blue-ink)"><i data-icon="link" class="i-sm"></i></span><div class="grow"><b>Marco opened your link</b><span>Brochure · 14:37 · 2 times</span></div></a>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= BELOW THE FOLD ================= -->
+  <div class="banner mt-32" id="notif-card" style="background:var(--surface);box-shadow:var(--shadow-1);padding:14px 16px">
+    <span class="card-icon accent"><i data-icon="bell"></i></span>
+    <span class="grow"><b class="bold">Turn on notifications</b><span class="muted"> · a VIP lead gives you 30 minutes. Do not miss it.</span></span>
+    <a class="btn sm ghost" href="install-guide.html">How to install</a>
+    <button class="btn sm" data-remove="#notif-card" data-toast="Notifications are on · test sent">Turn on</button>
+    <button class="btn icon sm ghost" data-remove="#notif-card" aria-label="Dismiss" data-tip="Not now"><i data-icon="x"></i></button>
+  </div>
+
+  <section class="card mt-16" style="flex-direction:row;align-items:stretch;gap:20px;padding:16px 22px" aria-label="My leads by stage">
+    <div style="width:150px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:2px">
+      <h3>My leads by stage</h3>
+      <a class="small muted" href="my-leads.html#all"><b class="ink-2">62</b> open leads</a>
+      <a class="card-link mt-4" href="pipeline.html">Open pipeline <i data-icon="arrow-right" class="i-sm"></i></a>
+    </div>
+    <div class="pstrip">
+      <a class="pstage new" style="--g:18" href="pipeline.html"><span class="nm">New</span><span class="ct"><b>18</b><span>29%</span></span><i></i></a>
+      <a class="pstage called" style="--g:16" href="pipeline.html"><span class="nm">Called</span><span class="ct"><b>16</b><span>26%</span></span><i></i></a>
+      <a class="pstage interested" style="--g:14" href="pipeline.html"><span class="nm">Interested</span><span class="ct"><b>14</b><span>23%</span></span><i></i></a>
+      <a class="pstage meeting" style="--g:8" href="pipeline.html"><span class="nm">Meeting</span><span class="ct"><b>8</b><span>13%</span></span><i></i></a>
+      <a class="pstage offer" style="--g:6" href="pipeline.html"><span class="nm">Offer</span><span class="ct"><b>6</b><span>10%</span></span><i></i></a>
+      <a class="pstage won" style="--g:3" href="pipeline.html"><span class="nm">Won</span><span class="ct"><b>2</b><span>this month</span></span><i></i></a>
+      <a class="pstage lost" href="my-leads.html#lost"><span class="nm">Lost · kept apart</span><span class="ct"><b>1</b></span><i></i></a>
+    </div>
+  </section>
+
+  <div class="bento mt-16">
+    <!-- owner banners: 3 slides, 4.5 s -->
+    <section class="card c-5" id="slides" aria-label="From the office">
+      <div class="card-head"><h3>From the office</h3><div class="dots" id="dots"><button class="on" aria-label="Slide 1"></button><button aria-label="Slide 2"></button><button aria-label="Slide 3"></button></div></div>
+      <div class="slide on"><div class="photo p4"></div><div class="txt"><span class="chip orange" style="align-self:flex-start">From Emir</span><h3>Cityscape Global · 17–19 Nov</h3><p class="small muted">DWTC · stand B12. Everyone is on the stand for one day. See your day in the calendar.</p><a class="btn sm mt-auto" style="align-self:flex-start" href="calendar.html">See the plan</a></div></div>
+      <div class="slide"><div class="photo p3"></div><div class="txt"><span class="chip" style="align-self:flex-start">Project</span><h3>Valia launches soon</h3><p class="small muted">Emaar · The Oasis · from AED 1.4M · 80 / 20. You already have 6 leads for it.</p><a class="btn sm mt-auto" style="align-self:flex-start" href="project.html">Open the project</a></div></div>
+      <div class="slide"><div class="photo p2"></div><div class="txt"><span class="chip" style="align-self:flex-start">Best of Homes</span><h3>Week 46 · you are second</h3><p class="small muted">Talha 1,980 · Rocky 1,740. 6 calls or 1 meeting puts you in first place.</p><a class="btn sm mt-auto" style="align-self:flex-start" href="best-of-homes.html">See the ranking</a></div></div>
+    </section>
+
+    <!-- best time to call now -->
+    <section class="card c-4" aria-label="Best time to call now">
+      <div class="card-head" style="margin-bottom:8px"><h3>Best time to call now</h3><span class="chip">client's clock</span></div>
+      <div class="crow" data-href="lead.html?n=Marco%20Bellini"><span class="av" data-name="Marco Bellini"></span><div class="nm"><b><em>Marco Bellini</em></b><span>Milan 11:55 · before his lunch</span></div><button class="btn xs" data-call="Marco Bellini|+39 333 455 4821"><i data-icon="phone"></i>Call</button></div>
+      <div class="crow" data-href="lead.html?n=Lucas%20Martin"><span class="av" data-name="Lucas Martin"></span><div class="nm"><b><em>Lucas Martin</em></b><span>Paris 11:55 · answers before noon</span></div><button class="btn xs" data-call="Lucas Martin|+33 6 12 34 56 78"><i data-icon="phone"></i>Call</button></div>
+      <div class="crow" data-href="lead.html?n=Priya%20Shah"><span class="av" data-name="Priya Shah"></span><div class="nm"><b><em>Priya Shah</em></b><span>Mumbai 16:25 · after her meeting</span></div><button class="btn xs" data-call="Priya Shah|+91 98765 43210"><i data-icon="phone"></i>Call</button></div>
+      <div class="card-foot"><i data-icon="globe" class="i-sm"></i>Ahmed Hassan is best at 19:00 KSA time.</div>
+    </section>
+
+    <!-- today's calls -->
+    <section class="card c-3" aria-label="Today's calls">
+      <div class="card-head" style="margin-bottom:8px"><h3>Today's calls</h3><a class="card-link" href="best-of-homes.html">Ranking <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="stat-row"><b class="num" data-calls>18</b><span class="label">of 40 calls</span></div>
+      <div class="bar accent mt-8" data-calls-bar style="--v:45%;flex:none"><i></i></div>
+      <div class="hbars mt-16" style="gap:8px">
+        <div class="hbar" style="grid-template-columns:74px 1fr 44px"><span>WhatsApp</span><div class="bar thin" style="--v:45%"><i></i></div><b>9 / 20</b></div>
+        <div class="hbar" style="grid-template-columns:74px 1fr 44px"><span>Meetings</span><div class="bar thin" style="--v:50%"><i></i></div><b>1 / 2</b></div>
+      </div>
+      <div class="card-foot"><i data-icon="fire" class="i-sm"></i><span><b class="ink-2">12 days</b> streak · <b class="t-green">+240</b> points</span></div>
+    </section>
+  </div>
+
+  <div class="bento">
+    <section class="card c-7" aria-label="Meet your colleagues">
+      <div class="card-head" style="margin-bottom:6px"><h3>Meet your colleagues</h3><a class="card-link" href="team.html">6 in office now <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="people" id="people"></div>
+    </section>
+    <section class="card c-5" aria-label="Projects we sell now">
+      <div class="card-head"><h3>Projects we sell now</h3><a class="card-link" href="projects.html">All projects <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="proj">
+        <a href="project.html"><div class="photo"></div><b>The Archive</b><span>from AED 1.6M</span><span>24 your leads</span></a>
+        <a href="project.html"><div class="photo p2"></div><b>Shahrukhz</b><span>from AED 1.2M</span><span>11 your leads</span></a>
+        <a href="project.html"><div class="photo p3"></div><b>Damac Islands</b><span>from AED 2.7M</span><span>9 your leads</span></a>
+        <a href="project.html"><div class="photo p4"></div><b>Valia</b><span>launching soon</span><span>6 your leads</span></a>
+      </div>
+    </section>
+  </div>
+
+  <div class="shortcuts mt-16">
+    <a class="shortcut" href="add-lead.html"><i data-icon="plus"></i><span class="grow">Add lead</span><span class="chip green" style="height:20px">+10 points</span></a>
+    <a class="shortcut" href="tasks.html#follow-ups"><i data-icon="clock"></i><span class="grow">Follow-ups</span><span class="badge red">1</span></a>
+    <a class="shortcut" href="calendar.html"><i data-icon="calendar"></i><span class="grow">Calendar</span><i data-icon="arrow-right"></i></a>
+    <a class="shortcut" href="projects.html"><i data-icon="building"></i><span class="grow">Projects</span><i data-icon="arrow-right"></i></a>
+  </div>
+</main>
+
+<!-- How did it go? (short answer; the full form is in the calendar) -->
+<div class="dialog" id="how-dlg" role="dialog" aria-label="How did it go?">
+  <div class="dialog-head"><div class="grow"><h3>How did the meeting go?</h3><p>Omar Khalil · today 12:00 · Office · Room 2 · answer before 21:00</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="field" id="how-f"><div class="chips" data-chips id="how-pick"><button class="chip-opt">Showed up</button><button class="chip-opt">No-show</button><button class="chip-opt">Rescheduled</button><button class="chip-opt">Booked a unit</button><button class="chip-opt">Cancelled</button></div><span class="error">Choose one answer.</span></div>
+    <div class="field hide" id="how-next"><span class="field-label">Next step</span><div class="chips" data-chips><button class="chip-opt on">Send the offer</button><button class="chip-opt">Second meeting</button><button class="chip-opt">Site visit</button><button class="chip-opt">Follow up in 2 days</button></div></div>
+    <p class="small muted" id="how-hint">A no-show is counted. Cancelled is not a no-show.</p>
+    <div class="field"><label for="how-note">Note</label><textarea class="textarea" id="how-note" style="min-height:64px" placeholder="One line is enough"></textarea></div>
+  </div>
+  <div class="dialog-foot"><a class="card-link" href="calendar.html" style="margin-right:auto">Open in the calendar <i data-icon="arrow-right" class="i-sm"></i></a><button class="btn ghost" data-close>Later</button><button class="btn primary" id="how-save">Save answer</button></div>
+</div>
+
+<!-- Follow-up done: what happened? -->
+<div class="dialog sm" id="fu-dlg" role="dialog" aria-label="What happened?">
+  <div class="dialog-head"><div class="grow"><h3 id="fu-title">What happened with Sara?</h3><p>The follow-up is closed after your answer.</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="opt-list" id="fu-opts">
+      <button class="opt" data-v="Spoke · all done"><i data-icon="check"></i><span class="grow bold">Spoke · all done</span></button>
+      <button class="opt" data-v="No answer · try again tomorrow"><i data-icon="clock"></i><span class="grow bold">No answer · try again tomorrow</span></button>
+      <button class="opt" data-v="Booked a meeting"><i data-icon="calendar"></i><span class="grow bold">Booked a meeting</span></button>
+      <button class="opt" data-v="Not interested"><i data-icon="x"></i><span class="grow bold">Not interested</span></button>
+    </div>
+  </div>
+  <div class="dialog-foot"><button class="btn ghost" data-close>Cancel</button></div>
+</div>
+
+<!-- Are you back in the office? (asked once at the "back by" time) -->
+<div class="dialog sm" id="back-dlg" role="dialog" aria-label="Are you back?">
+  <div class="dialog-head"><div class="grow"><h3>Are you back in the office?</h3><p>You said “back by 15:00”. We ask only once.</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-foot" style="justify-content:stretch"><button class="btn" style="flex:1" data-close data-toast="OK · still outside. Tell us when you are back.">Not yet</button><button class="btn primary" style="flex:1" id="back-yes" data-close>Yes, I'm back</button></div>
+</div>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var hero=$('#hero'), LS=window.localStorage;
+
+  /* ---- call list: today's queue, VIP first ---- */
+  var list=LK.leads.filter(function(l){return /today/.test(l.tabs)}).slice(0,12);
+  $('#clist').innerHTML=list.map(function(l){
+    return '<div class="crow" data-href="'+LK.url(l.n)+'" data-lead="'+l.n+'"><div class="nm"><b><em>'+l.n+'</em>'+(l.vip?'<span class="vip-tag">VIP</span>':'')+'</b>'+
+      '<span'+(l.red?' class="red"':'')+'>'+(l.red?l.nx:l.pr+' · '+l.c+' '+l.t)+'</span></div>'+
+      '<span class="chip stage-'+l.s+'">'+LK.stage[l.s]+'</span>'+
+      '<button class="btn xs" data-call="'+l.n+'|'+l.p+'"><i data-icon="phone"></i>Call</button></div>';
+  }).join('');
+  HM.refresh($('#clist'));
+  /* calls today: one number, shown in four places */
+  var calls=18, called={};
+  function showCalls(){ $$('[data-calls]').forEach(function(b){ b.textContent=calls; }); $$('[data-calls-bar]').forEach(function(b){ b.style.setProperty('--v',(calls/40*100)+'%'); }); $$('[data-calls-pc]').forEach(function(b){ b.textContent=Math.round(calls/40*100)+'%'; }); }
+  function markRow(name,text){ var r=$('#clist .crow[data-lead="'+name+'"]'); if(!r) return; r.classList.add('done'); var sp=r.querySelector('.nm > span'); sp.className='did'; sp.textContent=text; }
+  // what was done on other pages in this tab is still here
+  list.forEach(function(l){ var m=LK.did(l.n); if(m) markRow(l.n,m.text+' · '+m.at); });
+  var VIP='Khalid Al Mansoori';
+  function vipCalled(){ hero.classList.add('accepted','called'); $('#vip-cd').setAttribute('data-paused',''); $('#vip-cap').textContent='Called in time. The clock is stopped.'; }
+  document.addEventListener('lk:call',function(e){
+    var n=e.detail.name; if(!called[n]){ called[n]=1; calls++; showCalls(); }
+    markRow(n,'Call clicked 14:55'+(e.detail.marked?' · not checked in':''));
+    if(n===VIP&&hero.getAttribute('data-state')==='vip'&&hero.classList.contains('accepted')) vipCalled();
+  });
+  document.addEventListener('lk:msg',function(e){ markRow(e.detail.name,e.detail.app+' opened 14:55 · say what happened'); });
+  $('#vip-what').addEventListener('click',function(){ LK.what(VIP,'Call'); });
+
+  /* ---- colleagues ---- */
+  $('#people').innerHTML=LK.agents.filter(function(a){return a.n!=='Rocky'}).map(function(a){
+    return '<a href="team.html"><span class="av lg" data-name="'+a.n+'" data-status="'+a.st+'"></span>'+a.n+'<span class="s">'+a.tx.split(' ·')[0].replace(/ until.*/,'').replace('Annual leave 10–11 Nov','On leave').replace(' today','')+'</span></a>';
+  }).join('');
+  HM.refresh($('#people'));
+
+  /* ---- hero states ---- */
+  function nextPlan(vip){
+    $('#np-time').textContent=vip?'15:20':'15:30'; $('#np-in').textContent=vip?'in 25 min':'in 35 min';
+    $('#np-what').textContent=vip?'Call the VIP lead · Khalid Al Mansoori':'Send payment plan to Marco Bellini';
+    $('#np-then').innerHTML=(vip?'<span><b>15:30</b>Send payment plan to Marco Bellini</span>':'')+'<span><b>16:30</b>Site visit · Lucas Martin</span>'+(vip?'':'<span><b>17:15</b>Compare Archive and Valia for Lucas</span>');
+    var ev=$('#ev-vip'); ev.style.display=vip?'':'none'; ev.nextElementSibling.classList.toggle('half-r',vip);
+    var first=$('#clist .crow[data-lead="Khalid Al Mansoori"]'); if(first) first.style.display=vip?'':'none';
+    $('#np-what').href=vip?LK.url(VIP):LK.url('Marco Bellini');
+  }
+  function setState(s,quiet){
+    hero.setAttribute('data-state',s);
+    $$('#demo button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-value')===(s==='over'?'vip':s)); });
+    if(!quiet) HM.setCheckin(s==='out'?'out':s==='outside'?'outside':'in');
+    $('#outside-bar').classList.toggle('hide',s!=='outside');
+    nextPlan(s==='vip');
+    var st=$('#cl-start'); st.innerHTML=(s==='out'?HM.icon('lock').replace('<svg','<svg style="width:13px;height:13px"')+' Check in to start calling':'One by one '+HM.icon('arrow-right').replace('<svg','<svg style="width:14px;height:14px"'));
+    $('#ai-text').innerHTML=s==='out'?'You are not checked in. <a href="attendance.html">Check in</a> to start calling.'
+      :s==='vip'?'<a href="lead.html?n=Marco%20Bellini">Marco Bellini opened your brochure link</a> 2 times. Call Khalid first.'
+      :'<a href="lead.html?n=Marco%20Bellini">Marco Bellini opened your brochure link</a> 2 times. <a href="tasks.html#follow-ups">Sara Nunes</a> is overdue.';
+  }
+  function vipReset(){ hero.classList.remove('accepted','called'); $('#vip-cd').removeAttribute('data-paused'); $('#vip-cap').textContent='Not called in time → back to Incoming'; }
+  $('#demo').addEventListener('hm:change',function(e){ vipReset(); setState(e.detail.value); });
+  var saved=LS.getItem('hmCheckin');
+  setState(saved==='out'?'out':saved==='outside'?'outside':'vip',true);
+  if(hero.getAttribute('data-state')==='vip'&&LK.did(VIP)){ if(/^Call clicked/.test(LK.did(VIP).text)) vipCalled(); else setState('ready',true); }
+
+  $('#vip-accept').addEventListener('click',function(){
+    hero.classList.add('accepted'); HM.confetti();
+    HM.toast('VIP lead accepted · Khalid is in My leads · call now',{undo:function(){ hero.classList.remove('accepted'); }});
+  });
+  $('#vip-no').addEventListener('hm:confirm',function(){
+    setState('ready'); $$('.tile .num')[1].textContent='11';
+    HM.toast('Sent back to Emir · Khalid is in Incoming again',{undo:function(){ setState('vip'); $$('.tile .num')[1].textContent='12'; }});
+  });
+  $('#vip-cd').addEventListener('hm:timeup',function(){ if(hero.getAttribute('data-state')==='vip') setState('over'); });
+  $('#over-ok').addEventListener('click',function(){ setState('ready'); });
+  $('#checkin').addEventListener('click',function(){
+    HM.confetti(); setState('vip'); HM.toast('Checked in · 14:55 · In office');
+  });
+  document.addEventListener('lk:checkin',function(){ if(hero.getAttribute('data-state')==='out') setState('vip'); });
+  function back(){ setState('ready'); HM.toast('Welcome back · In office from 14:55'); }
+  $('#im-back').addEventListener('click',back); $('#back-yes').addEventListener('click',back);
+
+  /* ---- the "now" line moves all day (demo clock starts at 14:55) ---- */
+  var t0=Date.now();
+  function now(){
+    var m=14*60+55+Math.floor((Date.now()-t0)/60000), h=Math.floor(m/60), mm=m%60;
+    if(h>=19) return;
+    $('#now').style.top=((h-9)*36+mm/60*36)+'px'; $('#now-t').textContent=(h<10?'0':'')+h+':'+(mm<10?'0':'')+mm;
+  }
+  setInterval(now,15000);
+
+  /* ---- how did it go? ---- */
+  $('#how-pick').addEventListener('hm:change',function(e){
+    $('#how-f').classList.remove('invalid'); var v=e.detail.value;
+    $('#how-next').classList.toggle('hide',v!=='Showed up');
+    $('#how-hint').textContent=v==='No-show'?'Counted as no-show 1 for Omar. A red flag shows after 2. A message is ready for WhatsApp.':v==='Booked a unit'?'Great. The Won form opens on the lead so you can add unit, price and receipt.':v==='Cancelled'?'Cancelled is not a no-show.':v==='Rescheduled'?'Pick the new day and time in the calendar.':'A no-show is counted. Cancelled is not a no-show.';
+  });
+  $('#how-save').addEventListener('click',function(){
+    var on=$('#how-pick .on'); if(!on){ $('#how-f').classList.add('invalid'); return; }
+    HM.close($('#how-dlg')); var ask=$('#np-ask');
+    HM.slideOut(ask,function(){});
+    if(on.textContent==='Booked a unit') HM.confetti();
+    HM.toast('Meeting result saved · Omar Khalil: '+on.textContent,{undo:function(){ ask.style.display=''; }});
+  });
+
+  /* ---- follow-ups: Done asks what happened ---- */
+  var fuRow=null;
+  $('#fu-list').addEventListener('click',function(e){
+    var b=e.target.closest('[data-fu-done]'); if(!b) return;
+    fuRow=b.closest('.srow'); $('#fu-title').textContent='What happened with '+LK.first(fuRow.getAttribute('data-fu'))+'?'; HM.open('#fu-dlg');
+  });
+  function fuCount(d,row){ var k=row.hasAttribute('data-over')?'#fu-over':'#fu-today', n=$(k); n.textContent=Math.max(0,+n.textContent+d);
+    var o=+$('#fu-over').textContent; $('#fu-over').parentNode.classList.toggle('zero',!o); var c=$('#tile-over'); c.textContent=o?o+' overdue':'0 overdue'; c.className=o?'chip red pip':'chip green'; }
+  $('#fu-opts').addEventListener('click',function(e){
+    var o=e.target.closest('.opt'); if(!o||!fuRow) return; var row=fuRow, name=row.getAttribute('data-fu');
+    HM.close($('#fu-dlg')); fuCount(-1,row);
+    HM.slideOut(row,function(){});
+    HM.toast('Follow-up closed · '+name+': '+o.getAttribute('data-v'),{undo:function(){ row.style.display=''; fuCount(1,row); }});
+  });
+
+  /* ---- transfers ---- */
+  function trDone(msg){ var c=$('#tr-in'); HM.slideOut(c,function(){}); $('#tr-badge').style.display='none'; HM.toast(msg,{undo:function(){ c.style.display=''; $('#tr-badge').style.display=''; }}); }
+  $('#tr-yes').addEventListener('click',function(){ trDone('Fatima Al Zaabi is now in My leads · Yuliia is told'); });
+  $('#tr-no').addEventListener('hm:confirm',function(){ trDone('You said no · the lead stays with Yuliia · Yuliia is told'); });
+
+  /* ---- messages waiting for your update ---- */
+  document.addEventListener('lk:outcome',function(e){
+    markRow(e.detail.name,e.detail.value+' · 14:55');
+    if(e.detail.name===VIP&&hero.classList.contains('called')){ vipReset(); setState('ready'); HM.toast('Emir sees the result for Khalid · well done'); }
+    var r=$('[data-wu="'+e.detail.name+'"]'); if(!r||r.style.display==='none') return;
+    HM.slideOut(r,function(){ var n=$$('#wu-list .srow').filter(function(x){return x.style.display!=='none'}).length; $('#wu-n').textContent=n; });
+  });
+
+  /* ---- owner banners: 3 slides, 4.5 s ---- */
+  var slides=$$('#slides .slide'), dots=$$('#dots button'), si=0, timer;
+  function show(i){ si=(i+3)%3; slides.forEach(function(s,k){s.classList.toggle('on',k===si)}); dots.forEach(function(d,k){d.classList.toggle('on',k===si)}); }
+  function auto(){ clearInterval(timer); timer=setInterval(function(){ show(si+1); },4500); }
+  dots.forEach(function(d,k){ d.addEventListener('click',function(){ show(k); auto(); }); }); auto();
+})();
+</script>
+</body>
+</html>

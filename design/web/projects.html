@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projects · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .owner-msg{display:flex;align-items:center;gap:16px;padding:16px 20px;border-radius:22px;background:var(--hero);color:var(--hero-ink);margin-bottom:16px}
+  .owner-msg p{flex:1;min-width:0;font-size:15px;line-height:1.45}
+  .owner-msg .who{font-size:12px;color:var(--hero-ink-2);display:block;margin-bottom:2px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .pcard{display:grid;grid-template-columns:212px minmax(0,1fr);gap:20px;padding:12px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-1);transition:box-shadow .15s,transform .15s;cursor:pointer;min-width:0}
+  .pcard:hover{box-shadow:var(--shadow-2);transform:translateY(-2px)}
+  .pcard .photo{min-height:276px;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
+  .pcard .photo>*{position:relative;z-index:1}
+  .pcard .from{color:#fff;font-size:12px;font-weight:600;opacity:.92;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+  .pcard .from b{display:block;font-size:22px;font-weight:720;letter-spacing:-.03em;line-height:1.1}
+  .pbody{display:flex;flex-direction:column;padding:10px 10px 6px 0;min-width:0}
+  .pbody h2{font-size:22px}
+  .pbody .dev{color:var(--ink-3);font-size:13px;margin-top:2px}
+  .pbody .pitch{margin-top:10px;font-size:14.5px;line-height:1.45;color:var(--ink-2)}
+  .pfacts{display:flex;gap:22px;margin-top:14px}
+  .pfacts div{min-width:0}
+  .pfacts b{display:block;font-weight:680;white-space:nowrap}
+  .pfacts span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+  .pleads{margin-top:auto;padding-top:14px}
+  .pleads .line{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--ink-3);margin-bottom:6px}
+  .pleads .line b{color:var(--ink);font-size:15px;font-weight:700}
+  .pfoot{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .pleads .to{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:8px}
+  .pcard.hidden-p{opacity:.72}
+  .pcard.hidden-p .photo{filter:grayscale(1)}
+  .st-chip{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.94);color:#16151A;font-size:12px;font-weight:650}
+  .st-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .st-chip.soon::before{background:var(--amber)}.st-chip.hid::before{background:#86828C}
+</style>
+</head>
+<body data-page="projects" data-role="any" data-sub="Projects we sell now">
+<main>
+
+  <div class="owner-msg">
+    <span class="av lg" data-name="Emir Dulovic" style="flex:none"></span>
+    <p><span class="who">From Emir · Mon 9 Nov</span>This week we push <b>The Archive</b>. Valia launches soon: write down every client who asks, the first units go fast.</p>
+    <a class="btn on-dark" href="team-wall.html">Read on the team wall <i data-icon="arrow-right"></i></a>
+  </div>
+
+  <div class="filters">
+    <div class="seg" data-seg id="f-seg"><button class="on" data-value="all">All <span id="n-all">4</span></button><button data-value="now">Selling now 3</button><button data-value="soon">Launching soon 1</button><button data-value="hid" data-only="owner">Hidden 1</button></div>
+    <div class="input-icon"><i data-icon="search"></i><input class="input sm" id="f-q" placeholder="Search project, developer or area"></div>
+    <span class="grow"></span>
+    <span class="result-count" id="f-count">4 projects</span>
+    <a class="btn sm" data-only="owner" href="home-banners.html"><i data-icon="image"></i>Home banners</a>
+    <a class="btn sm" data-only="owner" href="manage-projects.html"><i data-icon="edit"></i>Manage projects</a>
+  </div>
+
+  <div class="pgrid" id="pgrid"></div>
+  <div class="card" id="p-empty" hidden><div class="empty"><span class="ic"><i data-icon="building" class="i-xl"></i></span><b>No project found</b><p>Try another word, or show all projects.</p><button class="btn sm" id="p-reset">Show all</button></div></div>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var owner=HM.role==='owner';
+  var P=[
+    {id:'archive',n:'The Archive',dev:'Imtiaz',area:'Business Bay',from:'AED 1.6M',plan:'60 / 40',hand:'Q4 2027',st:'now',ph:'',mine:24,team:115,to:'Dubai off-plan desk',pitch:'Design flats in Business Bay, 10 minutes from Downtown. Strong for investors who want rent from day one.'},
+    {id:'shahrukhz',n:'Shahrukhz',dev:'Danube',area:'Sheikh Zayed Road',from:'AED 1.2M',plan:'1% monthly',hand:'Q2 2029',st:'now',ph:'p4',mine:11,team:64,to:'Arabic desk',pitch:'A branded tower on Sheikh Zayed Road. The client pays only 1% a month, easy to start.'},
+    {id:'damac-islands',n:'Damac Islands',dev:'Damac',area:'Dubailand',from:'AED 2.7M',plan:'75 / 25',hand:'Q3 2028',st:'now',ph:'p2',mine:9,team:52,to:'Dubai off-plan desk',pitch:'Villas and townhouses around lagoons. For families who want space and a resort feeling.'},
+    {id:'valia',n:'Valia',dev:'Emaar',area:'The Oasis',from:'AED 1.4M',plan:'80 / 20',hand:'Q1 2029',st:'soon',ph:'p3',mine:6,team:28,to:'Incoming · the owner gives them',pitch:'Emaar homes in The Oasis, next to water and parks. Launching soon: collect interest now.'},
+    {id:'sei-saadiyat',n:'Sei Saadiyat',dev:'Aldar',area:'Saadiyat Island · Abu Dhabi',from:'Price not set',plan:'–',hand:'–',st:'hid',ph:'p5',mine:0,team:0,to:'Abu Dhabi desk',pitch:'Hidden. Agents do not see this project until you set it to Selling now or Launching soon.'}
+  ];
+  var ST={now:['Selling now',''],soon:['Launching soon','soon'],hid:['Hidden','hid']}, seg='all', q='';
+  function render(){
+    var list=P.filter(function(p){ if(p.st==='hid'&&!owner) return false; if(seg!=='all'&&p.st!==seg) return false; if(seg==='all'&&p.st==='hid'&&!q) return owner; return !q||(p.n+' '+p.dev+' '+p.area).toLowerCase().indexOf(q)>-1; });
+    document.getElementById('pgrid').innerHTML=list.map(function(p){
+      var hid=p.st==='hid', href=hid?'manage-projects.html':'project.html?p='+p.id;
+      return '<article class="pcard'+(hid?' hidden-p':'')+'" data-href="'+href+'">'+
+        '<div class="photo '+p.ph+'"><span class="st-chip '+ST[p.st][1]+'">'+ST[p.st][0]+'</span><span class="from">'+(hid?'':'Starting from')+'<b>'+p.from+'</b></span></div>'+
+        '<div class="pbody"><h2>'+p.n+'</h2><div class="dev">'+p.dev+' · '+p.area+'</div><p class="pitch">'+p.pitch+'</p>'+
+        (hid?'':'<div class="pfacts"><div><b>'+p.plan+'</b><span>Payment plan</span></div><div><b>'+p.hand+'</b><span>Handover</span></div></div>')+
+        '<div class="pleads">'+(hid?'':'<div class="line">'+(owner?'<span>Team <b>'+p.team+'</b> leads</span><span>· Rocky '+p.mine+'</span>':'<span>Your leads <b>'+p.mine+'</b></span><span>· Team '+p.team+'</span>')+'</div><div class="bar thin'+(owner?'':' accent')+'" style="--v:'+Math.round((owner?p.team/115:p.mine/p.team)*100)+'%"><i></i></div>')+
+        '<div class="to">New leads go to: '+p.to+'</div><div class="pfoot"><span class="grow"></span>'+(hid?'<a class="btn sm" href="manage-projects.html">Open in Manage</a>':'<a class="btn sm" href="project.html?p='+p.id+'#send"><i data-icon="whatsapp"></i>Send to a client</a><a class="btn sm dark" href="'+href+'">Open</a>')+'</div></div></div></article>';
+    }).join('');
+    document.getElementById('p-empty').hidden=!!list.length;
+    document.getElementById('f-count').textContent=list.length+' project'+(list.length===1?'':'s');
+    HM.refresh(document.getElementById('pgrid'));
+  }
+  document.getElementById('n-all').textContent=owner?5:4;
+  document.getElementById('f-seg').addEventListener('hm:change',function(e){seg=e.detail.value;render()});
+  document.getElementById('f-q').oninput=function(){q=this.value.trim().toLowerCase();render()};
+  document.getElementById('p-reset').onclick=function(){q='';seg='all';document.getElementById('f-q').value='';[].forEach.call(document.querySelectorAll('#f-seg > *'),function(b,i){b.classList.toggle('on',i===0)});render()};
+  render();
+})();
+</script>
+</body>
+</html>

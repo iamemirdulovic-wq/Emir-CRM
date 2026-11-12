@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Company · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.co-grid{display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:20px;align-items:start}
+.set-row{grid-template-columns:180px minmax(0,1fr)}
+.co-logo{width:76px;height:76px;border-radius:22px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+.co-logo.none{background:var(--surface-3);color:var(--ink-4);box-shadow:inset 0 0 0 1.5px var(--line-2)}
+.co-side{position:sticky;top:calc(var(--tb-h) + 14px);display:flex;flex-direction:column;gap:10px}
+.co-card{aspect-ratio:85/55;border-radius:14px;background:var(--hero);color:#fff;padding:16px;display:flex;flex-direction:column;box-shadow:var(--shadow-2)}
+.co-mini{width:26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center}.co-mini i{width:14px;height:14px}
+.co-doc{background:var(--surface);border-radius:14px;padding:16px;box-shadow:var(--shadow-1);display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.co-doc .sk{height:8px;border-radius:4px;background:var(--surface-3)}
+.co-doc .tiny{line-height:1.6;border-top:1px solid var(--line);padding-top:10px;word-break:break-word}
+</style>
+</head>
+<body data-page="company" data-role="owner" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" class="on" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Company</h1><p>These details show on business cards, sales offers and the sign-in page.</p></div></div>
+<div class="co-grid">
+<form data-form data-toast="Company details saved" id="co-form" class="col gap-16">
+  <section class="card">
+    <div class="set-row"><div class="lab"><b>Logo</b><span>PNG or SVG, square, at least 512 px.</span></div>
+      <div class="row gap-16"><span class="co-logo" id="co-logo"><i data-icon="home" class="i-xl"></i></span>
+        <div class="col gap-8"><div class="btn-row"><button type="button" class="btn sm" id="logo-up"><i data-icon="upload"></i>Upload a new logo</button><button type="button" class="btn sm danger" id="logo-rm" data-confirm="Tap again to remove">Remove</button></div><span class="small muted" id="logo-note">homes-me-mark.svg · 4 KB</span></div></div></div>
+    <div class="set-row"><div class="lab"><b>Names</b><span>The legal name is on documents. The brand name is what clients see.</span></div>
+      <div class="form-grid">
+        <div class="field full"><label>Legal name <span class="req">*</span></label><input class="input" id="co-legal" required data-min="3" data-error="Write the legal name, as on the licence." value="Emigeo Homes Real Estate LLC"></div>
+        <div class="field full"><label>Brand name <span class="req">*</span></label><input class="input" id="co-brand" required data-error="Write the brand name." value="homes.me"></div>
+      </div></div>
+    <div class="set-row"><div class="lab"><b>Licence numbers</b><span>ORN is on every business card. TRN is on invoices and sales offers.</span></div>
+      <div class="form-grid">
+        <div class="field"><label>ORN <span class="req">*</span></label><input class="input" id="co-orn" required data-digits data-min="4" data-error="Digits only, at least 4." value="12345"><span class="hint">Office registration number · sample</span></div>
+        <div class="field" id="trn-f"><label>TRN</label><input class="input" id="co-trn" data-digits data-min="15" maxlength="19" data-error="A TRN has 15 digits." value="100 000 000 000 003"><span class="hint">Tax registration number · 15 digits · sample</span></div>
+      </div></div>
+  </section>
+  <section class="card">
+    <div class="set-row"><div class="lab"><b>Address</b><span>Two short lines fit on the business card.</span></div>
+      <div class="form-grid">
+        <div class="field full"><label>Line 1 <span class="req">*</span></label><input class="input" id="co-a1" required data-error="Write the office address." value="Floor 16, Office 12, The Bayswater by Omniyat"></div>
+        <div class="field full"><label>Line 2 <span class="req">*</span></label><input class="input" id="co-a2" required data-error="Write the area and city." value="Business Bay, Dubai, UAE"></div>
+      </div></div>
+    <div class="set-row"><div class="lab"><b>Contact</b><span>The office line, not a personal number.</span></div>
+      <div class="form-grid">
+        <div class="field"><label>Phone <span class="req">*</span></label><div class="input-icon"><i data-icon="phone"></i><input class="input" id="co-ph" required data-digits data-min="9" data-error="Digits only, at least 9." value="+971 4 000 0000"></div></div>
+        <div class="field"><label>Email <span class="req">*</span></label><div class="input-icon"><i data-icon="mail"></i><input class="input" id="co-em" type="email" required data-error="This email does not look right." value="hello@homes.me"></div></div>
+        <div class="field full"><label>Website</label><div class="input-icon"><i data-icon="globe"></i><input class="input" id="co-web" value="homes.me"></div></div>
+      </div></div>
+  </section>
+  <div class="set-savebar"><span class="small muted grow" id="co-dirty">Saved · last change 3 Nov by Emir</span><button type="button" class="btn ghost" id="co-reset">Undo changes</button><button class="btn primary">Save company</button></div>
+</form>
+<aside class="co-side">
+  <h4>Where it shows</h4>
+  <div class="co-card"><div class="row gap-8"><span class="co-mini"><i data-icon="home"></i></span><b data-b="brand">homes.me</b></div>
+    <div class="mt-auto"><div class="tiny" data-b="legal" style="opacity:.7">Emigeo Homes Real Estate LLC</div><div class="tiny" style="opacity:.7">ORN <span data-b="orn">12345</span></div></div></div>
+  <span class="small muted">Business card · back side</span>
+  <div class="co-doc"><div class="row between"><b data-b="brand">homes.me</b><span class="chip">Sales offer</span></div>
+    <div class="sk"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:82%"></div>
+    <div class="tiny muted mt-8"><span data-b="legal">Emigeo Homes Real Estate LLC</span> · TRN <span data-b="trn">100 000 000 000 003</span><br><span data-b="a1">Floor 16, Office 12, The Bayswater by Omniyat</span>, <span data-b="a2">Business Bay, Dubai, UAE</span><br><span data-b="ph">+971 4 000 0000</span> · <span data-b="em">hello@homes.me</span> · <span data-b="web">homes.me</span></div></div>
+  <span class="small muted">Footer of every sales offer</span>
+  <a class="shortcut" href="digital-card.html"><i data-icon="card"></i><span class="grow">Business card tool</span><i data-icon="arrow-right"></i></a>
+</aside>
+</div>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  var map={legal:'#co-legal',brand:'#co-brand',orn:'#co-orn',trn:'#co-trn',a1:'#co-a1',a2:'#co-a2',ph:'#co-ph',em:'#co-em',web:'#co-web'}, init={};
+  Object.keys(map).forEach(function(k){ var i=$(map[k]); init[k]=i.value; i.addEventListener('input',function(){ $$('[data-b="'+k+'"]').forEach(function(n){ n.textContent=i.value||'–'; }); $('#co-dirty').textContent='You have changes that are not saved'; $('#co-dirty').classList.add('t-amber'); }); });
+  $('#co-reset').addEventListener('click',function(){ Object.keys(map).forEach(function(k){ var i=$(map[k]); i.value=init[k]; $$('[data-b="'+k+'"]').forEach(function(n){ n.textContent=init[k]; }); }); $$('#co-form .invalid').forEach(function(f){f.classList.remove('invalid')}); clean('Changes undone'); });
+  function clean(t){ $('#co-dirty').textContent=t; $('#co-dirty').classList.remove('t-amber'); }
+  $('#co-form').addEventListener('hm:submit',function(){ Object.keys(map).forEach(function(k){ init[k]=$(map[k]).value; }); clean('Saved · today 14:55 by '+HM.me.name.split(' ')[0]); });
+  $('#logo-up').addEventListener('click',function(){ $('#co-logo').classList.remove('none'); $('#logo-note').textContent='homes-me-mark.svg · 4 KB'; $('#logo-rm').style.display=''; HM.toast('Logo uploaded'); });
+  $('#logo-rm').addEventListener('hm:confirm',function(){ $('#co-logo').classList.add('none'); $('#logo-note').textContent='No logo. Cards and offers show the brand name only.'; this.style.display='none'; HM.toast('Logo removed',{undo:function(){ $('#logo-up').click(); }}); });
+})();
+</script>
+</body>
+</html>

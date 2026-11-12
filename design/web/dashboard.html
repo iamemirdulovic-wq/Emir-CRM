@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Full dashboard · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .row1{grid-template-rows:336px}
+  .brief-top{display:flex;align-items:center;gap:10px;position:relative}
+  .brief-tag{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border-radius:10px;background:var(--hero-3);font-size:12px;font-weight:650;color:#fff}
+  .brief-tag i{color:var(--accent)}
+  .brief-say{font-size:23px;line-height:1.22;font-weight:680;letter-spacing:-.02em;margin:14px 0 4px;position:relative}
+  .brief-say em{font-style:normal;color:var(--accent)}
+  .tot{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:8px 20px;align-items:end}
+  .tot .stat .label a:hover{color:var(--accent-ink)}
+  .ptiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:auto}
+  .ptile{background:var(--surface-2);border-radius:16px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:background .15s}
+  a.ptile:hover{background:var(--surface-3)}
+  .ptile .k{font-size:12px;font-weight:620;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ptile .s{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ptile .delta{align-self:flex-start}
+  #days{height:150px;margin-top:30px;gap:6px}
+  #days .bar-col.we .bar-lab{color:var(--ink-4)}
+  .hbar.src{grid-template-columns:118px 1fr 40px}
+  .hbar.prj{grid-template-columns:108px 1fr 34px 62px}
+  .hbar .sub{font-size:12px;color:var(--ink-3);text-align:right;white-space:nowrap}
+  .hbar>a,.hbar>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:560}
+  .hbar>a:hover{color:var(--accent-ink)}
+  .att-head{display:flex;align-items:center;gap:16px;margin-bottom:10px}
+  .att-head .segbar{flex:1}
+  #team td{height:40px}
+  .cell-bar{display:flex;align-items:center;gap:8px}.cell-bar b{min-width:30px;font-weight:650;text-align:right}
+  .cell-bar .spark{width:56px}
+  .cold-row{display:flex;align-items:center;gap:10px;padding:12px 0;min-width:0}
+  .cold-row .grow b{display:block;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cold-row .grow span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cold-n{font-size:32px;font-weight:720;letter-spacing:-.04em;line-height:1;color:var(--red)}
+</style>
+</head>
+<body data-page="dashboard" data-role="owner" data-back="owner-home.html|Dashboard">
+<main>
+
+  <div data-topbar>
+    <div class="seg" data-seg id="period"><button class="on">Today</button><button>Week</button><button>Month</button><button>Year</button></div>
+    <span class="live">Live · 14:55</span>
+  </div>
+
+  <!-- ROW 1 -->
+  <div class="bento row1">
+
+    <!-- HERO: Morning brief -->
+    <section class="card hero c-5" aria-label="Morning brief">
+      <div class="brief-top">
+        <span class="brief-tag"><i data-icon="sparkles" class="i-sm"></i>Homes AI · Morning brief</span>
+        <span class="grow"></span>
+        <span class="hero-chip">Wed 11 Nov · 08:30</span>
+      </div>
+      <p class="brief-say">Yesterday was strong: <em>191 calls</em>, 4 meetings, 208 leads imported. Today 3 things need a decision.</p>
+      <div class="arows" id="brief">
+        <div class="arow">
+          <span class="arow-ic accent"><i data-icon="alert"></i></span>
+          <a class="arow-txt" href="all-leads.html?agent=sultan"><b>Sultan is on leave · 31 leads have nobody</b><span class="s">Back Thursday · 1 follow-up is already overdue</span></a>
+          <button class="btn sm on-dark primary" data-move="Sultan|31">Move 31</button>
+        </div>
+        <div class="arow">
+          <span class="arow-ic"><i data-icon="users"></i></span>
+          <a class="arow-txt" href="all-leads.html?agent=shan"><b>Shan has 57 leads · maximum is 50</b><span class="s">Arabic desk · 3 follow-ups overdue</span></a>
+          <a class="btn sm on-dark" href="all-leads.html?agent=shan">View</a>
+        </div>
+        <div class="arow">
+          <span class="arow-ic"><i data-icon="clock"></i></span>
+          <a class="arow-txt" href="all-leads.html?tab=untouched"><b>86 leads are not touched yet</b><span class="s">Imported · back to Incoming tomorrow 09:00</span></a>
+          <a class="btn sm on-dark" href="all-leads.html?tab=untouched">View</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Totals -->
+    <section class="card c-7" aria-label="Totals">
+      <div class="card-head"><h3>Totals</h3><span class="small muted">Calls, meetings and units: <b class="ink-2" data-p>today</b></span><button class="btn xs" data-toast="Report saved as dashboard-11-Nov.xlsx"><i data-icon="download"></i>Download</button></div>
+      <div class="tot">
+        <div class="stat"><div class="stat-row"><a class="num-hero" href="all-leads.html" data-count>863</a></div><span class="label">All leads · <a href="all-leads.html?tab=lost">50 lost</a></span></div>
+        <div class="stat"><div class="stat-row"><a class="num" href="all-leads.html?tab=open" data-count>809</a></div><span class="label">Open</span></div>
+        <div class="stat"><div class="stat-row"><a class="num t-red" href="all-leads.html?tab=untouched" data-count>86</a></div><span class="label">Untouched</span></div>
+        <div class="stat"><div class="stat-row"><a class="num" href="all-leads.html?added=today" data-count>27</a><span class="delta up">4</span></div><span class="label">New today</span></div>
+      </div>
+      <div class="ptiles">
+        <a class="ptile" href="team-live.html"><span class="k">Call clicks</span><b class="num-sm" id="p-calls">214</b><span class="delta up" id="p-calls-d">12% vs yesterday</span></a>
+        <a class="ptile" href="calendar.html"><span class="k">Meetings booked</span><b class="num-sm" id="p-meet">5</b><span class="delta up" id="p-meet-d">2 vs yesterday</span></a>
+        <a class="ptile" href="team-wall.html"><span class="k">Units booked</span><b class="num-sm" id="p-units">1</b><span class="s" id="p-units-d">Talha · AED 2.9M</span></a>
+        <div class="ptile" data-tip="20 of today's 27 new leads got a call or a message inside 2 hours" data-tip-pos="top"><span class="k">Touched in 2 h</span><b class="num-sm">74%</b><span class="s">First click <b class="t-green">6 min</b></span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ROW 2: by stage -->
+  <section class="card mt-16" style="flex-direction:row;align-items:stretch;gap:20px;padding:16px 22px" aria-label="Leads by stage">
+    <div style="width:150px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:2px">
+      <h3>By stage</h3>
+      <span class="small muted">Click a stage to open its list</span>
+      <a class="card-link mt-4" href="pipeline.html">Open pipeline <i data-icon="arrow-right" class="i-sm"></i></a>
+    </div>
+    <div class="pstrip">
+      <a class="pstage new" style="--g:21" href="all-leads.html?stage=new"><span class="nm">New</span><span class="ct"><b data-count>456</b><span>53%</span></span><i></i></a>
+      <a class="pstage called" style="--g:15" href="all-leads.html?stage=called"><span class="nm">Called</span><span class="ct"><b data-count>214</b><span>25%</span></span><i></i></a>
+      <a class="pstage interested" style="--g:10" href="all-leads.html?stage=interested"><span class="nm">Interested</span><span class="ct"><b data-count>96</b><span>11%</span></span><i></i></a>
+      <a class="pstage meeting" style="--g:6" href="all-leads.html?stage=meeting"><span class="nm">Meeting</span><span class="ct"><b data-count>31</b><span>4%</span></span><i></i></a>
+      <a class="pstage offer" style="--g:3" href="all-leads.html?stage=offer"><span class="nm">Offer</span><span class="ct"><b data-count>12</b><span>1%</span></span><i></i></a>
+      <a class="pstage won" style="--g:2" href="all-leads.html?stage=won"><span class="nm">Won</span><span class="ct"><b data-count>4</b><span>0.5%</span></span><i></i></a>
+      <a class="pstage lost" href="all-leads.html?tab=lost"><span class="nm">Lost · kept apart</span><span class="ct"><b>50</b><span>6%</span></span><i></i></a>
+    </div>
+  </section>
+
+  <!-- ROW 3: per day · by project · sources -->
+  <div class="bento mt-16">
+    <section class="card c-5" aria-label="New leads per day">
+      <div class="card-head"><h3>New leads per day</h3><span class="small muted">14 days · imports not counted</span></div>
+      <div class="stat-row"><b class="num">253</b><span class="delta up">9% vs the 14 days before</span></div>
+      <div class="bars grow-in" id="days" style="--max:30"></div>
+    </section>
+
+    <section class="card c-4" aria-label="Leads by project">
+      <div class="card-head"><h3>By project</h3><a class="card-link" href="manage-projects.html">Manage <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="hbars" style="gap:16px">
+        <div class="hbar prj"><a href="all-leads.html?project=the-archive">The Archive</a><div class="bar thick" style="--v:100%"><i></i></div><b>115</b><span class="sub">2 won</span></div>
+        <div class="hbar prj"><a href="all-leads.html?project=shahrukhz">Shahrukhz</a><div class="bar thick" style="--v:56%"><i></i></div><b>64</b><span class="sub">1 won</span></div>
+        <div class="hbar prj"><a href="all-leads.html?project=damac-islands">Damac Islands</a><div class="bar thick" style="--v:45%"><i></i></div><b>52</b><span class="sub">1 won</span></div>
+        <div class="hbar prj"><a href="all-leads.html?project=valia">Valia</a><div class="bar thick" style="--v:24%"><i></i></div><b>28</b><span class="sub">launching</span></div>
+      </div>
+      <div class="card-foot"><i data-icon="info" class="i-sm"></i><span>Leads that agents work now. The others have no project yet.</span></div>
+    </section>
+
+    <section class="card c-3" aria-label="Lead sources">
+      <div class="card-head"><h3>Sources</h3><span class="small muted">863 leads</span></div>
+      <div class="hbars" style="gap:9px" id="sources"></div>
+    </section>
+  </div>
+
+  <!-- ROW 4: team · going cold -->
+  <div class="bento mt-16">
+    <section class="card c-8" aria-label="Team today">
+      <div class="card-head"><h3 id="team-title">Team today</h3><a class="card-link" href="team-attendance.html">Attendance <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div class="att-head">
+        <div class="segbar tall">
+          <a class="green" style="--v:6" href="team-attendance.html?show=office" data-tip="6 in office"></a>
+          <a class="amber" style="--v:1" href="team-attendance.html?show=late" data-tip="1 late"></a>
+          <a class="blue" style="--v:1" href="team-attendance.html?show=outside" data-tip="1 outside"></a>
+          <a class="violet" style="--v:1" href="team-attendance.html?show=leave" data-tip="1 on leave"></a>
+          <a class="red" style="--v:1" href="team-attendance.html?show=absent" data-tip="1 absent"></a>
+        </div>
+        <div class="legend">
+          <a href="team-attendance.html?show=office"><span class="dot green"></span><b>6</b> In office</a>
+          <a href="team-attendance.html?show=late"><span class="dot amber"></span><b>1</b> Late</a>
+          <a href="team-attendance.html?show=outside"><span class="dot blue"></span><b>1</b> Outside</a>
+          <a href="team-attendance.html?show=leave"><span class="dot violet"></span><b>1</b> Leave</a>
+          <a href="team-attendance.html?show=absent"><span class="dot red"></span><b>1</b> Absent</a>
+        </div>
+      </div>
+      <table class="table compact" id="team">
+        <thead><tr><th>Agent</th><th>Status</th><th id="calls-th">Calls today · 7 days</th><th class="t-right">Meetings</th><th class="t-right">Units</th><th class="t-right">Open</th><th class="t-right">Overdue</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="card-foot"><i data-icon="info" class="i-sm"></i><span>Most calls first. Calls, meetings and units follow the period switch at the top.</span><a class="card-link right" href="best-of-homes.html">Best of Homes <i data-icon="arrow-right" class="i-sm"></i></a></div>
+    </section>
+
+    <div class="stack c-4">
+      <section class="card" aria-label="Going cold" id="cold">
+        <div class="card-head mb-0"><h3>Going cold</h3><a class="card-link" href="all-leads.html?tab=going-cold">All <span data-cold-n>12</span> <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <div class="row gap-16 mt-8"><a class="cold-n" href="all-leads.html?tab=going-cold" data-cold-n>12</a><span class="small muted">leads with no contact for 7 days.<br>Move them or they are lost.</span></div>
+        <div class="divide mt-8">
+          <div class="cold-row"><span class="av" data-name="Sultan" data-status="leave"></span><span class="grow"><b>Sultan · on leave</b><span>31 leads · 5 cold</span></span><button class="btn sm dark" data-move="Sultan|31|5">Move 31</button><a class="btn sm" href="all-leads.html?agent=sultan">View</a></div>
+          <div class="cold-row"><span class="av" data-name="Bassam" data-status="absent"></span><span class="grow"><b>Bassam · absent</b><span>44 leads · 4 cold</span></span><button class="btn sm" data-move="Bassam|44|4">Move 44</button><a class="btn sm" href="all-leads.html?agent=bassam">View</a></div>
+          <div class="cold-row"><span class="av" data-name="Shan" data-status="late"></span><span class="grow"><b>Shan · above maximum</b><span>57 leads · 3 cold</span></span><a class="btn sm" href="all-leads.html?agent=shan">View</a></div>
+        </div>
+      </section>
+      <section class="card" style="flex:none;gap:8px" aria-label="More reports">
+        <a class="shortcut" href="team-live.html"><i data-icon="activity"></i><span class="grow">Team live</span><i data-icon="arrow-right"></i></a>
+        <a class="shortcut" href="messaging-report.html"><i data-icon="whatsapp"></i><span class="grow">Messaging report</span><i data-icon="arrow-right"></i></a>
+        <a class="shortcut" href="team-activity.html"><i data-icon="shield"></i><span class="grow">Team activity</span><i data-icon="arrow-right"></i></a>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- Move leads dialog (short decision, asks twice) -->
+<div class="dialog" id="move-dlg" role="dialog" aria-label="Move leads">
+  <div class="dialog-head"><div class="grow"><h3 id="move-title">Move 31 leads from Sultan</h3><p>Notes and history go with them. VIP leads stay where they are.</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="opt-list" data-chips id="move-to">
+      <button class="opt on" data-value="6 agents in the office"><span class="card-icon"><i data-icon="users"></i></span><span class="grow"><b class="bold">Share equally · 6 agents in the office</b><div class="small muted" id="move-split">About 5 leads each · fewest open leads first</div></span></button>
+      <button class="opt" data-value="one"><span class="card-icon"><i data-icon="user"></i></span><span class="grow"><b class="bold">One agent</b><div class="small muted">You choose who gets all of them</div></span></button>
+      <button class="opt" data-value="Incoming"><span class="card-icon"><i data-icon="inbox"></i></span><span class="grow"><b class="bold">Incoming</b><div class="small muted">Free leads · any agent can take one</div></span></button>
+    </div>
+    <div class="field" id="move-agent-field" hidden><label>Agent</label>
+      <select class="select" id="move-agent"><option>Tej · 11 open</option><option>Olga · 12 open</option><option>Rocky · 14 open</option><option>Srdjan · 16 open</option><option>Yuliia · 18 open</option><option>Talha · 22 open</option><option>Nelson · 9 open · outside</option></select>
+      <span class="hint">People on leave or absent cannot be chosen.</span></div>
+  </div>
+  <div class="dialog-foot"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" id="move-go" data-confirm="Tap again to move 31 leads">Move 31 leads</button></div>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+
+  /* ---- new leads per day ---- */
+  var DAYS=[['29','Thu',21],['30','Fri',24],['31','Sat',6,1],['1','Sun',4,1],['2','Mon',19],['3','Tue',22],['4','Wed',25],['5','Thu',23],['6','Fri',26],['7','Sat',8,1],['8','Sun',5,1],['9','Mon',20],['10','Tue',23],['11','Wed',27]];
+  $('#days').innerHTML=DAYS.map(function(d,i){
+    var last=i===DAYS.length-1;
+    return '<div class="bar-col'+(last?' now':'')+(d[3]?' we':'')+'" data-tip="'+d[1]+' '+d[0]+(i<3?' Oct':' Nov')+' · '+d[2]+' new leads" data-tip-pos="top"><div class="bar-track"><i style="--v:'+d[2]+'" data-val="'+d[2]+'"></i></div><span class="bar-lab">'+d[0]+'</span></div>';
+  }).join('');
+
+  /* ---- sources ---- */
+  var SRC=[['Import (Excel)',498],['Referral',96],['Social media',84],['My own call',61],['Walk-in',47],['Event / expo',39],["Owner's contact",22],['Old client',16]];
+  $('#sources').innerHTML=SRC.map(function(s){return '<div class="hbar src"><a href="all-leads.html?source='+encodeURIComponent(s[0])+'">'+s[0]+'</a><div class="bar" style="--v:'+Math.max(3,Math.round(s[1]/498*100))+'%"><i></i></div><b>'+s[1]+'</b></div>'}).join('');
+
+  /* ---- team table ---- */
+  // name, status, chip, spark, open, max, overdue, calls[T,W,M,Y], meetings[...], units[...]
+  var T=[
+    ['Talha','office','In office','30,34,29,38,36,40,41',22,60,0,[41,228,912,8650],[2,5,14,118],[1,2,7,44]],
+    ['Yuliia','office','In office','28,26,31,30,35,33,36',18,60,1,[36,201,790,7400],[1,4,11,92],[0,1,5,31]],
+    ['Olga','office','In office','20,24,22,25,21,26,27',12,60,0,[27,142,560,4900],[0,2,6,48],[0,0,2,14]],
+    ['Nelson','outside','Outside until 16:00','18,24,20,29,22,26,27',9,40,0,[27,139,548,5100],[1,3,8,70],[0,0,3,22]],
+    ['Srdjan','office','In office','19,21,25,18,23,22,24',16,60,0,[24,128,498,4300],[0,2,5,41],[0,0,2,12]],
+    ['Tej','office','In office','15,18,17,21,19,20,22',11,60,0,[22,114,446,2100],[0,1,4,19],[0,0,1,5]],
+    ['Shan','late','Late · 24 min','25,22,28,20,26,24,19',57,50,3,[19,121,502,5200],[0,2,5,52],[0,0,2,18]],
+    ['Rocky','office','In office','24,27,22,30,26,28,18',14,60,1,[18,131,560,6100],[1,3,9,74],[0,0,4,27]],
+    ['Sultan','leave','Leave 10–11 Nov','22,26,19,24,21,0,0',31,50,1,[0,45,286,3900],[0,1,3,36],[0,0,1,11]],
+    ['Bassam','absent','Absent · alert 10:00','21,18,24,9,15,12,0',44,40,3,[0,57,278,3350],[0,0,2,22],[0,0,0,6]]
+  ];
+  function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+  function drawTeam(p){
+    var rows=T.slice().sort(function(a,b){return b[7][p]-a[7][p]});
+    $('#team tbody').innerHTML=rows.map(function(a){
+      var over=a[4]>a[5];
+      return '<tr data-href="team.html"><td><span class="person"><span class="av sm" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><span class="who"><b>'+a[0]+'</b></span></span></td>'+
+        '<td><span class="chip att-'+a[1]+'">'+a[2]+'</span></td>'+
+        '<td><a class="cell-bar" href="team-live.html"><b'+(a[7][p]?'':' class="muted"')+'>'+fmt(a[7][p])+'</b><svg class="spark" data-spark="'+a[3]+'"></svg></a></td>'+
+        '<td class="t-right">'+(a[8][p]||'<span class="muted">0</span>')+'</td>'+
+        '<td class="t-right">'+(a[9][p]?'<b class="t-green">'+a[9][p]+'</b>':'<span class="muted">0</span>')+'</td>'+
+        '<td class="t-right"><a href="all-leads.html?agent='+a[0].toLowerCase()+'" data-tip="Desk maximum '+a[5]+'"'+(over?' class="overdue"':'')+'>'+a[4]+'</a></td>'+
+        '<td class="t-right">'+(a[6]?'<a class="overdue" href="all-leads.html?tab=overdue&agent='+a[0].toLowerCase()+'">'+a[6]+'</a>':'<span class="muted">0</span>')+'</td></tr>';
+    }).join('');
+    HM.refresh($('#team'));
+  }
+  drawTeam(0);
+
+  /* ---- period switch: changes calls, meetings and units only ---- */
+  var P={
+    'Today':['today','214','12% vs yesterday','5','2 vs yesterday','1','Talha · AED 2.9M','Team today'],
+    'Week':['this week','1,306','8% vs last week','23','3 vs last week','3','Talha 2 · Yuliia 1','Team this week'],
+    'Month':['November','5,380','5% vs October','67','9 vs October','27','Talha leads with 7','Team this month'],
+    'Year':['2026','50,900','31% vs 2025','572','104 vs 2025','190','AED 486M sold','Team this year']
+  };
+  $('#period').addEventListener('hm:change',function(e){
+    var k=e.detail.value, d=P[k]; if(!d) return;
+    $$('[data-p]').forEach(function(n){n.textContent=d[0]});
+    [['#p-calls',d[1]],['#p-calls-d',d[2]],['#p-meet',d[3]],['#p-meet-d',d[4]],['#p-units',d[5]],['#p-units-d',d[6]],['#team-title',d[7]]].forEach(function(x){$(x[0]).textContent=x[1]});
+    $$('.ptile .num-sm').forEach(function(n){n.classList.remove('tick'); void n.offsetWidth; n.classList.add('tick')});
+    drawTeam(['Today','Week','Month','Year'].indexOf(k));
+    $('#calls-th').textContent={Today:'Calls today · 7 days',Week:'Calls this week',Month:'Calls this month',Year:'Calls this year'}[k];
+  });
+
+  /* ---- move leads: one dialog, asks twice, toast with Undo ---- */
+  var cur=null, go=$('#move-go'), coldNow=12;
+  function label(){
+    var v=($('#move-to .on')||{}).getAttribute('data-value');
+    $('#move-agent-field').hidden=v!=='one';
+    return v==='one'?$('#move-agent').value.split(' · ')[0]:v;
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-move]'); if(!b) return;
+    var p=b.getAttribute('data-move').split('|'); cur={name:p[0],n:p[1]};
+    $('#move-title').textContent='Move '+cur.n+' leads from '+cur.name;
+    $('#move-split').textContent='About '+Math.ceil(cur.n/6)+' leads each · fewest open leads first';
+    go.textContent='Move '+cur.n+' leads'; go.setAttribute('data-confirm','Tap again to move '+cur.n+' leads');
+    HM.open('#move-dlg');
+  });
+  $('#move-to').addEventListener('hm:change',label);
+  go.addEventListener('hm:confirm',function(){
+    var to=label(), name=cur.name, rows=$$('[data-move^="'+name+'|"]').map(function(b){return b.closest('.arow,.cold-row')});
+    var c=+(($('.cold-row [data-move^="'+name+'|"]')||{getAttribute:function(){return '||0'}}).getAttribute('data-move').split('|')[2]||0);
+    function cold(k){ coldNow+=k; $$('[data-cold-n]').forEach(function(n){n.textContent=coldNow}); }
+    HM.close();
+    rows.forEach(function(r){HM.slideOut(r,function(){})}); cold(-c);
+    HM.toast(cur.n+' leads moved from '+name+' to '+to+' · '+(to==='Incoming'?'free for every agent':'each agent gets one notification'),{undo:function(){rows.forEach(function(r){r.style.display='';r.classList.add('pulse-row')}); cold(c);}});
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team activity · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .tops{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+  .tops .card{gap:6px}
+  #time td{height:48px}
+  .tbar{display:flex;align-items:center;gap:10px}.tbar b{width:78px;font-weight:650}.tbar .bar{width:150px;flex:none}
+  .un{gap:14px}
+  .un .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .un .fact{background:var(--surface-2);border-radius:14px;padding:12px 14px;min-width:0}
+  .un .fact b{display:block;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .un .fact span{font-size:12px;color:var(--ink-3)}
+  .un .fact.new{background:var(--amber-soft)}.un .fact.new span{color:var(--amber-ink)}
+  .un.solved{opacity:.7}
+  .card[hidden]{display:none}
+</style>
+</head>
+<body data-page="team-activity" data-role="owner" data-sub="Who used the CRM, from where, and anything unusual">
+<main>
+  <div data-topbar>
+    <div class="seg"><a class="on" href="team-activity.html">Activity</a><a href="team-live.html">Live</a><a href="messaging-report.html">Messaging</a></div>
+  </div>
+
+  <div class="tabs" data-tabs style="margin-top:4px">
+    <button class="tab on" data-tab="time">Time in CRM</button>
+    <button class="tab" data-tab="signins">Sign-ins <span class="count">11</span></button>
+    <button class="tab" data-tab="unusual">Unusual <span class="count red" id="un-count">2</span></button>
+  </div>
+
+  <!-- ============ TIME IN CRM ============ -->
+  <div data-panel="time">
+    <div class="tops">
+      <section class="card hero"><span class="label">Average time in the CRM today</span><b class="num-hero">4 h 38</b><span class="muted small">per working agent · shift is 5 h 55 min old</span></section>
+      <section class="card"><span class="label">Most active</span><b class="num">Talha</b><span class="delta up">5 h 31 min</span></section>
+      <section class="card"><span class="label">Least active (working)</span><b class="num">Shan</b><span class="delta down">3 h 02 min</span></section>
+      <section class="card"><span class="label">Not seen today</span><b class="num t-red">2</b><span class="small muted">Bassam absent · Sultan on leave</span></section>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="time">
+        <thead><tr><th>Person</th><th>Active today</th><th>First seen</th><th>Last seen</th><th>Device</th><th>7 days</th><th class="t-right">Leads opened</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="table-foot"><i data-icon="info" class="i-sm"></i><span>Time counts only when the CRM is open and used. 5 minutes without a click stops the clock.</span></div>
+    </div>
+  </div>
+
+  <!-- ============ SIGN-INS ============ -->
+  <div data-panel="signins" hidden>
+    <div class="filters">
+      <div class="input-icon"><i data-icon="search"></i><input class="input sm" id="si-q" placeholder="Search a person or a place" aria-label="Search sign-ins"></div>
+      <div class="chips" data-chips id="si-f"><button class="chip-opt on" data-value="">All</button><button class="chip-opt" data-value="now">Signed in now</button><button class="chip-opt" data-value="new">New device</button></div>
+      <span class="grow"></span><span class="result-count" id="si-count">11 sign-ins today</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="signins">
+        <thead><tr><th>Person</th><th>Device</th><th>Place</th><th>Signed in</th><th>State</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ UNUSUAL ============ -->
+  <div data-panel="unusual" hidden>
+    <div class="col gap-16" id="unusual" style="max-width:860px">
+      <section class="card un" data-who="Shan">
+        <div class="row"><span class="card-icon accent"><i data-icon="shield"></i></span><div class="grow"><h3>New sign-in · Shan</h3><span class="small muted">Today 09:26 · a device and a place we have not seen before</span></div><span class="chip amber pip state">Needs a look</span></div>
+        <div class="facts">
+          <div class="fact new"><b>Chrome on Windows</b><span>New device</span></div>
+          <div class="fact new"><b>Sharjah, UAE</b><span>New place · usual: Dubai</span></div>
+          <div class="fact"><b>09:26</b><span>2 min after check-in</span></div>
+          <div class="fact"><b>Still signed in</b><span>Opened 14 leads</span></div>
+        </div>
+        <div class="row acts"><button class="btn primary" data-open="#review" data-review="Shan|Chrome on Windows · Sharjah · today 09:26">Review</button><a class="btn" href="tel:+971500000007"><i data-icon="phone"></i>Phone Shan</a></div>
+      </section>
+      <section class="card un" data-who="Bassam">
+        <div class="row"><span class="card-icon"><i data-icon="key"></i></span><div class="grow"><h3>4 wrong passwords · Bassam</h3><span class="small muted">Today 08:41 · then no sign-in</span></div><span class="chip amber pip state">Needs a look</span></div>
+        <div class="facts">
+          <div class="fact"><b>Safari on iPhone</b><span>Known device</span></div>
+          <div class="fact"><b>Abu Dhabi, UAE</b><span>Usual place</span></div>
+          <div class="fact"><b>08:41 – 08:44</b><span>4 tries</span></div>
+          <div class="fact new"><b>Absent today</b><span>No check-in</span></div>
+        </div>
+        <div class="row acts"><button class="btn" data-open="#review" data-review="Bassam|Safari on iPhone · Abu Dhabi · 4 wrong passwords at 08:41">Review</button><a class="btn" href="tel:+971500000010"><i data-icon="phone"></i>Phone Bassam</a></div>
+      </section>
+      <div class="card" id="un-empty" hidden><div class="empty"><span class="ic"><i data-icon="shield" class="i-xl"></i></span><b>Nothing unusual</b><p>New devices, new places and wrong passwords show here.</p></div></div>
+    </div>
+  </div>
+</main>
+
+<!-- Review dialog: short decision -->
+<div class="dialog" id="review" role="dialog" aria-label="Review">
+  <div class="dialog-head"><div class="grow"><h3 id="rv-title">Was this Shan?</h3><p id="rv-sub">Chrome on Windows · Sharjah · today 09:26</p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="banner"><i data-icon="info"></i><span class="grow">Ask the agent first if you are not sure. Signing out everywhere stops their work until they set a new password.</span></div>
+    <button class="btn block" id="rv-ok"><i data-icon="check"></i>It was them</button>
+    <button class="btn block danger" id="rv-reset" data-confirm="Tap again · sign out everywhere"><i data-icon="logout"></i>Sign out everywhere and reset the password</button>
+  </div>
+  <div class="dialog-foot"><button class="btn ghost" data-close>Decide later</button></div>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+
+  /* ---- time in CRM ---- */
+  var T=[ // name, status, minutes, first, last, device, spark, leads
+    ['Talha','office',331,'08:52','now','Chrome · Windows','300,320,290,340,330,350,331',64],
+    ['Yuliia','office',318,'08:58','now','Chrome · Mac','280,300,310,290,320,300,318',58],
+    ['Olga','office',296,'09:03','2 min ago','Chrome · Windows','250,270,260,300,280,290,296',41],
+    ['Srdjan','office',284,'09:06','1 min ago','Edge · Windows','240,260,280,250,270,260,284',39],
+    ['Tej','office',279,'09:08','now','Chrome · Windows','230,250,240,270,260,250,279',36],
+    ['Rocky','office',262,'08:55','4 min ago','Chrome · Windows','280,300,260,310,290,300,262',33],
+    ['Nelson','outside',221,'10:15','12 min ago','Safari · iPhone','200,260,220,280,240,250,221',29],
+    ['Shan','late',182,'09:24','6 min ago','Chrome · Windows (new)','260,240,270,230,250,240,182',22],
+    ['Emir Dulovic','office',148,'09:02','now','Safari · Mac','120,160,140,150,170,130,148',47],
+    ['Abdullah Mahi','office',236,'08:47','3 min ago','Chrome · Windows','220,240,230,250,240,230,236',18],
+    ['Sultan','leave',0,'–','Mon 17:58','–','250,270,240,260,255,0,0',0],
+    ['Bassam','absent',0,'–','Tue 18:04','–','240,210,260,150,200,180,0',0]
+  ];
+  function hm(m){return m?Math.floor(m/60)+' h '+('0'+m%60).slice(-2)+' min':'–'}
+  $('#time tbody').innerHTML=T.map(function(a){
+    return '<tr data-href="team.html"><td><span class="person"><span class="av sm" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><b>'+a[0]+'</b></span></td><td><div class="tbar"><b'+(a[2]?'':' class="muted"')+'>'+hm(a[2])+'</b><div class="bar'+(a[2]&&a[2]<200&&a[0].indexOf(' ')<0?' amber':'')+'" style="--v:'+Math.round(a[2]/355*100)+'%"><i></i></div></div></td><td class="t-mono">'+a[3]+'</td><td class="t-sub">'+a[4]+'</td><td class="t-sub">'+a[5]+'</td><td><svg class="spark" data-spark="'+a[6]+'"></svg></td><td class="t-right">'+(a[7]||'<span class="muted">0</span>')+'</td></tr>'}).join('');
+
+  /* ---- sign-ins ---- */
+  var S=[ // name, device, place, when, now?, new?
+    ['Shan','Chrome on Windows','Sharjah, UAE','Today 09:26',1,1],
+    ['Emir Dulovic','Safari on Mac','Dubai · office','Today 09:02',1,0],
+    ['Talha','Chrome on Windows','Dubai · office','Today 08:52',1,0],
+    ['Rocky','Chrome on Windows','Dubai · office','Today 08:55',1,0],
+    ['Rocky','homes.me app · iPhone','Dubai','Today 08:31',1,0],
+    ['Yuliia','Chrome on Mac','Dubai · office','Today 08:58',1,0],
+    ['Olga','Chrome on Windows','Dubai · office','Today 09:03',1,0],
+    ['Srdjan','Edge on Windows','Dubai · office','Today 09:06',1,0],
+    ['Tej','Chrome on Windows','Dubai · office','Today 09:08',1,0],
+    ['Nelson','Safari on iPhone','Abu Dhabi','Today 10:15',1,0],
+    ['Abdullah Mahi','Chrome on Windows','Dubai · office','Today 08:47',1,0]
+  ];
+  $('#signins tbody').innerHTML=S.map(function(s){
+    var me=s[0]==='Emir Dulovic';
+    return '<tr data-now="'+s[4]+'" data-new="'+s[5]+'"><td><span class="person"><span class="av sm" data-name="'+s[0]+'"></span><b>'+s[0]+'</b></span></td><td><i data-icon="'+(/iPhone/.test(s[1])?'phone':'laptop')+'" class="i-sm"></i> '+s[1]+(s[5]?' <span class="chip amber">New device</span>':'')+'</td><td'+(s[5]?' class="t-amber"':'')+'>'+s[2]+'</td><td class="t-sub">'+s[3]+'</td><td class="st"><span class="chip green pip">Signed in now</span></td><td class="t-right">'+(me?'<span class="small muted">This is you</span>':'<button class="btn xs" data-out="'+s[0]+'" data-confirm="Tap again to sign out">Sign out</button>')+'</td></tr>'}).join('');
+  function filt(){
+    var f=($('#si-f .on')||{}).getAttribute('data-value'), q=$('#si-q').value.trim().toLowerCase(), n=0;
+    $$('#signins tbody tr').forEach(function(r){var ok=(!f||r.getAttribute('data-'+f)==='1')&&(!q||r.textContent.toLowerCase().indexOf(q)>-1); r.hidden=!ok; if(ok) n++;});
+    $('#si-count').textContent=n+(n===1?' sign-in today':' sign-ins today');
+  }
+  $('#si-f').addEventListener('hm:change',filt); $('#si-q').addEventListener('input',filt);
+  document.addEventListener('hm:confirm',function(e){
+    var b=e.target.closest('[data-out]'); if(!b) return; var tr=b.closest('tr');
+    $('.st',tr).innerHTML='<span class="chip">Signed out by you · 14:55</span>'; tr.setAttribute('data-now','0'); b.remove();
+    HM.toast(b.getAttribute('data-out')+' is signed out on that device');
+  });
+  HM.refresh($('main'));
+
+  /* ---- unusual: review ---- */
+  var cur=null;
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-review]'); if(!b) return;
+    var p=b.getAttribute('data-review').split('|'); cur=b.closest('.un');
+    $('#rv-title').textContent='Was this '+p[0]+'?'; $('#rv-sub').textContent=p[1];
+  });
+  function solve(text,chip,cls,undo){
+    if(!cur) return; var c=cur, who=c.getAttribute('data-who');
+    c.classList.add('solved'); $('.state',c).className='chip state '+cls; $('.state',c).textContent=chip; $('.acts',c).style.display='none';
+    var left=$$('.un:not(.solved)').length, n=$('#un-count'); n.textContent=left; n.style.display=left?'':'none';
+    HM.close();
+    var back=function(){ c.classList.remove('solved'); $('.state',c).className='chip amber pip state'; $('.state',c).textContent='Needs a look'; $('.acts',c).style.display=''; var l=$$('.un:not(.solved)').length; n.textContent=l; n.style.display=''; };
+    HM.toast(text.replace('{who}',who), undo?{undo:back}:undefined);
+  }
+  $('#rv-ok').addEventListener('click',function(){solve('Marked as OK · {who}’s new device is now known','It was them','green',true)});
+  $('#rv-reset').addEventListener('hm:confirm',function(){solve('{who} is signed out everywhere · a reset link went to their email','Signed out · password reset','red')});
+})();
+</script>
+</body>
+</html>

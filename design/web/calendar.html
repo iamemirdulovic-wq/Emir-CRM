@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendar · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .cal-top{display:flex;align-items:center;gap:10px;margin:4px 0 14px;min-height:40px}
+  .cal-top h2{font-size:20px;min-width:0;white-space:nowrap}
+  .cal-top .legend{margin:0 6px 0 14px;flex-wrap:nowrap;white-space:nowrap}
+  .cal-layout{display:grid;grid-template-columns:minmax(0,1fr) 316px;gap:16px;align-items:start}
+  .cal-day{min-height:103px}
+  .cal-ev{cursor:pointer;transition:filter .15s}
+  .cal-ev:hover{filter:brightness(.95)}
+  .cal-ev.is-done{opacity:.5;text-decoration:line-through}
+  .cal-ev.need::before,.wk-ev.need::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:1px}
+  .cal-ev.late{background:var(--red-soft);color:var(--red-ink)}
+  .cal-ev.band.mid{color:transparent}
+  /* week and day grid */
+  .wk{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-1);overflow:hidden}
+  .wk-row{display:grid;grid-template-columns:54px repeat(var(--n),minmax(0,1fr))}
+  .wk-head{border-bottom:1px solid var(--line)}
+  .wk-head>div{padding:10px 12px;font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);cursor:pointer}
+  .wk-head>div b{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:12px;margin-left:4px;font-size:12.5px;color:var(--ink);letter-spacing:0}
+  .wk-head>div.today b{background:var(--accent);color:#fff}
+  .wk-head>div.sel{box-shadow:inset 0 -2px 0 var(--accent)}
+  .wk-all>div{padding:4px 0;min-height:8px;border-left:1px solid var(--line)}
+  .wk-all>div:first-child{border-left:0}
+  .wk-all .cal-ev.band{margin:0;display:block}
+  .wk-body{position:relative;height:552px}
+  .wk-hours{display:flex;flex-direction:column}
+  .wk-hours span{height:46px;font-size:11.5px;color:var(--ink-3);padding:2px 0 0 12px}
+  .wk-col{position:relative;border-left:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0 45px,var(--line) 45px 46px);cursor:pointer}
+  .wk-col.off{background-color:var(--surface-2)}
+  .wk-ev{position:absolute;left:4px;right:4px;border-radius:10px;padding:4px 8px;font-size:12px;font-weight:600;line-height:1.3;overflow:hidden;cursor:pointer;
+    background:var(--surface-3);color:var(--ink-2);box-shadow:0 0 0 1.5px var(--surface);transition:filter .15s}
+  .wk-ev:hover{filter:brightness(.95);z-index:3}
+  .wk-ev span{display:block;font-weight:500;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wk-ev.meeting{background:var(--accent-soft);color:var(--accent-ink)}.wk-ev.visit{background:var(--green-soft);color:var(--green-ink)}
+  .wk-ev.call{background:var(--blue-soft);color:var(--blue-ink)}.wk-ev.follow{background:var(--amber-soft);color:var(--amber-ink)}
+  .wk-ev.team{background:var(--violet-soft);color:var(--violet-ink)}
+  .wk-ev.is-done{opacity:.5}
+  .wk-ev.half{right:50%}.wk-ev.half.b{left:50%;right:4px}
+  .wk-now{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--accent);z-index:4;pointer-events:none}
+  .wk-now::before{content:"";position:absolute;left:-4px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .wk-now span{position:absolute;left:6px;top:-18px;font-size:10.5px;font-weight:700;color:var(--accent-ink);background:var(--surface);padding:0 4px;border-radius:4px}
+  .day-view .wk-ev{padding:8px 14px;font-size:13.5px}
+  /* right column */
+  .side{display:flex;flex-direction:column;gap:16px;position:sticky;top:84px}
+  .plan-row{display:flex;gap:10px;align-items:flex-start;padding:9px 8px;margin:0 -8px;border-radius:12px;cursor:pointer;transition:background .12s;min-width:0}
+  .plan-row:hover{background:var(--surface-2)}
+  .plan-row .tm{width:42px;flex:none;font-weight:680;font-size:13px;padding-top:1px}
+  .plan-row .bd{flex:1;min-width:0}
+  .plan-row .bd b{display:block;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plan-row .bd span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plan-row.is-done .tm,.plan-row.is-done .bd b{color:var(--ink-3);text-decoration:line-through}
+  .tdot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:6px;background:var(--ink-4)}
+  .tdot.meeting{background:var(--accent)}.tdot.visit{background:var(--green)}.tdot.call{background:var(--blue)}.tdot.follow{background:var(--amber)}.tdot.team{background:var(--violet)}
+  .wait-card{background:var(--accent-soft)}
+  .wait-card h3,.wait-card .t{color:var(--accent-ink)}
+  /* plan panel */
+  .plan-time{font-size:40px;font-weight:720;letter-spacing:-.035em;line-height:1.05}
+  .res-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .res-grid .opt{padding:10px 12px;gap:10px}
+  .res-grid .opt:last-child{grid-column:span 2}
+  .res-grid .opt i{color:var(--ink-3)}
+  .res-grid .opt.on i{color:var(--accent-ink)}
+  .msg-box{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .upl{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--line-2);color:var(--ink-2);font-weight:600;width:100%;text-align:left}
+  .upl:hover{border-color:var(--ink-3)}
+  .upl.has{border-style:solid;border-color:var(--green);background:var(--green-soft);color:var(--green-ink)}
+  .field.invalid .upl{border-color:var(--red)}
+</style>
+</head>
+<body data-page="calendar" data-role="any" data-sub="Wednesday, 11 November 2026 · 14:55">
+<main>
+
+  <div data-topbar>
+    <div class="seg" data-seg id="view-seg"><button class="on" data-value="month">Month</button><button data-value="week">Week</button><button data-value="day">Day</button></div>
+  </div>
+
+  <div class="cal-top">
+    <button class="btn icon sm" id="prev" data-tip="Earlier" aria-label="Earlier"><i data-icon="chevron-left"></i></button>
+    <button class="btn icon sm" id="next" data-tip="Later" aria-label="Later"><i data-icon="chevron-right"></i></button>
+    <button class="btn sm" id="today">Today</button>
+    <h2 id="cal-title">November 2026</h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent)"></span>Meeting</span>
+      <span><span class="dot green"></span>Site visit</span>
+      <span><span class="dot blue"></span>Call</span>
+      <span><span class="dot amber"></span>Follow-up</span>
+      <span><span class="dot violet"></span>Team</span>
+    </div>
+    <span class="grow"></span>
+    <select class="select sm" data-only="owner" style="width:170px" aria-label="Whose plans" onchange="HM.toast('Showing plans of '+this.value)">
+      <option>Rocky Khan</option><option>Everyone</option><option>Talha</option><option>Yuliia</option><option>Olga</option><option>Srdjan</option><option>Tej</option><option>Shan</option><option>Nelson</option><option>Sultan</option><option>Bassam</option>
+    </select>
+    <button class="btn primary" id="new-btn"><i data-icon="plus"></i>New plan</button>
+  </div>
+
+  <div class="cal-layout">
+    <div>
+      <div id="view-month"></div>
+      <div id="view-week" hidden></div>
+      <div id="view-day" class="day-view" hidden></div>
+    </div>
+
+    <aside class="side">
+      <section class="card wait-card" id="wait-card">
+        <div class="card-head mb-0"><h3>How did it go?</h3><span class="chip orange">Answer before 21:00</span></div>
+        <div id="wait-list" class="col gap-8 mt-12"></div>
+      </section>
+      <section class="card">
+        <div class="card-head mb-8"><h3 id="day-title">Wed 11 Nov</h3><span class="chip" id="day-chip">Today</span></div>
+        <div class="banner amber small" id="busy" style="padding:9px 12px;margin-bottom:6px"><i data-icon="alert"></i><span class="grow" id="busy-txt"></span></div>
+        <div id="day-list"></div>
+        <div class="card-foot" style="margin-top:10px"><button class="btn sm block" id="add-here"><i data-icon="plus"></i>Add a plan on this day</button></div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ============ OPEN PLAN (side panel) ============ -->
+  <aside class="panel" id="plan-panel" aria-label="Plan">
+    <div class="panel-head"><h2 id="pp-type">Plan</h2><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="panel-body col gap-16">
+      <div>
+        <div class="plan-time" id="pp-time">16:30</div>
+        <div class="muted mt-4" id="pp-date">Wed 11 Nov 2026</div>
+        <h3 class="mt-12" id="pp-title" style="font-size:17px">Site visit with Lucas Martin</h3>
+        <div class="row gap-8 mt-8 wrap" id="pp-chips"></div>
+      </div>
+      <div class="banner accent" id="pp-need"><i data-icon="help"></i><span class="grow"><b>How did it go?</b> Answer before 21:00.</span><button class="btn sm primary" id="pp-answer">Answer</button></div>
+      <dl class="kv" id="pp-kv"></dl>
+      <div class="card flat col" id="pp-change" hidden>
+        <b class="bold">Change day or time</b>
+        <div class="two">
+          <div class="field"><label>Day</label><input class="input" type="date" id="pc-day" min="2026-11-11"></div>
+          <div class="field"><label>Time</label><select class="select" data-times id="pc-time"></select></div>
+        </div>
+        <div class="banner amber small" id="pc-clash" hidden><i data-icon="alert"></i><span class="grow"></span></div>
+        <div class="row"><span class="grow"></span><button class="btn sm ghost" id="pc-cancel">Cancel</button><button class="btn sm dark" id="pc-save">Save the new time</button></div>
+      </div>
+      <p class="small muted" id="pp-team-note" hidden>This is a team plan from Emir. Owners can change it. You can hide it from your own calendar.</p>
+    </div>
+    <div class="panel-foot" id="pp-foot"></div>
+  </aside>
+
+  <!-- ============ HOW DID IT GO? (side panel) ============ -->
+  <aside class="panel" id="result-panel" aria-label="How did it go?">
+    <div class="panel-head"><h2>How did it go?</h2><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="panel-body col gap-16">
+      <div class="card flat" style="padding:14px 16px">
+        <b class="bold" id="rs-title">Meeting with Omar Khalil</b>
+        <div class="small muted" id="rs-sub">Today 12:00 · Office · Room 2 · Valia · 2BR</div>
+      </div>
+      <div class="field" id="rs-pick">
+        <span class="field-label">Choose what happened</span>
+        <div class="res-grid" data-chips id="rs-opts">
+          <button type="button" class="opt" data-value="show"><i data-icon="check"></i><span class="grow"><b class="bold">Showed up</b><div class="small muted">The meeting took place</div></span></button>
+          <button type="button" class="opt" data-value="noshow"><i data-icon="x"></i><span class="grow"><b class="bold">No-show</b><div class="small muted">The client did not come</div></span></button>
+          <button type="button" class="opt" data-value="resched"><i data-icon="refresh"></i><span class="grow"><b class="bold">Rescheduled</b><div class="small muted">Moved to a new time</div></span></button>
+          <button type="button" class="opt" data-value="cancel"><i data-icon="flag"></i><span class="grow"><b class="bold">Cancelled</b><div class="small muted">Not a no-show</div></span></button>
+          <button type="button" class="opt" data-value="booked"><i data-icon="trophy"></i><span class="grow"><b class="bold">Booked a unit</b><div class="small muted">The lead moves to Won · +300 points</div></span></button>
+        </div>
+      </div>
+
+      <!-- Showed up -->
+      <div class="col gap-16" data-res="show" hidden>
+        <div class="field" id="f-next"><span class="field-label">What is next? <span class="req" style="color:var(--red)">*</span></span>
+          <div class="chips" data-chips id="rs-next"><button type="button" class="chip-opt">Send the offer</button><button type="button" class="chip-opt">Second meeting</button><button type="button" class="chip-opt">Site visit</button><button type="button" class="chip-opt">Follow up in 2 days</button></div></div>
+        <div class="two">
+          <div class="field" id="f-nday"><label>Day</label><input class="input" type="date" id="rs-nday" min="2026-11-11" value="2026-11-13"></div>
+          <div class="field"><label>Time</label><select class="select" data-times data-v="11:00" id="rs-ntime"></select></div>
+        </div>
+        <div class="field" id="f-int"><span class="field-label">How interested is the client? <span class="req" style="color:var(--red)">*</span></span>
+          <div class="seg block" data-seg id="rs-int"><button type="button">Hot</button><button type="button">Warm</button><button type="button">Cold</button></div></div>
+        <div class="field"><label>Note</label><textarea class="textarea" placeholder="What did the client say?"></textarea></div>
+      </div>
+
+      <!-- No-show -->
+      <div class="col gap-16" data-res="noshow" hidden>
+        <div class="banner red"><i data-icon="alert"></i><span class="grow" id="ns-count"><b>No-show 1 for Omar Khalil.</b> After 2 no-shows the lead gets a red flag.</span></div>
+        <div class="field"><span class="field-label">Message is ready</span>
+          <div class="msg-box" id="ns-msg">Hi Omar, we waited for you today at 12:00 in our office. No problem. When is a good time to meet again? Rocky · homes.me</div>
+          <div class="row mt-8"><button type="button" class="btn sm" data-toast="WhatsApp opened with the message. You press send."><i data-icon="whatsapp"></i>Open WhatsApp</button><button type="button" class="btn sm" data-toast="Telegram opened with the message. You press send."><i data-icon="telegram"></i>Open Telegram</button><button type="button" class="btn sm ghost" data-toast="Message copied"><i data-icon="copy"></i>Copy</button></div></div>
+        <div class="field"><span class="field-label">Try again</span>
+          <div class="chips" data-chips id="ns-again"><button type="button" class="chip-opt on">Tomorrow 12:00</button><button type="button" class="chip-opt">In 2 days</button><button type="button" class="chip-opt">Next week</button><button type="button" class="chip-opt" data-value="pick">Pick day and time</button><button type="button" class="chip-opt">Do not plan now</button></div></div>
+        <div class="two" id="ns-pick" hidden>
+          <div class="field" id="f-nsday"><label>Day</label><input class="input" type="date" id="ns-day" min="2026-11-11" value="2026-11-12"></div>
+          <div class="field"><label>Time</label><select class="select" data-times data-v="12:00"></select></div>
+        </div>
+      </div>
+
+      <!-- Rescheduled -->
+      <div class="col gap-16" data-res="resched" hidden>
+        <div class="two">
+          <div class="field" id="f-rday"><label>New day <span class="req">*</span></label><input class="input" type="date" id="rs-rday" min="2026-11-11"></div>
+          <div class="field" id="f-rtime"><label>New time <span class="req">*</span></label><select class="select" data-times id="rs-rtime"></select></div>
+        </div>
+        <div class="field" id="f-who"><span class="field-label">Who asked to move it? <span class="req" style="color:var(--red)">*</span></span>
+          <div class="chips" data-chips id="rs-who"><button type="button" class="chip-opt">The client</button><button type="button" class="chip-opt">Me</button></div></div>
+        <p class="small muted">The plan moves to the new time. The reminder moves with it.</p>
+      </div>
+
+      <!-- Booked a unit -->
+      <div class="col gap-16" data-res="booked" hidden>
+        <div class="two">
+          <div class="field"><label>Project</label><select class="select" id="bk-project"><option>Valia</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option></select></div>
+          <div class="field" id="f-unit"><label>Unit <span class="req">*</span></label><input class="input" id="bk-unit" placeholder="2BR · 1204"></div>
+          <div class="field" id="f-price"><label>Price in AED <span class="req">*</span></label><input class="input" id="bk-price" inputmode="numeric" placeholder="1,400,000"></div>
+          <div class="field" id="f-paid"><label>Paid now in AED <span class="req">*</span></label><input class="input" id="bk-paid" inputmode="numeric" placeholder="140,000"></div>
+        </div>
+        <div class="field" id="f-rec"><span class="field-label">Booking form or receipt <span class="req" style="color:var(--red)">*</span></span>
+          <button type="button" class="upl" id="bk-rec"><i data-icon="upload"></i><span class="grow">Upload the booking form or the receipt</span><span class="small muted">PDF or photo</span></button></div>
+        <div class="banner green small"><i data-icon="trophy"></i><span class="grow">The lead moves to Won. It is posted on the Team wall. You get +300 points.</span></div>
+      </div>
+
+      <!-- Cancelled -->
+      <div class="col gap-16" data-res="cancel" hidden>
+        <div class="field" id="f-cwho"><span class="field-label">Who cancelled? <span class="req" style="color:var(--red)">*</span></span>
+          <div class="chips" data-chips id="rs-cwho"><button type="button" class="chip-opt">Client</button><button type="button" class="chip-opt">Me</button><button type="button" class="chip-opt">Developer</button></div></div>
+        <div class="field"><label>Note</label><textarea class="textarea" placeholder="Why was it cancelled?"></textarea></div>
+        <p class="small muted">A cancelled meeting is not counted as a no-show.</p>
+      </div>
+    </div>
+    <div class="panel-foot"><button class="btn ghost" data-close>Later</button><span class="grow"></span><span class="small muted">Before 21:00</span><button class="btn primary" id="rs-save">Save the result</button></div>
+  </aside>
+
+  <!-- ============ NEW PLAN (dialog) ============ -->
+  <div class="dialog lg" id="new-plan" role="dialog" aria-label="New plan">
+    <form id="np-form" novalidate>
+    <div class="dialog-head"><div class="grow"><h3>New plan</h3><p>It shows in your calendar and on My Day. You get a reminder.</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="field"><span class="field-label">Type</span>
+        <div class="chips" data-chips id="np-type"><button type="button" class="chip-opt on" data-value="meeting">Meeting</button><button type="button" class="chip-opt" data-value="visit">Site visit</button><button type="button" class="chip-opt" data-value="call">Call</button><button type="button" class="chip-opt" data-value="follow">Follow-up</button><button type="button" class="chip-opt" data-value="team">Team</button></div></div>
+      <div class="two">
+        <div class="field" id="f-lead"><label>Lead <span class="req">*</span></label>
+          <select class="select" id="np-lead"><option value="">Choose from your leads…</option></select>
+          <span class="hint" id="np-lead-hint">Pick from the list. A team plan has no lead.</span></div>
+        <div class="field" id="f-title"><label>Title <span class="req">*</span></label><input class="input" id="np-title" placeholder="Meeting with…"></div>
+        <div class="field" id="f-day"><label>Day <span class="req">*</span></label><input class="input" type="date" id="np-day" min="2026-11-11"></div>
+        <div class="field" id="f-time"><label>Time <span class="req">*</span></label><select class="select" data-times id="np-time"></select></div>
+      </div>
+      <div class="banner amber" id="np-clash" hidden><i data-icon="alert"></i><span class="grow"></span></div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="np-multi"><span class="track"></span>Runs for several days</label>
+        <div class="chips" data-chips id="np-days" hidden><button type="button" class="chip-opt on">2 days</button><button type="button" class="chip-opt">3 days</button><button type="button" class="chip-opt">4 days</button><button type="button" class="chip-opt">5 days</button></div>
+      </div>
+      <div class="two">
+        <div class="field" id="f-len"><span class="field-label">How long</span>
+          <div class="chips" data-chips id="np-len"><button type="button" class="chip-opt" data-value="15">15 min</button><button type="button" class="chip-opt" data-value="30">30 min</button><button type="button" class="chip-opt on" data-value="60">1 h</button><button type="button" class="chip-opt" data-value="120">2 h</button></div></div>
+        <div class="field"><span class="field-label">Remind me before</span>
+          <div class="chips" data-chips id="np-rem"><button type="button" class="chip-opt">15 min</button><button type="button" class="chip-opt on">1 h</button><button type="button" class="chip-opt">2 h</button></div></div>
+      </div>
+      <div class="field"><span class="field-label">Place</span>
+        <div class="chips" data-chips id="np-place"><button type="button" class="chip-opt on">Office</button><button type="button" class="chip-opt">Sales centre</button><button type="button" class="chip-opt">Client's place</button><button type="button" class="chip-opt">Online / Zoom</button></div></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="np-save">Save the plan</button></div>
+    </form>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var TODAY=new Date(2026,10,11), NOW=14*60+55, HR=46, H0=8, H1=20;
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], DOWL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var TYPES={meeting:'Meeting',visit:'Site visit',call:'Call',follow:'Follow-up',team:'Team'};
+  var LEADS=[['Khalid Al Mansoori','The Archive · 2BR','+971 50 555 0101'],['Sara Nunes','Damac Islands · villa','+351 91 234 5678'],['Marco Bellini','The Archive · 2BR','+39 333 455 4821'],['Priya Shah','Valia · 1BR','+91 98765 43210'],['Lucas Martin','The Archive · 3BR','+33 6 12 34 56 78'],['Ahmed Hassan','Shahrukhz · 1BR','+966 50 123 4567'],['Sami Najahi','The Archive','+971 50 410 2233'],['Neil Smith','Shahrukhz','+44 7700 900 123'],['Parvez Hossain','The Archive','+880 17 1234 5678'],['Hanna Alabbas','The Archive · 2BR','+971 55 320 7788'],['Dave Patel','Shahrukhz · 2BR','+44 7700 900 456'],['Vanessa Pecoraro','Al Seef · 1BR','+39 347 111 2222'],['Elena Kuznetsova','Damac Islands','+7 912 345 67 89'],['Bridget Cardoso','The Archive · 2BR','+351 91 220 1188'],['Omar Khalil','Valia · 2BR','+971 50 222 3344']];
+  var id=0;
+  function E(d,t,len,type,title,lead,place,x){var e={id:++id,d:d,t:t,len:len,type:type,title:title,lead:lead,place:place,days:1,rem:'1 h before'};for(var k in x)e[k]=x[k];return e}
+  var EV=[
+    E('2026-11-03','11:00',60,'meeting','Meeting with Elena Kuznetsova','Elena Kuznetsova','Online / Zoom',{done:'Showed up'}),
+    E('2026-11-05','16:00',60,'visit','Site visit with Omar Khalil','Omar Khalil','Valia sales centre',{done:'Showed up'}),
+    E('2026-11-09','10:00',30,'call','Call Dave Patel','Dave Patel','',{done:'Done'}),
+    E('2026-11-11','10:30',30,'call','Call Marco Bellini','Marco Bellini','',{done:'Done'}),
+    E('2026-11-11','11:00',30,'follow','Follow up Sara Nunes','Sara Nunes','Call',{late:1}),
+    E('2026-11-11','12:00',60,'meeting','Meeting with Omar Khalil','Omar Khalil','Office · Room 2',{need:1}),
+    E('2026-11-11','15:20',15,'call','Call the VIP lead Khalid','Khalid Al Mansoori','',{vip:1,rem:'15 min before'}),
+    E('2026-11-11','15:30',15,'follow','Send payment plan to Marco','Marco Bellini','WhatsApp'),
+    E('2026-11-11','16:30',60,'visit','Site visit with Lucas Martin','Lucas Martin','The Archive sales centre',{rem:'2 h before'}),
+    E('2026-11-12','10:00',30,'call','Call Ahmed Hassan','Ahmed Hassan',''),
+    E('2026-11-12','13:00',60,'meeting','Video call with Elena Kuznetsova','Elena Kuznetsova','Online / Zoom'),
+    E('2026-11-12','16:00',120,'visit','Damac Islands tour','Elena Kuznetsova','Damac Islands sales centre'),
+    E('2026-11-12','18:00',60,'team','Weekly sales meeting','','Office · Room 1',{by:'Emir'}),
+    E('2026-11-16','11:00',30,'follow','Follow up Priya Shah','Priya Shah','Call'),
+    E('2026-11-17','09:00',540,'team','Cityscape Global expo','','DWTC · stand B12',{days:3,by:'Emir'}),
+    E('2026-11-24','15:00',60,'meeting','Meeting with Lucas Martin','Lucas Martin','Office')
+  ];
+  /* 24-hour time lists (the browser's own time box can show AM / PM) */
+  function setTime(el,v){ if(v&&!el.querySelector('option[value="'+v+'"]')){var o=document.createElement('option');o.value=o.textContent=v;var nx=[].filter.call(el.options,function(x){return x.value>v})[0];el.insertBefore(o,nx||null)} el.value=v||''; }
+  $$('select[data-times]').forEach(function(el){var h='<option value="">Time…</option>';for(var m=7*60;m<=21*60;m+=15)h+='<option>'+p2(Math.floor(m/60))+':'+p2(m%60)+'</option>';el.innerHTML=h;setTime(el,el.getAttribute('data-v'))});
+  var cur=new Date(2026,10,1), sel=new Date(TODAY), view='month', hidden={};
+  function p2(n){return (n<10?'0':'')+n}
+  function key(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+  function parse(k){var a=k.split('-');return new Date(+a[0],a[1]-1,+a[2])}
+  function add(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+  function dow(d){return (d.getDay()+6)%7}
+  function mins(t){var a=t.split(':');return a[0]*60+ +a[1]}
+  function hhmm(m){return p2(Math.floor(m/60))+':'+p2(m%60)}
+  function nice(d){return DOW[dow(d)]+' '+d.getDate()+' '+MON[d.getMonth()].slice(0,3)}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function on(k){
+    return EV.filter(function(e){ if(hidden[e.id]) return false; var s=parse(e.d), x=parse(k), diff=Math.round((x-s)/864e5); return diff>=0&&diff<e.days; })
+      .sort(function(a,b){return (b.days>1)-(a.days>1)||mins(a.t)-mins(b.t)});
+  }
+  function shortT(e){return e.lead&&e.type!=='follow'&&!e.vip&&e.title.indexOf('tour')<0?e.lead:e.title}
+  function stateCls(e){return (e.done?' is-done':'')+(e.need?' need':'')+(e.late?' late':'')}
+
+  /* ---------- month ---------- */
+  function renderMonth(){
+    var first=new Date(cur.getFullYear(),cur.getMonth(),1), start=add(first,-dow(first));
+    var dim=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate(), rows=Math.ceil((dow(first)+dim)/7);
+    var h='<div class="cal">'+DOW.map(function(d){return '<div class="cal-head">'+d+'</div>'}).join('');
+    for(var i=0;i<rows*7;i++){
+      var d=add(start,i), k=key(d), evs=on(k), bands=evs.filter(function(e){return e.days>1}), rest=evs.filter(function(e){return e.days===1});
+      var room=3-bands.length, show=rest.length>room?rest.slice(0,room):rest, more=rest.length-show.length;
+      h+='<div class="cal-day'+(d.getMonth()!==cur.getMonth()?' muted':'')+(dow(d)>4?' off':'')+(k===key(TODAY)?' today':'')+(k===key(sel)?' sel':'')+'" data-day="'+k+'"><span class="cal-num">'+d.getDate()+'</span>';
+      bands.forEach(function(e){var firstDay=e.d===k||dow(d)===0; h+='<span class="cal-ev team band'+(firstDay?'':' mid')+'" data-ev="'+e.id+'">'+(firstDay?esc(e.title)+' · '+esc(e.place):'&nbsp;')+'</span>'});
+      show.forEach(function(e){h+='<span class="cal-ev '+e.type+stateCls(e)+'" data-ev="'+e.id+'">'+e.t+' '+esc(shortT(e))+'</span>'});
+      if(more>0) h+='<span class="cal-more">+'+more+' more</span>';
+      h+='</div>';
+    }
+    $('#view-month').innerHTML=h+'</div>';
+  }
+
+  /* ---------- week / day grid ---------- */
+  function renderGrid(host,days){
+    var n=days.length, h='<div class="wk" style="--n:'+n+'"><div class="wk-row wk-head"><div></div>';
+    days.forEach(function(d){var k=key(d); h+='<div class="'+(k===key(TODAY)?'today ':'')+(k===key(sel)&&n>1?'sel':'')+'" data-day="'+k+'">'+(n>1?DOW[dow(d)]:DOWL[dow(d)])+' <b>'+d.getDate()+'</b></div>'});
+    h+='</div><div class="wk-row wk-all"><div></div>';
+    days.forEach(function(d){var k=key(d), b=on(k).filter(function(e){return e.days>1}); h+='<div>'+b.map(function(e){var f=e.d===k||d===days[0];return '<span class="cal-ev team band" data-ev="'+e.id+'">'+(f?esc(e.title)+' · '+esc(e.place):'&nbsp;')+'</span>'}).join('')+'</div>'});
+    h+='</div><div class="wk-row wk-body"><div class="wk-hours">';
+    for(var x=H0;x<H1;x++) h+='<span>'+p2(x)+':00</span>';
+    h+='</div>';
+    days.forEach(function(d){
+      var k=key(d), evs=on(k).filter(function(e){return e.days===1}), placed=[];
+      h+='<div class="wk-col'+(dow(d)>4?' off':'')+'" data-day="'+k+'">';
+      evs.forEach(function(e){
+        var s=mins(e.t), en=s+Math.max(e.len,n>1?40:30), clash=placed.filter(function(q){return s<q.en&&en>q.s});
+        var slot=clash.length?(clash[clash.length-1].slot?0:1):0; placed.push({s:s,en:en,slot:slot});
+        if(clash.length) clash[clash.length-1].half=1;
+        e._half=clash.length?(slot?'half b':'half'):'';
+        e._prev=clash.length?clash[clash.length-1].ev:null; placed[placed.length-1].ev=e;
+        if(e._prev&&!e._prev._half) e._prev._half='half';
+      });
+      evs.forEach(function(e){
+        var top=(mins(e.t)-H0*60)/60*HR, ht=Math.max(e.len/60*HR-2,n>1?36:26);
+        h+='<div class="wk-ev '+e.type+' '+(e._half||'')+stateCls(e)+'" data-ev="'+e.id+'" title="'+e.t+' '+esc(e.title)+'" style="top:'+top+'px;height:'+ht+'px">'+e.t+' '+esc(n>1?shortT(e):e.title)+(n===1&&(e.place||e.done||e.need||e.late)?' <span>'+esc([e.place,e.done,e.need?'Result needed':'',e.late?'Overdue':''].filter(Boolean).join(' · '))+'</span>':(ht>44&&e.place?'<span>'+esc(e.place)+'</span>':''))+'</div>';
+        e._half='';
+      });
+      if(k===key(TODAY)) h+='<div class="wk-now" style="top:'+((NOW-H0*60)/60*HR)+'px"><span>14:55</span></div>';
+      h+='</div>';
+    });
+    host.innerHTML=h+'</div></div>';
+  }
+
+  /* ---------- right column ---------- */
+  function renderDay(){
+    var k=key(sel), evs=on(k), isToday=k===key(TODAY);
+    $('#day-title').textContent=nice(sel);
+    $('#day-chip').textContent=isToday?'Today':(sel<TODAY?'Past':(Math.round((sel-TODAY)/864e5)===1?'Tomorrow':'In '+Math.round((sel-TODAY)/864e5)+' days'));
+    var timed=evs.filter(function(e){return e.days===1});
+    $('#busy').hidden=timed.length<5;
+    if(timed.length>=5){ $('#busy-txt').textContent='Busy day: '+timed.length+' plans. '+freeGap(timed); }
+    $('#day-list').innerHTML=evs.length?evs.map(function(e){
+      var sub=[e.days>1?'All day · '+e.days+' days':'', e.place, e.done||'', e.late?'Overdue':''].filter(Boolean).join(' · ')||TYPES[e.type];
+      return '<div class="plan-row'+(e.done?' is-done':'')+'" data-ev="'+e.id+'"><span class="tm">'+(e.days>1?'All':e.t)+'</span><span class="tdot '+e.type+'"></span><span class="bd"><b>'+esc(e.title)+'</b><span'+(e.late?' class="overdue"':'')+'>'+esc(sub)+'</span></span>'+(e.need?'<span class="chip orange">Result?</span>':'')+'</div>';
+    }).join(''):'<div class="empty" style="padding:22px 8px"><b>Nothing planned</b><p>This day is free.</p></div>';
+    $('#add-here').disabled=sel<TODAY;
+    var w=EV.filter(function(e){return e.need});
+    $('#wait-card').hidden=!w.length;
+    $('#wait-list').innerHTML=w.map(function(e){return '<div class="row gap-8"><span class="grow" style="min-width:0"><b class="bold truncate t" style="display:block">'+esc(e.lead)+'</b><span class="small t">'+TYPES[e.type]+' · '+(e.d===key(TODAY)?'today':nice(parse(e.d)))+' '+e.t+'</span></span><button class="btn sm dark" data-result="'+e.id+'">Answer</button></div>'}).join('');
+  }
+  function freeGap(evs){
+    var best=[0,0], last=NOW;
+    evs.forEach(function(e){var s=mins(e.t); if(s>last&&s-last>best[1]-best[0]) best=[last,s]; last=Math.max(last,s+e.len)});
+    if(18*60-last>best[1]-best[0]) best=[last,18*60];
+    return best[1]>best[0]?'Free from '+hhmm(best[0])+' to '+hhmm(best[1])+'.':'No free time left.';
+  }
+  function render(){
+    var t;
+    if(view==='month'){ t=MON[cur.getMonth()]+' '+cur.getFullYear(); renderMonth(); }
+    else if(view==='week'){ var s=add(sel,-dow(sel)), e=add(s,6), ds=[]; for(var i=0;i<7;i++) ds.push(add(s,i));
+      t=s.getDate()+(s.getMonth()!==e.getMonth()?' '+MON[s.getMonth()].slice(0,3):'')+' – '+e.getDate()+' '+MON[e.getMonth()].slice(0,3)+' '+e.getFullYear()+' · week '+week(s); renderGrid($('#view-week'),ds); }
+    else { t=DOWL[dow(sel)]+', '+sel.getDate()+' '+MON[sel.getMonth()]+' '+sel.getFullYear(); renderGrid($('#view-day'),[sel]); }
+    $('#cal-title').textContent=t;
+    ['month','week','day'].forEach(function(v){$('#view-'+v).hidden=v!==view});
+    renderDay();
+  }
+  function week(d){var t=new Date(d);t.setDate(t.getDate()+3-dow(t));var y=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-y)/864e5-3+dow(y))/7)}
+  function move(n){
+    if(view==='month'){ cur=new Date(cur.getFullYear(),cur.getMonth()+n,1); sel=(cur.getMonth()===TODAY.getMonth()&&cur.getFullYear()===TODAY.getFullYear())?new Date(TODAY):new Date(cur); }
+    else { sel=add(sel,n*(view==='week'?7:1)); cur=new Date(sel.getFullYear(),sel.getMonth(),1); }
+    render();
+  }
+  $('#prev').onclick=function(){move(-1)}; $('#next').onclick=function(){move(1)};
+  $('#today').onclick=function(){sel=new Date(TODAY);cur=new Date(2026,10,1);render()};
+  $('#view-seg').addEventListener('hm:change',function(e){view=e.detail.value;render()});
+
+  /* clicks inside the calendar */
+  document.addEventListener('click',function(e){
+    var r=e.target.closest('[data-result]'); if(r){ openResult(+r.getAttribute('data-result')); return; }
+    var ev=e.target.closest('[data-ev]');
+    if(ev){ var o=byId(+ev.getAttribute('data-ev')); var dc=ev.closest('[data-day]'); if(dc){sel=parse(dc.getAttribute('data-day'));render()} openPlan(o); return; }
+    var d=e.target.closest('.cal-day[data-day],.wk-col[data-day],.wk-head [data-day]');
+    if(d){ sel=parse(d.getAttribute('data-day')); if(sel.getMonth()!==cur.getMonth()&&view==='month') cur=new Date(sel.getFullYear(),sel.getMonth(),1); render(); }
+  });
+  document.addEventListener('dblclick',function(e){ var d=e.target.closest('.cal-day[data-day],.wk-col[data-day]'); if(d&&!e.target.closest('[data-ev]')) openNew(); });
+  function byId(i){return EV.filter(function(e){return e.id===i})[0]}
+
+  /* ---------- clash check ---------- */
+  function clashWith(k,t,len,skip){
+    if(!k||!t) return null; var s=mins(t), en=s+len;
+    return on(k).filter(function(e){return e.id!==skip&&e.days===1&&!e.done&&s<mins(e.t)+e.len&&en>mins(e.t)})[0]||null;
+  }
+  function pastMsg(k,t){
+    if(!k) return 'Choose a day.';
+    if(k<key(TODAY)) return 'This day has passed. Choose today or later.';
+    if(t&&k===key(TODAY)&&mins(t)<NOW) return 'This time has passed. It is 14:55 now.';
+    return '';
+  }
+  function setErr(f,msg){ f=typeof f==='string'?$(f):f; f.classList.toggle('invalid',!!msg); var s=$('.error',f); if(!s){s=document.createElement('span');s.className='error';f.appendChild(s)} s.textContent=msg||''; return !msg; }
+  function val(sel2){var o=$(sel2+' > .on');return o?(o.getAttribute('data-value')||o.textContent.trim()):''}
+
+  /* ---------- open plan ---------- */
+  var open=null;
+  function openPlan(e){
+    open=e; var d=parse(e.d), team=e.type==='team', owner=HM.role==='owner'||(e.type==='team'&&e.by===HM.me.name.split(' ')[0]);
+    $('#pp-type').textContent=TYPES[e.type]+(team?' plan':'');
+    $('#pp-time').textContent=e.days>1?nice(d)+' – '+nice(add(d,e.days-1)):e.t+' – '+hhmm(mins(e.t)+e.len);
+    $('#pp-time').style.fontSize=e.days>1?'30px':'';
+    $('#pp-date').textContent=e.days>1?'Runs for '+e.days+' days · all day':DOWL[dow(d)]+', '+d.getDate()+' '+MON[d.getMonth()]+' '+d.getFullYear()+(e.d===key(TODAY)?' · today':'');
+    $('#pp-title').textContent=e.title;
+    $('#pp-chips').innerHTML='<span class="chip"><span class="tdot '+e.type+'" style="margin:0 2px 0 0"></span>'+TYPES[e.type]+'</span>'+(e.vip?'<span class="vip-tag">VIP</span>':'')+(e.done?'<span class="chip green">'+esc(e.done)+'</span>':'')+(e.late?'<span class="chip red pip">Overdue since '+e.t+'</span>':'')+(e.need?'<span class="chip orange">Result needed</span>':'')+(team?'<span class="chip violet">From '+esc(e.by||'Emir')+'</span>':'');
+    $('#pp-need').hidden=!e.need;
+    var L=LEADS.filter(function(l){return l[0]===e.lead})[0], kv='';
+    if(L) kv+=row('Lead','<a class="link" href="lead.html">'+esc(L[0])+'</a>')+row('Phone',L[2])+row('Wants',esc(L[1]));
+    kv+=(e.place?row('Place',esc(e.place)):'')+(e.days>1?'':row('Length',e.len>=60?(e.len/60)+' h':e.len+' min'))+row('Reminder',esc(e.rem))+(team?row('Who','Everyone in the office'):'');
+    $('#pp-kv').innerHTML=kv; $('#pp-change').hidden=true; $('#pc-clash').hidden=true;
+    $('#pp-team-note').hidden=!(team&&!owner);
+    var f='';
+    if(team&&!owner) f='<button class="btn" id="pp-hide"><i data-icon="eye"></i>Hide for me</button><span class="grow"></span><button class="btn ghost" data-close>Close</button>';
+    else f=(L?'<a class="btn" href="lead.html"><i data-icon="user"></i>Open the lead</a>':'')+(e.done?'':'<button class="btn" id="pp-chg"><i data-icon="clock"></i>Change day or time</button>')+'<span class="grow"></span><button class="btn danger" id="pp-del" data-confirm="Tap again to delete"><i data-icon="trash"></i>Delete</button>';
+    $('#pp-foot').innerHTML=f; HM.refresh($('#plan-panel')); HM.open('#plan-panel');
+  }
+  function row(a,b){return '<div class="kv-row"><dt>'+a+'</dt><dd>'+b+'</dd></div>'}
+  $('#plan-panel').addEventListener('click',function(e){
+    if(e.target.closest('#pp-chg')){ $('#pp-change').hidden=false; $('#pc-day').value=open.d<key(TODAY)?key(TODAY):open.d; setTime($('#pc-time'),open.t); checkChange(); $('#pc-day').focus(); }
+    if(e.target.closest('#pc-cancel')) $('#pp-change').hidden=true;
+    if(e.target.closest('#pc-save')) saveChange();
+    if(e.target.closest('#pp-answer')) openResult(open.id);
+    if(e.target.closest('#pp-hide')){ var ev=open; hidden[ev.id]=1; HM.close(); render(); HM.toast('Hidden from your calendar. The team still sees it.',{undo:function(){delete hidden[ev.id];render()}}); }
+  });
+  $('#plan-panel').addEventListener('hm:confirm',function(e){
+    if(!e.target.closest('#pp-del')) return; var ev=open, i=EV.indexOf(ev); EV.splice(i,1); HM.close(); render();
+    HM.toast('Plan deleted · '+ev.title,{undo:function(){EV.splice(i,0,ev);render()}});
+  });
+  function checkChange(){
+    var k=$('#pc-day').value, t=$('#pc-time').value, c=clashWith(k,t,open.len,open.id), b=$('#pc-clash');
+    var pm=pastMsg(k,t); b.hidden=!(c||pm); b.className='banner small '+(pm?'red':'amber');
+    $('span',b).textContent=pm||(c?'You already have "'+c.title+'" at '+c.t+'. You can still save.':''); return !pm;
+  }
+  $('#pc-day').oninput=$('#pc-time').onchange=checkChange;
+  function saveChange(){
+    if(!$('#pc-time').value||!checkChange()) return; var ev=open, od=ev.d, ot=ev.t;
+    ev.d=$('#pc-day').value; ev.t=$('#pc-time').value; ev.late=0; sel=parse(ev.d); cur=new Date(sel.getFullYear(),sel.getMonth(),1); HM.close(); render();
+    HM.toast('Moved to '+nice(sel)+' '+ev.t+'. The reminder moved too.',{undo:function(){ev.d=od;ev.t=ot;render()}});
+  }
+
+  /* ---------- new plan ---------- */
+  $('#np-lead').innerHTML+=LEADS.map(function(l){return '<option value="'+l[0]+'">'+l[0]+' · '+l[1]+'</option>'}).join('');
+  function openNew(){
+    var past=sel<TODAY; $('#np-day').value=past?key(TODAY):key(sel);
+    var k0=$('#np-day').value, m0=(k0===key(TODAY)?15:10)*60; while(m0<20*60&&clashWith(k0,hhmm(m0),60)) m0+=30;
+    setTime($('#np-time'),hhmm(m0));
+    $$('#np-form .invalid').forEach(function(f){f.classList.remove('invalid')});
+    checkNew(); HM.open('#new-plan');
+  }
+  $('#new-btn').onclick=$('#add-here').onclick=openNew;
+  function checkNew(){
+    var multi=$('#np-multi').checked, k=$('#np-day').value, t=$('#np-time').value, c=multi?null:clashWith(k,t,+val('#np-len')||60), b=$('#np-clash');
+    b.hidden=!c; if(c) $('span',b).innerHTML='<b>This time is taken.</b> You already have "'+esc(c.title)+'" at '+c.t+'. Choose another time, or save both.';
+    $('#np-save').textContent=c?'Save anyway':'Save the plan';
+  }
+  function autoTitle(){
+    var ty=val('#np-type'), l=$('#np-lead').value, team=ty==='team';
+    $('#f-lead').style.display=team?'none':''; $('#f-title').style.gridColumn=team?'span 2':'';
+    var t={meeting:'Meeting with ',visit:'Site visit with ',call:'Call ',follow:'Follow up '}[ty];
+    if(!team&&l&&!$('#np-title')._typed) $('#np-title').value=t+l;
+    if(team&&!$('#np-title')._typed) $('#np-title').value='';
+    $('#np-title').placeholder=team?'Weekly sales meeting':(t||'')+'…';
+  }
+  $('#np-title').oninput=function(){this._typed=!!this.value};
+  $('#np-type').addEventListener('hm:change',function(e){
+    autoTitle(); var v=e.detail.value;
+    var pl={meeting:'Office',visit:'Sales centre',call:'',follow:'',team:'Office'}[v];
+    $$('#np-place > *').forEach(function(b){b.classList.toggle('on',b.textContent===pl)});
+    $$('#np-len > *').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-value')===((v==='call'||v==='follow')?'15':'60'))}); checkNew();
+  });
+  $('#np-lead').onchange=function(){autoTitle();setErr('#f-lead','')};
+  $('#np-day').oninput=$('#np-time').onchange=function(){setErr('#f-day','');setErr('#f-time','');checkNew()};
+  $('#np-len').addEventListener('hm:change',checkNew);
+  $('#np-multi').onchange=function(){ $('#np-days').hidden=!this.checked; $('#f-len').style.visibility=this.checked?'hidden':''; checkNew(); };
+  $('#np-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var ty=val('#np-type'), team=ty==='team', k=$('#np-day').value, t=$('#np-time').value, ok=true;
+    ok=setErr('#f-lead',team||$('#np-lead').value?'':'Choose a lead from the list.')&&ok;
+    ok=setErr('#f-title',$('#np-title').value.trim()?'':'Write a short title.')&&ok;
+    var pm=pastMsg(k,''); ok=setErr('#f-day',pm)&&ok;
+    ok=setErr('#f-time',!t?'Choose a time.':(pm?'':pastMsg(k,t)))&&ok;
+    if(!ok) return;
+    var multi=$('#np-multi').checked, ev=E(k,t,+val('#np-len'),ty,$('#np-title').value.trim(),team?'':$('#np-lead').value,val('#np-place'),{rem:val('#np-rem')+' before',days:multi?parseInt(val('#np-days')):1,by:team?HM.me.name.split(' ')[0]:''});
+    EV.push(ev); sel=parse(k); cur=new Date(sel.getFullYear(),sel.getMonth(),1); HM.close(); render();
+    $('#np-title').value=''; $('#np-title')._typed=false; $('#np-lead').value='';
+    HM.toast('Plan saved · '+nice(sel)+' '+t+' · reminder '+ev.rem,{undo:function(){EV.splice(EV.indexOf(ev),1);render()}});
+  });
+
+  /* ---------- how did it go? ---------- */
+  var res=null, noShows={};
+  function openResult(i){
+    res=byId(i); var L=LEADS.filter(function(l){return l[0]===res.lead})[0]||['','',''], first=res.lead.split(' ')[0];
+    $('#rs-title').textContent=res.title;
+    $('#rs-sub').textContent=(res.d===key(TODAY)?'Today':nice(parse(res.d)))+' '+res.t+' · '+res.place+' · '+L[1];
+    $$('#rs-opts > *').forEach(function(b){b.classList.remove('on')}); $$('[data-res]').forEach(function(s){s.hidden=true});
+    $$('#result-panel .invalid').forEach(function(f){f.classList.remove('invalid')});
+    var n=(noShows[res.lead]||0)+1;
+    $('#ns-count').innerHTML=n>=2?'<b>No-show '+n+' for '+esc(res.lead)+'.</b> The lead gets a red flag. Emir sees it.':'<b>No-show '+n+' for '+esc(res.lead)+'.</b> After 2 no-shows the lead gets a red flag.';
+    $('#ns-msg').textContent='Hi '+first+', we waited for you '+(res.d===key(TODAY)?'today':'on '+nice(parse(res.d)))+' at '+res.t+'. No problem. When is a good time to meet again? '+HM.me.name.split(' ')[0]+' · homes.me';
+    HM.open('#result-panel');
+  }
+  $('#rs-opts').addEventListener('hm:change',function(e){ $$('[data-res]').forEach(function(s){s.hidden=s.getAttribute('data-res')!==e.detail.value}); setErr('#rs-pick',''); });
+  $('#ns-again').addEventListener('hm:change',function(e){ $('#ns-pick').hidden=e.detail.value!=='pick'; });
+  $('#bk-rec').onclick=function(){ this.classList.add('has'); $('.grow',this).textContent='booking-form-omar-khalil.pdf'; this.lastElementChild.textContent='Uploaded'; setErr('#f-rec',''); };
+  $('#rs-next').addEventListener('hm:change',function(e){ if(e.detail.value==='Follow up in 2 days') $('#rs-nday').value='2026-11-13'; setErr('#f-nday',''); });
+  ['#rs-next','#rs-int','#rs-who','#rs-cwho'].forEach(function(s){ $(s).addEventListener('hm:change',function(){setErr($(s).closest('.field'),'')}) });
+  function num(s){return +String(s).replace(/[^\d.]/g,'')}
+  $('#rs-save').onclick=function(){
+    var r=val('#rs-opts'), ok=true, ev=res, msg='', undo=null, made=null;
+    if(!r){ setErr('#rs-pick','Choose one result first.'); return; }
+    if(r==='show'){
+      ok=setErr('#f-next',val('#rs-next')?'':'Choose the next step.')&&ok;
+      ok=setErr('#f-nday',pastMsg($('#rs-nday').value,''))&&ok;
+      ok=setErr('#f-int',val('#rs-int')?'':'Choose Hot, Warm or Cold.')&&ok;
+      if(ok&&!$('#rs-ntime').value) ok=setErr('#f-nday','Choose a time for the next step.');
+      if(ok){ var nx=val('#rs-next'), nt={'Send the offer':['follow','Send the offer to '+ev.lead,'WhatsApp',15],'Second meeting':['meeting','Second meeting with '+ev.lead,'Office',60],'Site visit':['visit','Site visit with '+ev.lead,'Sales centre',60],'Follow up in 2 days':['follow','Follow up '+ev.lead,'Call',15]}[nx];
+        made=E($('#rs-nday').value,$('#rs-ntime').value,nt[3],nt[0],nt[1],ev.lead,nt[2]);
+        msg=ev.lead+' showed up · '+val('#rs-int')+' · next step is in your calendar: '+nx+' · '+nice(parse(made.d))+' '+made.t; }
+      ev._done='Showed up';
+    } else if(r==='noshow'){
+      if(val('#ns-again')==='pick') ok=setErr('#f-nsday',pastMsg($('#ns-day').value,''));
+      noShows[ev.lead]=(noShows[ev.lead]||0)+1;
+      var ag=val('#ns-again'), pt=$('#ns-pick select').value||ev.t;
+      if(ag==='pick'&&ok&&!$('#ns-pick select').value) ok=setErr('#f-nsday','Choose a time.');
+      if(ok&&ag!=='Do not plan now'){ var nd=ag==='pick'?$('#ns-day').value:key(add(TODAY,ag==='Tomorrow 12:00'?1:ag==='In 2 days'?2:7));
+        made=E(nd,ag==='pick'?pt:(ag==='Tomorrow 12:00'?'12:00':ev.t),ev.len,ev.type,ev.title,ev.lead,ev.place); }
+      msg='No-show counted for '+ev.lead+' ('+noShows[ev.lead]+')'+(made?' · new plan: '+nice(parse(made.d))+' '+made.t:' · no new plan');
+      ev._done='No-show';
+    } else if(r==='resched'){
+      var k=$('#rs-rday').value, t=$('#rs-rtime').value;
+      ok=setErr('#f-rday',pastMsg(k,''))&&ok; ok=setErr('#f-rtime',t?(k?pastMsg(k,t):''):'Choose the new time.')&&ok;
+      ok=setErr('#f-who',val('#rs-who')?'':'Choose who asked.')&&ok;
+      if(ok) msg='Moved to '+nice(parse(k))+' '+t+' · asked by '+val('#rs-who').toLowerCase();
+    } else if(r==='booked'){
+      var pr=num($('#bk-price').value), pd=num($('#bk-paid').value);
+      ok=setErr('#f-unit',$('#bk-unit').value.trim()?'':'Write the unit.')&&ok;
+      ok=setErr('#f-price',pr>0?'':'Write the price.')&&ok;
+      ok=setErr('#f-paid',!$('#bk-paid').value.trim()?'Write what was paid now.':(pd>pr&&pr>0?'Paid now cannot be more than the price.':''))&&ok;
+      ok=setErr('#f-rec',$('#bk-rec').classList.contains('has')?'':'Upload the booking form or the receipt.')&&ok;
+      if(ok) msg=ev.lead+' booked a unit in '+$('#bk-project').value+' · lead is Won · +300 points';
+      ev._done='Booked a unit';
+    } else {
+      ok=setErr('#f-cwho',val('#rs-cwho')?'':'Choose who cancelled.')&&ok;
+      if(ok) msg='Cancelled by '+val('#rs-cwho').toLowerCase()+' · not a no-show';
+      ev._done='Cancelled';
+    }
+    if(!ok){ if(r==='noshow') noShows[ev.lead]--; return; }
+    var old={d:ev.d,t:ev.t,need:ev.need,done:ev.done};
+    if(r==='resched'){ ev.d=$('#rs-rday').value; ev.t=$('#rs-rtime').value; ev.need=0; }
+    else { ev.need=0; ev.done=ev._done; }
+    if(made) EV.push(made);
+    HM.close(); render(); if(r==='booked') HM.confetti();
+    HM.toast(msg,{undo:function(){ if(r==='noshow') noShows[ev.lead]--; if(made) EV.splice(EV.indexOf(made),1); ev.d=old.d;ev.t=old.t;ev.need=old.need;ev.done=old.done;render(); }});
+  };
+
+  render();
+  if(location.hash==='#result') openResult(6);
+  if(location.hash==='#new') openNew();
+})();
+</script>
+</body>
+</html>

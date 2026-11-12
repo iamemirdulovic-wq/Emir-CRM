@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Import leads · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .imp{max-width:1040px;margin:8px auto 0}
+  .imp .stepper{margin:0;padding:16px 22px;background:var(--surface);border-radius:22px;box-shadow:var(--shadow-1)}
+  .imp .step.done{cursor:pointer}.imp .step.done:hover{color:var(--ink)}
+  .stage{margin-top:16px;padding:28px 30px 24px;min-height:500px}
+  .stage>header{margin-bottom:20px}
+  .stage>header h2{font-size:24px;letter-spacing:-.02em}
+  .stage>header p{color:var(--ink-3);margin-top:4px;font-size:14px}
+  .stage[hidden]{display:none}
+  .two{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start}
+  .drop{border:2px dashed var(--line-2);border-radius:22px;padding:44px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;transition:.15s;cursor:pointer}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .ic{width:64px;height:64px;border-radius:20px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2)}
+  .drop b{font-size:17px;font-weight:680}
+  .file-card{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;background:var(--green-soft)}
+  .file-card .ic{width:44px;height:44px;border-radius:14px;background:var(--surface);display:grid;place-items:center;color:var(--green-ink);flex:none}
+  .file-card[hidden],.banner[hidden]{display:none}
+  .rules{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+  .rules li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2)}
+  .rules li i{color:var(--green);margin-top:1px;flex:none}
+  #map td{height:52px}
+  #map .select{width:210px}
+  #map tr.bad .select{box-shadow:inset 0 0 0 1.5px var(--red)}
+  .need{display:flex;gap:8px;flex-wrap:wrap}
+  .sum3{display:grid;grid-template-columns:1.1fr auto 1fr auto 1fr auto 1fr;align-items:end;gap:14px;margin-bottom:14px}
+  .sum3 .op{font-size:30px;font-weight:300;color:var(--ink-4);padding-bottom:22px}
+  .mini-list{display:flex;flex-direction:column}
+  .mini-list>div{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13px;min-width:0}
+  .mini-list>div+div{border-top:1px solid var(--line)}
+  .mini-list .grow{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ag-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .ag-grid .opt{padding:9px 12px}
+  .ag-grid .get{font-weight:700;font-size:13px;white-space:nowrap}
+  .ag-grid .opt:not(.on) .get{color:var(--ink-4);font-weight:500}
+  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .how .opt{flex-direction:column;align-items:flex-start;gap:6px;padding:14px}
+  .done-top{display:flex;align-items:center;gap:18px;margin-bottom:20px}
+  .done-top .ic{width:68px;height:68px;border-radius:22px;background:var(--green-soft);color:var(--green-ink);display:grid;place-items:center;flex:none}
+  .imp-foot{display:flex;align-items:center;gap:10px;margin-top:16px}
+  .imp-foot[hidden]{display:none}
+</style>
+</head>
+<body data-page="import" data-role="owner" data-sub="Excel or CSV · 6 short steps">
+<main>
+<div class="imp">
+
+  <div class="stepper" id="stepper">
+    <div class="step on" data-go="1"><span class="n">1</span>Upload</div><span class="line"></span>
+    <div class="step" data-go="2"><span class="n">2</span>Columns</div><span class="line"></span>
+    <div class="step" data-go="3"><span class="n">3</span>Check</div><span class="line"></span>
+    <div class="step" data-go="4"><span class="n">4</span>Give</div><span class="line"></span>
+    <div class="step" data-go="5"><span class="n">5</span>Confirm</div><span class="line"></span>
+    <div class="step" data-go="6"><span class="n">6</span>Done</div>
+  </div>
+
+  <!-- 1 · UPLOAD -->
+  <section class="card stage" data-step="1">
+    <header><h2>Upload your file</h2><p>One row is one lead. The first row holds the column names.</p></header>
+    <div class="two">
+      <div class="col gap-16">
+        <label class="drop" id="drop">
+          <span class="ic"><i data-icon="upload" class="i-xl"></i></span>
+          <b>Drop your Excel or CSV file here</b>
+          <span class="muted">or click to choose a file from this computer</span>
+          <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+          <span class="chip mt-8">.xlsx · .xls · .csv · up to 5,000 rows</span>
+        </label>
+        <div class="file-card" id="file-card" hidden>
+          <span class="ic"><i data-icon="file" class="i-lg"></i></span>
+          <div class="grow"><b class="bold" id="file-name">Nov_batch_C.xlsx</b><div class="small" id="file-info">240 rows · 7 columns · 48 KB</div></div>
+          <button class="btn sm" id="file-remove" data-confirm="Tap again to remove">Remove</button>
+        </div>
+        <div class="banner red" id="up-err" hidden><i data-icon="alert"></i><span class="grow" id="up-err-txt">Choose a file first.</span></div>
+        <div class="row">
+          <button class="btn sm" id="sample"><i data-icon="file"></i>Use the sample file · Nov_batch_C.xlsx</button>
+          <button class="btn sm ghost" data-toast="Template saved · homes-me-import-template.xlsx"><i data-icon="download"></i>Download the template</button>
+        </div>
+      </div>
+      <div class="card flat">
+        <h4 class="mb-16">A good file</h4>
+        <ul class="rules">
+          <li><i data-icon="check"></i><span>Has a <b>name</b> and a <b>phone</b> column. Everything else is optional.</span></li>
+          <li><i data-icon="check"></i><span>Phone numbers with the country code, for example +971 50 555 0101.</span></li>
+          <li><i data-icon="check"></i><span>Not more than <b>5,000 rows</b>. Split bigger files in two.</span></li>
+          <li><i data-icon="check"></i><span>We check every number. A number that is already in the CRM is never added twice without your OK.</span></li>
+        </ul>
+        <div class="card-foot"><i data-icon="clock" class="i-sm"></i><span>Last import: Nov_batch_B.xlsx · 3 Nov · 186 leads</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · COLUMNS -->
+  <section class="card stage" data-step="2" hidden>
+    <header class="row"><div class="grow"><h2>Match the columns</h2><p>Tell us where each column of your file goes. We guessed for you.</p></div>
+      <div class="need" id="need"></div></header>
+    <table class="table" id="map">
+      <thead><tr><th>Column in your file</th><th>First rows</th><th style="width:240px">Goes to</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="banner red mt-16" id="map-err" hidden><i data-icon="alert"></i><span class="grow" id="map-err-txt"></span></div>
+    <p class="small muted mt-16">Name and Phone are needed. A field can be used once. Columns set to “Do not import” are left out.</p>
+  </section>
+
+  <!-- 3 · CHECK -->
+  <section class="card stage" data-step="3" hidden>
+    <header><h2>We checked 240 rows</h2><p>Every phone number was compared with the 863 leads in the CRM.</p></header>
+    <div class="sum3">
+      <div class="stat"><b class="num-hero">240</b><span class="label">rows in the file</span></div><span class="op">=</span>
+      <div class="stat"><b class="num t-green">208</b><span class="label">new leads</span></div><span class="op">+</span>
+      <div class="stat"><b class="num t-amber">18</b><span class="label">duplicates</span></div><span class="op">+</span>
+      <div class="stat"><b class="num t-red">14</b><span class="label">bad rows</span></div>
+    </div>
+    <div class="segbar tall"><i class="green" style="--v:208"></i><i class="amber" style="--v:18"></i><i class="red" style="--v:14"></i></div>
+    <div class="two mt-24" style="grid-template-columns:1fr 1fr">
+      <div class="card flat">
+        <div class="card-head"><h3>18 duplicates</h3><span class="chip amber">already in the CRM</span></div>
+        <div class="field"><span class="field-label">What do we do with them?</span>
+          <div class="chips" data-chips id="dup"><button class="chip-opt on" data-value="skip">Skip them</button><button class="chip-opt" data-value="fill">Fill empty details only</button><button class="chip-opt" data-value="new">Import them again as new</button></div>
+          <span class="hint" id="dup-hint">The 18 leads stay as they are, with their agent.</span></div>
+        <div class="mini-list mt-8">
+          <div><span class="grow"><b class="bold">Marco Bellini</b> · +39 333 455 4821</span><span class="muted">with Rocky</span></div>
+          <div><span class="grow"><b class="bold">Lina Rahimi</b> · +971 55 555 0142</span><span class="muted">in Incoming</span></div>
+          <div><span class="grow"><b class="bold">Dave Patel</b> · +44 7700 900 456</span><span class="muted">with Rocky</span></div>
+          <div><span class="grow muted">and 15 more</span><button class="btn xs" data-toast="File saved · duplicates-Nov_batch_C.xlsx">Download the list</button></div>
+        </div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h3>14 bad rows</h3><span class="chip red">not imported</span></div>
+        <p class="small muted">These rows cannot become leads. Fix them in the file and import them later.</p>
+        <div class="mini-list mt-8">
+          <div><span class="grow"><b class="bold">Row 17</b> · Hamad R.</span><span class="t-red">No phone number</span></div>
+          <div><span class="grow"><b class="bold">Row 52</b> · Julia Stein</span><span class="t-red">Phone too short · 0550</span></div>
+          <div><span class="grow"><b class="bold">Row 118</b> · (empty)</span><span class="t-red">No name</span></div>
+          <div><span class="grow muted">9 without a phone · 4 broken numbers · 1 without a name</span></div>
+        </div>
+        <div class="card-foot"><button class="btn sm" data-toast="File saved · bad-rows-Nov_batch_C.xlsx"><i data-icon="download"></i>Download the 14 bad rows</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · GIVE -->
+  <section class="card stage" data-step="4" hidden>
+    <header class="row"><div class="grow"><h2>Who gets the <span data-n>208</span> leads?</h2><p>Leads that nobody calls in 24 working hours go back to Incoming.</p></div>
+      <div class="field" style="width:230px"><label for="proj">Project</label><select class="select" id="proj"><option>Keep the project from the file</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option><option>Valia</option><option>Not sure yet</option></select></div></header>
+    <div class="how opt-list" data-chips id="how">
+      <button class="opt on" data-value="agents"><span class="card-icon"><i data-icon="users"></i></span><b class="bold">Agents I choose</b><span class="small muted">Equal split between them</span></button>
+      <button class="opt" data-value="desk"><span class="card-icon"><i data-icon="building"></i></span><b class="bold">A desk</b><span class="small muted">Everyone working on that desk</span></button>
+      <button class="opt" data-value="incoming"><span class="card-icon"><i data-icon="inbox"></i></span><b class="bold">Incoming</b><span class="small muted">Free leads · agents take them</span></button>
+    </div>
+    <div id="give-agents" class="mt-16">
+      <div class="row mb-8"><h4 class="grow">Choose the agents</h4><button class="btn xs ghost" id="pick-office">All 6 in the office</button><button class="btn xs ghost" id="pick-none">None</button></div>
+      <div class="ag-grid" id="agents"></div>
+    </div>
+    <div id="give-desk" class="mt-16" hidden>
+      <h4 class="mb-8">Choose the desk</h4>
+      <div class="chips" data-chips id="desk"><button class="chip-opt on" data-value="Dubai off-plan">Dubai off-plan · 6 agents</button><button class="chip-opt" data-value="Arabic desk">Arabic desk · 2 of 3 working</button><button class="chip-opt" data-value="Abu Dhabi">Abu Dhabi · 1 of 2 working</button></div>
+      <div class="ag-grid mt-12" id="desk-agents"></div>
+    </div>
+    <div id="give-inc" class="mt-16" hidden>
+      <div class="banner"><i data-icon="inbox"></i><span class="grow">All <span data-n>208</span> leads wait in Incoming. Any agent can take one, or you give them later.</span><a class="link" href="incoming.html">Open Incoming</a></div>
+    </div>
+    <div class="banner amber mt-16" id="give-warn" hidden><i data-icon="alert"></i><span class="grow" id="give-warn-txt"></span></div>
+    <div class="banner red mt-16" id="give-err" hidden><i data-icon="alert"></i><span class="grow">Choose at least one agent.</span></div>
+  </section>
+
+  <!-- 5 · CONFIRM -->
+  <section class="card stage" data-step="5" hidden>
+    <header><h2>Check and import</h2><p>Nothing is in the CRM yet. Read once, then import.</p></header>
+    <div class="two" style="grid-template-columns:1fr 1fr">
+      <dl class="kv">
+        <div class="kv-row"><dt>File</dt><dd id="c-file">Nov_batch_C.xlsx · 240 rows</dd></div>
+        <div class="kv-row"><dt>New leads</dt><dd><b class="t-green" id="c-new">208</b></dd></div>
+        <div class="kv-row"><dt>Duplicates</dt><dd id="c-dup">18 · skipped</dd></div>
+        <div class="kv-row"><dt>Bad rows</dt><dd>14 · not imported</dd></div>
+        <div class="kv-row"><dt>Project</dt><dd id="c-proj">Keep the project from the file</dd></div>
+        <div class="kv-row"><dt>Source</dt><dd>Import (Excel)</dd></div>
+        <div class="kv-row"><dt>Goes back</dt><dd>to Incoming if not called in 24 working hours</dd></div>
+      </dl>
+      <div class="card flat">
+        <div class="card-head"><h3 id="c-to-title">Goes to 6 agents</h3></div>
+        <div class="mini-list" id="c-to"></div>
+        <div class="card-foot"><i data-icon="bell" class="i-sm"></i><span>Each agent gets <b class="ink-2">one</b> notification, not one per lead.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · DONE -->
+  <section class="card stage" data-step="6" hidden>
+    <div class="done-top"><span class="ic"><i data-icon="check" class="i-xl"></i></span>
+      <div class="grow"><h2 style="font-size:26px;letter-spacing:-.02em"><span id="d-n">208</span> leads are in the CRM</h2><p class="muted" id="d-sub">Nov_batch_C.xlsx · 18 duplicates skipped · 14 bad rows left out</p></div>
+      <a class="btn" href="import.html"><i data-icon="upload"></i>Import another file</a><a class="btn dark" href="all-leads.html?source=Import%20(Excel)">Open the leads <i data-icon="arrow-right"></i></a></div>
+    <div class="two">
+      <div>
+        <table class="table compact" id="result"><thead><tr><th>Agent</th><th class="t-right">Got</th><th class="t-right">Open leads now</th><th>Told</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="col">
+        <div class="card flat" id="undo-card">
+          <h4 class="mb-8">Made a mistake?</h4>
+          <p class="small muted">You can undo this import for 24 hours, until Thu 12 Nov · 14:55. Leads that an agent already called stay in the CRM.</p>
+          <div class="card-foot"><button class="btn danger" id="undo" data-confirm="Tap again to undo the import"><i data-icon="undo"></i>Undo this import</button></div>
+        </div>
+        <div class="banner"><i data-icon="download"></i><span class="grow">14 bad rows were left out.</span><button class="btn xs" data-toast="File saved · bad-rows-Nov_batch_C.xlsx">Download</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="imp-foot" id="foot">
+    <button class="btn ghost" id="back" disabled><i data-icon="arrow-left"></i>Back</button>
+    <span class="grow"></span>
+    <span class="small muted" id="foot-note">Step 1 of 6</span>
+    <button class="btn primary lg" id="next">Next: Columns <i data-icon="arrow-right"></i></button>
+  </div>
+</div>
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var step=1, hasFile=false, S={file:'Nov_batch_C.xlsx',dup:'skip',n:208,how:'agents'};
+  var NAMES=['','Upload','Columns','Check','Give','Confirm','Done'];
+
+  /* ---------- step 1: file ---------- */
+  function setFile(name,info){
+    hasFile=!!name; $('#file-card').hidden=!hasFile; $('#drop').style.display=hasFile?'none':''; $('#up-err').hidden=true;
+    if(name){ S.file=name; $('#file-name').textContent=name; $('#file-info').textContent=info; $('#c-file').textContent=name+' · 240 rows'; }
+  }
+  $('#sample').addEventListener('click',function(){setFile('Nov_batch_C.xlsx','240 rows · 7 columns · 48 KB'); HM.toast('File read · 240 rows found')});
+  function take(f){
+    if(!f) return;
+    if(!/\.(xlsx|xls|csv)$/i.test(f.name)){ $('#up-err').hidden=false; $('#up-err-txt').textContent='“'+f.name+'” is not an Excel or CSV file.'; return; }
+    setFile(f.name,'240 rows · 7 columns · '+Math.max(1,Math.round(f.size/1024))+' KB'); HM.toast('File read · 240 rows found');
+  }
+  $('#file').addEventListener('change',function(){take(this.files[0])});
+  var drop=$('#drop');
+  ['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('over')})});
+  ['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});
+  drop.addEventListener('drop',function(e){take(e.dataTransfer.files[0])});
+  $('#file-remove').addEventListener('hm:confirm',function(){setFile('');$('#file').value=''});
+
+  /* ---------- step 2: columns ---------- */
+  var FIELDS=['Full name','Phone','Email','Project','Budget','Language','Note','Source','Do not import'];
+  var COLS=[['Client Name','Hamdan Al Falasi · Irina Popova','Full name'],['Mobile','+971 50 555 0114 · +7 921 555 0182','Phone'],['E-mail','hamdan@mail.com · (empty)','Email'],['Interested in','Archive 2BR · Archive 1BR','Project'],['Budget (AED)','2,000,000 · 1,400,000','Budget'],['Lang','Arabic · Russian','Language'],['Remarks','Call after 17:00 · Investor','Note']];
+  $('#map tbody').innerHTML=COLS.map(function(c){
+    return '<tr><td><b class="t-main">'+c[0]+'</b></td><td class="t-sub">'+c[1]+'</td><td><select class="select sm" aria-label="'+c[0]+' goes to">'+FIELDS.map(function(f){return '<option'+(f===c[2]?' selected':'')+'>'+f+'</option>'}).join('')+'</select></td></tr>';
+  }).join('');
+  function checkMap(show){
+    var used={}, err='', sels=$$('#map select');
+    sels.forEach(function(s){ if(s.value!=='Do not import') (used[s.value]=used[s.value]||[]).push(s) });
+    sels.forEach(function(s){ s.closest('tr').classList.remove('bad') });
+    Object.keys(used).forEach(function(k){ if(used[k].length>1){ err=err||('“'+k+'” is used '+used[k].length+' times. A field can be used once.'); used[k].forEach(function(s){s.closest('tr').classList.add('bad')}) } });
+    var miss=['Full name','Phone'].filter(function(k){return !used[k]});
+    if(!err&&miss.length) err='Choose a column for '+miss.join(' and ')+'. We cannot import without it.';
+    $('#need').innerHTML=['Full name','Phone'].map(function(k){return used[k]&&used[k].length===1?'<span class="chip green lg"><i data-icon="check" class="i-sm"></i>'+k+'</span>':'<span class="chip red lg">'+k+' is missing</span>'}).join('');
+    HM.refresh($('#need'));
+    $('#map-err').hidden=!(err&&show); $('#map-err-txt').textContent=err;
+    return !err;
+  }
+  $('#map').addEventListener('change',function(){checkMap(true)});
+  checkMap(false);
+
+  /* ---------- step 3: duplicates ---------- */
+  $('#dup').addEventListener('hm:change',function(e){
+    S.dup=e.detail.value; S.n=S.dup==='new'?226:208;
+    $('#dup-hint').textContent={skip:'The 18 leads stay as they are, with their agent.',fill:'Only empty fields of the 18 leads are filled (email, budget, language). Nothing is overwritten.','new':'18 more leads are added. The same client may then be with two agents.'}[S.dup];
+    sync();
+  });
+
+  /* ---------- step 4: give ---------- */
+  // name, status, open, desk, max
+  var AG=[['Tej','office',11,'Dubai off-plan',60],['Olga','office',12,'Dubai off-plan',60],['Rocky','office',14,'Dubai off-plan',60],['Srdjan','office',16,'Dubai off-plan',60],['Yuliia','office',18,'Dubai off-plan',60],['Talha','office',22,'Dubai off-plan',60],['Nelson','outside',9,'Abu Dhabi',40],['Shan','late',57,'Arabic desk',50],['Sultan','leave',31,'Arabic desk',50],['Bassam','absent',44,'Abu Dhabi',40]];
+  var DESK={'Dubai off-plan':['Tej','Olga','Rocky','Srdjan','Yuliia','Talha'],'Arabic desk':['Rocky','Shan','Sultan'],'Abu Dhabi':['Nelson','Bassam']};
+  var off=function(a){return a[1]==='leave'||a[1]==='absent'}, by={}; AG.forEach(function(a){by[a[0]]=a});
+  var chosen=DESK['Dubai off-plan'].slice();
+  function card(a,on,pick,dk){
+    return '<button class="opt'+(on?' on':'')+'"'+(off(a)?' disabled':'')+' data-value="'+a[0]+'"'+(pick?'':' style="pointer-events:none"')+'><span class="av" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><span class="grow"><b class="bold">'+a[0]+'</b><div class="small muted">'+(off(a)?(a[1]==='leave'?'On leave':'Absent')+' · cannot get leads':a[2]+' open · '+(dk||a[3]))+'</div></span><span class="get" data-get="'+a[0]+'"></span></button>';
+  }
+  $('#agents').innerHTML=AG.map(function(a){return card(a,chosen.indexOf(a[0])>-1,true)}).join('');
+  HM.refresh($('#agents'));
+  function list(){
+    if(S.how==='incoming') return [];
+    if(S.how==='desk') return DESK[($('#desk .on')||{getAttribute:function(){}}).getAttribute('data-value')].filter(function(n){return !off(by[n])});
+    return AG.filter(function(a){return chosen.indexOf(a[0])>-1}).map(function(a){return a[0]});
+  }
+  function split(){ var l=list(), k=l.length, base=k?Math.floor(S.n/k):0, extra=k?S.n%k:0; return l.map(function(n,i){return [n,base+(i<extra?1:0)]}) }
+  function sync(){
+    $$('[data-n]').forEach(function(n){n.textContent=S.n});
+    $('#give-agents').hidden=S.how!=='agents'; $('#give-desk').hidden=S.how!=='desk'; $('#give-inc').hidden=S.how!=='incoming';
+    if(S.how==='desk'){ var d=$('#desk .on').getAttribute('data-value'); $('#desk-agents').innerHTML=DESK[d].map(function(n){return card(by[n],!off(by[n]),false,d)}).join(''); HM.refresh($('#desk-agents')); }
+    var sp=split(), over=[];
+    $$('[data-get]').forEach(function(g){g.textContent=''});
+    sp.forEach(function(x){ var a=by[x[0]], tot=a[2]+x[1]; $$('[data-get="'+x[0]+'"]').forEach(function(g){g.textContent='+'+x[1]+' → '+tot; g.classList.toggle('t-red',tot>a[4])}); if(tot>a[4]) over.push(x[0]+' '+tot+' of '+a[4]); });
+    $('#give-warn').hidden=!over.length; $('#give-warn-txt').textContent='Above the desk maximum after this import: '+over.join(' · ')+'. You can still go on.';
+    if(sp.length) $('#give-err').hidden=true;
+    // confirm step
+    $('#c-new').textContent=S.n; $('#c-dup').textContent='18 · '+{skip:'skipped',fill:'only empty details filled','new':'imported again as new'}[S.dup];
+    $('#c-proj').textContent=$('#proj').value;
+    $('#c-to-title').textContent=S.how==='incoming'?'Goes to Incoming':'Goes to '+sp.length+(sp.length===1?' agent':' agents')+(S.how==='desk'?' · '+$('#desk .on').getAttribute('data-value'):'');
+    $('#c-to').innerHTML=S.how==='incoming'?'<div><span class="card-icon"><i data-icon="inbox"></i></span><span class="grow"><b class="bold">Incoming</b> · free for every agent</span><b>'+S.n+'</b></div>':sp.map(function(x){return '<div><span class="av sm" data-name="'+x[0]+'" data-status="'+by[x[0]][1]+'"></span><span class="grow"><b class="bold">'+x[0]+'</b> <span class="muted">· '+by[x[0]][2]+' open now</span></span><b>+'+x[1]+'</b></div>'}).join('');
+    HM.refresh($('#c-to'));
+    label();
+  }
+  $('#agents').addEventListener('click',function(e){var o=e.target.closest('.opt'); if(!o||o.disabled) return; o.classList.toggle('on'); chosen=$$('#agents .opt.on').map(function(b){return b.getAttribute('data-value')}); sync(); });
+  $('#pick-office').addEventListener('click',function(){chosen=DESK['Dubai off-plan'].slice(); $$('#agents .opt').forEach(function(o){o.classList.toggle('on',chosen.indexOf(o.getAttribute('data-value'))>-1)}); sync()});
+  $('#pick-none').addEventListener('click',function(){chosen=[]; $$('#agents .opt').forEach(function(o){o.classList.remove('on')}); sync()});
+  $('#how').addEventListener('hm:change',function(e){S.how=e.detail.value; sync()});
+  $('#desk').addEventListener('hm:change',sync);
+  $('#proj').addEventListener('change',sync);
+
+  /* ---------- moving between steps ---------- */
+  var next=$('#next'), back=$('#back');
+  function label(){
+    next.removeAttribute('data-confirm');
+    if(next._armed){ clearTimeout(next._timer); next._armed=0; next.classList.remove('confirming'); }
+    if(step===5){ next.innerHTML='Import '+S.n+' leads'; setTimeout(function(){ if(step===5) next.setAttribute('data-confirm','Tap again to import '+S.n+' leads'); },0); }
+    else next.innerHTML='Next: '+NAMES[step+1]+' '+HM.icon('arrow-right');
+    $('#foot-note').textContent='Step '+step+' of 6';
+  }
+  function show(n){
+    step=n;
+    $$('[data-step]').forEach(function(s){s.hidden=+s.getAttribute('data-step')!==n});
+    var steps=$$('#stepper .step'), lines=$$('#stepper .line');
+    steps.forEach(function(s,i){s.classList.toggle('on',i+1===n); s.classList.toggle('done',i+1<n||n===6)});
+    lines.forEach(function(l,i){l.classList.toggle('done',i+1<n)});
+    back.disabled=n===1; $('#foot').hidden=n===6; label();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function ok(){
+    if(step===1&&!hasFile){ $('#up-err').hidden=false; $('#up-err-txt').textContent='Choose a file first, or use the sample file.'; return false; }
+    if(step===2) return checkMap(true);
+    if(step===4&&S.how!=='incoming'&&!list().length){ $('#give-err').hidden=false; return false; }
+    return true;
+  }
+  next.addEventListener('click',function(){ if(step<5&&ok()) show(step+1) });
+  next.addEventListener('hm:confirm',function(){ if(step===5) finish() });
+  back.addEventListener('click',function(){ if(step>1) show(step-1) });
+  $('#stepper').addEventListener('click',function(e){var s=e.target.closest('.step.done'); if(s&&step<6) show(+s.getAttribute('data-go')) });
+
+  /* ---------- step 6: done ---------- */
+  function finish(){
+    var sp=split();
+    $('#d-n').textContent=S.n;
+    $('#d-sub').textContent=S.file+' · 18 duplicates '+{skip:'skipped',fill:'updated (empty details only)','new':'imported as new'}[S.dup]+' · 14 bad rows left out';
+    $('#result tbody').innerHTML=S.how==='incoming'?'<tr data-href="incoming.html"><td><span class="chip red pip">Incoming</span></td><td class="t-right"><b>+'+S.n+'</b></td><td class="t-right">'+(S.n+3)+' waiting</td><td class="t-sub">All agents · 1 notification</td></tr>':
+      sp.map(function(x){var a=by[x[0]];return '<tr data-href="all-leads.html?agent='+x[0].toLowerCase()+'"><td><span class="person"><span class="av sm" data-name="'+x[0]+'" data-status="'+a[1]+'"></span><b>'+x[0]+'</b></span></td><td class="t-right"><b class="t-green">+'+x[1]+'</b></td><td class="t-right'+(a[2]+x[1]>a[4]?' overdue':'')+'">'+(a[2]+x[1])+'</td><td class="t-sub">1 notification · 14:55</td></tr>'}).join('');
+    HM.refresh($('#result'));
+    show(6); HM.confetti(); HM.toast(S.n+' leads imported');
+  }
+  $('#undo').addEventListener('hm:confirm',function(){
+    var called=3;
+    $('#undo-card').innerHTML='<h4 class="mb-8">Import undone</h4><p class="small muted">'+(S.n-called)+' leads were taken out. '+called+' leads stay because an agent already called them.</p>';
+    $('#d-n').textContent=called; $('#d-sub').textContent=S.file+' · import undone at 14:55 · '+(S.n-called)+' leads taken out';
+    // the result table follows: the called leads stay with the first agents
+    $$('#result tbody tr').forEach(function(tr,i){
+      var c=tr.children, keep=S.how==='incoming'?called:(i<called?1:0), a=by[(tr.getAttribute('data-href')||'').split('agent=')[1]?c[0].textContent.trim():'']||null;
+      c[1].innerHTML=keep?'<b>'+keep+' stay</b>':'<span class="muted">0</span>';
+      c[2].className='t-right'; c[2].textContent=S.how==='incoming'?(3+keep)+' waiting':(a?a[2]+keep:'');
+      c[3].textContent=keep?'Already called · kept':'Taken out · told';
+    });
+    HM.toast('Import undone · '+called+' leads already called stay in the CRM');
+  });
+
+  sync();
+})();
+</script>
+</body>
+</html>

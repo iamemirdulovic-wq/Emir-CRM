@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone app · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.btn>svg,.banner>svg{width:16px;height:16px;flex:none}
+
+.ig-top{flex-direction:row;align-items:center;gap:24px;padding:24px}
+.ig-qr{padding:10px;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 1px var(--line-2);flex:none}
+.qr{width:112px;height:112px;display:grid;grid-template-columns:repeat(21,1fr);grid-template-rows:repeat(21,1fr)}
+.qr i{background:#141317}.qr i.o{background:transparent}
+.ig-state{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.ig-cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+.ig-steps{display:flex;flex-direction:column;gap:6px}
+.ig-step{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:var(--surface-2)}
+.ig-step .n{width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:12.5px;flex:none}
+.ig-step b{display:block;font-weight:650}.ig-step .grow span{font-size:12.5px;color:var(--ink-3)}
+.ig-step .card-icon{background:var(--surface)}
+.ig-phone{background:linear-gradient(160deg,#2A2930,#141317);gap:8px}
+.ig-phone h4{color:rgba(255,255,255,.55);margin-bottom:6px}
+.ig-n{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);color:#fff}
+.ig-n .ic{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.14);display:grid;place-items:center;flex:none}
+.ig-n .ic.accent{background:var(--accent)}.ig-n .ic.blue{background:var(--blue)}
+.ig-n b{display:block;font-weight:650;font-size:13.5px}.ig-n .grow span{display:block;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.7)}
+.ig-n .grow{min-width:0}.ig-n em{font-style:normal;font-size:11.5px;color:rgba(255,255,255,.5);align-self:flex-start}
+</style>
+</head>
+<body data-page="install-guide" data-role="any" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html" class="on"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Phone app</h1><p>Put homes.me on your phone and turn on notifications. It takes 2 minutes.</p></div></div>
+<section class="card ig-top">
+  <div class="ig-qr"><div class="qr" id="qr"></div></div>
+  <div class="grow"><h2>Scan with your phone camera</h2><p class="muted mt-4">It opens <b class="ink">crm.homes.me</b>. Then follow the steps for your phone.</p>
+    <div class="seg mt-16" data-seg><button class="on" data-tab="ios"><i data-icon="phone"></i>iPhone</button><button data-tab="android"><i data-icon="phone"></i>Android</button></div></div>
+  <div class="ig-state" id="ig-state"><span class="chip green pip lg" id="ig-chip">Installed on your iPhone</span><span class="small muted" id="ig-chip-s">Notifications are on since 3 Nov</span></div>
+</section>
+<div class="ig-cols">
+  <section class="card">
+    <div data-panel="ios"><div class="card-head"><h3>iPhone · 5 steps</h3><span class="chip amber">iOS 16.4 or newer · Safari only</span></div><div class="ig-steps"><div class="ig-step"><span class="n">1</span><span class="card-icon"><i data-icon="globe"></i></span><div class="grow"><b>Open crm.homes.me in Safari</b><span>Only Safari can install the app on an iPhone. Chrome cannot.</span></div></div><div class="ig-step"><span class="n">2</span><span class="card-icon"><i data-icon="upload"></i></span><div class="grow"><b>Tap the Share button</b><span>The square with the arrow, at the bottom of Safari.</span></div></div><div class="ig-step"><span class="n">3</span><span class="card-icon"><i data-icon="plus"></i></span><div class="grow"><b>Tap “Add to Home Screen”</b><span>Scroll down in the list if you do not see it. Then tap Add.</span></div></div><div class="ig-step"><span class="n">4</span><span class="card-icon"><i data-icon="home"></i></span><div class="grow"><b>Open homes.me from the home screen</b><span>Not from Safari. Sign in with your work email.</span></div></div><div class="ig-step"><span class="n">5</span><span class="card-icon"><i data-icon="bell"></i></span><div class="grow"><b>Tap “Turn on notifications”, then Allow</b><span>The card is at the top of My Day.</span></div></div></div><p class="small muted mt-12">Old iPhone? Open Settings → General → Software Update first.</p></div>
+    <div data-panel="android" hidden><div class="card-head"><h3>Android · 4 steps</h3><span class="chip">Chrome</span></div><div class="ig-steps"><div class="ig-step"><span class="n">1</span><span class="card-icon"><i data-icon="globe"></i></span><div class="grow"><b>Open crm.homes.me in Chrome</b><span>Sign in with your work email.</span></div></div><div class="ig-step"><span class="n">2</span><span class="card-icon"><i data-icon="download"></i></span><div class="grow"><b>Tap ⋮ and then “Install app”</b><span>On some phones it says “Add to Home screen”.</span></div></div><div class="ig-step"><span class="n">3</span><span class="card-icon"><i data-icon="home"></i></span><div class="grow"><b>Open homes.me from the home screen</b><span>It opens like a normal app, without the address bar.</span></div></div><div class="ig-step"><span class="n">4</span><span class="card-icon"><i data-icon="bell"></i></span><div class="grow"><b>Tap “Turn on notifications”, then Allow</b><span>The card is at the top of My Day.</span></div></div></div><p class="small muted mt-12">No alerts? Open phone Settings → Apps → homes.me → Notifications and allow them.</p></div>
+  </section>
+  <div class="col gap-16">
+    <section class="card ig-phone">
+      <h4>What you will see</h4>
+      <div class="ig-n"><span class="ic accent"><i data-icon="crown"></i></span><div class="grow"><b>VIP lead from Emir</b><span>Khalid Al Mansoori · The Archive · call within 30 min</span></div><em>now</em></div><div class="ig-n"><span class="ic "><i data-icon="clock"></i></span><div class="grow"><b>Follow-up is due</b><span>Sara Nunes · Damac Islands · planned for 11:00</span></div><em>11:00</em></div><div class="ig-n"><span class="ic blue"><i data-icon="calendar"></i></span><div class="grow"><b>Site visit in 2 hours</b><span>Lucas Martin · The Archive sales centre · 16:30</span></div><em>14:30</em></div>
+    </section>
+    <section class="card">
+      <div class="row gap-12"><span class="card-icon accent"><i data-icon="bell"></i></span><div class="grow"><b class="bold" id="on-t">Notifications on this computer</b><div class="small muted" id="on-s">Optional. Your phone is the main place for alerts.</div></div></div>
+      <div class="btn-row mt-16"><button class="btn primary" id="on-btn"><i data-icon="bell"></i>Turn on notifications</button><a class="btn" href="settings.html#notifications">Choose my alerts</a></div>
+    </section>
+  </div>
+</div>
+<section class="card">
+  <div class="card-head"><h3>Tap a notification, it opens…</h3><span class="small muted">Always the exact page, never just the home screen</span></div>
+  <table class="table"><thead><tr><th>Notification</th><th>Opens</th><th></th></tr></thead><tbody><tr data-href="my-day.html" data-only="agent"><td class="t-main">VIP lead from Emir</td><td>My Day, with the countdown and “Accept VIP lead”</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="lead.html" data-only="agent"><td class="t-main">New lead for you</td><td>The lead page</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="tasks.html#follow-ups" data-only="agent"><td class="t-main">Follow-up is due</td><td>Follow-ups, with the late ones first</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="calendar.html" data-only="agent"><td class="t-main">Meeting in 2 hours</td><td>The plan in the Calendar</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="calendar.html#result" data-only="agent"><td class="t-main">How did it go?</td><td>The meeting result dialog</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="transfers.html" data-only="agent"><td class="t-main">Transfer request</td><td>Transfers, under “For you”</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="lead.html#timeline" data-only="agent"><td class="t-main">Client opened your link</td><td>The lead timeline</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="attendance.html#leave" data-only="agent"><td class="t-main">Leave request answered</td><td>Attendance, on the Leave tab</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="incoming.html#vip" data-only="owner"><td class="t-main">VIP lead not called</td><td>Incoming, on “VIP leads I gave”</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="team-attendance.html#leave" data-only="owner"><td class="t-main">Leave request</td><td>Team attendance, on Leave requests</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="transfers.html" data-only="owner"><td class="t-main">Transfer needs approval</td><td>Transfers</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="team-attendance.html" data-only="owner"><td class="t-main">Agent absent</td><td>Team attendance</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="lead.html" data-only="owner"><td class="t-main">New lead for you</td><td>The lead page</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="tasks.html#follow-ups" data-only="owner"><td class="t-main">Follow-up is due</td><td>Follow-ups, with the late ones first</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="calendar.html" data-only="owner"><td class="t-main">Meeting in 2 hours</td><td>The plan in the Calendar</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr><tr data-href="calendar.html#result" data-only="owner"><td class="t-main">How did it go?</td><td>The meeting result dialog</td><td class="t-right"><i data-icon="chevron-right" class="muted"></i></td></tr></tbody></table>
+</section>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var q=$('#qr'), h='', s=11, N=21; function eye(x,y,a,b){ return x>=a&&x<a+7&&y>=b&&y<b+7; }
+  for(var y=0;y<N;y++)for(var x=0;x<N;x++){ var on, e=null; [[0,0],[14,0],[0,14]].forEach(function(p){ if(eye(x,y,p[0],p[1])) e=p; });
+    if(e){ var dx=x-e[0], dy=y-e[1]; on=(dx===0||dx===6||dy===0||dy===6)||(dx>=2&&dx<=4&&dy>=2&&dy<=4); } else { s=(s*37+x*11+y*17+3)%101; on=s%2===0; } h+='<i'+(on?'':' class="o"')+'></i>'; }
+  q.innerHTML=h;
+  var on=false; $('#on-btn').addEventListener('click',function(){ if(on){ HM.toast('Test sent · look at the top right of your screen'); return; } on=true;
+    $('#on-t').textContent='Notifications are on · test sent'; $('#on-s').textContent='This computer and your phone get alerts. Change them any time in Settings.'; this.innerHTML=HM.icon('bell')+'Send another test'; this.classList.remove('primary');
+    HM.toast('Notifications are on · test sent'); });
+  if(HM.role==='owner'){ $('#ig-chip-s').textContent='9 of 13 people have notifications on'; }
+})();
+</script>
+</body>
+</html>

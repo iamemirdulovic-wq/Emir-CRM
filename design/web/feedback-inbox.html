@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feedback inbox · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  #fb td{height:60px}
+  #fb td.tt{max-width:420px}
+  #fb td.tt .t-main,#fb td.tt .t-sub{display:block;overflow:hidden;text-overflow:ellipsis}
+  #fb td.act{width:210px}
+  .shot{height:150px;border-radius:14px;background:repeating-linear-gradient(135deg,var(--surface-2) 0 12px,var(--surface-3) 12px 24px);display:grid;place-items:center;color:var(--ink-3);font-size:12.5px;font-weight:600}
+  .voice{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:var(--surface-2)}
+  .voice .wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--ink-4) 0 2px,transparent 2px 5px);border-radius:4px;opacity:.7}
+  .thread{display:flex;flex-direction:column;gap:8px}
+  .msg{padding:10px 14px;border-radius:14px;background:var(--surface-2);font-size:13.5px}
+  .msg.me{background:var(--accent-soft)}
+  .msg span{display:block;font-size:12px;color:var(--ink-3);margin-top:3px}
+  .empty[hidden],.voice[hidden],.shot[hidden]{display:none}
+</style>
+</head>
+<body data-page="feedback-inbox" data-role="owner" data-back="settings.html|Settings" data-title="Feedback inbox">
+<main>
+  <div class="page-head">
+    <div class="tabs pills mb-0" id="tabs" style="margin:0">
+      <button class="tab on" data-s="New">New <span class="count red" data-c="New">3</span></button>
+      <button class="tab" data-s="Planned">Planned <span class="count" data-c="Planned">2</span></button>
+      <button class="tab" data-s="Fixed">Fixed <span class="count" data-c="Fixed">4</span></button>
+      <button class="tab" data-s="All">All <span class="count" data-c="All">9</span></button>
+    </div>
+    <span class="grow"></span>
+    <span class="sub">Every report gives the sender +15 points</span>
+    <button class="btn sm" data-toast="File saved · feedback-11-Nov.xlsx"><i data-icon="download"></i>Export file</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table" id="fb">
+      <thead><tr><th>#</th><th>Report</th><th>Type</th><th>From</th><th>Urgency</th><th>Status</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="none" hidden><span class="ic"><i data-icon="check" class="i-xl"></i></span><b>Nothing here</b><p>No report has this status now.</p></div>
+  </div>
+</main>
+
+<aside class="panel" id="fb-panel" aria-label="Report">
+  <div class="panel-head"><h2 id="p-title">Report</h2><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="row gap-8 wrap" id="p-chips"></div>
+    <p id="p-text" style="font-size:14.5px;line-height:1.5"></p>
+    <dl class="kv">
+      <div class="kv-row"><dt>From</dt><dd id="p-from"></dd></div>
+      <div class="kv-row"><dt>Where</dt><dd id="p-where"></dd></div>
+      <div class="kv-row"><dt>Sent</dt><dd id="p-when"></dd></div>
+    </dl>
+    <div class="shot" id="p-shot"><span><i data-icon="image"></i> Screenshot from the sender · click to open</span></div>
+    <div class="voice" id="p-voice"><button class="btn icon sm" data-toast="Playing the voice note · 0:18" aria-label="Play"><i data-icon="play"></i></button><span class="wave"></span><span class="small muted">0:18</span></div>
+    <div>
+      <h4 class="mb-8">Replies</h4>
+      <div class="thread" id="p-thread"></div>
+      <form data-form data-keep id="reply" class="col gap-8 mt-12">
+        <div class="field"><textarea class="textarea" id="reply-txt" required data-min="3" data-error="Write your reply first." placeholder="Write a reply. The sender gets a notification."></textarea></div>
+        <div class="row"><span class="grow"></span><button class="btn sm"><i data-icon="message"></i>Reply</button></div>
+      </form>
+    </div>
+  </div>
+  <div class="panel-foot" id="p-foot"></div>
+</aside>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  // id, type, title, text, from, urgency, where, when, status, shot, voice, replies
+  var F=[
+    [1042,'Bug','The Call button does nothing on imported leads','I press Call on Sami Najahi and nothing happens. On my other leads it works. I cannot call the imported leads from the computer.','Rocky','Blocking my work','Lead page · Sami Najahi','Today 13:40','New',1,1,[]],
+    [1041,'Idea','Show the client’s local time in the call list','When I call Russia and Europe I check the time on Google. Please show it next to the name.','Yuliia','Normal','Calling','Today 11:12','New',0,0,[]],
+    [1040,'Issue','Calendar shows my site visit one hour late','I booked 15:00 and the calendar shows 16:00. Maybe a time zone problem, I was in Abu Dhabi.','Nelson','Normal','Calendar','Yesterday 17:25','New',1,0,[]],
+    [1038,'New feature','Ready WhatsApp messages in Arabic','Half of my clients write in Arabic. I type the same hello every time.','Shan','Low','Lead page · WhatsApp','Mon 9 Nov','Planned',0,1,[['Emir','Good idea. Planned with the templates, later phase.','Mon 9 Nov 18:10']]],
+    [1035,'Issue','Search does not find numbers with spaces','Typing 050 555 0101 finds nothing, 0505550101 works.','Talha','Normal','Search','Fri 6 Nov','Planned',0,0,[]],
+    [1031,'Bug','Check-in fails on the 5G office Wi-Fi','It says “not the office network” on homes.me-Office-5G.','Olga','Blocking my work','Attendance','Tue 3 Nov','Fixed',1,0,[['Emir','Fixed. The 5G network is on the list now.','Tue 3 Nov 10:02']]],
+    [1027,'Idea','Dark mode for the evening','My eyes are tired after 17:00.','Srdjan','Low','Settings','Thu 29 Oct','Fixed',0,0,[]],
+    [1024,'Bug','The duplicate warning shows twice','When I add a lead with a number we already have.','Tej','Normal','Add lead','Tue 27 Oct','Fixed',0,0,[]],
+    [1019,'Issue','Points are wrong after Undo','I pressed Undo on a call result and the +15 points stayed.','Rocky','Low','Best of Homes','Thu 22 Oct','Fixed',0,0,[]]
+  ];
+  var tab='New', cur=null;
+  var TY={'Bug':'red','Issue':'amber','New feature':'blue','Idea':'violet'}, STC={'New':'amber pip','Planned':'blue','Fixed':'green'};
+  function btns(f,sm){
+    var c='btn'+(sm?' xs':''), s=f[8], h='';
+    if(s==='New') h+='<button class="'+c+(sm?'':' primary')+'" data-act="Planned">Plan it</button>';
+    if(s!=='Fixed') h+='<button class="'+c+'" data-act="Fixed"><i data-icon="check"></i>Mark fixed</button>';
+    if(s!=='New') h+='<button class="'+c+'" data-act="New">Open again</button>';
+    return h;
+  }
+  function draw(){
+    var n=0;
+    $('#fb tbody').innerHTML=F.map(function(f,i){
+      if(tab!=='All'&&f[8]!==tab) return ''; n++;
+      return '<tr data-open="#fb-panel" data-i="'+i+'"><td class="t-mono">#'+f[0]+'</td><td class="tt"><span class="t-main">'+f[2]+'</span><span class="t-sub">'+f[6]+' · '+f[7]+'</span></td><td><span class="chip '+TY[f[1]]+'">'+f[1]+'</span></td><td><span class="person"><span class="av sm" data-name="'+f[4]+'"></span>'+f[4]+'</span></td><td'+(f[5]==='Blocking my work'?' class="overdue"':'')+'>'+f[5]+'</td><td><span class="chip '+STC[f[8]]+'">'+f[8]+'</span></td><td class="act"><div class="row-actions">'+btns(f,1)+'</div></td></tr>';
+    }).join('');
+    $('#none').hidden=n>0; $('#fb').hidden=n===0;
+    ['New','Planned','Fixed'].forEach(function(s){$('[data-c="'+s+'"]').textContent=F.filter(function(f){return f[8]===s}).length});
+    HM.refresh($('#fb'));
+  }
+  function fill(i){
+    cur=i; var f=F[i];
+    $('#p-title').textContent='#'+f[0]+' · '+f[2];
+    $('#p-chips').innerHTML='<span class="chip '+TY[f[1]]+'">'+f[1]+'</span><span class="chip '+STC[f[8]]+'">'+f[8]+'</span><span class="chip'+(f[5]==='Blocking my work'?' red':'')+'">'+f[5]+'</span>';
+    $('#p-text').textContent=f[3]; $('#p-from').innerHTML='<span class="person"><span class="av sm" data-name="'+f[4]+'"></span>'+f[4]+'</span>'; $('#p-where').textContent=f[6]; $('#p-when').textContent=f[7];
+    $('#p-shot').hidden=!f[9]; $('#p-voice').hidden=!f[10];
+    $('#p-thread').innerHTML=f[11].length?f[11].map(function(m){return '<div class="msg me"><b>'+m[0]+'</b> · '+m[1]+'<span>'+m[2]+'</span></div>'}).join(''):'<span class="small muted">No reply yet.</span>';
+    $('#p-foot').innerHTML=btns(f,0)+'<span class="grow"></span><button class="btn ghost" data-close>Close</button>';
+    HM.refresh($('#fb-panel'));
+  }
+  function setStatus(i,s){
+    var f=F[i], old=f[8]; f[8]=s; draw(); if(cur===i&&$('#fb-panel.open')) fill(i);
+    HM.toast('#'+f[0]+' is '+({Planned:'planned',Fixed:'marked as fixed',New:'open again'})[s]+' · '+f[4]+' is told',{undo:function(){f[8]=old; draw(); if(cur===i) fill(i);}});
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]');
+    if(b){ var tr=b.closest('tr'); setStatus(tr?+tr.getAttribute('data-i'):cur,b.getAttribute('data-act')); return; }
+    var r=e.target.closest('#fb tbody tr'); if(r&&!e.target.closest('button')) fill(+r.getAttribute('data-i'));
+  },true);
+  $('#tabs').addEventListener('click',function(e){var b=e.target.closest('.tab'); if(!b) return; tab=b.getAttribute('data-s'); $$('#tabs .tab').forEach(function(t){t.classList.toggle('on',t===b)}); draw();});
+  $('#reply').addEventListener('hm:submit',function(){
+    var t=$('#reply-txt'); F[cur][11].push(['Emir',t.value.trim(),'Today 14:55']); t.value=''; fill(cur);
+    HM.toast('Reply saved · '+F[cur][4]+' gets a notification');
+  });
+  draw();
+})();
+</script>
+</body>
+</html>

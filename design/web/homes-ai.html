@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Homes AI · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.btn>svg,.banner>svg{width:16px;height:16px;flex:none}
+
+.ai{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start;margin-top:8px}
+.ai-chat{height:calc(100vh - var(--tb-h) - 40px);min-height:520px}
+.ai-head{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.ai-logo{width:44px;height:44px;border-radius:14px;background:var(--hero);color:var(--accent);display:grid;place-items:center;flex:none}
+.ai-msgs{flex:1;overflow-y:auto;padding:22px 22px 8px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:10px;max-width:78%;animation:fade-in .3s var(--ease) both}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.msg .bub{padding:12px 16px;border-radius:18px;background:var(--surface-2);line-height:1.55;font-size:14px}
+.msg.me .bub{background:var(--hero);color:#fff;border-bottom-right-radius:6px}
+.msg.ai .bub{border-top-left-radius:6px}
+.msg .who{width:30px;height:30px;border-radius:10px;background:var(--hero);color:var(--accent);display:grid;place-items:center;flex:none}.msg .who i{width:15px;height:15px}
+.bub ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.bub li{position:relative;padding-left:16px}.bub li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.bub .draft{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2);white-space:pre-line}
+.bub .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.bub b{font-weight:650}
+.dots{display:inline-flex;gap:4px;padding:4px 0}.dots i{width:6px;height:6px;border-radius:50%;background:var(--ink-3);animation:dot 1s infinite}.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.ai-try{padding:10px 22px 4px;display:flex;flex-direction:column;gap:8px}
+.ai-form{padding:10px 22px 16px;display:flex;flex-direction:column;gap:6px}
+.ai-input{display:flex;gap:8px;padding:6px 6px 6px 16px;border-radius:16px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2);transition:.15s}
+.ai-input:focus-within{box-shadow:inset 0 0 0 1.5px var(--accent),0 0 0 4px var(--accent-soft)}
+.ai-input.bad{box-shadow:inset 0 0 0 1.5px var(--red)}
+.ai-input input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:15px}
+.ai-err{font-size:12.5px;font-weight:600;color:var(--red-ink)}.ai-err[hidden]{display:none}
+.ai-tip{font-size:16px;line-height:1.5;color:#fff;margin-top:10px;font-weight:520}
+.hist{display:flex;gap:8px;align-items:center;padding:7px 8px;margin:0 -8px;border-radius:10px;font-size:13px;color:var(--ink-2);text-align:left}.hist:hover{background:var(--surface-3)}
+.hist span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body data-page="homes-ai" data-role="any">
+<main>
+<div class="ai">
+<section class="card ai-chat pad-0">
+  <div class="ai-head"><span class="ai-logo"><i data-icon="sparkles" class="i-lg"></i></span><div class="grow"><h2>Homes AI</h2><p class="small muted" id="ai-scope"></p></div><button class="btn sm ghost" id="ai-clear"><i data-icon="refresh"></i>New chat</button></div>
+  <div class="ai-msgs" id="msgs"></div>
+  <div class="ai-try" id="try"><h4>Try asking</h4><div class="chips" id="try-chips"></div></div>
+  <form class="ai-form" id="ai-form" novalidate>
+    <div class="ai-input" id="ai-inbox"><input id="ai-q" type="text" placeholder="Ask about your leads, your day or a project" autocomplete="off" maxlength="300"><button class="btn primary" id="ai-send"><i data-icon="arrow-up-right"></i>Ask</button></div>
+    <div class="row between"><span class="ai-err" id="ai-err" hidden>Write a question first.</span><span class="small muted" id="ai-note"></span><span class="small muted">Enter to ask</span></div>
+  </form>
+</section>
+<aside class="col gap-16">
+  <section class="card hero"><span class="label">Homes AI tip for now</span><p class="ai-tip" id="tip"></p><div class="card-foot"><a class="btn sm on-dark" id="tip-a" href="lead.html"></a></div></section>
+  <section class="card">
+    <div class="card-head"><h4>What it can do</h4></div>
+    <div class="col gap-8 small ink-2">
+      <div class="row top gap-8"><i data-icon="check" class="t-green"></i><span>Find leads that need a call, a follow-up or a next step</span></div>
+      <div class="row top gap-8"><i data-icon="check" class="t-green"></i><span>Explain a project: price, payment plan, pitch</span></div>
+      <div class="row top gap-8"><i data-icon="check" class="t-green"></i><span>Write a message draft. You read it, change it and press send yourself.</span></div>
+      <div class="row top gap-8"><i data-icon="x" class="t-red"></i><span>It never sends a message, never changes a lead and never calls a client</span></div>
+      <div class="row top gap-8" data-only="agent"><i data-icon="x" class="t-red"></i><span>It cannot see the leads of other agents</span></div>
+    </div>
+  </section>
+  <section class="card flat"><div class="card-head"><h4>You asked before</h4></div><div class="col gap-4" id="hist"></div></section>
+</aside>
+</div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, owner=HM.role==='owner', first=HM.me.name.split(' ')[0], busy=false;
+  function a(href,label,icon){ return '<a class="btn xs" href="'+href+'">'+(icon?HM.icon(icon):'')+label+'</a>'; }
+  var QA = owner ? [
+    ['What needs me now?',/need|now|urgent|do first/,'5 things wait for you, the oldest for 42 min:<ul><li><b>Omar Khan (VIP)</b> is not called. Bassam had 30 min. The lead is back in Incoming.</li><li><b>1 transfer</b> needs your approval: Omar Khalil, Rocky → Yuliia, stage Meeting.</li><li><b>3 leads</b> wait in Incoming. Lina Rahimi waits 42 min.</li><li><b>2 leave requests</b>: Rocky 18–20 Nov, Shan 14 Nov.</li><li><b>Bassam is absent</b> and has 44 open leads.</li></ul>',[['owner-home.html','Open the dashboard','grid'],['incoming.html','Give the VIP lead','crown']]],
+    ['Which VIP leads are not called?',/vip/,'2 of the 5 VIP leads you gave need a look:<ul><li><b>Omar Khan</b> came back. Bassam did not call in 30 min.</li><li><b>Khalid Al Mansoori</b> is with Rocky since 14:49. He has 24 min left.</li></ul>The other 3 go well: Daniel Rossi is called, Aisha Noor has a meeting on Thursday 15:00, Elena Kuznetsova has an offer.',[['incoming.html#vip','VIP leads I gave','crown']]],
+    ['Who has too many leads?',/too many|limit|load|desk|busy/,'2 agents are over their desk limit:<ul><li><b>Shan</b> has 57 open leads. The Arabic desk limit is 50. He has 3 overdue follow-ups.</li><li><b>Bassam</b> has 44. The Abu Dhabi limit is 40, and he is absent today.</li></ul>Tej (11) and Olga (12) have the most room.',[['all-leads.html','Move leads','swap'],['desks.html','Open desks','layout']]],
+    ['How is today against yesterday?',/today|yesterday|number|calls|how is/,'Today is a little better than Tuesday:<ul><li><b>214 calls</b>, 12% more. Best hour was 10:00.</li><li><b>27 new leads</b>, 4 more. 3 still wait in Incoming.</li><li><b>5 meetings</b> booked and <b>1 unit</b>: Talha, Damac Islands, AED 2.9M.</li><li>Weak point: <b>9 follow-ups</b> are overdue, 6 of them with Bassam and Shan.</li></ul>',[['dashboard.html','Open the full dashboard','chart']]],
+    ['Which leads are going cold?',/cold|next step|forgot/,'<b>12 leads are going cold</b>: no call, no message and no plan for 7 days. Most are with Bassam (5) and Sultan (4), who are away.<br><b>31 leads have no next step</b> at all.',[['all-leads.html','Open Going cold','users']]]
+  ] : [
+    ['Who should I call first?',/call first|who should|priority|call now/,'Call in this order:<ul><li><b>Khalid Al Mansoori</b> · VIP lead from Emir. You have 24 min left. He wants to see the show flat this week. Speak English.</li><li><b>Sara Nunes</b> · her follow-up is overdue since 11:00.</li><li><b>Marco Bellini</b> · he opened your brochure link. He waits for the payment plan at 15:30.</li></ul>',[['lead.html','Open Khalid','user'],['calling.html','Start calling','phone']]],
+    ['Which leads have no next step?',/next step|forgot|cold/,'2 of your leads have no next step:<ul><li><b>Vanessa Pecoraro</b> · Al Seef · 1BR · stage Called</li><li><b>Bridget Cardoso</b> · The Archive · 2BR · stage Interested</li></ul>Add a follow-up for each, so they do not go cold.',[['my-leads.html','Open No next step','users'],['tasks.html#follow-ups','Follow-ups','clock']]],
+    ['Write a WhatsApp for Marco about the payment plan',/whatsapp|message|write|draft/,'Here is a draft for Marco Bellini (The Archive · 2BR · AED 2M):<div class="draft" id="draft">Hello Marco, this is Rocky from homes.me.\nHere is the payment plan for the 2-bedroom at The Archive: 60% during construction, 40% on handover in Q4 2027.\nShall I call you today at 17:00 to go through it?</div><span class="small muted" style="display:block;margin-top:8px">I did not send anything. Open the lead, choose WhatsApp, and press send yourself.</span>',[['lead.html','Open Marco','user'],['#copy','Copy the text','copy']]],
+    ['What is my day today?',/my day|today|my plan|calendar|next|meeting/,'It is 14:55. You still have 3 plans today:<ul><li><b>15:20</b> Call the VIP lead Khalid</li><li><b>15:30</b> Send the payment plan to Marco</li><li><b>16:30</b> Site visit with Lucas Martin · The Archive sales centre</li></ul>Also: tell me how the 12:00 meeting with Omar Khalil went. Answer before 21:00.',[['calendar.html','Open Calendar','calendar'],['tasks.html','Open Tasks','tasks']]],
+    ['How do I get first in Best of Homes?',/best of homes|first|points|rank|win/,'You are second this week, behind Talha. <b>6 calls or 1 meeting puts you in first place.</b><br>You have 18 of 40 calls today, and 12 leads are ready in your call list.',[['best-of-homes.html','Open Best of Homes','trophy'],['calling.html','Start calling','phone']]]
+  ];
+  /* the three "You asked before" questions have real answers too */
+  var MORE = owner ? [
+    [/booked|units|deals/,'<b>27 units</b> are booked in November so far:<ul><li><b>Talha</b> 7 · last one today: Damac Islands, AED 2.9M</li><li><b>Yuliia</b> 5</li><li><b>Rocky</b> 4</li><li><b>Nelson</b> 3</li><li>Olga, Srdjan and Shan 2 each · Tej and Sultan 1 each · Bassam 0</li></ul>',[['dashboard.html','Open the dashboard','chart'],['best-of-homes.html','Best of Homes','trophy']]],
+    [/compare|talha.*rocky|rocky.*talha/,'Week 46 so far:<ul><li><b>Talha</b> · 212 calls · 6 meetings · 1,980 points · 1st</li><li><b>Rocky</b> · 188 calls · 5 meetings · 1,740 points · 2nd</li></ul>Rocky is 240 points behind. Both were in the office before 09:00 today.',[['best-of-homes.html','Open the ranking','trophy'],['team-live.html','Team live','activity']]],
+    [/most leads|which project/,'Open leads by project:<ul><li><b>The Archive</b> · 115</li><li><b>Shahrukhz</b> · 64</li><li><b>Damac Islands</b> · 52</li><li><b>Valia</b> · 28 · launching soon</li></ul>',[['projects.html','Open Projects','building'],['dashboard.html','Dashboard','chart']]]
+  ] : [
+    [/valia/,'<b>Valia</b> · Emaar · The Oasis · launching soon:<ul><li>From <b>AED 1.4M</b> · 1BR, 2BR and 3BR</li><li>Payment plan <b>80 / 20</b>: 80% while it is built, 20% at handover</li><li>Handover Q1 2029</li></ul>You have 6 leads in Valia. Priya Shah and Omar Khalil are the warmest.',[['project.html?p=valia','Open Valia','building'],['project.html?p=valia#send','Send the payment plan','whatsapp']]],
+    [/ahmed|ksa|saudi|riyadh/,'<b>Ahmed Hassan</b> is in Riyadh. Riyadh is 1 hour behind Dubai: it is 13:55 there now.<br>He answers best in the evening. Your follow-up is planned for <b>today 19:00</b> (18:00 in Riyadh). Speak Arabic if you can.',[['lead.html','Open the lead','user'],['tasks.html#follow-ups','Follow-ups','clock']]],
+    [/elena|summar|notes/,'<b>Elena Kuznetsova</b> · Damac Islands · AED 4.1M · stage Offer:<ul><li>She has your offer and has not answered yet.</li><li>Tomorrow: video call at 13:00, then the Damac Islands tour at 16:00.</li><li>She speaks Russian and English.</li></ul>I read only the notes on your own leads.',[['lead.html','Open the lead','user'],['calendar.html','Open Calendar','calendar']]]
+  ];
+  $('#ai-scope').textContent = owner ? 'Reads the whole team. It never sends a message for anyone.' : 'Reads only your own leads. It never sends a message for you.';
+  $('#ai-note').textContent = owner ? '' : 'Homes AI reads only your own leads. It never sends a message for you.';
+  $('#ai-q').placeholder = owner ? 'Ask about the team, the leads or today' : 'Ask about your leads, your day or a project';
+  $('#tip').textContent = owner ? 'Bassam is absent and has 44 open leads. 5 of them are going cold. Move them today.' : 'Marco Bellini opened your brochure link twice today. Call him before 15:30.';
+  $('#tip-a').innerHTML = (owner?'Move the leads':'Open Marco')+HM.icon('arrow-right'); $('#tip-a').href = owner?'all-leads.html':'lead.html';
+  $('#try-chips').innerHTML=QA.map(function(q,i){ return '<button type="button" class="chip-opt" data-i="'+i+'">'+q[0]+'</button>'; }).join('');
+  $('#hist').innerHTML=(owner?['Who booked units this month?','Compare Talha and Rocky this week','Which project gets the most leads?']:['What is the payment plan of Valia?','Best time to call Ahmed in KSA?','Summarise my notes on Elena']).map(function(h){ return '<button class="hist"><i data-icon="clock" class="i-sm"></i><span>'+h+'</span></button>'; }).join('');
+  HM.refresh(document.querySelector('.ai'));
+  var msgs=$('#msgs');
+  function add(cls,html){ var m=document.createElement('div'); m.className='msg '+cls; m.innerHTML=(cls==='ai'?'<span class="who">'+HM.icon('sparkles')+'</span>':'')+'<div class="bub">'+html+'</div>'; msgs.appendChild(m); msgs.scrollTop=msgs.scrollHeight; return m; }
+  function hello(){ msgs.innerHTML=''; add('ai','Hello '+first+'. Ask me in simple words. I answer from '+(owner?'the team\'s leads, attendance and today\'s numbers':'your own leads, your calendar and the projects')+', and I give you a link to the right page.'); }
+  function answer(q){ var low=q.toLowerCase(), hit=null; QA.forEach(function(x){ if(!hit && x[0].toLowerCase()===low) hit=x; });
+    if(!hit) for(var mi=0;mi<MORE.length;mi++) if(MORE[mi][0].test(low)) return [MORE[mi][1],MORE[mi][2]];
+    if(!hit) QA.forEach(function(x){ if(!hit && x[1].test(low)) hit=x; });
+    if(/valia|archive|shahrukhz|damac/.test(low) && !hit) return ['<b>Projects we sell now:</b><ul><li>The Archive · Imtiaz · Business Bay · from AED 1.6M · 60 / 40 · Q4 2027</li><li>Shahrukhz · Danube · Sheikh Zayed Road · from AED 1.2M · 1% monthly</li><li>Damac Islands · Damac · Dubailand · from AED 2.7M · 75 / 25</li><li>Valia · Emaar · The Oasis · from AED 1.4M · 80 / 20 · launching soon</li></ul>',[['projects.html','Open Projects','building']]];
+    if(hit) return [hit[2],hit[3]];
+    $('#try').style.display=''; return ['This is a demo, so I know only a few questions here. Try one from the list under the chat. In the real CRM I answer from '+(owner?'all leads and the team':'your own leads')+'.',[['search.html','Search instead','search']]]; }
+  function ask(q){ if(busy) return; q=q.trim(); if(!q){ $('#ai-err').hidden=false; $('#ai-inbox').classList.add('bad'); $('#ai-q').focus(); return; }
+    busy=true; $('#ai-q').value=''; var e=document.createElement('i'); e.textContent=q; add('me',e.innerHTML); $('#try').style.display='none';
+    var t=add('ai','<span class="dots"><i></i><i></i><i></i></span>');
+    setTimeout(function(){ var r=answer(q); t.querySelector('.bub').innerHTML=r[0]+'<div class="acts">'+r[1].map(function(x){return a(x[0],x[1],x[2])}).join('')+'</div>'; msgs.scrollTop=msgs.scrollHeight; busy=false;
+      var c=t.querySelector('a[href="#copy"]'); if(c) c.addEventListener('click',function(ev){ ev.preventDefault(); try{ navigator.clipboard.writeText($('#draft').textContent); }catch(x){} HM.toast('Text copied. Paste it in WhatsApp and press send yourself.'); }); },900); }
+  $('#ai-form').addEventListener('submit',function(e){ e.preventDefault(); ask($('#ai-q').value); });
+  $('#ai-q').addEventListener('input',function(){ $('#ai-err').hidden=true; $('#ai-inbox').classList.remove('bad'); });
+  $('#try-chips').addEventListener('click',function(e){ var b=e.target.closest('[data-i]'); if(b) ask(QA[+b.dataset.i][0]); });
+  $('#hist').addEventListener('click',function(e){ var b=e.target.closest('.hist'); if(b) ask(b.textContent.trim()); });
+  $('#ai-clear').addEventListener('click',function(){ hello(); $('#try').style.display=''; $('#ai-q').focus(); });
+  hello();
+  var p=/[?&]q=([^&]*)/.exec(location.search); if(p) ask(decodeURIComponent(p[1].replace(/\+/g,' ')));
+})();
+</script>
+</body>
+</html>

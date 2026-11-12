@@ -1,0 +1,850 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-11T11:05:00Z"
+ },
+ "title": "homes.me CRM \u2014 Mobile App Design",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Login.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Sign in",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Main.dc.html": {
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "My Day",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Menu.dc.html": {
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "More (everything)",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Notifications.dc.html": {
+   "x": 1410,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Notifications",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Search.dc.html": {
+   "x": 1880,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Search",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "AskAI.dc.html": {
+   "x": 2350,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Homes AI chat",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Incoming.dc.html": {
+   "x": 0,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Incoming",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Leads.dc.html": {
+   "x": 470,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "My Leads",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "FollowUps.dc.html": {
+   "x": 940,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Follow-ups",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Lead.dc.html": {
+   "x": 1410,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Lead page",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Notes.dc.html": {
+   "x": 1880,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Voice notes & gallery",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "AddLead.dc.html": {
+   "x": 2350,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Add lead",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Pipeline.dc.html": {
+   "x": 2820,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Pipeline",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dialer.dc.html": {
+   "x": 0,
+   "y": 2528,
+   "w": 390,
+   "h": 844,
+   "title": "Power dialer",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Inbox.dc.html": {
+   "x": 470,
+   "y": 2528,
+   "w": 390,
+   "h": 844,
+   "title": "WhatsApp inbox \u00b7 LATER",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Chat.dc.html": {
+   "x": 940,
+   "y": 2528,
+   "w": 390,
+   "h": 844,
+   "title": "Chat \u00b7 LATER",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Tasks.dc.html": {
+   "x": 1410,
+   "y": 2528,
+   "w": 390,
+   "h": 844,
+   "title": "Tasks",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Calendar.dc.html": {
+   "x": 1880,
+   "y": 2528,
+   "w": 390,
+   "h": 844,
+   "title": "Calendar",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "LiveProjects.dc.html": {
+   "x": 0,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Live projects (new)",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "ProjectDetail.dc.html": {
+   "x": 470,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Project page",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "TeamWall.dc.html": {
+   "x": 940,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Team wall",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Leaderboard.dc.html": {
+   "x": 1410,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Best of Homes",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Attendance.dc.html": {
+   "x": 0,
+   "y": 5056,
+   "w": 390,
+   "h": 844,
+   "title": "Attendance \u00b7 Wi-Fi check-in",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "WorkOutside.dc.html": {
+   "x": 470,
+   "y": 5056,
+   "w": 390,
+   "h": 844,
+   "title": "Working outside",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "LeaveRequest.dc.html": {
+   "x": 940,
+   "y": 5056,
+   "w": 390,
+   "h": 844,
+   "title": "Request leave",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Profile.dc.html": {
+   "x": 0,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "My profile",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Settings.dc.html": {
+   "x": 470,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Settings",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "SettingsTeam.dc.html": {
+   "x": 940,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Team & roles",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "SettingsAttendance.dc.html": {
+   "x": 1410,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Attendance rules",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "SettingsNotifications.dc.html": {
+   "x": 1880,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Notification settings",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerDashboard.dc.html": {
+   "x": 0,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Owner dashboard",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerAssign.dc.html": {
+   "x": 470,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "VIP leads I gave \u00b7 owner",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerLive.dc.html": {
+   "x": 940,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Team live",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Import.dc.html": {
+   "x": 1410,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Import leads",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "TeamActivity.dc.html": {
+   "x": 1880,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Team activity",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Email.dc.html": {
+   "x": 2350,
+   "y": 7584,
+   "w": 600,
+   "h": 1040,
+   "title": "Email \u00b7 LATER",
+   "is_interactive": true,
+   "radius": 0
+  },
+  "Feedback.dc.html": {
+   "x": 2350,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Report a bug / suggest",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerFeedback.dc.html": {
+   "x": 3030,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Owner: feedback inbox",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerBanners.dc.html": {
+   "x": 3500,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Owner: home banners",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "PersonalInfo.dc.html": {
+   "x": 2820,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Personal information",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "DigitalCard.dc.html": {
+   "x": 3290,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "My digital card",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Security.dc.html": {
+   "x": 3760,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Security",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Company.dc.html": {
+   "x": 4230,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Company details",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Templates.dc.html": {
+   "x": 4700,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "WhatsApp templates \u00b7 LATER",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "AISettings.dc.html": {
+   "x": 5170,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Homes AI settings",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Automations.dc.html": {
+   "x": 5640,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "Automations",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Health.dc.html": {
+   "x": 6110,
+   "y": 6320,
+   "w": 390,
+   "h": 844,
+   "title": "System health",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Desks.dc.html": {
+   "x": 3970,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Desks",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "ManageProjects.dc.html": {
+   "x": 4440,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Manage live projects",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerMessaging.dc.html": {
+   "x": 4910,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "WhatsApp & Telegram report",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "InstallGuide.dc.html": {
+   "x": 2820,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Install on your phone",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "TeamDirectory.dc.html": {
+   "x": 1880,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Meet the team",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Colleague.dc.html": {
+   "x": 2350,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Colleague profile",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Main.dc.html": {
+   "x": 0,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "My Day \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Leads.dc.html": {
+   "x": 470,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "My Leads \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Lead.dc.html": {
+   "x": 940,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Lead page \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Calendar.dc.html": {
+   "x": 1410,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Calendar \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Attendance.dc.html": {
+   "x": 1880,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Attendance \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Menu.dc.html": {
+   "x": 2350,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "More \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_Settings.dc.html": {
+   "x": 2820,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Settings \u00b7 Appearance \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_OwnerDashboard.dc.html": {
+   "x": 3290,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Owner dashboard \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Dark_TeamDirectory.dc.html": {
+   "x": 3760,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Meet the team \u00b7 dark",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "OwnerHome.dc.html": {
+   "x": 5380,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Owner home",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "AllLeads.dc.html": {
+   "x": 5850,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "All leads \u00b7 owner",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "TeamAttendance.dc.html": {
+   "x": 6320,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Team attendance \u00b7 owner",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "LeaveApprovals.dc.html": {
+   "x": 6790,
+   "y": 7584,
+   "w": 390,
+   "h": 844,
+   "title": "Leave requests \u00b7 owner",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "TransferLead.dc.html": {
+   "x": 3290,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Transfer a lead (agent)",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Transfers.dc.html": {
+   "x": 3760,
+   "y": 1264,
+   "w": 390,
+   "h": 844,
+   "title": "Lead transfers (agent and owner)",
+   "is_interactive": true,
+   "radius": 36
+  },
+  "Web_OwnerHome.dc.html": {
+   "x": 0,
+   "y": 10532,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Owner home",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_AllLeads.dc.html": {
+   "x": 1520,
+   "y": 10532,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 All leads",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_Lead.dc.html": {
+   "x": 3040,
+   "y": 10532,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Lead page with transfer",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_Transfers.dc.html": {
+   "x": 4560,
+   "y": 10532,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Lead transfers",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_TeamAttendance.dc.html": {
+   "x": 0,
+   "y": 11592,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Team attendance and leave",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_Calendar.dc.html": {
+   "x": 1520,
+   "y": 11592,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Calendar",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_Import.dc.html": {
+   "x": 3040,
+   "y": 11592,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Import",
+   "is_interactive": true,
+   "radius": 16
+  },
+  "Web_Notifications.dc.html": {
+   "x": 4560,
+   "y": 11592,
+   "w": 1440,
+   "h": 900,
+   "title": "Computer \u00b7 Notifications",
+   "is_interactive": true,
+   "radius": 16
+  }
+ },
+ "order": [
+  "Login.dc.html",
+  "Main.dc.html",
+  "InstallGuide.dc.html",
+  "Menu.dc.html",
+  "Notifications.dc.html",
+  "Search.dc.html",
+  "AskAI.dc.html",
+  "Incoming.dc.html",
+  "Leads.dc.html",
+  "FollowUps.dc.html",
+  "Lead.dc.html",
+  "Notes.dc.html",
+  "AddLead.dc.html",
+  "Pipeline.dc.html",
+  "Transfers.dc.html",
+  "TransferLead.dc.html",
+  "Dialer.dc.html",
+  "Inbox.dc.html",
+  "Chat.dc.html",
+  "Tasks.dc.html",
+  "Calendar.dc.html",
+  "LiveProjects.dc.html",
+  "ProjectDetail.dc.html",
+  "TeamWall.dc.html",
+  "Leaderboard.dc.html",
+  "Attendance.dc.html",
+  "WorkOutside.dc.html",
+  "LeaveRequest.dc.html",
+  "Profile.dc.html",
+  "Settings.dc.html",
+  "SettingsTeam.dc.html",
+  "SettingsAttendance.dc.html",
+  "SettingsNotifications.dc.html",
+  "OwnerDashboard.dc.html",
+  "OwnerAssign.dc.html",
+  "OwnerLive.dc.html",
+  "Import.dc.html",
+  "TeamActivity.dc.html",
+  "Email.dc.html",
+  "Feedback.dc.html",
+  "OwnerFeedback.dc.html",
+  "OwnerBanners.dc.html",
+  "PersonalInfo.dc.html",
+  "DigitalCard.dc.html",
+  "Security.dc.html",
+  "Company.dc.html",
+  "Templates.dc.html",
+  "AISettings.dc.html",
+  "Automations.dc.html",
+  "Health.dc.html",
+  "Desks.dc.html",
+  "ManageProjects.dc.html",
+  "OwnerMessaging.dc.html",
+  "TeamDirectory.dc.html",
+  "Colleague.dc.html",
+  "Dark_Main.dc.html",
+  "Dark_Leads.dc.html",
+  "Dark_Lead.dc.html",
+  "Dark_Calendar.dc.html",
+  "Dark_Attendance.dc.html",
+  "Dark_Menu.dc.html",
+  "Dark_Settings.dc.html",
+  "Dark_OwnerDashboard.dc.html",
+  "Dark_TeamDirectory.dc.html",
+  "OwnerHome.dc.html",
+  "AllLeads.dc.html",
+  "TeamAttendance.dc.html",
+  "LeaveApprovals.dc.html",
+  "Web_OwnerHome.dc.html",
+  "Web_AllLeads.dc.html",
+  "Web_Lead.dc.html",
+  "Web_Transfers.dc.html",
+  "Web_TeamAttendance.dc.html",
+  "Web_Calendar.dc.html",
+  "Web_Import.dc.html",
+  "Web_Notifications.dc.html"
+ ],
+ "notes": {
+  "r0": {
+   "x": 0,
+   "y": -300,
+   "text": "Start & home",
+   "kind": "title1",
+   "maxW": 3210
+  },
+  "r1": {
+   "x": 0,
+   "y": 964,
+   "text": "Leads",
+   "kind": "title1",
+   "maxW": 4150
+  },
+  "r2": {
+   "x": 0,
+   "y": 2228,
+   "text": "Calling, chats & planning",
+   "kind": "title1",
+   "maxW": 2270
+  },
+  "r3": {
+   "x": 0,
+   "y": 3492,
+   "text": "Projects & team",
+   "kind": "title1",
+   "maxW": 2740
+  },
+  "r4": {
+   "x": 0,
+   "y": 4756,
+   "text": "Attendance",
+   "kind": "title1",
+   "maxW": 1330
+  },
+  "r5": {
+   "x": 0,
+   "y": 6020,
+   "text": "Me & settings",
+   "kind": "title1",
+   "maxW": 6500
+  },
+  "r6": {
+   "x": 0,
+   "y": 7284,
+   "text": "Owner tools",
+   "kind": "title1",
+   "maxW": 7180
+  },
+  "how": {
+   "x": 3400,
+   "y": 0,
+   "text": "Mobile web version of crm.homes.me (no app store). Press Play on any screen and everything works. On the Sign in screen choose Agent \u00b7 Rocky or Owner \u00b7 Emir: the menu, home and alerts change with the role. 59 screens. Screens marked LATER are not in the first build.",
+   "w": 380,
+   "fill": "green",
+   "size": "m"
+  },
+  "rdark": {
+   "x": 0,
+   "y": 8708,
+   "text": "Dark theme \u00b7 Settings \u203a Appearance: Light, Dark or Auto (follows the phone). Every screen supports it.",
+   "kind": "title1",
+   "maxW": 4150
+  },
+  "rweb": {
+   "x": 0,
+   "y": 10232,
+   "text": "Computer version \u00b7 the same features in the web layout (sidebar, tables, side panels)",
+   "kind": "title1",
+   "maxW": 6000
+  }
+ },
+ "designSystems": []
+}

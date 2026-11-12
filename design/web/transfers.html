@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transfers · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .tgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+  .sec{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+  .sec .sec-label{flex:1}
+  .sec.mt-24{margin-top:24px}
+  .treq{display:flex;align-items:center;gap:18px;padding:20px 22px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-1),inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 50%,transparent);min-width:0}
+  .treq .who{flex:1;min-width:0}
+  .treq .nm{font-size:18px;font-weight:700;letter-spacing:-.015em;display:flex;align-items:center;gap:8px}
+  .treq .sub{font-size:13px;color:var(--ink-2);margin-top:3px}
+  .treq .why{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--ink-3);flex-wrap:wrap}
+  .flow{display:inline-flex;align-items:center;gap:8px;font-weight:620;white-space:nowrap}
+  .flow i{color:var(--ink-4)}
+  .deadline{flex:none;text-align:right;line-height:1.15}
+  .deadline b{display:block;font-size:22px;font-weight:720;letter-spacing:-.03em}
+  .deadline span{font-size:12px;color:var(--ink-3)}
+  #sent td,#all td{height:62px}
+  #sent .row-actions,#all .row-actions{opacity:1}
+  .rule{display:flex;gap:10px;font-size:13px;color:var(--ink-2);line-height:1.45}
+  .rule i{color:var(--ink-3);margin-top:1px}
+  .gg{display:grid;grid-template-columns:86px 1fr 26px 1fr 26px;align-items:center;gap:8px;font-size:13px;padding:7px 0}
+  .gg b{font-weight:700;text-align:right}
+  .gg .bar{min-width:0}
+  .gg-head{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .gg.flag .nm{color:var(--red-ink);font-weight:650}
+</style>
+</head>
+<body data-page="transfers" data-role="any">
+<main>
+
+  <!-- ================= AGENT ================= -->
+  <div data-only="agent">
+    <div class="page-head">
+      <span class="sub">Give a lead to a colleague who fits better. It stays with you until they accept.</span><span class="grow"></span>
+      <button class="btn primary" data-transfer=""><i data-icon="swap"></i>Transfer a lead</button>
+    </div>
+    <div class="tgrid">
+      <div>
+        <div class="sec"><span class="sec-label">For you <span class="badge accent" id="for-n">1</span></span></div>
+        <div class="treq" id="for-row">
+          <span class="av xl" data-name="Fatima Al Zaabi"></span>
+          <div class="who">
+            <div class="nm"><a href="lead.html?n=Fatima%20Al%20Zaabi&p=%2B971%2056%20100%204455&pr=The%20Archive&d=1BR&s=interested&a=Yuliia&nx=Transfer%20to%20Rocky%20%C2%B7%20waiting" data-tip="Look at the lead before you answer">Fatima Al Zaabi</a> <span class="chip stage-interested">Interested</span></div>
+            <div class="sub">The Archive · 1BR · speaks Arabic · Dubai 14:55</div>
+            <div class="why"><span class="flow"><span class="av xs" data-name="Yuliia"></span>Yuliia <i data-icon="arrow-right" class="i-sm"></i> you</span><span>· “Speaks the client's language” · sent 14:15</span></div>
+          </div>
+          <div class="deadline"><b>18:00</b><span>Answer by · 3 h left</span></div>
+          <div class="col gap-8"><button class="btn dark" id="for-yes"><i data-icon="check"></i>Accept</button><button class="btn" id="for-no" data-confirm="Tap again to say no">No, thanks</button></div>
+        </div>
+        <div class="card hide" id="for-empty"><div class="empty" style="padding:24px"><b>Nothing to answer</b><p>When a colleague wants to give you a lead, it shows here.</p></div></div>
+
+        <div class="sec mt-24"><span class="sec-label">You sent <span class="badge" id="sent-n">3</span></span></div>
+        <div class="table-wrap">
+          <table class="table" id="sent">
+            <thead><tr><th>Lead</th><th>To · reason</th><th>Sent</th><th>Status</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <aside class="col gap-16" style="position:sticky;top:calc(var(--tb-h) + 4px)">
+        <section class="card" style="gap:12px">
+          <h3>The rules</h3>
+          <div class="rule"><i data-icon="user"></i><span>Only <b>your own</b> leads. One open request per lead.</span></div>
+          <div class="rule"><i data-icon="clock"></i><span>No answer by <b>18:00</b> ends the request. The lead stays with you.</span></div>
+          <div class="rule"><i data-icon="shield"></i><span>Stage <b>Meeting</b> or <b>Offer</b>: the owner approves first, then the agent accepts.</span></div>
+          <div class="rule"><i data-icon="crown"></i><span>A <b>VIP lead</b> cannot be transferred. Send it back to the owner.</span></div>
+          <div class="rule"><i data-icon="pin"></i><span>Agents on leave or absent cannot be chosen.</span></div>
+        </section>
+        <section class="card">
+          <div class="card-head" style="margin-bottom:6px"><h3>This month</h3></div>
+          <div class="row gap-24"><div class="stat"><b class="num">2</b><span class="label">You gave</span></div><div class="stat"><b class="num">1</b><span class="label">You got</span></div></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= OWNER ================= -->
+  <div data-only="owner">
+    <div class="tgrid" style="grid-template-columns:minmax(0,1fr) 380px">
+      <div>
+        <div class="sec"><span class="sec-label">Needs your approval <span class="badge accent" id="ap-n">1</span></span><a class="card-link" href="all-leads.html">Move leads yourself <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <div class="treq" id="ap-row">
+          <span class="av xl" data-name="Omar Khalil"></span>
+          <div class="who">
+            <div class="nm"><a href="lead.html?n=Omar%20Khalil" data-tip="Open the lead">Omar Khalil</a> <span class="chip stage-meeting">Meeting</span></div>
+            <div class="sub">Valia · 2BR · met today 12:00 in the office</div>
+            <div class="why"><span class="flow"><span class="av xs" data-name="Rocky Khan"></span>Rocky <i data-icon="arrow-right" class="i-sm"></i> <span class="av xs" data-name="Yuliia"></span>Yuliia</span><span>· “The client asked” · sent 14:43</span></div>
+          </div>
+          <div class="deadline"><b>12 min</b><span>waiting for you</span></div>
+          <div class="col gap-8"><button class="btn primary" id="ap-yes"><i data-icon="check"></i>Approve</button><button class="btn danger" id="ap-no" data-confirm="Tap again to refuse">Refuse</button></div>
+        </div>
+        <div class="card hide" id="ap-empty"><div class="empty" style="padding:24px"><span class="ic" style="background:var(--green-soft);color:var(--green-ink)"><i data-icon="check" class="i-xl"></i></span><b>Nothing to approve</b><p>Transfers in stage Meeting or Offer come here first.</p></div></div>
+
+        <div class="sec mt-24"><span class="sec-label">All transfers · last 7 days</span>
+          <div class="seg sm" data-seg id="all-seg"><button class="on" data-value="">All · 8</button><button data-value="open">Open · 3</button><button data-value="done">Finished · 5</button></div></div>
+        <div class="table-wrap">
+          <table class="table" id="all">
+            <thead><tr><th>Lead</th><th>From → to · reason</th><th>When</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="col gap-16" style="position:sticky;top:calc(var(--tb-h) + 4px)">
+        <section class="card">
+          <div class="card-head" style="margin-bottom:8px"><h3>This month · who gives and who gets</h3></div>
+          <a class="banner red" href="all-leads.html?agent=shan" style="margin-bottom:10px"><i data-icon="flag"></i><span class="grow"><b>Shan gave away 6 leads</b> and got 0. He has 57 open, desk maximum 50.</span><i data-icon="chevron-right" class="i-sm"></i></a>
+          <div class="gg gg-head"><span>Agent</span><span>Gave</span><span></span><span>Got</span><span></span></div>
+          <div id="gg"></div>
+          <div class="card-foot"><i data-icon="info" class="i-sm"></i><span>10 transfers in November · 9 accepted · 1 refused</span></div>
+        </section>
+        <section class="card" style="gap:12px">
+          <h3>How transfers work</h3>
+          <div class="rule"><i data-icon="shield"></i><span>You approve only stage <b>Meeting</b> and <b>Offer</b>. Other stages go straight to the agent.</span></div>
+          <div class="rule"><i data-icon="clock"></i><span>A request with no answer ends at <b>18:00</b>.</span></div>
+          <div class="rule"><i data-icon="crown"></i><span>VIP leads are never transferred. They come back to you.</span></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var CH={wait:'<span class="chip amber pip">Waiting</span>',appr:'<span class="chip orange pip">Owner must approve</span>',ref:'<span class="chip red pip">Refused</span>',ok:'<span class="chip green pip">Accepted</span>',end:'<span class="chip">Ended 18:00</span>',cancel:'<span class="chip">Cancelled</span>'};
+  function av(n){ return '<span class="person"><span class="av sm" data-name="'+(n==='Rocky'?'Rocky Khan':n)+'"></span>'+n+'</span>'; }
+
+  if(HM.role==='agent'){
+    var S=[
+      {n:'Omar Khalil',d:'Valia · Meeting',to:'Yuliia',why:'The client asked',at:'14:43',st:'appr',sub:'Emir has not answered yet'},
+      {n:'Vanessa Pecoraro',d:'Al Seef · Called',to:'Olga',why:'I have too many leads',at:'13:05',st:'wait',sub:'Answer by 18:00'},
+      {n:'Hanna Alabbas',d:'The Archive · Called',to:'Shan',why:'Speaks the client\'s language',at:'Yesterday',st:'ref',sub:'“I have too many leads”'}
+    ];
+    function sent(){
+      $('#sent tbody').innerHTML=S.map(function(t,k){
+        var act=t.st==='wait'||t.st==='appr'?'<button class="btn xs" data-a="remind" data-k="'+k+'">Remind</button><button class="btn xs danger" data-a="cancel" data-k="'+k+'" data-confirm="Tap again to cancel">Cancel</button>'
+          :t.st==='ref'?'<button class="btn xs" data-transfer="'+t.n+'">Send to someone else</button>':'';
+        return '<tr><td><a class="t-main" href="'+LK.url(t.n)+'">'+t.n+'</a><div class="t-sub">'+t.d+'</div></td><td>'+av(t.to)+'<div class="t-sub" style="margin-top:2px">'+t.why+'</div></td><td class="t-sub">'+t.at+'</td><td>'+CH[t.st]+'<div class="t-sub" style="margin-top:3px">'+t.sub+'</div></td><td><div class="row-actions">'+act+'</div></td></tr>';
+      }).join('');
+      HM.refresh($('#sent')); $('#sent-n').textContent=S.filter(function(t){return t.st==='wait'||t.st==='appr'}).length;
+    }
+    sent();
+    $('#sent').addEventListener('click',function(e){
+      var b=e.target.closest('[data-a="remind"]'); if(!b) return; var t=S[+b.getAttribute('data-k')];
+      HM.toast('Reminder goes to '+(t.st==='appr'?'Emir':t.to)+' now'); b.classList.add('disabled'); b.textContent='Reminded';
+    });
+    $('#sent').addEventListener('hm:confirm',function(e){
+      var b=e.target.closest('[data-a="cancel"]'); if(!b) return; var t=S[+b.getAttribute('data-k')], old=t.st, sub=t.sub;
+      var req=LK.openReq[t.n]; delete LK.openReq[t.n];
+      t.st='cancel'; t.sub='The lead stays with you'; sent();
+      HM.toast('Request cancelled · '+t.n+' stays with you',{undo:function(){ t.st=old; t.sub=sub; if(req) LK.openReq[t.n]=req; sent(); }});
+    });
+    document.addEventListener('lk:transfer',function(e){
+      var l=LK.lead(e.detail.name)||{pr:'',s:'new'}, ex=S.filter(function(t){return t.n===e.detail.name})[0], row={n:e.detail.name,d:l.pr+' · '+LK.stage[l.s],to:e.detail.to,why:e.detail.reason,at:'14:55',st:e.detail.approval?'appr':'wait',sub:e.detail.approval?'Emir has not answered yet':'Answer by 18:00'};
+      if(ex) S.splice(S.indexOf(ex),1); S.unshift(row); sent(); $$('#sent tbody tr:first-child td').forEach(function(td){td.classList.add('pulse-row')});
+    });
+    document.addEventListener('lk:transfer-undo',function(){ S.shift(); sent(); });
+    var done=function(msg){ var r=$('#for-row'); HM.slideOut(r,function(){ $('#for-empty').classList.remove('hide'); }); $('#for-n').style.display='none';
+      HM.toast(msg,{undo:function(){ r.style.display=''; $('#for-empty').classList.add('hide'); $('#for-n').style.display=''; }}); };
+    $('#for-yes').addEventListener('click',function(){ done('Fatima Al Zaabi is now in My leads · Yuliia is told · notes came with her'); });
+    $('#for-no').addEventListener('hm:confirm',function(){ done('You said no · the lead stays with Yuliia · Yuliia is told'); });
+    return;
+  }
+
+  /* ---------------- owner ---------------- */
+  var ALL=[
+    {n:'Omar Khalil',d:'Valia · Meeting',f:'Rocky',to:'Yuliia',why:'The client asked',at:'Today 14:43',st:'appr',open:1},
+    {n:'Fatima Al Zaabi',d:'The Archive · Interested',f:'Yuliia',to:'Rocky',why:'Speaks the client\'s language',at:'Today 14:15',st:'wait',open:1},
+    {n:'Vanessa Pecoraro',d:'Al Seef · Called',f:'Rocky',to:'Olga',why:'I have too many leads',at:'Today 13:05',st:'wait',open:1},
+    {n:'Hanna Alabbas',d:'The Archive · Called',f:'Rocky',to:'Shan',why:'Speaks the client\'s language',at:'Tue 10 Nov',st:'ref'},
+    {n:'Yusuf Demir',d:'Shahrukhz · New',f:'Shan',to:'Talha',why:'I have too many leads',at:'Tue 10 Nov',st:'ok'},
+    {n:'Nadia Karim',d:'The Archive · Called',f:'Shan',to:'Yuliia',why:'I have too many leads',at:'Mon 9 Nov',st:'ok'},
+    {n:'Pavel Sokolov',d:'Damac Islands · Interested',f:'Olga',to:'Yuliia',why:'Knows the project better',at:'Fri 6 Nov',st:'ok'},
+    {n:'Joao Ferreira',d:'Valia · New',f:'Shan',to:'Nelson',why:'Speaks the client\'s language',at:'Thu 5 Nov',st:'end'}
+  ];
+  var seg='';
+  function all(){
+    var rows=ALL.filter(function(t){ return !seg||(seg==='open')===!!t.open; });
+    $('#all tbody').innerHTML=rows.map(function(t){
+      return '<tr data-href="'+LK.url(t.n,LK.lead(t.n)?{a:t.f}:{pr:t.d.split(' · ')[0],s:t.d.split(' · ')[1].toLowerCase(),a:t.st==='ok'?t.to:t.f})+'"><td><span class="t-main">'+t.n+'</span><div class="t-sub">'+t.d+'</div></td><td><span class="flow">'+av(t.f)+'<i data-icon="arrow-right" class="i-sm"></i>'+av(t.to)+'</span><div class="t-sub" style="margin-top:2px">'+t.why+'</div></td><td class="t-sub">'+t.at+'</td><td>'+CH[t.st].replace('Owner must approve','Needs your approval')+'</td></tr>';
+    }).join('');
+    HM.refresh($('#all'));
+    var o=ALL.filter(function(t){return t.open}).length, b=$$('#all-seg button'); b[1].textContent='Open · '+o; b[2].textContent='Finished · '+(ALL.length-o);
+  }
+  $('#all-seg').addEventListener('hm:change',function(e){ seg=e.detail.value; all(); });
+  all();
+  function answer(st,msg){
+    var r=$('#ap-row'), t=ALL[0], old=t.st; t.st=st; if(st==='ref') t.open=0; all();
+    HM.slideOut(r,function(){ $('#ap-empty').classList.remove('hide'); }); $('#ap-n').style.display='none';
+    HM.toast(msg,{undo:function(){ t.st=old; t.open=1; all(); r.style.display=''; $('#ap-empty').classList.add('hide'); $('#ap-n').style.display=''; }});
+  }
+  $('#ap-yes').addEventListener('click',function(){ answer('wait','Approved · Omar Khalil goes to Yuliia when she accepts'); });
+  $('#ap-no').addEventListener('hm:confirm',function(){ answer('ref','Refused · Omar Khalil stays with Rocky · Rocky is told'); });
+
+  var G=[['Shan',6,0,1],['Rocky',2,1],['Olga',1,2],['Yuliia',1,4],['Talha',0,3]];
+  $('#gg').innerHTML=G.map(function(g){
+    return '<div class="gg'+(g[3]?' flag':'')+'"><span class="nm">'+g[0]+'</span><div class="bar'+(g[3]?' red':'')+'" style="--v:'+(g[1]/6*100)+'%"><i></i></div><b'+(g[3]?' class="t-red"':'')+'>'+g[1]+'</b><div class="bar green" style="--v:'+(g[2]/6*100)+'%"><i></i></div><b>'+g[2]+'</b></div>';
+  }).join('');
+})();
+</script>
+</body>
+</html>

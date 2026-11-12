@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendance rules · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.wifi-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line)}
+.shift-vis{min-width:220px;align-self:flex-end;display:flex;flex-direction:column;gap:6px;padding-bottom:2px}
+.shift-bar{position:relative;height:12px;border-radius:6px;background:var(--green-soft);overflow:hidden}
+.shift-bar i{position:absolute;left:0;top:0;bottom:0;width:2%;background:var(--amber)}
+.shift-bar b{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);left:66%}
+</style>
+</head>
+<body data-page="settings-attendance" data-role="owner" data-title="Settings">
+<main>
+<div class="set"><nav class="set-nav" aria-label="Settings sections"><div class="set-label">Mine</div><a href="settings.html#general"><i data-icon="settings"></i>General</a><a href="settings.html#notifications"><i data-icon="bell"></i>Notifications</a><a href="profile.html"><i data-icon="user"></i>My profile</a><a href="install-guide.html"><i data-icon="download"></i>Phone app</a><div class="set-label" data-only="owner">Office</div><a href="settings-team.html" data-only="owner"><i data-icon="users"></i>Team and roles</a><a href="settings-attendance.html" class="on" data-only="owner"><i data-icon="pin"></i>Attendance rules</a><a href="desks.html" data-only="owner"><i data-icon="layout"></i>Desks</a><a href="automations.html" data-only="owner"><i data-icon="zap"></i>Automations</a><a href="company.html" data-only="owner"><i data-icon="building"></i>Company</a><a href="ai-settings.html" data-only="owner"><i data-icon="sparkles"></i>Homes AI</a><a href="system-health.html" data-only="owner"><i data-icon="shield"></i>System health</a><a href="feedback-inbox.html" data-only="owner"><i data-icon="inbox"></i>Feedback inbox</a><a class="set-out" href="login.html"><i data-icon="logout"></i>Sign out</a></nav><div class="set-body"><div class="set-title"><div class="grow"><h1>Attendance rules</h1><p>When the day starts, where check-in works, and what agents may do outside.</p></div></div>
+<form data-form data-toast="Attendance rules saved" id="att-form" class="col gap-16">
+<section class="card">
+  <div class="set-row"><div class="lab"><b>Office Wi-Fi</b><span>Check-in works only on these networks. Keep at least one.</span></div>
+    <div>
+      <div id="wifi" class="col gap-8">
+        <div class="wifi-row"><span class="card-icon"><i data-icon="wifi"></i></span><div class="grow"><b class="bold">homes.me-Office</b><div class="small muted">Main office · 9 people on it now</div></div><span class="chip green pip">You are on it</span><button type="button" class="btn sm danger" data-confirm="Tap again to remove">Remove</button></div>
+        <div class="wifi-row"><span class="card-icon"><i data-icon="wifi"></i></span><div class="grow"><b class="bold">homes.me-Office-5G</b><div class="small muted">Main office · fast network</div></div><button type="button" class="btn sm danger" data-confirm="Tap again to remove">Remove</button></div>
+      </div>
+      <div class="row gap-8 mt-12"><div class="field grow" id="wifi-field"><div class="input-icon"><i data-icon="plus"></i><input class="input" id="wifi-new" placeholder="Network name, exactly as on the phone"></div><span class="error">Write the network name.</span></div><button type="button" class="btn" id="wifi-add" style="align-self:flex-start">Add network</button></div>
+      <p class="small muted mt-8" id="wifi-keep" hidden>This is the last network. Add another one before you remove it.</p>
+    </div></div>
+</section>
+<section class="card">
+  <div class="set-row"><div class="lab"><b>Shift</b><span>Call buttons ask for check-in only inside these hours.</span></div>
+    <div class="row gap-16 wrap">
+      <div class="field" style="width:140px"><label>Starts</label><input class="input" type="time" id="sh-a" value="09:00" required></div>
+      <div class="field" style="width:140px" id="end-field"><label>Ends</label><input class="input" type="time" id="sh-b" value="18:00" required><span class="error">Must be after the start.</span></div>
+      <div class="field" style="width:140px" id="late-field"><label>Late after</label><input class="input" type="time" id="sh-l" value="09:10" required><span class="error">Must be after the start and before the end.</span></div>
+      <div class="shift-vis grow"><div class="shift-bar"><i id="sv-late"></i><b id="sv-now"></b></div><div class="row between tiny muted"><span id="sv-a">09:00</span><span id="sv-t">9 hours · 10 min grace</span><span id="sv-b">18:00</span></div></div>
+    </div></div>
+  <div class="set-row"><div class="lab"><b>Days off</b><span>No check-in, no late mark, no take-back clock.</span></div>
+    <div><div class="chips" data-chips="multi" id="days"><button type="button" class="chip-opt">Mon</button><button type="button" class="chip-opt">Tue</button><button type="button" class="chip-opt">Wed</button><button type="button" class="chip-opt">Thu</button><button type="button" class="chip-opt">Fri</button><button type="button" class="chip-opt on">Sat</button><button type="button" class="chip-opt on">Sun</button></div>
+    <p class="small muted mt-8" id="days-note">5 working days: Monday to Friday.</p></div></div>
+</section>
+<section class="card"><div class="card-head"><h4>Working outside</h4></div><div>
+  <div class="switch-row"><div class="txt"><b>Agents can work outside</b><span>Viewings, site visits and developer events count as work</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Ask for the location once</b><span>Shared one time when they start, not followed after that</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Ask “Are you back in the office?”</b><span>Asked once at the back-by time</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Tell owners when someone starts</b><span>A line in the bell, no sound</span></div><label class="switch"><input type="checkbox"><span class="track"></span></label></div>
+</div></section>
+<section class="card"><div class="card-head"><h4>Calls</h4></div><div>
+  <div class="switch-row"><div class="txt"><b>Ask to check in before a call</b><span>Agents only, inside the shift. Owners and admin are never asked.</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div><div class="switch-row"><div class="txt"><b>Allow “Call anyway”</b><span>The call is marked “not checked in” and owners see it</span></div><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+</div></section>
+<section class="card">
+  <div class="set-row"><div class="lab"><b>Monthly report</b><span>One Excel file: every agent, every day, late minutes, leave, outside work.</span></div>
+    <div class="row gap-8 wrap"><select class="select" id="rep-m" style="width:180px"><option>November 2026</option><option selected>October 2026</option><option>September 2026</option></select><button type="button" class="btn" id="rep-dl"><i data-icon="download"></i>Download Excel</button><span class="small muted" id="rep-note">22 working days · 10 agents</span></div></div>
+</section>
+<div class="set-savebar"><span class="small muted grow">Changes start tomorrow morning. Today's check-ins stay as they are.</span><a class="btn ghost" href="team-attendance.html">Open team attendance</a><button class="btn primary">Save rules</button></div>
+</form>
+</div></div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function keep(){ var rows=$$('#wifi .wifi-row'); var one=rows.length<=1; rows.forEach(function(r){ var b=r.querySelector('.btn.danger'); b.disabled=one; b.classList.toggle('disabled',one); }); $('#wifi-keep').hidden=!one; }
+  $('#wifi').addEventListener('hm:confirm',function(e){ var r=e.target.closest('.wifi-row'), name=r.querySelector('b').textContent, par=r.parentNode, next=r.nextSibling, clone=r;
+    HM.slideOut(r,function(n){ n.remove(); keep(); }); HM.toast(name+' removed. Check-in no longer works on it.',{undo:function(){ clone.classList.remove('slide-out'); clone.style.cssText=''; par.insertBefore(clone,next); keep(); }}); });
+  function add(){ var i=$('#wifi-new'), v=i.value.trim(), f=$('#wifi-field'), er=f.querySelector('.error');
+    var dup=$$('#wifi b').some(function(b){return b.textContent.toLowerCase()===v.toLowerCase()});
+    if(!v||dup){ er.textContent=dup?'This network is already in the list.':'Write the network name.'; f.classList.add('invalid'); i.focus(); return; }
+    var d=document.createElement('div'); d.className='wifi-row fade-in'; d.innerHTML='<span class="card-icon"><i data-icon="wifi"></i></span><div class="grow"><b class="bold"></b><div class="small muted">Added today by Emir</div></div><button type="button" class="btn sm danger" data-confirm="Tap again to remove">Remove</button>';
+    d.querySelector('b').textContent=v; $('#wifi').appendChild(d); HM.refresh(d); i.value=''; keep(); HM.toast(v+' added'); }
+  $('#wifi-add').addEventListener('click',add); $('#wifi-new').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); add(); } });
+  function mins(v){ var p=v.split(':'); return +p[0]*60+ +p[1]; }
+  function shift(){ var a=mins($('#sh-a').value||'09:00'), b=mins($('#sh-b').value||'18:00'), l=mins($('#sh-l').value||'09:10'), ok=b>a&&l>=a&&l<b;
+    var endBad=!(b>a); $('#end-field').classList.toggle('invalid',endBad); $('#late-field').classList.toggle('invalid',!endBad&&!ok); if(!ok) return false;
+    $('#sv-a').textContent=$('#sh-a').value; $('#sv-b').textContent=$('#sh-b').value; var h=(b-a)/60;
+    $('#sv-t').textContent=(h%1?h.toFixed(1):h)+' hours · '+(l-a)+' min grace'; $('#sv-late').style.width=Math.max(1,(l-a)/(b-a)*100)+'%';
+    var now=14*60+55; $('#sv-now').style.left=Math.min(100,Math.max(0,(now-a)/(b-a)*100))+'%'; return true; }
+  ['#sh-a','#sh-b','#sh-l'].forEach(function(s){ $(s).addEventListener('input',function(){ setTimeout(shift,0); }); $(s).addEventListener('change',function(){ setTimeout(shift,0); }); }); shift();
+  window.addEventListener('submit',function(e){ if(e.target.id==='att-form' && !shift()){ e.preventDefault(); e.stopPropagation(); $($('#end-field').classList.contains('invalid')?'#sh-b':'#sh-l').focus(); HM.toast('Check the shift times first. Nothing was saved.',{error:true}); } },true);
+  var full={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
+  $('#days').addEventListener('hm:change',function(e){ var off=e.detail.values, n=7-off.length;
+    if(n<1){ e.target.querySelector('.on').classList.remove('on'); HM.toast('Keep at least one working day'); return; }
+    var work=Object.keys(full).filter(function(d){return off.indexOf(d)<0}).map(function(d){return full[d]});
+    $('#days-note').textContent=n+' working day'+(n>1?'s':'')+': '+work.join(', ')+'.'; });
+  var rep={'November 2026':'8 working days so far · 10 agents','October 2026':'22 working days · 10 agents','September 2026':'22 working days · 10 agents'};
+  $('#rep-m').addEventListener('change',function(){ $('#rep-note').textContent=rep[this.value]; });
+  $('#rep-dl').addEventListener('click',function(){ HM.toast('Attendance-'+$('#rep-m').value.replace(' ','-')+'.xlsx is downloading'); });
+  $$('#att-form .switch input').forEach(function(i){ i.addEventListener('change',function(){ HM.toast(i.closest('.switch-row').querySelector('b').textContent+(i.checked?' · on':' · off')); }); });
+  keep();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marco Bellini · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .lead-grid{display:grid;grid-template-columns:308px minmax(0,1fr) 304px;gap:16px;align-items:start}
+  .next-card{flex-wrap:wrap}.next-card .grow{min-width:200px}
+  @media (max-width:1320px){.lead-grid{grid-template-columns:280px minmax(0,1fr) 260px}}
+  .lcol{position:sticky;top:calc(var(--tb-h) + 4px)}
+  .lcol .card{padding:20px 22px;gap:0}
+  .lead-phone{font-size:28px;font-weight:760;letter-spacing:-.04em;line-height:1.1;white-space:nowrap;display:block;margin-top:2px;transition:color .15s;text-align:left}
+  .lead-phone:hover{color:var(--accent)}
+  .lead-name{font-size:17px;font-weight:680;margin-top:6px}
+  .facts{display:flex;flex-direction:column;gap:7px;margin:14px 0 16px;font-size:13px}
+  .facts div{display:flex;gap:8px;align-items:center;color:var(--ink-2);min-width:0}
+  .facts i{color:var(--ink-3);width:15px;height:15px}
+  .facts b{font-weight:620;color:var(--ink)}
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acts .full{grid-column:1/-1}
+  .acts .btn{padding:0 8px}
+  .btn.won{color:var(--green-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 45%,transparent)}.btn.won:hover{background:var(--green-soft)}
+  .tr-link{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;white-space:nowrap;font-weight:620;color:var(--ink-2);width:100%;text-align:left;transition:color .15s}
+  .tr-link:hover{color:var(--accent-ink)}
+  .tr-open{margin-top:14px;border-radius:14px;background:var(--amber-soft);color:var(--amber-ink);padding:10px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px}
+  /* middle */
+  .mid{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .next-card{flex-direction:row;align-items:center;gap:14px;padding:16px 18px}
+  .next-card .big{font-size:18px;font-weight:700;letter-spacing:-.015em}
+  .next-card.none{background:var(--amber-soft);box-shadow:none}
+  .short p{font-size:14px;line-height:1.55;color:var(--ink-2)}
+  .short p b{color:var(--ink);font-weight:620}
+  .composer{padding:16px 18px;gap:12px}
+  .composer textarea{min-height:44px;height:44px;transition:height .2s var(--ease);resize:none}
+  .composer.open textarea{height:92px}
+  .composer .more{display:none;flex-direction:column;gap:12px}
+  .composer.open .more{display:flex}
+  .composer .chip-opt{height:28px;padding:0 11px;font-size:12.5px}
+  .quick{display:flex;flex-wrap:wrap;gap:6px}
+  .quick button{height:26px;padding:0 10px;border-radius:8px;background:var(--surface-2);font-size:12px;color:var(--ink-2);transition:.15s}
+  .quick button:hover{background:var(--surface-3);color:var(--ink)}
+  .note{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+  .note:first-child{border-top:0;padding-top:2px}
+  .note .body{flex:1;min-width:0}
+  .note .top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3);margin-bottom:4px;flex-wrap:wrap}
+  .note .top .chip{height:20px;padding:0 8px;font-size:11.5px}
+  .note p{line-height:1.5}
+  .note p[contenteditable="true"]{outline:0;box-shadow:inset 0 0 0 1.5px var(--accent);border-radius:8px;padding:6px 8px;background:var(--surface-2)}
+  .note .acts2{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+  .note:hover .acts2,.note.editing .acts2{opacity:1}
+  .note.pinned{background:linear-gradient(90deg,var(--accent-soft),transparent 70%);margin:0 -22px;padding-left:22px;padding-right:22px;border-top:0}
+  .mention{color:var(--accent-ink);font-weight:650}
+  .player{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:var(--surface-2);margin:6px 0}
+  .player .play{width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;flex:none}
+  .player .play i{width:14px;height:14px}
+  .wave{flex:1;height:26px;display:flex;align-items:center;gap:2px;min-width:0;overflow:hidden}
+  .wave i{flex:1;min-width:2px;border-radius:2px;background:var(--ink-4)}
+  .wave i.p{background:var(--accent)}
+  .ai-found{border-radius:14px;background:var(--surface-2);padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:12.5px;margin-top:8px}
+  .folders{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  .folder{border-radius:14px;background:var(--surface-2);padding:12px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:620;text-align:left;transition:.15s;min-width:0}
+  .folder:hover,.folder.on{background:var(--surface-3)}.folder.on{box-shadow:inset 0 0 0 1.5px var(--ink)}
+  .folder span{font-weight:500;color:var(--ink-3);font-size:12px}
+  .frow{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);min-width:0}
+  .frow .ic{width:34px;height:34px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2);flex:none}
+  /* right */
+  .rcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .rcol .card{padding:20px 22px}
+  .rcol .kv-row dt{width:84px}
+  .rcol .kv-row{min-height:34px}
+  .wants{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .wants .chip button{margin-left:2px;opacity:.5;font-size:13px}.wants .chip button:hover{opacity:1}
+  .wants .add{height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+  .wants .add:hover{color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-4)}
+  .up{display:flex;gap:12px;align-items:center;padding:8px 0}
+  .up .d{width:44px;flex:none;text-align:center;border-radius:12px;background:var(--surface-2);padding:6px 0;font-size:11px;color:var(--ink-3);line-height:1.15}
+  .up .d b{display:block;font-size:15px;color:var(--ink);font-weight:700}
+  .attach{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line-2);border:0}
+  .attach.ok{background:var(--green-soft);box-shadow:none;color:var(--green-ink)}
+  .field.invalid .attach{box-shadow:inset 0 0 0 1.5px var(--red)}
+</style>
+</head>
+<body data-page="lead" data-role="any" data-title="Marco Bellini">
+<script>try{document.body.setAttribute('data-back',localStorage.getItem('hmRole')==='agent'?'my-leads.html|My leads':'all-leads.html|All leads')}catch(e){document.body.setAttribute('data-back','all-leads.html|All leads')}
+/* lead.html?n=Sara%20Nunes opens that lead (links are made with LK.url) */
+try{var _n=new URLSearchParams(location.search).get('n');if(_n){_n=_n.replace(/[<>"]/g,'');document.body.setAttribute('data-title',_n);document.title=_n+' · homes.me'}}catch(e){}</script>
+<main>
+<div class="lead-grid">
+
+  <!-- ============ LEFT: who + actions ============ -->
+  <aside class="lcol">
+    <section class="card">
+      <span class="sec-label">Phone</span>
+      <button class="lead-phone" data-call="Marco Bellini|+39 333 455 4821" data-tip="Call">+39 333 455 4821</button>
+      <div class="lead-name">Marco Bellini</div>
+      <div class="row gap-6 wrap mt-8">
+        <span class="chip stage-interested" id="stage">Interested</span>
+        <span class="chip green" id="tag-score" data-tip="Homes AI score: opened links, answered calls, clear budget">Score 72</span>
+        <span class="vip-tag hide" id="tag-vip">VIP</span><span class="chip orange" id="tag-hot">Hot</span><span class="chip" id="tag-inv">Investor</span>
+      </div>
+      <div class="facts">
+        <div id="fact-who"><span class="av xs" data-name="Rocky Khan"></span><span>with <b>Rocky</b> · since Mon 9 Nov</span></div>
+        <div id="fact-time"><i data-icon="globe"></i><span>Italy · <b>Milan 11:55</b> now</span></div>
+        <div id="fact-best"><i data-icon="clock"></i><span>Best time <b>12:00 – 14:00</b> his time</span></div>
+      </div>
+      <div class="acts">
+        <button class="btn primary lg full" data-call="Marco Bellini|+39 333 455 4821"><i data-icon="phone"></i>Call</button>
+        <button class="btn" data-msg="whatsapp|Marco Bellini|+39 333 455 4821"><i data-icon="whatsapp"></i>WhatsApp</button>
+        <button class="btn" data-msg="telegram|Marco Bellini|+39 333 455 4821"><i data-icon="telegram"></i>Telegram</button>
+        <button class="btn" data-open="#follow-dlg"><i data-icon="clock"></i>Follow-up</button>
+        <button class="btn" data-open="#meet-dlg"><i data-icon="calendar"></i>Meeting</button>
+        <button class="btn won" data-open="#won-dlg" id="b-won"><i data-icon="trophy"></i>Won</button>
+        <button class="btn danger" data-open="#lost-dlg" id="b-lost"><i data-icon="x"></i>Lost</button>
+      </div>
+      <button class="tr-link" id="tr-link" data-transfer="Marco Bellini"><i data-icon="swap"></i><span class="grow" data-only="agent">Transfer this lead to another agent</span><span class="grow" data-only="owner">Give this lead to another agent</span></button>
+      <div class="tr-open hide" id="tr-open"><i data-icon="swap"></i><span class="grow" id="tr-open-t"></span><button class="btn xs" id="tr-cancel" data-confirm="Tap again to cancel">Cancel</button></div>
+      <button class="card-link" style="margin-top:12px" data-only="agent" id="gate-demo">Demo: show the “not checked in” question</button>
+    </section>
+  </aside>
+
+  <!-- ============ MIDDLE ============ -->
+  <div class="mid">
+    <div class="banner blue" id="wa-wait"><i data-icon="whatsapp"></i><span class="grow"><b>WhatsApp opened</b> · waiting for your update</span><button class="btn xs" data-what="Marco Bellini|WhatsApp">What happened?</button></div>
+
+    <section class="card next-card" id="next" aria-label="Next step">
+      <span class="card-icon accent" style="width:44px;height:44px;border-radius:14px"><i data-icon="flag"></i></span>
+      <div class="grow"><span class="sec-label">Next step</span><div class="big" id="next-t">Send payment plan</div><span class="small muted" id="next-s">Today 15:30 · in 35 min · WhatsApp</span></div>
+      <button class="btn sm" id="next-done"><i data-icon="check"></i>Done</button>
+      <button class="btn sm ghost" data-open="#follow-dlg" id="next-change">Change</button>
+    </section>
+
+    <section class="card short" aria-label="In short" id="short">
+      <div class="card-head" style="margin-bottom:8px"><h3>In short</h3><span class="chip dark"><i data-icon="sparkles" class="i-sm"></i>Homes AI</span></div>
+      <p>Italian investor, <b>2BR at The Archive, budget AED 2M</b>. Spoke today 10:30 (4 min): likes the 60 / 40 plan, compares with one project in Milan. <b>Opened your brochure link 2 times</b>. Wants the payment plan on WhatsApp before he talks to his partner tonight.</p>
+    </section>
+
+    <!-- add note -->
+    <section class="card composer" id="composer" aria-label="Add note">
+      <div class="field" id="note-f">
+        <div class="row gap-8 top">
+          <textarea class="textarea grow" id="note-text" placeholder="Write a note about Marco…"></textarea>
+          <button class="btn icon rec-btn" id="note-rec" data-tip="Record a voice note" data-tip-pos="top" data-tip-align="end" aria-label="Record a voice note"><i data-icon="mic"></i></button>
+        </div>
+        <span class="hint hide" id="note-rect"></span>
+        <span class="error">Write a note or record a voice note.</span>
+      </div>
+      <div class="more">
+        <div class="chips" data-chips id="note-type"><button class="chip-opt on">Note</button><button class="chip-opt">Call</button><button class="chip-opt">Viewing</button><button class="chip-opt">Budget</button><button class="chip-opt">Objection</button><button class="chip-opt">Next step</button></div>
+        <div class="quick" id="quick"></div>
+        <div class="row gap-8 wrap">
+          <span class="small muted">Remind me</span>
+          <div class="chips" data-chips id="note-rem" style="gap:6px"><button class="chip-opt">In 1 h</button><button class="chip-opt">Tonight</button><button class="chip-opt">Tomorrow 10:00</button><button class="chip-opt" data-value="pick">Pick time</button></div>
+          <input class="input sm hide" type="datetime-local" id="note-when" min="2026-11-11T14:55" value="2026-11-12T10:00" style="width:190px">
+        </div>
+        <div class="row gap-8">
+          <button class="btn sm ghost" id="note-tag" data-menu="#tag-menu">@ Tag a colleague</button>
+          <label class="check small"><input type="checkbox" id="note-pin">Pin on top</label>
+          <span class="grow"></span>
+          <button class="btn sm ghost" id="note-cancel">Cancel</button>
+          <button class="btn sm dark" id="note-save">Save note</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="padding-bottom:18px">
+      <div class="tabs" data-tabs>
+        <button class="tab on" data-tab="notes">Notes <span class="count" id="notes-n">4</span></button>
+        <button class="tab" data-tab="timeline">Timeline</button>
+        <button class="tab" data-tab="info">Info</button>
+        <button class="tab" data-tab="files">Files <span class="count" id="files-n">3</span></button>
+      </div>
+
+      <!-- NOTES -->
+      <div data-panel="notes" id="notes">
+        <div class="note pinned"><span class="av sm" data-name="Rocky Khan"></span><div class="body">
+          <div class="top"><span class="chip orange">Next step</span><span class="chip dark" data-pinchip><i data-icon="bookmark" class="i-sm"></i>Pinned</span><span>Rocky · today 10:36</span><span class="grow"></span><span class="acts2"><button class="btn xs ghost" data-pin>Unpin</button><button class="btn xs ghost" data-editnote>Edit</button></span></div>
+          <p>Send the 60 / 40 payment plan on WhatsApp before 15:30. He talks to his partner tonight.</p>
+          <div class="small muted mt-4"><i data-icon="bell" class="i-sm"></i> Reminder today 15:30</div></div></div>
+        <div class="note"><span class="av sm" data-name="Rocky Khan"></span><div class="body">
+          <div class="top"><span class="chip">Call</span><span>Rocky · today 10:34 · voice note 0:42</span><span class="grow"></span><span class="acts2"><button class="btn xs ghost" data-pin>Pin</button><button class="btn xs ghost" data-editnote>Edit</button></span></div>
+          <div class="player"><button class="play" id="play" aria-label="Play"><i data-icon="play"></i></button><div class="wave" id="wave"></div><span class="small muted" id="ptime">0:42</span><button class="btn xs" id="speed" data-tip="Speed">1x</button></div>
+          <p class="small muted">Transcript: “Marco wants a two bedroom at The Archive, budget around two million. It is for investment. He wants to book in the first quarter of next year…”</p>
+          <div class="ai-found" id="ai-found"><i data-icon="sparkles" class="t-accent"></i><span class="grow"><b class="bold">Homes AI found 4 details:</b> Budget AED 2M · Unit 2BR · Purpose Investment · Timeline Q1 2027</span><button class="btn xs dark" id="save4">Save 4 to lead</button></div></div></div>
+        <div class="note"><span class="av sm" data-name="Rocky Khan"></span><div class="body">
+          <div class="top"><span class="chip">Objection</span><span>Rocky · yesterday 17:22</span><span class="grow"></span><span class="acts2"><button class="btn xs ghost" data-pin>Pin</button><button class="btn xs ghost" data-editnote>Edit</button></span></div>
+          <p>Thinks handover Q4 2027 is far. Showed him the 40% on handover. <span class="mention">@Emir</span> can we offer the furniture pack?</p></div></div>
+        <div class="note"><span class="av sm" data-name="Emir Dulovic"></span><div class="body">
+          <div class="top"><span class="chip">Note</span><span>Emir · yesterday 18:05</span></div>
+          <p><span class="mention">@Rocky</span> yes, furniture pack is fine if he books this month.</p></div></div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div data-panel="timeline" hidden>
+        <div class="timeline" id="tl">
+          <div class="tl-item"><span class="tl-dot blue"><i data-icon="link"></i></span><div class="tl-body"><b>Marco opened your brochure link · 2nd time</b><span class="tl-time">Today 14:37 · homes.me/p/archive-b</span></div></div>
+          <div class="tl-item"><span class="tl-dot green"><i data-icon="whatsapp"></i></span><div class="tl-body"><b>Rocky opened WhatsApp · “Brochure”</b><p>Waiting for the update: what happened?</p><span class="tl-time">Today 14:31 · tap logged</span></div></div>
+          <div class="tl-item"><span class="tl-dot blue"><i data-icon="link"></i></span><div class="tl-body"><b>Marco opened your brochure link</b><span class="tl-time">Today 10:52 · homes.me/p/archive-b</span></div></div>
+          <div class="tl-item"><span class="tl-dot accent"><i data-icon="phone"></i></span><div class="tl-body"><b>Rocky called · 4 min · Interested</b><p>Wants the payment plan on WhatsApp.</p><span class="tl-time">Today 10:30 · +15 points</span></div></div>
+          <div class="tl-item"><span class="tl-dot"><i data-icon="arrow-right"></i></span><div class="tl-body"><b>Stage: Called → Interested</b><span class="tl-time">Today 10:34 · changed by the call result</span></div></div>
+          <div class="tl-item"><span class="tl-dot"><i data-icon="edit"></i></span><div class="tl-body"><b>Rocky changed budget 1.5M → 2M</b><span class="tl-time">Yesterday 17:20</span></div></div>
+          <div class="tl-item"><span class="tl-dot accent"><i data-icon="phone"></i></span><div class="tl-body"><b>Rocky called · no answer</b><span class="tl-time">Tue 10 Nov 11:10 · try again in 2 h</span></div></div>
+          <div class="tl-item"><span class="tl-dot green"><i data-icon="check"></i></span><div class="tl-body"><b>Lead added by Rocky · Referral</b><p>From Paolo Conti, an old client. +10 points.</p><span class="tl-time">Mon 9 Nov 12:05</span></div></div>
+        </div>
+      </div>
+
+      <!-- INFO -->
+      <div data-panel="info" hidden>
+        <dl class="kv" id="info-kv">
+          <div class="kv-row" data-edit><dt>Phone</dt><dd>+39 333 455 4821</dd></div>
+          <div class="kv-row" data-edit><dt>WhatsApp 2</dt><dd>+39 347 880 1122</dd></div>
+          <div class="kv-row" data-edit><dt>Telegram</dt><dd>@marco.bellini</dd></div>
+          <div class="kv-row" data-edit><dt>Email</dt><dd>marco.bellini@example.com</dd></div>
+          <div class="kv-row" data-edit><dt>Nationality</dt><dd>Italian</dd></div>
+          <div class="kv-row" data-edit><dt>Birthday</dt><dd>14 March 1984</dd></div>
+        </dl>
+        <h4 class="mt-24 mb-8">Change history</h4>
+        <div class="divide small" id="history">
+          <div class="row" style="padding:8px 0"><span class="grow">Rocky changed <b class="bold">Budget</b> · 1.5M → 2M</span><span class="muted">Yesterday 17:20</span></div>
+          <div class="row" style="padding:8px 0"><span class="grow">Rocky added <b class="bold">WhatsApp 2</b></span><span class="muted">Tue 10 Nov 11:14</span></div>
+          <div class="row" style="padding:8px 0"><span class="grow">Lead created · source <b class="bold">Referral</b></span><span class="muted">Mon 9 Nov 12:05</span></div>
+        </div>
+      </div>
+
+      <!-- FILES -->
+      <div data-panel="files" hidden>
+        <div class="folders" id="folders">
+          <button class="folder on" data-f=""><i data-icon="file"></i>All files<span>3 files</span></button>
+          <button class="folder" data-f="id"><i data-icon="shield"></i>Passport &amp; ID<span>1 file</span></button>
+          <button class="folder" data-f="book"><i data-icon="edit"></i>Booking forms<span>0 files</span></button>
+          <button class="folder" data-f="wa"><i data-icon="image"></i>WhatsApp screenshots<span>2 files</span></button>
+        </div>
+        <div id="flist">
+          <div class="frow" data-f="id"><span class="ic"><i data-icon="shield"></i></span><div class="grow"><b class="bold">Passport · Marco Bellini.pdf</b><div class="small muted">Passport &amp; ID · added Tue 10 Nov · viewed 2 times</div></div><span class="chip"><i data-icon="lock" class="i-sm"></i>You and owners</span><button class="btn xs" data-toast="Opened · this view is logged">Open</button></div>
+          <div class="frow" data-f="wa"><span class="ic"><i data-icon="image"></i></span><div class="grow"><b class="bold">WhatsApp · budget message.png</b><div class="small muted">WhatsApp screenshots · added yesterday 17:18</div></div><button class="btn xs" data-toast="Opened">Open</button></div>
+          <div class="frow" data-f="wa"><span class="ic"><i data-icon="image"></i></span><div class="grow"><b class="bold">WhatsApp · partner question.png</b><div class="small muted">WhatsApp screenshots · added today 10:40</div></div><button class="btn xs" data-toast="Opened">Open</button></div>
+          <div class="empty hide" id="fempty" style="padding:24px"><b>No files in this folder</b><p>Payment receipts also get their own folder when you add the first one.</p></div>
+        </div>
+        <div class="btn-row mt-16">
+          <button class="btn sm" data-toast="Photo added to this lead"><i data-icon="plus"></i>Photo</button>
+          <button class="btn sm" data-toast="Booking form added"><i data-icon="plus"></i>Booking form</button>
+          <button class="btn sm" data-toast="ID added · only you and owners see it"><i data-icon="plus"></i>ID or passport</button>
+          <button class="btn sm ghost" data-toast="Choose a file or scan with your phone"><i data-icon="upload"></i>Scan / upload</button>
+        </div>
+        <p class="small muted mt-12"><i data-icon="lock" class="i-sm"></i> IDs and passports: only you and owners see them. Every view is logged.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ RIGHT: details ============ -->
+  <div class="rcol">
+    <section class="card" aria-label="What Marco wants">
+      <div class="card-head" style="margin-bottom:6px"><h3>What Marco wants</h3><span class="small muted">click a line to edit</span></div>
+      <dl class="kv" id="wants-kv">
+        <div class="kv-row" data-edit><dt>Project</dt><dd>The Archive</dd></div>
+        <div class="kv-row" data-edit><dt>Unit</dt><dd>2BR</dd></div>
+        <div class="kv-row" data-edit><dt>Budget</dt><dd>AED 2M</dd></div>
+        <div class="kv-row" data-edit><dt>Purpose</dt><dd>Investment</dd></div>
+        <div class="kv-row" data-edit><dt>Timeline</dt><dd>Q1 2027</dd></div>
+        <div class="kv-row" data-edit><dt>Payment</dt><dd>60 / 40 plan</dd></div>
+        <div class="kv-row" data-edit><dt>Language</dt><dd>Italian, English</dd></div>
+      </dl>
+      <span class="sec-label mt-12">Wants</span>
+      <div class="wants" id="w-yes"><span class="chip green">High floor <button aria-label="Remove">×</button></span><span class="chip green">Canal view <button aria-label="Remove">×</button></span><span class="chip green">Furniture pack <button aria-label="Remove">×</button></span><button class="add" data-add="green">+ Add</button></div>
+      <span class="sec-label mt-12">Doesn't want</span>
+      <div class="wants" id="w-no"><span class="chip red">Ground floor <button aria-label="Remove">×</button></span><span class="chip red">Long handover <button aria-label="Remove">×</button></span><button class="add" data-add="red">+ Add</button></div>
+      <dl class="kv mt-12" style="border-top:1px solid var(--line);padding-top:8px">
+        <div class="kv-row"><dt>Source</dt><dd>Referral · Paolo Conti</dd></div>
+        <div class="kv-row"><dt>Lead #</dt><dd>4821</dd></div>
+      </dl>
+    </section>
+
+    <section class="card" aria-label="Coming up">
+      <div class="card-head" style="margin-bottom:6px"><h3>Coming up</h3><a class="card-link" href="calendar.html">Calendar <i data-icon="arrow-right" class="i-sm"></i></a></div>
+      <div id="ups">
+        <div class="up"><span class="d">Today<b>15:30</b></span><div class="grow"><b class="bold">Send payment plan</b><div class="small muted">Follow-up · WhatsApp</div></div></div>
+        <div class="up"><span class="d">Fri 13<b>11:00</b></span><div class="grow"><b class="bold">Video call · Marco + partner</b><div class="small muted">Meeting · Online / Zoom</div></div></div>
+        <div class="up"><span class="d">Mon 16<b>10:00</b></span><div class="grow"><b class="bold">Ask about the furniture pack</b><div class="small muted">Task · from Emir</div></div></div>
+      </div>
+    </section>
+  </div>
+</div>
+</main>
+
+<div class="menu" id="tag-menu">
+  <div class="menu-label">Tag a colleague</div>
+  <button class="menu-item" data-at="Emir"><span class="av xs" data-name="Emir Dulovic"></span>Emir · owner</button>
+  <button class="menu-item" data-at="George"><span class="av xs" data-name="George Vanous"></span>George · owner</button>
+  <button class="menu-item" data-at="Yuliia"><span class="av xs" data-name="Yuliia"></span>Yuliia</button>
+  <button class="menu-item" data-at="Talha"><span class="av xs" data-name="Talha"></span>Talha</button>
+</div>
+
+<!-- FOLLOW-UP -->
+<div class="dialog" id="follow-dlg" role="dialog" aria-label="Follow-up">
+  <form data-form id="follow-form" novalidate>
+  <div class="dialog-head"><div class="grow"><h3>Plan a follow-up</h3><p>Marco Bellini · Milan is 3 hours behind Dubai</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="field" id="fu-when-f"><span class="field-label">When</span><div class="chips" data-chips id="fu-when"><button type="button" class="chip-opt">In 1 hour</button><button type="button" class="chip-opt">Tonight 19:00</button><button type="button" class="chip-opt on">Tomorrow 11:00</button><button type="button" class="chip-opt" data-value="pick">Pick date &amp; time</button></div>
+      <div class="row gap-8 hide mt-4" id="fu-pick"><input class="input" type="date" id="fu-date" min="2026-11-11" value="2026-11-12"><input class="input" type="time" id="fu-time" value="11:00" style="width:130px"></div>
+      <span class="error">This time is in the past. Pick a later one.</span></div>
+    <div class="field"><span class="field-label">How</span><div class="seg" data-seg id="fu-how"><button type="button" class="on">Call</button><button type="button">WhatsApp</button><button type="button">Email</button></div></div>
+    <div class="field"><label for="fu-about">What about <span class="req">*</span></label><input class="input" id="fu-about" required data-error="Write what the follow-up is about." placeholder="Payment plan, answer from his partner…"></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary">Save follow-up</button></div>
+  </form>
+</div>
+
+<!-- MEETING -->
+<div class="dialog" id="meet-dlg" role="dialog" aria-label="Meeting">
+  <form data-form id="meet-form" novalidate>
+  <div class="dialog-head"><div class="grow"><h3>Book a meeting</h3><p>Marco Bellini · stage becomes Meeting</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="field"><span class="field-label">Type</span><div class="chips" data-chips id="meet-type"><button type="button" class="chip-opt on">Office meeting</button><button type="button" class="chip-opt">Site visit</button><button type="button" class="chip-opt">Show flat</button><button type="button" class="chip-opt">Video call</button></div></div>
+    <div class="field" id="meet-when-f"><span class="field-label">When <span class="t-accent">*</span></span><div class="row gap-8"><input class="input" type="date" id="meet-date" min="2026-11-11" value="2026-11-13"><input class="input" type="time" id="meet-time" value="11:00" style="width:130px"></div><span class="error">This day is in the past. Pick today or later.</span></div>
+    <div class="field"><label for="meet-where">Where <span class="req">*</span></label><input class="input" id="meet-where" required data-error="Write where you meet." value="Office · Room 2"></div>
+    <div class="banner"><i data-icon="whatsapp"></i><span class="grow">After saving, WhatsApp opens with the time for Marco. You press send. Reminder 2 h before.</span></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary">Save meeting</button></div>
+  </form>
+</div>
+
+<!-- WON -->
+<div class="dialog lg" id="won-dlg" role="dialog" aria-label="Won">
+  <form id="won-form" novalidate>
+  <div class="dialog-head"><div class="grow"><h3>Marco booked a unit</h3><p>Fill the deal. It is posted on the Team wall · +300 points.</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="form-grid">
+      <div class="field full" id="won-unit-f"><label for="won-unit">Unit <span class="req">*</span></label><input class="input" id="won-unit" placeholder="The Archive · 2BR · unit 1204"><span class="error">Write the unit.</span></div>
+      <div class="field" id="won-price-f"><label for="won-price">Price, AED <span class="req">*</span></label><input class="input" id="won-price" inputmode="numeric" placeholder="2,000,000"><span class="error">Write the price in digits.</span></div>
+      <div class="field" id="won-paid-f"><label for="won-paid">Paid now, AED <span class="req">*</span></label><input class="input" id="won-paid" inputmode="numeric" placeholder="200,000"><span class="error">Paid now cannot be more than the price.</span></div>
+      <div class="field full" id="won-sign-f"><span class="field-label">What was signed <span class="t-accent">*</span></span><div class="chips" data-chips id="won-sign"><button type="button" class="chip-opt">Booking form</button><button type="button" class="chip-opt">Reservation agreement</button><button type="button" class="chip-opt">SPA</button></div><span class="error">Choose what was signed.</span></div>
+      <div class="field full" id="won-file-f"><span class="field-label">Booking form or receipt <span class="t-accent">*</span></span>
+        <button type="button" class="attach" id="won-file"><i data-icon="upload"></i><span class="grow" style="text-align:left" id="won-file-t">Attach the booking form or the payment receipt</span><span class="chip">PDF or photo</span></button>
+        <span class="error">Attach the booking form or a receipt. Without it the deal is not counted.</span></div>
+    </div>
+  </div>
+  <div class="dialog-foot"><span class="small muted grow">The stage changes to Won. Owners see the deal at once.</span><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary">Save as Won</button></div>
+  </form>
+</div>
+
+<!-- LOST -->
+<div class="dialog" id="lost-dlg" role="dialog" aria-label="Lost">
+  <form id="lost-form" novalidate>
+  <div class="dialog-head"><div class="grow"><h3>Why is Marco lost?</h3><p>Choose one reason. The lead leaves your open list.</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="field" id="lost-f"><div class="chips" data-chips id="lost-pick"><button type="button" class="chip-opt">Bought elsewhere</button><button type="button" class="chip-opt">Budget too low</button><button type="button" class="chip-opt">Just browsing</button><button type="button" class="chip-opt">Not into off-plan</button><button type="button" class="chip-opt">Is a broker, not a buyer</button><button type="button" class="chip-opt">Other</button></div><span class="error">Choose a reason first.</span></div>
+    <div class="field" id="lost-note-f"><label for="lost-note">Note <span class="muted" id="lost-note-opt" style="font-weight:500">· optional</span></label><textarea class="textarea" id="lost-note" style="min-height:64px"></textarea><span class="error">With “Other”, write at least 5 letters.</span></div>
+    <label class="check"><input type="checkbox" id="lost-again" checked>Try again in 3 months</label>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn danger solid">Mark as lost</button></div>
+  </form>
+</div>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var ME=LK.first(HM.me.name), NAME='Marco Bellini', PHONE='+39 333 455 4821', L=null;
+  /* which lead? lead.html?n=Name (made by LK.url). No name = the full sample lead, Marco Bellini. */
+  (function(){ var q; try{ q=new URLSearchParams(location.search); }catch(e){ return; }
+    var n=(q.get('n')||'').replace(/[<>"]/g,''); if(!n||n===NAME) return; var k=LK.lead(n)||{};
+    L={n:n,p:q.get('p')||k.p||'',pr:q.get('pr')||k.pr||'',d:k.d||q.get('d')||'',s:q.get('s')||k.s||'new',nx:k.nx||q.get('nx')||'',red:k.red,vip:k.vip||q.get('vip'),c:k.c||'',t:k.t||'',lang:k.lang||'',tabs:k.tabs||'',why:k.why||'',none:k.none,a:q.get('a')||'Rocky'};
+    NAME=n; PHONE=L.p; })();
+  var FIRST=LK.first(NAME);
+  function num(v){ return +String(v).replace(/[^\d.]/g,'')||0; }
+  function inv(id,bad){ $(id).classList.toggle('invalid',!!bad); return !!bad; }
+
+  /* ---- timeline + stage helpers ---- */
+  function tl(icon,cls,title,text){
+    var n=document.createElement('div'); n.className='tl-item pulse-row';
+    n.innerHTML='<span class="tl-dot '+cls+'"><i data-icon="'+icon+'"></i></span><div class="tl-body"><b></b>'+(text?'<p></p>':'')+'<span class="tl-time">Today 14:55 · just now</span></div>';
+    n.querySelector('b').textContent=title; if(text) n.querySelector('p').textContent=text;
+    $('#tl').insertBefore(n,$('#tl').firstChild); HM.refresh(n); return n;
+  }
+  function stage(k){ var c=$('#stage'), old=c.textContent; c.className='chip stage-'+k; c.textContent=LK.stage[k]; if(old!==c.textContent) tl('arrow-right','','Stage: '+old+' → '+LK.stage[k]); }
+  function setNext(t,s){ var c=$('#next'); c.classList.toggle('none',!t); $('#next-t').textContent=t||'No next step'; $('#next-s').textContent=s||'Plan a follow-up or a meeting so the lead does not go cold.'; $('#next-done').classList.toggle('hide',!t); $('#next-change').textContent=t?'Change':'Add one'; }
+  function addUp(d,time,title,sub){ var no=$('#ups > p'); if(no) no.remove(); var n=document.createElement('div'); n.className='up pulse-row'; n.innerHTML='<span class="d">'+d+'<b>'+time+'</b></span><div class="grow"><b class="bold"></b><div class="small muted"></div></div>'; n.querySelector('.bold').textContent=title; n.querySelector('.muted').textContent=sub; $('#ups').insertBefore(n,$('#ups').firstChild); }
+
+  /* ---- calls, messages, what happened ---- */
+  document.addEventListener('lk:call',function(e){ tl('phone','accent',ME+' clicked Call'+(e.detail.marked?' · not checked in':''),'Logged from the computer. +15 points.'); });
+  document.addEventListener('lk:msg',function(e){ tl(e.detail.app.toLowerCase(),'green',ME+' opened '+e.detail.app,'Waiting for the update: what happened?'); var w=$('#wa-wait'); w.style.display=''; w.querySelector('b').textContent=e.detail.app+' opened'; });
+  document.addEventListener('lk:outcome',function(e){ HM.slideOut($('#wa-wait'),function(){}); tl('check','green','Update: '+e.detail.value,e.detail.note||''); if(e.detail.value==='Not interested'){ stage('lost'); setNext(''); closed(true); } });
+  $('#gate-demo') && $('#gate-demo').addEventListener('click',function(){ LK.call(NAME,PHONE,{gate:true}); });
+
+  /* ---- next step ---- */
+  $('#next-done').addEventListener('click',function(){ var t=$('#next-t').textContent, s=$('#next-s').textContent; setNext(''); tl('check','green','Next step done: '+t); HM.toast('Done · '+t,{undo:function(){ setNext(t,s); }}); });
+
+  /* ---- transfer ---- */
+  document.addEventListener('lk:transfer',function(e){
+    if(HM.role==='owner'){ $$('.facts b')[0].textContent=e.detail.to; tl('swap','','Emir gave the lead to '+e.detail.to,'Notes and history went with it.'); return; }
+    $('#tr-link').classList.add('hide'); $('#tr-open').classList.remove('hide');
+    $('#tr-open-t').innerHTML='<b>Transfer request open</b><br>'+(e.detail.approval?'Emir must approve':'Waiting for '+e.detail.to)+' · ends 18:00';
+    tl('swap','','Transfer request to '+e.detail.to,e.detail.reason);
+  });
+  function trBack(){ $('#tr-link').classList.remove('hide'); $('#tr-open').classList.add('hide'); }
+  document.addEventListener('lk:transfer-undo',trBack);
+  $('#tr-cancel').addEventListener('hm:confirm',function(){ trBack(); HM.toast('Transfer request cancelled'); });
+
+  /* ---- what Marco wants: edits go to the timeline ---- */
+  document.addEventListener('hm:edit',function(e){
+    var row=e.target, k=row.querySelector('dt').textContent.trim();
+    tl('edit','',ME+' changed '+k.toLowerCase()+' '+e.detail.old+' → '+e.detail.value);
+    var h=document.createElement('div'); h.className='row'; h.style.padding='8px 0'; h.innerHTML='<span class="grow">'+ME+' changed <b class="bold"></b> · <span></span></span><span class="muted">Just now</span>';
+    h.querySelector('b').textContent=k; h.querySelector('span span').textContent=e.detail.old+' → '+e.detail.value; $('#history').insertBefore(h,$('#history').firstChild);
+  });
+  $$('.wants').forEach(function(w){ w.addEventListener('click',function(e){
+    var x=e.target.closest('.chip button'); if(x){ var chip=x.parentNode, txt2=chip.firstChild.textContent.trim(), nxt=chip.nextSibling; chip.remove(); HM.toast('Removed “'+txt2+'”',{undo:function(){ w.insertBefore(chip,nxt); }}); return; }
+    var a=e.target.closest('.add'); if(!a||w.querySelector('input')) return;
+    var i=document.createElement('input'); i.className='input sm'; i.style.cssText='width:120px;height:24px;border-radius:999px'; i.placeholder='Type, Enter'; w.insertBefore(i,a); i.focus();
+    var fin=false;
+    function done(){ if(fin) return; fin=true; var v=i.value.trim(); if(v){ var c=document.createElement('span'); c.className='chip '+a.getAttribute('data-add'); c.innerHTML=' <button aria-label="Remove">×</button>'; c.insertBefore(document.createTextNode(v),c.firstChild); w.insertBefore(c,i); tl('edit','',ME+' added “'+v+'” to '+(w.id==='w-yes'?'Wants':'Doesn\'t want')); } i.remove(); }
+    i.addEventListener('keydown',function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); done(); } if(ev.key==='Escape'){ ev.stopPropagation(); fin=true; i.remove(); } }); i.addEventListener('blur',done);
+  });});
+
+  /* ---- add note ---- */
+  var QUICK={Note:['Asked to call back','Partner decides with him','Send more photos'],Call:['No answer','Spoke 5 min, interested','Asked to call after work','Busy, call tomorrow'],Viewing:['Liked the show flat','Wants a higher floor','Came with family'],Budget:['Budget went up','Needs mortgage','Cash buyer'],Objection:['Handover is too far','Price is high','Wants a ready flat'],'Next step':['Send payment plan','Book a site visit','Send the offer']};
+  var comp=$('#composer'), txt=$('#note-text'), voice=false, recT;
+  function quick(t){ $('#quick').innerHTML=QUICK[t].map(function(q){return '<button type="button">'+q+'</button>'}).join(''); }
+  quick('Note');
+  $('#note-type').addEventListener('hm:change',function(e){ quick(e.detail.value); });
+  $('#quick').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; txt.value=(txt.value.trim()?txt.value.trim()+'. ':'')+b.textContent; $('#note-f').classList.remove('invalid'); txt.focus(); });
+  txt.addEventListener('focus',function(){ comp.classList.add('open'); });
+  $('#note-rem').addEventListener('hm:change',function(e){ $('#note-when').classList.toggle('hide',e.detail.value!=='pick'); });
+  $('#tag-menu').addEventListener('click',function(e){ var b=e.target.closest('[data-at]'); if(!b) return; txt.value=(txt.value?txt.value.replace(/\s*$/,' '):'')+'@'+b.getAttribute('data-at')+' '; comp.classList.add('open'); txt.focus(); });
+  $('#note-rec').addEventListener('click',function(){
+    var on=this.classList.toggle('on'), t=0, out=$('#note-rect'); comp.classList.add('open'); out.classList.remove('hide'); clearInterval(recT); $('#note-f').classList.remove('invalid');
+    if(on){ out.textContent='Recording 0:00 · click the red button to stop'; recT=setInterval(function(){ t++; out.textContent='Recording 0:'+(t<10?'0':'')+t+' · click the red button to stop'; },1000); }
+    else { voice=true; out.textContent='Voice note recorded. Homes AI writes the transcript after you save.'; }
+  });
+  function resetNote(){ txt.value=''; voice=false; comp.classList.remove('open'); $('#note-rect').classList.add('hide'); $('#note-rec').classList.remove('on'); clearInterval(recT); $('#note-pin').checked=false; $$('#note-rem .on').forEach(function(b){b.classList.remove('on')}); $('#note-when').classList.add('hide'); $('#note-f').classList.remove('invalid'); }
+  $('#note-cancel').addEventListener('click',resetNote);
+  $('#note-save').addEventListener('click',function(){
+    var v=txt.value.trim(); if(!v&&!voice){ $('#note-f').classList.add('invalid'); txt.focus(); return; }
+    var type=$('#note-type .on').textContent, rem=$('#note-rem .on'), pin=$('#note-pin').checked;
+    var remT=rem?(rem.getAttribute('data-value')==='pick'?$('#note-when').value.replace('T',' '):rem.textContent):'';
+    var n=document.createElement('div'); n.className='note pulse-row'+(pin?' pinned':'');
+    n.innerHTML='<span class="av sm" data-name="'+HM.me.name+'"></span><div class="body"><div class="top"><span class="chip">'+type+'</span>'+(pin?'<span class="chip dark" data-pinchip><i data-icon="bookmark" class="i-sm"></i>Pinned</span>':'')+'<span>'+ME+' · just now'+(voice?' · voice note':'')+'</span><span class="grow"></span><span class="acts2"><button class="btn xs ghost" data-pin>'+(pin?'Unpin':'Pin')+'</button><button class="btn xs ghost" data-editnote>Edit</button></span></div><p></p>'+(remT?'<div class="small muted mt-4"><i data-icon="bell" class="i-sm"></i> Reminder '+remT+'</div>':'')+'</div>';
+    var p=n.querySelector('p'); p.textContent=v||'Voice note · transcript is being written…'; p.innerHTML=p.innerHTML.replace(/@(\w+)/g,'<span class="mention">@$1</span>');
+    var em=$('#notes-empty'); if(em) em.remove();
+    var list=$('#notes'), firstNormal=$$('.note',list).filter(function(x){return !x.classList.contains('pinned')})[0];
+    list.insertBefore(n, pin?list.firstChild:firstNormal); HM.refresh(n);
+    $('#notes-n').textContent=$$('.note',list).length; $('[data-tab="notes"]').click();
+    tl('edit','',ME+' added a note · '+type, v);
+    var tag=v.match(/@(\w+)/); HM.toast('Note saved'+(tag?' · '+tag[1]+' is told':'')+(remT?' · reminder '+remT:'')); resetNote();
+  });
+  $('#notes').addEventListener('click',function(e){
+    var b=e.target.closest('[data-pin]'), note=e.target.closest('.note');
+    if(b){ var on=note.classList.toggle('pinned'); b.textContent=on?'Unpin':'Pin'; var c=note.querySelector('[data-pinchip]');
+      if(on&&!c){ c=document.createElement('span'); c.className='chip dark'; c.setAttribute('data-pinchip',''); c.innerHTML='<i data-icon="bookmark" class="i-sm"></i>Pinned'; var top=note.querySelector('.top'); top.insertBefore(c,top.children[1]); HM.refresh(c); note.parentNode.insertBefore(note,note.parentNode.firstChild); }
+      if(!on&&c) c.remove(); HM.toast(on?'Pinned on top':'Unpinned'); return; }
+    b=e.target.closest('[data-editnote]');
+    if(b){ var p=note.querySelector('.body > p'); if(!p) return; var ed=p.getAttribute('contenteditable')==='true';
+      if(ed){ p.removeAttribute('contenteditable'); note.classList.remove('editing'); b.textContent='Edit'; HM.toast('Note changed · the old text stays in the history'); }
+      else { p.setAttribute('contenteditable','true'); note.classList.add('editing'); b.textContent='Save'; p.focus(); } }
+  });
+
+  /* ---- voice note player ---- */
+  var wave=$('#wave'), bars='';
+  for(var i=0;i<54;i++) bars+='<i style="height:'+(22+Math.abs(Math.sin(i*1.7)*Math.cos(i*.45))*78).toFixed(0)+'%"></i>';
+  wave.innerHTML=bars; var wi=$$('i',wave), pos=0, playT, sp=1;
+  function stop(){ clearInterval(playT); playT=null; $('#play').innerHTML=HM.icon('play'); $('#play svg').style.cssText='width:14px;height:14px'; }
+  $('#play').addEventListener('click',function(){
+    if(playT){ stop(); return; }
+    if(pos>=54){ pos=0; wi.forEach(function(x){x.classList.remove('p')}); }
+    this.innerHTML='<b style="font-size:11px;letter-spacing:1px">❚❚</b>';
+    playT=setInterval(function(){ if(pos>=54){ stop(); return; } wi[pos++].classList.add('p'); var s=Math.round(pos/54*42); $('#ptime').textContent='0:'+(s<10?'0':'')+s+' / 0:42'; },780/sp/ (sp>1?1:1));
+  });
+  $('#speed').addEventListener('click',function(){ sp=sp===1?1.5:sp===1.5?2:1; this.textContent=sp+'x'; if(playT){ stop(); $('#play').click(); } });
+  $('#save4').addEventListener('click',function(){ $('#ai-found').innerHTML='<i data-icon="check" class="t-green"></i><span class="grow">4 details saved to “What Marco wants”.</span>'; HM.refresh($('#ai-found')); $$('#wants-kv .kv-row').slice(1,5).forEach(function(r){ r.classList.add('pulse-row'); }); tl('sparkles','','Homes AI details saved by '+ME,'Budget AED 2M · Unit 2BR · Purpose Investment · Timeline Q1 2027'); HM.toast('Saved 4 details to the lead'); });
+
+  /* ---- files: folders ---- */
+  $('#folders').addEventListener('click',function(e){ var f=e.target.closest('.folder'); if(!f) return; var k=f.getAttribute('data-f'), n=0;
+    $$('.folder',this).forEach(function(x){x.classList.toggle('on',x===f)});
+    $$('#flist .frow').forEach(function(r){ var show=!k||r.getAttribute('data-f')===k; r.style.display=show?'':'none'; if(show) n++; }); $('#fempty').classList.toggle('hide',n>0); });
+
+  /* ---- follow-up ---- */
+  var NOW=new Date('2026-11-11T14:55');
+  $('#fu-when').addEventListener('hm:change',function(e){ $('#fu-pick').classList.toggle('hide',e.detail.value!=='pick'); $('#fu-when-f').classList.remove('invalid'); });
+  $('#follow-form').addEventListener('submit',function(e){
+    var on=$('#fu-when .on'), pick=on.getAttribute('data-value')==='pick', when=on.textContent;
+    if(pick){ var d=new Date($('#fu-date').value+'T'+($('#fu-time').value||'00:00')); if(!(d>NOW)){ inv('#fu-when-f',1); e.stopImmediatePropagation(); e.preventDefault(); return; } when=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+$('#fu-time').value; }
+  },true);
+  $('#follow-form').addEventListener('hm:submit',function(){
+    var on=$('#fu-when .on'), pick=on.getAttribute('data-value')==='pick', when=on.textContent, day=/Tomorrow/.test(when)?'Thu 12':'Today', how=$('#fu-how .on').textContent, about=$('#fu-about').value.trim();
+    if(pick){ var d=new Date($('#fu-date').value+'T'+$('#fu-time').value), today=$('#fu-date').value==='2026-11-11';
+      day=today?'Today':d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric'}); when=(today?'Today':d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))+' '+$('#fu-time').value; }
+    else if(/In 1 hour/.test(when)) when='Today 15:55';
+    setNext(about,when+' · '+how); addUp(day,(when.match(/\d\d:\d\d/)||['15:55'])[0],about,'Follow-up · '+how);
+    tl('clock','','Follow-up planned · '+when,about+' · '+how); HM.toast('Follow-up saved · '+when); $('#fu-about').value='';
+  });
+
+  /* ---- meeting ---- */
+  $('#meet-type').addEventListener('hm:change',function(e){ $('#meet-where').value={'Office meeting':'Office · Room 2','Site visit':'The Archive sales centre','Show flat':'The Archive show flat · Business Bay','Video call':'Online / Zoom'}[e.detail.value]; });
+  $('#meet-form').addEventListener('submit',function(e){
+    var d=new Date($('#meet-date').value+'T'+($('#meet-time').value||'00:00')); if(!(d>NOW)){ inv('#meet-when-f',1); e.stopImmediatePropagation(); e.preventDefault(); } else inv('#meet-when-f',0);
+  },true);
+  $('#meet-form').addEventListener('hm:submit',function(){
+    var d=new Date($('#meet-date').value+'T'+$('#meet-time').value), day=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric'}), type=$('#meet-type .on').textContent, time=$('#meet-time').value;
+    stage('meeting'); setNext(type+' with '+FIRST,day+' Nov '+time+' · '+$('#meet-where').value); addUp(day,time,type,'Meeting · '+$('#meet-where').value);
+    tl('calendar','accent',type+' booked · '+day+' Nov '+time,$('#meet-where').value+' · reminder 2 h before');
+    HM.toast('Meeting saved · WhatsApp opens with the time');
+    var what={'Office meeting':'our meeting','Site visit':'our site visit','Show flat':'our visit to the show flat','Video call':'our video call'}[type]||'our meeting';
+    if(PHONE) setTimeout(function(){ LK.message('whatsapp',NAME,PHONE,{pick:0,text:'Hello '+FIRST+', this is '+ME+' from homes.me. I confirm '+what+' on '+day+' November at '+time+' ('+$('#meet-where').value+'). See you then.'}); },700);
+  });
+
+  /* ---- won ---- */
+  var attached=false;
+  $('#won-file').addEventListener('click',function(){ attached=!attached; this.classList.toggle('ok',attached); $('#won-file-t').textContent=attached?'booking-form-'+NAME.toLowerCase().replace(/\W+/g,'-')+'.pdf · attached':'Attach the booking form or the payment receipt'; inv('#won-file-f',0); });
+  $('#won-sign').addEventListener('hm:change',function(){ inv('#won-sign-f',0); });
+  $('#won-form').addEventListener('input',function(e){ var f=e.target.closest('.field'); if(f) f.classList.remove('invalid'); });
+  $('#won-form').addEventListener('submit',function(e){
+    e.preventDefault(); var price=num($('#won-price').value), paidRaw=$('#won-paid').value.trim(), paid=num(paidRaw), bad=0;
+    bad|=inv('#won-unit-f',!$('#won-unit').value.trim());
+    bad|=inv('#won-price-f',!price||/[^\d,.\s]/.test($('#won-price').value));
+    $('#won-paid-f .error').textContent=!paidRaw?'Write how much was paid now.':'Paid now cannot be more than the price.';
+    bad|=inv('#won-paid-f',!paidRaw||(price&&paid>price));
+    bad|=inv('#won-sign-f',!$('#won-sign .on')); bad|=inv('#won-file-f',!attached);
+    if(bad){ var f=$('#won-form .invalid input'); if(f) f.focus(); return; }
+    HM.close($('#won-dlg')); HM.confetti(); stage('won'); setNext('Deal done','Unit '+$('#won-unit').value.trim()+' · AED '+price.toLocaleString('en-US'));
+    tl('trophy','green','Won · '+$('#won-unit').value.trim(),'AED '+price.toLocaleString('en-US')+' · paid now AED '+paid.toLocaleString('en-US')+' · '+$('#won-sign .on').textContent+' · +300 points');
+    HM.toast('Won! Posted on the Team wall · +300 points'); closed(true);
+  });
+
+  /* ---- lost ---- */
+  $('#lost-pick').addEventListener('hm:change',function(e){ inv('#lost-f',0); inv('#lost-note-f',0); $('#lost-note-opt').textContent=e.detail.value==='Other'?'· needed for “Other”':'· optional'; });
+  $('#lost-note').addEventListener('input',function(){ inv('#lost-note-f',0); });
+  $('#lost-form').addEventListener('submit',function(e){
+    e.preventDefault(); var on=$('#lost-pick .on'); if(inv('#lost-f',!on)) return;
+    if(inv('#lost-note-f',on.textContent==='Other'&&$('#lost-note').value.trim().length<5)){ $('#lost-note').focus(); return; }
+    var again=$('#lost-again').checked, prev=$('#stage').className.replace('chip stage-',''), nt=$('#next').classList.contains('none')?'':$('#next-t').textContent, ns=$('#next-s').textContent;
+    HM.close($('#lost-dlg')); stage('lost'); setNext(''); closed(true); tl('x','red','Lost · '+on.textContent,again?'Try again in 3 months · 11 Feb 2027':'');
+    HM.toast('Marked as lost · '+on.textContent+(again?' · try again in 3 months':''),{undo:function(){ stage(prev); setNext(nt,ns); closed(false); }});
+  });
+
+  /* a Won or Lost lead is closed: no second Won / Lost on top of it */
+  function closed(on){ ['#b-won','#b-lost'].forEach(function(id){ $(id).classList.toggle('disabled',on); $(id).disabled=on; }); }
+
+  /* ---- what was done on other pages in this tab is on the timeline too ---- */
+  (function(){ var m=LK.did(NAME); if(!m) return;
+    if(/opened · result/.test(m.text)){ var w=$('#wa-wait'); w.style.display=''; w.querySelector('b').textContent=m.text.split(' opened')[0]+' opened'; }
+    else if(!L) $('#wa-wait').style.display='none';
+    tl(/Call/.test(m.text)?'phone':'check',/Call/.test(m.text)?'accent':'green',ME+': '+m.text); $('#tl').firstChild.querySelector('.tl-time').textContent='Today '+m.at; })();
+
+  /* ---- any other lead than the sample one: same page, that lead's own data ---- */
+  if(L) (function(){
+    var ST=LK.stage[L.s]||'New', unit=(L.d.match(/studio|villa|\dBR/i)||[''])[0], bud=(L.d.match(/AED [\d.]+M/)||[''])[0], esc=function(v){ return String(v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); };
+    function walk(root){ var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), n, list=[]; while((n=w.nextNode())) list.push(n);
+      list.forEach(function(n){ var v=n.nodeValue; if(v.indexOf('Marco')<0&&v.indexOf('+39 333')<0) return; n.nodeValue=v.replace(/Marco Bellini/g,NAME).replace(/Marco/g,FIRST).replace(/\+39 333 455 4821/g,PHONE||'No phone'); }); }
+    walk($('main')); $$('.dialog').forEach(walk);
+    $$('[data-call],[data-msg],[data-what],[data-transfer]').forEach(function(b){ ['data-call','data-msg','data-what','data-transfer'].forEach(function(a){ if(b.hasAttribute(a)) b.setAttribute(a,b.getAttribute(a).replace('Marco Bellini',NAME).replace('+39 333 455 4821',PHONE)); }); });
+    $('#note-text').placeholder='Write a note about '+FIRST+'…';
+    if(!PHONE) $$('.acts [data-call],.acts [data-msg],.lead-phone').forEach(function(b){ b.classList.add('disabled'); b.disabled=true; });
+    // left card
+    var c=$('#stage'); c.className='chip stage-'+L.s; c.textContent=ST;
+    $('#tag-vip').classList.toggle('hide',!L.vip); $('#tag-hot').classList.toggle('hide',!/hot/.test(L.tabs)); $('#tag-inv').classList.add('hide'); $('#tag-score').classList.toggle('hide',L.s==='new'||L.s==='lost');
+    $('#tag-score').textContent='Score '+({called:41,interested:68,meeting:77,offer:84,won:95}[L.s]||50);
+    $('#fact-who').innerHTML=L.a==='Incoming'?'<i data-icon="inbox"></i><span>in <b>Incoming</b> · no agent yet</span>':'<span class="av xs" data-name="'+(L.a==='Rocky'?'Rocky Khan':esc(L.a))+'"></span><span>with <b>'+esc(L.a)+'</b></span>';
+    $('#fact-time').style.display=L.c?'':'none'; if(L.c) $('#fact-time span').innerHTML='<b>'+esc(L.c)+' '+L.t+'</b> now · client\'s clock';
+    $('#fact-best').style.display=L.lang?'':'none'; if(L.lang){ $('#fact-best').innerHTML='<i data-icon="message"></i><span>Speaks <b>'+esc(L.lang)+'</b></span>'; }
+    if(L.vip&&HM.role==='agent') $('#tr-link span').textContent='VIP lead · only the owner can move it';
+    // middle
+    if(!/opened · result/.test((LK.did(NAME)||{}).text||'')) $('#wa-wait').style.display='none';
+    var done=L.s==='lost'||L.s==='won', parts=L.nx.split(' · ');
+    if(L.vip&&L.s==='new') setNext('Call the VIP lead','From Emir · 24 min left on the clock');
+    else if(done||L.none||!L.nx) setNext('');
+    else { var NX={'Sara Nunes':['Follow up with Sara','Overdue since 11:00 · do it now'],'Omar Khalil':['Say how the meeting went','Met today 12:00 · answer before 21:00'],'Parvez Hossain':['Make the first call','Not called yet'],'Sami Najahi':['Make the first call','Goes back to Incoming tomorrow 09:00'],'Neil Smith':['Make the first call','Goes back to Incoming tomorrow 09:00'],'Hanna Alabbas':['Try a third call','No answer twice'],'Dave Patel':['Send the floor plan','He wants it before the next call'],'Elena Kuznetsova':['Follow up on the offer','Tomorrow'],'Ahmed Hassan':['Call Ahmed','Today 19:00 · best time in KSA']}[NAME];
+      if(NX) setNext(NX[0],NX[1]); else setNext(parts[0],parts[1]?'Today '+parts[1]:L.red?'Late · do it now':'No time set'); }
+    if(L.s==='lost'){ $('#next-t').textContent='Lost · '+L.nx.toLowerCase(); $('#next-s').textContent='The lead is not in your open list. Add a follow-up to try again.'; }
+    if(L.s==='won'){ $('#next').classList.remove('none'); $('#next-t').textContent='Deal done'; $('#next-s').textContent=L.nx; $('#next-change').classList.add('hide'); }
+    if(done) closed(true);
+    $('#short p').innerHTML='<b>'+esc([L.pr,L.d].filter(Boolean).join(' · ')||'No project yet')+'</b>. Stage '+ST+'. '+esc(L.why||L.nx||'No calls yet')+'.'+(L.lang?' Speaks '+esc(L.lang)+'.':'')+(L.s==='new'?' Not called yet: Homes AI writes more after the first call.':'');
+    var emir=L.vip?'<div class="note pinned"><span class="av sm" data-name="Emir Dulovic"></span><div class="body"><div class="top"><span class="chip orange">VIP</span><span>Emir · today 14:49</span></div><p>Wrote to me by email. Serious, wants to see the show flat this week. Call him in English.</p></div></div>':'';
+    var own=(L.s!=='new'&&L.nx)?'<div class="note"><span class="av sm" data-name="Rocky Khan"></span><div class="body"><div class="top"><span class="chip">Call</span><span>Rocky · last call</span><span class="grow"></span><span class="acts2"><button class="btn xs ghost" data-pin>Pin</button><button class="btn xs ghost" data-editnote>Edit</button></span></div><p>'+esc(L.why||L.nx)+'.</p></div></div>':'';
+    $('#notes').innerHTML=emir+own+((emir||own)?'':'<div class="empty" id="notes-empty" style="padding:24px"><b>No notes yet</b><p>Write the first note after your call.</p></div>');
+    $('#notes-n').textContent=$$('#notes .note').length;
+    var first=$('#tl').firstChild&&$('#tl').firstChild.classList&&$('#tl').firstChild.classList.contains('pulse-row')?$('#tl').firstChild.outerHTML:'';
+    function item(ic,cl,t,sub){ return '<div class="tl-item"><span class="tl-dot '+cl+'"><i data-icon="'+ic+'"></i></span><div class="tl-body"><b>'+esc(t)+'</b><span class="tl-time">'+esc(sub)+'</span></div></div>'; }
+    $('#tl').innerHTML=first+(L.vip?item('crown','accent','Emir gave this lead as VIP · 30 min to call','Today 14:49'):'')+(L.s!=='new'?item('phone','accent','Rocky called · '+(L.why||L.nx),'Last call'):'')+
+      item('check','green',/imported/.test(L.d)?'Lead imported · Nov_batch_C.xlsx':L.vip?'Lead added by Emir · Email to owner':'Lead added','First day in the CRM');
+    $$('#info-kv .kv-row').forEach(function(r,k){ r.querySelector('dd').textContent=k===0?(PHONE||'Not added yet'):'Not added yet'; });
+    $('#history').innerHTML='<div class="row" style="padding:8px 0"><span class="grow">Lead created</span><span class="muted">First day in the CRM</span></div>';
+    $$('#flist .frow').forEach(function(r){ r.remove(); }); $('#fempty').classList.remove('hide'); $('#fempty b').textContent='No files yet'; $('#files-n').textContent='0'; $$('#folders .folder span').forEach(function(x){ x.textContent='0 files'; });
+    // right
+    var vals=[L.pr||'Not said yet',unit||'Not said yet',bud||'Not said yet','Not said yet','Not said yet','Not said yet',L.lang||'Not said yet'];
+    $$('#wants-kv .kv-row dd').forEach(function(dd,k){ dd.textContent=vals[k]; });
+    $$('.wants .chip').forEach(function(x){ x.remove(); });
+    var kv=$$('.rcol dl')[1].querySelectorAll('dd'); kv[0].textContent=/imported/.test(L.d)?'Import · Nov_batch_C.xlsx':L.vip?'Email to owner · from Emir':'Not said yet';
+    var h=0; for(var k=0;k<NAME.length;k++) h=(h*31+NAME.charCodeAt(k))%9000; kv[1].textContent=1000+h;
+    $('#ups').innerHTML=''; if(!done&&!L.none&&parts[1]&&/\d\d:\d\d/.test(parts[1])) addUp('Today',parts[1].match(/\d\d:\d\d/)[0],parts[0],'Follow-up'); else $('#ups').innerHTML='<p class="small muted" style="padding:6px 0">Nothing planned yet.</p>';
+    $('#follow-dlg .dialog-head p').textContent=NAME+(L.c?' · '+L.c+' is '+L.t+' now':'');
+    HM.refresh($('main'));
+  })();
+})();
+</script>
+</body>
+</html>

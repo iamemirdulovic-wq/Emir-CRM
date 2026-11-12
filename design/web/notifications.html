@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notifications · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .lay{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+  .n-head{display:flex;align-items:center;gap:16px;margin-bottom:6px}
+  .n-head .num-hero{font-size:56px}
+  .n-head h2{font-size:20px}
+  .n-tabs{display:flex;align-items:center;gap:12px;margin:14px 0 4px}
+  .n-tabs .tabs{margin:0;border:0}
+  .grp{font-size:11.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:18px 12px 6px}
+  .nrow{display:flex;align-items:center;gap:14px;padding:12px;border-radius:16px;cursor:pointer;transition:background .12s;position:relative;min-width:0}
+  .nrow:hover{background:var(--surface-2)}
+  .nrow .ic{width:42px;height:42px;border-radius:14px;background:var(--surface-2);display:grid;place-items:center;flex:none;color:var(--ink-2)}
+  .nrow:hover .ic{background:var(--surface-3)}
+  .nrow .ic.accent{background:var(--accent-soft);color:var(--accent-ink)}.nrow .ic.red{background:var(--red-soft);color:var(--red-ink)}
+  .nrow .ic.green{background:var(--green-soft);color:var(--green-ink)}.nrow .ic.blue{background:var(--blue-soft);color:var(--blue-ink)}
+  .nrow .ic.violet{background:var(--violet-soft);color:var(--violet-ink)}.nrow .ic.amber{background:var(--amber-soft);color:var(--amber-ink)}
+  .nrow .bd{flex:1;min-width:0}
+  .nrow .bd b{display:block;font-weight:560;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+  .nrow.unread .bd b{font-weight:700;color:var(--ink)}
+  .nrow .bd p{font-size:13px;color:var(--ink-3);line-height:1.35;margin-top:1px}
+  .nrow .age{font-size:12.5px;color:var(--ink-3);white-space:nowrap;width:74px;text-align:right;flex:none}
+  .nrow .udot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none;visibility:hidden}
+  .nrow.unread .udot{visibility:visible}
+  .nrow .mark{display:none}
+  .nrow:hover .mark,.nrow:focus-within .mark{display:inline-flex}
+  .side{display:flex;flex-direction:column;gap:16px;position:sticky;top:84px}
+</style>
+</head>
+<body data-page="notifications" data-role="any" data-sub="Wednesday, 11 November 2026 · 14:55">
+<main>
+
+  <div class="lay">
+    <section class="card" style="padding-bottom:14px">
+      <div class="n-head">
+        <b class="num-hero" id="n-new">4</b>
+        <div class="grow" style="flex:1"><h2 id="n-title">new notifications</h2><p class="muted small" id="n-sub">Click a row and it opens the right page.</p></div>
+        <button class="btn" id="mark-all"><i data-icon="check"></i>Mark all read</button>
+      </div>
+
+      <div class="n-tabs">
+        <div class="tabs pills" id="tabs"></div>
+        <span class="grow" style="flex:1"></span>
+        <label class="switch small"><input type="checkbox" id="only-new"><span class="track"></span>Only new</label>
+      </div>
+
+      <div id="list"></div>
+      <div class="empty" id="none" hidden><span class="ic"><i data-icon="bell" class="i-xl"></i></span><b>You are up to date</b><p id="none-txt">Nothing new here. New alerts show up on top.</p><button class="btn sm" id="show-all">Show all notifications</button></div>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <div class="card-head"><h3>Choose what reaches you</h3></div>
+        <p class="muted small">Switch each alert on or off. VIP leads always come through.</p>
+        <dl class="kv mt-8">
+          <div class="kv-row"><dt>Quiet hours</dt><dd>22:00 – 08:00</dd></div>
+          <div class="kv-row"><dt>VIP leads</dt><dd>Ring also in quiet hours</dd></div>
+          <div class="kv-row"><dt>Sound</dt><dd>On</dd></div>
+        </dl>
+        <div class="card-foot"><a class="btn block" href="settings.html#notifications"><i data-icon="settings"></i>Choose what reaches you</a></div>
+      </section>
+      <section class="card">
+        <div class="card-head mb-8"><h3>Alerts on your phone</h3><span class="chip green">On</span></div>
+        <p class="muted small">Add homes.me to your phone's home screen to get alerts when the computer is closed.</p>
+        <div class="card-foot"><a class="card-link" href="install-guide.html">How to install <i data-icon="arrow-right" class="i-sm"></i></a><span style="flex:1"></span><button class="btn sm" data-toast="Test notification is on its way. Look at your phone."><i data-icon="bell"></i>Test</button></div>
+      </section>
+    </aside>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var owner=HM.role==='owner';
+  // [icon, colour, title, text, age, action label, link, unread, category, group]
+  var ALL={
+    owner:[
+      ['crown','accent','VIP lead not called · Omar Khan','Bassam did not call in 30 min. The lead is back in Incoming.','5 min','Give again','incoming.html',1,'Leads','Today'],
+      ['swap','','Transfer needs your approval','Rocky → Yuliia · Omar Khalil · stage Meeting','12 min','Approve or refuse','transfers.html',1,'Leads','Today'],
+      ['inbox','','3 leads wait in Incoming','Oldest waits 42 min · Lina Rahimi · Damac Islands','42 min','Give','incoming.html',0,'Leads','Today'],
+      ['calendar','violet','Rocky asks for leave','Annual · 18–20 Nov · 3 days · “Family visit”','48 min','Answer','team-attendance.html#leave',1,'Team','Today'],
+      ['trophy','green','Talha booked a unit','Damac Islands · AED 2.9M','2 h','Open the team wall','team-wall.html',1,'Team','Today'],
+      ['calendar','violet','Shan asks for sick leave','Sick · Sat 14 Nov · 1 day','3 h','Answer','team-attendance.html#leave',0,'Team','Today'],
+      ['alert','red','Bassam is absent','No check-in and no leave. Alert at 10:00. He has 44 open leads.','4 h','See attendance','team-attendance.html',1,'Team','Today'],
+      ['clock','amber','Shan is late · 24 min','Checked in 09:24 · traffic on SZR','5 h','See attendance','team-attendance.html',0,'Team','Today'],
+      ['shield','','New sign-in · Shan','Chrome on Windows · Sharjah · 09:26','5 h','Review','team-activity.html#unusual',0,'System','Today'],
+      ['upload','','Import finished · Nov_batch_C.xlsx','208 new leads given to 6 agents. 18 duplicates and 14 bad rows skipped.','Yesterday','Open the result','import.html',0,'System','Yesterday'],
+      ['flag','red','Wrong number · Vanessa Pecoraro','Rocky marked the phone number as wrong.','Yesterday','Open all leads','all-leads.html',0,'Leads','Yesterday'],
+      ['help','amber','Meeting result not answered','Nelson · Daniel Rossi · meeting at 16:00 · the 21:00 deadline passed','Yesterday','Open team activity','team-activity.html',0,'Team','Yesterday'],
+      ['message','','Bug report · blocking work · #1042','Rocky: “The call button does nothing on one lead.”','Yesterday','Open feedback','feedback-inbox.html',0,'System','Yesterday'],
+      ['sparkles','','Homes AI used $38 of $100','The month is 37% done. The budget is fine.','Mon 9 Nov','Open AI settings','ai-settings.html',0,'System','Earlier this week']
+    ],
+    agent:[
+      ['crown','accent','VIP lead from Emir · Khalid Al Mansoori','Call within 30 min or the lead goes back to Incoming.','6 min','Open the VIP lead','my-day.html',1,'Leads','Today'],
+      ['link','blue','Marco Bellini opened your brochure link','The Archive · opened 2 times · homes.me/p/archive-b-4821','18 min','Open the lead','lead.html',1,'Leads','Today'],
+      ['calendar','','Site visit in 2 hours','Lucas Martin · 16:30 · The Archive sales centre','25 min','Open the calendar','calendar.html',0,'Meetings','Today'],
+      ['swap','','Yuliia wants to give you a lead','Fatima Al Zaabi · speaks Arabic · answer by 18:00','40 min','Accept or refuse','transfers.html',1,'Leads','Today'],
+      ['pin','violet','Your leave request is waiting','Annual · 18–20 Nov · Emir has not answered yet','48 min','Open my leave','attendance.html#leave',0,'Team','Today'],
+      ['whatsapp','blue','2 messages wait for your update','Marco Bellini · Priya Shah · what happened?','1 h','Answer on My Day','my-day.html',0,'Leads','Today'],
+      ['calendar','accent','How did the meeting go?','Omar Khalil · 12:00 · Office · Room 2 · answer before 21:00','2 h','Answer','calendar.html#result',1,'Meetings','Today'],
+      ['alert','amber','2 leads go back tomorrow 09:00','Sami Najahi · Neil Smith · not called yet','2 h','Open my leads','my-leads.html',0,'Leads','Today'],
+      ['clock','red','Follow-up is overdue','Sara Nunes · since 11:00','3 h','Open follow-ups','tasks.html#follow-ups',0,'Tasks','Today'],
+      ['tasks','','New task from Emir','Confirm your Cityscape shift · today 17:30','5 h','Open tasks','tasks.html',0,'Tasks','Today'],
+      ['megaphone','','Emir posted on the team wall','Cityscape Global · 17–19 Nov · stand B12','Yesterday','Read','team-wall.html',0,'Team','Yesterday'],
+      ['upload','','34 new leads from an import','Nov_batch_C.xlsx · The Archive · call them or they go back','Yesterday','Open my leads','my-leads.html',0,'Leads','Yesterday'],
+      ['trophy','green','You are 2nd in Best of Homes','6 calls or 1 meeting puts you in first place.','Yesterday','Open the ranking','best-of-homes.html',0,'Team','Yesterday'],
+      ['check','green','Leave approved · Wed 14 Oct','Sick · 1 day · approved by Emir','14 Oct','Open my leave','attendance.html#leave',0,'Team','Earlier']
+    ]
+  };
+  var N=ALL[owner?'owner':'agent'], CATS=owner?['All','Leads','Team','System']:['All','Leads','Meetings','Tasks','Team'], cat='All', onlyNew=false;
+  function unread(c){return N.filter(function(n){return n[7]&&(c==='All'||n[8]===c)}).length}
+  function render(){
+    $('#tabs').innerHTML=CATS.map(function(c){var u=unread(c);return '<button class="tab'+(c===cat?' on':'')+'" data-c="'+c+'">'+c+(u?' <span class="count'+(c===cat?'':' red')+'">'+u+'</span>':'')+'</button>'}).join('');
+    var list=N.filter(function(n){return (cat==='All'||n[8]===cat)&&(!onlyNew||n[7])}), h='', g='';
+    list.forEach(function(n){
+      if(n[9]!==g){ g=n[9]; h+='<div class="grp">'+g+'</div>'; }
+      h+='<div class="nrow'+(n[7]?' unread':'')+'" data-i="'+N.indexOf(n)+'" data-href="'+n[6]+'"><span class="ic '+n[1]+'"><i data-icon="'+n[0]+'"></i></span><span class="bd"><b>'+n[2]+'</b><p>'+n[3]+'</p></span>'+
+        (n[7]?'<button class="btn xs ghost mark" data-mark>Mark read</button>':'')+'<a class="btn sm" href="'+n[6]+'">'+n[5]+' <i data-icon="arrow-right"></i></a><span class="age">'+n[4]+(/min|h$/.test(n[4])?' ago':'')+'</span><span class="udot" aria-label="New"></span></div>';
+    });
+    $('#list').innerHTML=h; $('#none').hidden=!!list.length;
+    $('#none-txt').textContent=onlyNew?'Nothing new in “'+cat+'”. New alerts show up on top.':'No notifications in “'+cat+'” yet.';
+    var u=unread('All'); $('#n-new').textContent=u; $('#n-title').textContent=u===1?'new notification':'new notifications';
+    $('#n-sub').textContent=u?'Click a row and it opens the right page.':'All read. Click a row and it opens the right page.';
+    $('#mark-all').disabled=!u;
+    var pip=$('#hm-bell-pip'); if(pip){ pip.textContent=u; pip.style.display=u?'':'none'; }
+    HM.refresh($('#list'));
+  }
+  $('#tabs').addEventListener('click',function(e){var b=e.target.closest('[data-c]'); if(b){cat=b.getAttribute('data-c');render()}});
+  $('#only-new').onchange=function(){onlyNew=this.checked;render()};
+  $('#show-all').onclick=function(){cat='All';onlyNew=false;$('#only-new').checked=false;render()};
+  $('#list').addEventListener('click',function(e){
+    var m=e.target.closest('[data-mark]'), row=e.target.closest('.nrow'); if(!row) return;
+    var n=N[+row.getAttribute('data-i')];
+    if(m){ n[7]=0; render(); HM.toast('Marked as read',{undo:function(){n[7]=1;render()}}); return; }
+    n[7]=0; /* opening a row reads it; app.js follows data-href */
+  });
+  $('#mark-all').onclick=function(){
+    var was=N.filter(function(n){return n[7]}); was.forEach(function(n){n[7]=0}); render();
+    HM.toast(was.length+' notifications marked as read',{undo:function(){was.forEach(function(n){n[7]=1});render()}});
+  };
+  render();
+})();
+</script>
+</body>
+</html>

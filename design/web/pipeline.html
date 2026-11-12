@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pipeline · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .kanban{gap:10px}
+  .kb-col{padding:8px 8px 10px}
+  .kb-head .ct{font-size:20px;font-weight:720;letter-spacing:-.03em}
+  .kb-head .pc{font-size:11.5px;color:var(--ink-3);font-weight:560}
+  .kb-bar{height:4px;border-radius:2px;margin:0 8px 2px;background:var(--st-new)}
+  .kb-col.called .kb-bar{background:var(--st-called)}.kb-col.interested .kb-bar{background:var(--st-interested)}.kb-col.meeting .kb-bar{background:var(--st-meeting)}
+  .kb-col.offer .kb-bar{background:var(--st-offer)}.kb-col.won .kb-bar{background:var(--st-won)}
+  .kb-card{cursor:pointer;padding:11px 12px}
+  .kb-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-2)}
+  .kb-card .nm{display:flex;align-items:center;gap:6px;min-width:0}
+  .kb-card .nx{font-size:12px;color:var(--ink-3);line-height:1.3;flex:1;min-width:0;overflow-wrap:anywhere}
+  .kb-card .nm b{overflow-wrap:anywhere;white-space:normal;line-height:1.2}
+  .kb-card .t-sub{white-space:normal;line-height:1.3}
+  .kb-card .nx.red{color:var(--red-ink);font-weight:600}
+  .kb-card .ft{display:flex;align-items:center;gap:6px;min-height:26px}
+  .kb-card{position:relative}
+  .kb-card .btn{opacity:0;transition:opacity .12s;position:absolute;right:8px;bottom:8px;box-shadow:inset 0 0 0 1px var(--line-2),-10px 0 10px 4px var(--surface)}.kb-card:hover .btn,.kb-card:focus-within .btn{opacity:1}
+  .kb-more{display:block;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-3);padding:8px;border-radius:12px;transition:.15s}
+  .kb-more:hover{background:var(--surface);color:var(--accent-ink)}
+  .kb-card.hidden{display:none}
+  .lost-strip{display:flex;align-items:center;gap:14px;margin-top:16px;padding:12px 16px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line-2)}
+  .lost-strip .kb-card{flex-direction:row;align-items:center;gap:10px;padding:8px 12px;box-shadow:none;background:var(--surface-2)}
+  .how{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-3)}
+</style>
+</head>
+<body data-page="pipeline" data-role="any">
+<main>
+  <div class="filters" style="margin-top:4px">
+    <div class="input-icon"><i data-icon="search"></i><input class="input sm" id="q" placeholder="Name or project"></div>
+    <select class="select sm" id="f-agent" data-only="owner"><option value="">Agent: all 10</option><option>Rocky</option><option>Talha</option><option>Yuliia</option><option>Olga</option><option>Srdjan</option><option>Tej</option><option>Shan</option><option>Nelson</option><option>Sultan</option><option>Bassam</option></select>
+    <select class="select sm" id="f-proj"><option value="">Project: all</option><option>The Archive</option><option>Shahrukhz</option><option>Damac Islands</option><option>Valia</option><option>Al Seef</option></select>
+    <span class="grow"></span>
+    <span class="how"><i data-icon="lock" class="i-sm"></i>No drag. A stage changes when you save a call, a meeting, an offer or Won.</span>
+    <span class="result-count" id="count"></span>
+  </div>
+
+  <div class="kanban" id="board"></div>
+
+  <div class="lost-strip" id="lost">
+    <span class="chip stage-lost">Lost</span><b class="bold" id="lost-n">1</b><span class="small muted">kept apart · not counted in open leads</span>
+    <span id="lost-cards" class="row gap-8"></span>
+    <span class="grow"></span><a class="card-link" id="lost-link" href="my-leads.html#lost">See all lost <i data-icon="arrow-right" class="i-sm"></i></a>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var owner=HM.role==='owner';
+  var ST=['new','called','interested','meeting','offer','won'];
+  var MINE={'new':18,called:16,interested:14,meeting:8,offer:6,won:2}, TEAM={'new':456,called:214,interested:96,meeting:31,offer:12,won:4};
+  // Rocky's sample leads + a few of the team (owner view) + two won this month
+  var cards=LK.leads.filter(function(l){return l.s!=='lost'}).map(function(l){ return {n:l.n,p:l.p,pr:l.pr,d:l.d,s:l.s,nx:l.nx,red:l.red,vip:l.vip,a:'Rocky',none:l.none}; })
+    .concat([{n:'Layla Haddad',p:'+971 50 818 2020',pr:'The Archive',d:'2BR',s:'won',nx:'Booked 4 Nov · AED 2.1M',a:'Rocky'},{n:'Paolo Conti',p:'+39 348 220 1010',pr:'Shahrukhz',d:'1BR',s:'won',nx:'Booked 2 Nov · AED 1.3M',a:'Rocky'}]);
+  if(owner) cards=cards.concat([
+    {n:'Omar Khan',p:'+971 50 333 2211',pr:'Shahrukhz',d:'VIP',s:'new',nx:'In Incoming · came back',red:1,vip:1,a:'Incoming'},
+    {n:'Lina Rahimi',p:'+971 52 700 1122',pr:'Damac Islands',d:'imported',s:'new',nx:'In Incoming · waits 42 min',red:1,a:'Incoming'},
+    {n:'Daniel Rossi',p:'+971 50 444 8899',pr:'Valia',d:'VIP',s:'called',nx:'Called 11:19',vip:1,a:'Nelson'},
+    {n:'Fatima Al Zaabi',p:'+971 56 100 4455',pr:'The Archive',d:'1BR',s:'interested',nx:'Transfer to Rocky · waiting',a:'Yuliia'},
+    {n:'Igor Petrov',p:'+7 916 222 33 44',pr:'Damac Islands',d:'villa',s:'meeting',nx:'Site visit Thu 11:00',a:'Olga'},
+    {n:'Bilal Chaudhry',p:'+92 300 1234567',pr:'Shahrukhz',d:'2BR',s:'offer',nx:'Offer sent Mon',a:'Talha'},
+    {n:'Hamad Al Suwaidi',p:'+971 50 909 1212',pr:'Damac Islands',d:'AED 2.9M',s:'won',nx:'Booked today · AED 2.9M',a:'Talha'}
+  ]);
+  var LIMIT=5;
+  function card(c,i){
+    return '<div class="kb-card'+(i>=LIMIT?' hidden':'')+'" data-href="'+LK.url(c.n,LK.lead(c.n)&&c.a==='Rocky'?{}:{p:c.p,pr:c.pr,d:c.d,s:c.s,a:c.a,vip:c.vip?1:'',nx:c.nx})+'" tabindex="0"><div class="nm"><b>'+c.n+'</b>'+(c.vip?'<span class="vip-tag">VIP</span>':'')+'</div>'+
+      '<span class="t-sub">'+c.pr+' · '+c.d+'</span>'+
+      '<div class="ft">'+(owner?'<span class="av xs" data-name="'+(c.a==='Rocky'?'Rocky Khan':c.a)+'" data-tip="'+c.a+'" data-tip-pos="top"></span>':'')+'<span class="nx'+(c.red?' red':'')+'">'+c.nx+'</span>'+
+      (c.p&&c.s!=='won'?'<button class="btn xs" data-call="'+c.n+'|'+c.p+'"><i data-icon="phone"></i>Call</button>':'')+'</div></div>';
+  }
+  function render(){
+    var q=$('#q').value.trim().toLowerCase(), pr=$('#f-proj').value, ag=owner?$('#f-agent').value:'', filtered=q||pr||ag;
+    var list=cards.filter(function(c){ return (!q||(c.n+' '+c.pr).toLowerCase().indexOf(q)>-1)&&(!pr||c.pr===pr)&&(!ag||c.a===ag); });
+    var totals=(owner&&ag!=='Rocky')?TEAM:MINE, sum=0, open=0;
+    $('#board').innerHTML=ST.map(function(s){
+      var cs=list.filter(function(c){return c.s===s}), total=filtered&&!(ag==='Rocky'&&!q&&!pr)?cs.length:totals[s], all=(owner&&ag!=='Rocky'?809:62);
+      sum+=total; if(s!=='won') open+=total;
+      var more=total-Math.min(cs.length,LIMIT);
+      return '<div class="kb-col '+s+'"><div class="kb-head"><span class="chip stage-'+s+'">'+LK.stage[s]+'</span><span class="grow"></span>'+(s!=='won'&&!filtered?'<span class="pc">'+Math.round(total/all*100)+'%</span>':s==='won'?'<span class="pc nowrap">in Nov</span>':'')+'<b class="ct">'+total+'</b></div><div class="kb-bar"></div>'+
+        cs.map(card).join('')+(cs.length?'':'<div class="small muted center" style="padding:18px 8px">No leads here</div>')+
+        (more>0?'<a class="kb-more" href="'+(owner?'all-leads.html?stage='+s:'my-leads.html#all')+'">+ '+more+' more</a>':'')+'</div>';
+    }).join('');
+    HM.refresh($('#board'));
+    $('#count').textContent=(filtered&&!(ag==='Rocky'&&!q&&!pr)?list.length+' found'+(ag&&ag!=='Rocky'?' · demo shows a few sample leads of '+ag:''):(owner&&ag!=='Rocky'?'809 open leads · every agent':'62 open leads'));
+  }
+  $('#q').addEventListener('input',render); $('#f-proj').addEventListener('change',render); if(owner) $('#f-agent').addEventListener('change',render);
+  $('#board').addEventListener('keydown',function(e){ var c=e.target.closest('.kb-card'); if(c&&e.key==='Enter'&&e.target===c) location.href=c.getAttribute('data-href'); });
+  render();
+  // lost, kept apart
+  $('#lost-n').textContent=owner?'50':'1';
+  $('#lost-cards').innerHTML='<a class="kb-card" href="'+LK.url('Tom Becker')+'"><b>Tom Becker</b><span class="t-sub">Shahrukhz · studio · budget too low</span></a>'+(owner?'<a class="kb-card" href="'+LK.url('Rita Gomes',{pr:'Valia',s:'lost',a:'Nelson',nx:'Bought elsewhere'})+'"><b>Rita Gomes</b><span class="t-sub">Valia · bought elsewhere</span></a>':'');
+  if(owner) $('#lost-link').href='all-leads.html?stage=lost';
+})();
+</script>
+</body>
+</html>

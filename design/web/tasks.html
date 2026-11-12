@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tasks · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .top-tabs{margin-bottom:18px}
+  .top-tabs .tab{font-size:15px;padding-left:4px;padding-right:4px;margin-right:22px}
+  .lay{display:grid;grid-template-columns:minmax(0,1fr) 316px;gap:16px;align-items:start}
+  /* week strip */
+  .week{display:flex;align-items:stretch;gap:8px;margin-bottom:16px}
+  .week .nav{display:flex;flex-direction:column;gap:6px;justify-content:center}
+  .wd{flex:1;min-width:0;background:var(--surface);border-radius:18px;padding:12px 14px;text-align:left;box-shadow:var(--shadow-1);transition:.15s;display:flex;flex-direction:column;gap:2px}
+  .wd:hover{box-shadow:var(--shadow-2);transform:translateY(-1px)}
+  .wd .dn{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .wd .dd{font-size:26px;font-weight:720;letter-spacing:-.03em;line-height:1.1}
+  .wd .lf{font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+  .wd .lf.has{color:var(--ink)}
+  .wd.off{background:var(--surface-2);box-shadow:none}
+  .wd.today .dn{color:var(--accent-ink)}
+  .wd.on{background:var(--hero);color:var(--hero-ink)}
+  .wd.on .dn,.wd.on .lf{color:var(--hero-ink-2)}.wd.on .lf.has{color:#fff}
+  .wd.on.today .dn{color:var(--accent)}
+  html[data-theme="dark"] .wd.on{box-shadow:inset 0 0 0 2px var(--accent)}
+  /* task rows */
+  .trow{display:flex;align-items:center;gap:12px;padding:0 10px;margin:0 -10px;min-height:56px;border-radius:14px;transition:background .12s}
+  .trow:hover{background:var(--surface-2)}
+  .trow+.trow{box-shadow:0 -1px 0 var(--line)}
+  .trow:hover,.trow:hover+.trow{box-shadow:none}
+  .trow .tm{width:48px;flex:none;font-weight:680}
+  .trow .ty{width:92px;flex:none}
+  .trow .tx{flex:1;min-width:0}
+  .trow .tx b{display:block;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .tx span{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow.done .tx b,.trow.done .tm{color:var(--ink-3);text-decoration:line-through}
+  .trow .check input{width:22px;height:22px;border-radius:50%}
+  .big-left{font-size:68px;font-weight:740;letter-spacing:-.05em;line-height:1}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .res-list .opt{padding:11px 14px}
+  #fu-table td{height:56px}
+  #fu-table .row-actions{opacity:1}
+  .res-list .opt b{white-space:nowrap}
+  .fu-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .fu-head .tabs{margin:0;border:0}
+</style>
+</head>
+<body data-page="tasks" data-role="any" data-sub="Wednesday, 11 November 2026 · 14:55">
+<main>
+
+  <div class="tabs top-tabs" data-tabs id="top-tabs">
+    <button class="tab on" data-tab="tasks">Tasks <span class="count" id="c-tasks">6</span></button>
+    <button class="tab" data-tab="follow-ups">Follow-ups <span class="count red" id="c-over">1</span></button>
+    <span class="grow" style="flex:1"></span>
+    <select class="select sm" data-only="owner" style="width:170px;margin-bottom:8px" aria-label="Whose tasks" onchange="HM.toast('Showing '+this.value)">
+      <option>Rocky Khan</option><option>My own tasks</option><option>Talha</option><option>Yuliia</option><option>Olga</option><option>Srdjan</option><option>Tej</option><option>Shan</option><option>Nelson</option><option>Sultan</option><option>Bassam</option>
+    </select>
+  </div>
+
+  <!-- ====================== TASKS ====================== -->
+  <div data-panel="tasks">
+    <div class="week">
+      <div class="nav">
+        <button class="btn icon sm" id="wk-prev" data-tip="Week before" aria-label="Week before"><i data-icon="chevron-left"></i></button>
+        <button class="btn icon sm" id="wk-next" data-tip="Next week" aria-label="Next week"><i data-icon="chevron-right"></i></button>
+      </div>
+      <div id="wk-days" style="display:contents"></div>
+    </div>
+
+    <div class="lay">
+      <section class="card">
+        <div class="card-head">
+          <h3 id="list-title" style="font-size:17px">Today · Wed 11 Nov</h3>
+          <button class="btn sm" id="go-today">Today</button>
+          <div class="seg sm" data-seg id="seg-state"><button class="on" data-value="todo">To do <span id="n-todo">6</span></button><button data-value="done">Done <span id="n-done">2</span></button></div>
+          <button class="btn primary" id="new-task"><i data-icon="plus"></i>New task</button>
+        </div>
+        <div id="task-list"></div>
+      </section>
+
+      <aside class="col gap-16">
+        <section class="card hero">
+          <span class="label" id="sum-lab">Left today</span>
+          <div class="row base gap-8 mt-4"><b class="big-left" id="sum-left">6</b><span class="muted" id="sum-of">of 8 tasks</span></div>
+          <div class="bar accent mt-16" id="sum-bar" style="--v:25%"><i></i></div>
+          <div class="card-foot" id="sum-next" style="color:var(--hero-ink-2)">Next: 15:20 · Call the VIP lead Khalid</div>
+        </section>
+        <section class="card">
+          <a class="watch" href="#follow-ups" id="w-over"><span class="grow"><b>Follow-ups overdue</b><span id="w-over-s">Sara Nunes · since 11:00</span></span><b class="n red" id="w-over-n">1</b><i data-icon="chevron-right"></i></a>
+          <a class="watch" href="calendar.html#result"><span class="grow"><b>Meeting result needed</b><span>Omar Khalil · answer before 21:00</span></span><b class="n">1</b><i data-icon="chevron-right"></i></a>
+          <a class="watch" href="calendar.html"><span class="grow"><b>Plans today</b><span>Next: 16:30 site visit · Lucas Martin</span></span><b class="n">6</b><i data-icon="chevron-right"></i></a>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ====================== FOLLOW-UPS ====================== -->
+  <div data-panel="follow-ups" hidden>
+    <div class="fu-head">
+      <div class="tabs pills" id="fu-tabs">
+        <button class="tab on" data-fu="overdue">Overdue <span class="count red">1</span></button>
+        <button class="tab" data-fu="today">Today <span class="count">4</span></button>
+        <button class="tab" data-fu="tomorrow">Tomorrow <span class="count">2</span></button>
+        <button class="tab" data-fu="week">This week <span class="count">2</span></button>
+      </div>
+      <span class="grow" style="flex:1"></span>
+      <span class="result-count" id="fu-count">1 follow-up</span>
+      <a class="btn primary" id="fu-callall" href="calling.html"><i data-icon="phone"></i><span>Call these 1 one by one</span></a>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="fu-table">
+        <thead><tr><th>Lead</th><th>Phone</th><th>Stage</th><th>What about</th><th>How</th><th>When</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="fu-empty" hidden><span class="ic"><i data-icon="check" class="i-xl"></i></span><b>No follow-ups here</b><p>When you plan a follow-up on a lead it shows here.</p><a class="btn sm" href="my-leads.html">Open my leads</a></div>
+    </div>
+    <p class="small muted mt-12">“Done” asks what happened, so the lead always has a next step. A follow-up not done by the end of the day moves to Overdue.</p>
+  </div>
+
+  <!-- row menus -->
+  <div class="menu" id="task-menu">
+    <button class="menu-item" id="tm-change"><i data-icon="edit"></i>Change</button>
+    <button class="menu-item" id="tm-later"><i data-icon="clock"></i>Move one day later</button>
+    <div class="menu-sep"></div>
+    <button class="menu-item danger" id="tm-del" data-confirm="Tap again to delete"><i data-icon="trash"></i>Delete</button>
+  </div>
+  <div class="menu" id="fu-menu">
+    <button class="menu-item" id="fm-tomorrow"><i data-icon="clock"></i>Move to tomorrow</button>
+    <button class="menu-item" id="fm-later"><i data-icon="arrow-right"></i>Move one day later</button>
+    <div class="menu-sep"></div>
+    <a class="menu-item" href="lead.html"><i data-icon="user"></i>Open the lead</a>
+  </div>
+
+  <!-- ============ NEW / CHANGE TASK ============ -->
+  <div class="dialog" id="task-dialog" role="dialog" aria-label="Task">
+    <form id="task-form" novalidate>
+    <div class="dialog-head"><div class="grow"><h3 id="td-title">New task</h3><p>A task is for you. It shows on My Day on its day.</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="field" id="f-text"><label>What do you need to do? <span class="req">*</span></label><input class="input" id="td-text" placeholder="Send the floor plan to Dave"></div>
+      <div class="field"><span class="field-label">Type</span>
+        <div class="chips" data-chips id="td-type"><button type="button" class="chip-opt on">Call</button><button type="button" class="chip-opt">WhatsApp</button><button type="button" class="chip-opt">Meeting</button><button type="button" class="chip-opt">Other</button></div></div>
+      <div class="two">
+        <div class="field" id="f-day"><label>Day <span class="req">*</span></label><input class="input" type="date" id="td-day" min="2026-11-11"></div>
+        <div class="field" id="f-time"><label>Time</label><select class="select" id="td-time"></select></div>
+      </div>
+      <div class="field"><label>Lead <span class="muted" style="font-weight:400">· you can leave it empty</span></label><select class="select" id="td-lead"><option value="">No lead</option></select></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="td-save">Save the task</button></div>
+    </form>
+  </div>
+
+  <!-- ============ MEETING TASK RESULT ============ -->
+  <div class="dialog sm" id="meet-dialog" role="dialog" aria-label="Meeting result">
+    <div class="dialog-head"><div class="grow"><h3 id="md-title">How did the meeting go?</h3><p id="md-sub">Omar Khalil · today 12:00 · Office · Room 2</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="opt-list res-list">
+        <button type="button" class="opt" data-meet="Client showed up"><i data-icon="check"></i><b class="bold grow">Client showed up</b></button>
+        <button type="button" class="opt" data-meet="No-show"><i data-icon="x"></i><b class="bold grow">No-show</b></button>
+        <button type="button" class="opt" data-meet="Cancelled"><i data-icon="flag"></i><b class="bold grow">Cancelled</b></button>
+      </div>
+      <a class="card-link" href="calendar.html#result">Booked a unit, moved it, or want to plan the next step? Open it in Calendar <i data-icon="arrow-right" class="i-sm"></i></a>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Later</button></div>
+  </div>
+
+  <!-- ============ FOLLOW-UP DONE: WHAT HAPPENED? ============ -->
+  <div class="dialog" id="fu-dialog" role="dialog" aria-label="What happened?">
+    <div class="dialog-head"><div class="grow"><h3 id="fd-title">What happened with Sara?</h3><p id="fd-sub">Damac Islands · villa · follow-up overdue since 11:00</p></div><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="field" id="f-what">
+        <div class="opt-list res-list" data-chips id="fd-opts">
+          <button type="button" class="opt" data-value="spoke"><i data-icon="check"></i><span class="grow"><b class="bold">Spoke · all done</b></span></button>
+          <button type="button" class="opt" data-value="noanswer"><i data-icon="phone"></i><span class="grow"><b class="bold">No answer · try again tomorrow</b></span><span class="small muted">tomorrow 11:00</span></button>
+          <button type="button" class="opt" data-value="meeting"><i data-icon="calendar"></i><span class="grow"><b class="bold">Booked a meeting</b></span><span class="small muted">set the time next</span></button>
+          <button type="button" class="opt" data-value="lost"><i data-icon="x"></i><span class="grow"><b class="bold">Not interested</b></span><span class="small muted">lead goes to Lost</span></button>
+        </div>
+      </div>
+      <div class="field" id="f-next" hidden><label>Next step for this lead <span class="req">*</span></label>
+        <select class="select" id="fd-next"><option value="">Choose…</option><option>Follow up in 2 days</option><option>Follow up next week</option><option>Send the payment plan</option><option>Nothing now · the client will write</option></select></div>
+      <div class="two" id="f-meet" hidden>
+        <div class="field" id="f-mday"><label>Meeting day <span class="req">*</span></label><input class="input" type="date" id="fd-mday" min="2026-11-11" value="2026-11-12"></div>
+        <div class="field"><label>Time</label><select class="select" id="fd-mtime"></select></div>
+      </div>
+      <div class="field" id="f-reason" hidden><label>Why is the lead lost? <span class="req">*</span></label>
+        <select class="select" id="fd-reason"><option value="">Choose a reason…</option><option>Bought elsewhere</option><option>Budget too low</option><option>Just browsing</option><option>Not into off-plan</option><option>Is a broker, not a buyer</option><option>Other</option></select>
+        <label class="check mt-8"><input type="checkbox" checked>Try again in 3 months</label></div>
+      <div class="field"><label>Note</label><textarea class="textarea" id="fd-note" style="min-height:64px" placeholder="What did the client say?"></textarea></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button type="button" class="btn primary" id="fd-save">Save</button></div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var TODAY=new Date(2026,10,11), NOW=14*60+55;
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function p2(n){return (n<10?'0':'')+n}
+  function key(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+  function parse(k){var a=k.split('-');return new Date(+a[0],a[1]-1,+a[2])}
+  function add(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+  function dow(d){return (d.getDay()+6)%7}
+  function mins(t){var a=t.split(':');return a[0]*60+ +a[1]}
+  function nice(d){return DOW[dow(d)]+' '+d.getDate()+' '+MON[d.getMonth()]}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function setErr(f,msg){ f=typeof f==='string'?$(f):f; f.classList.toggle('invalid',!!msg); var s=$('.error',f); if(!s){s=document.createElement('span');s.className='error';f.appendChild(s)} s.textContent=msg||''; return !msg; }
+  function val(q){var o=$(q+' > .on');return o?(o.getAttribute('data-value')||o.textContent.trim()):''}
+  function times(el,v){var h='<option value="">No time</option>';for(var m=7*60;m<=21*60;m+=15)h+='<option>'+p2(Math.floor(m/60))+':'+p2(m%60)+'</option>';el.innerHTML=h;setTime(el,v)}
+  function setTime(el,v){ if(v&&!el.querySelector('option[value="'+v+'"]')){var o=document.createElement('option');o.value=o.textContent=v;var nx=[].filter.call(el.options,function(x){return x.value>v})[0];el.insertBefore(o,nx||null)} el.value=v||''; }
+  var LEADS=['Khalid Al Mansoori','Sara Nunes','Marco Bellini','Priya Shah','Lucas Martin','Ahmed Hassan','Sami Najahi','Neil Smith','Parvez Hossain','Hanna Alabbas','Dave Patel','Vanessa Pecoraro','Elena Kuznetsova','Bridget Cardoso','Omar Khalil'];
+  $('#td-lead').innerHTML+=LEADS.map(function(l){return '<option>'+l+'</option>'}).join('');
+  times($('#td-time'),''); times($('#fd-mtime'),'11:00');
+
+  /* ====================== TASKS ====================== */
+  var id=0;
+  function T(d,t,type,title,sub,x){var o={id:++id,d:d,t:t,type:type,title:title,sub:sub||'',done:0};for(var k in x)o[k]=x[k];return o}
+  var TASKS=[
+    T('2026-11-09','10:00','Call','Call Dave Patel','Shahrukhz · 2BR',{done:1,lead:'Dave Patel'}),
+    T('2026-11-09','15:00','WhatsApp','Send brochure to Bridget Cardoso','The Archive · 2BR',{done:1,lead:'Bridget Cardoso'}),
+    T('2026-11-10','11:30','Call','Call Hanna Alabbas','The Archive · 2BR · no answer twice',{done:1,lead:'Hanna Alabbas'}),
+    T('2026-11-10','16:00','From Emir','Add notes to your 3 hot leads','From Emir',{done:1}),
+    T('2026-11-11','10:30','Call','Call Marco Bellini','The Archive · 2BR · AED 2M',{done:1,lead:'Marco Bellini'}),
+    T('2026-11-11','09:30','Other','Read the new Valia price list','Sent by Emir on the team wall',{done:1}),
+    T('2026-11-11','11:00','Call','Follow up Sara Nunes','Damac Islands · villa · overdue since 11:00',{late:1,lead:'Sara Nunes',fu:'Sara Nunes'}),
+    T('2026-11-11','12:00','Meeting','Meeting with Omar Khalil','Office · Room 2 · result needed',{lead:'Omar Khalil',place:'Office · Room 2'}),
+    T('2026-11-11','15:20','Call','Call the VIP lead Khalid','The Archive · 2BR · AED 2.5M · VIP from Emir',{lead:'Khalid Al Mansoori'}),
+    T('2026-11-11','15:30','WhatsApp','Send payment plan to Marco','The Archive · 60 / 40',{lead:'Marco Bellini',fu:'Marco Bellini'}),
+    T('2026-11-11','16:30','Meeting','Site visit with Lucas Martin','The Archive sales centre',{lead:'Lucas Martin',place:'The Archive sales centre'}),
+    T('2026-11-11','17:30','From Emir','Confirm your Cityscape shift','From Emir · expo is 17–19 Nov · stand B12',{}),
+    T('2026-11-12','10:00','Call','Call Ahmed Hassan','Shahrukhz · 1BR',{lead:'Ahmed Hassan'}),
+    T('2026-11-12','13:00','Meeting','Video call with Elena Kuznetsova','Online / Zoom',{lead:'Elena Kuznetsova',place:'Online / Zoom'}),
+    T('2026-11-12','16:00','Meeting','Damac Islands tour','Damac Islands sales centre',{lead:'Elena Kuznetsova',place:'Damac Islands sales centre'}),
+    T('2026-11-12','18:00','Other','Weekly sales meeting','Office · Room 1 · team plan',{}),
+    T('2026-11-13','11:00','WhatsApp','Send the floor plan to Dave Patel','Shahrukhz · 2BR',{lead:'Dave Patel'}),
+    T('2026-11-17','09:00','From Emir','Cityscape Global expo · day 1','DWTC · stand B12',{})
+  ];
+  var sel=new Date(TODAY), state='todo', editing=null;
+  var TY={Call:'blue',Overdue:'red',Meeting:'orange',WhatsApp:'green','From Emir':'dark',Other:''};
+  function onDay(k){return TASKS.filter(function(t){return t.d===k}).sort(function(a,b){return mins(a.t||'23:59')-mins(b.t||'23:59')})}
+  function typeOf(t){return t.late&&!t.done?'Overdue':t.type}
+  function renderWeek(){
+    var s=add(sel,-dow(sel)), h='';
+    for(var i=0;i<7;i++){ var d=add(s,i), k=key(d), all=onDay(k), left=all.filter(function(t){return !t.done}).length;
+      h+='<button class="wd'+(k===key(sel)?' on':'')+(k===key(TODAY)?' today':'')+(i>4?' off':'')+'" data-day="'+k+'"><span class="dn">'+(k===key(TODAY)?'Today':DOW[i])+'</span><span class="dd">'+d.getDate()+'</span><span class="lf'+(left?' has':'')+'">'+(left?left+' left':(all.length?'All done':(i>4?'Day off':'No tasks')))+'</span></button>'; }
+    $('#wk-days').innerHTML=h;
+  }
+  function renderTasks(){
+    var k=key(sel), all=onDay(k), todo=all.filter(function(t){return !t.done}), done=all.filter(function(t){return t.done}), list=state==='todo'?todo:done, isToday=k===key(TODAY);
+    $('#list-title').textContent=(isToday?'Today · ':(key(add(TODAY,1))===k?'Tomorrow · ':''))+nice(sel);
+    $('#n-todo').textContent=todo.length; $('#n-done').textContent=done.length; $('#go-today').hidden=isToday;
+    $('#task-list').innerHTML=list.length?list.map(function(t){
+      var ty=typeOf(t);
+      return '<div class="trow'+(t.done?' done':'')+'" data-id="'+t.id+'"><label class="check" data-tip="'+(t.done?'Not done yet':'Done')+'"><input type="checkbox"'+(t.done?' checked':'')+'></label><span class="tm">'+(t.t||'–')+'</span><span class="ty"><span class="chip '+TY[ty]+'">'+ty+'</span></span><span class="tx"><b>'+esc(t.title)+'</b><span'+(t.late&&!t.done?' class="overdue"':'')+'>'+esc(t.done&&t.result?t.result:t.sub)+'</span></span>'+
+        (t.lead?'<a class="btn xs ghost" href="lead.html">Open lead</a>':'')+'<button class="btn icon sm ghost" data-menu="#task-menu" data-tip="More" aria-label="More"><i data-icon="more"></i></button></div>';
+    }).join(''):'<div class="empty"><span class="ic"><i data-icon="'+(state==='todo'?'check':'tasks')+'" class="i-xl"></i></span><b>'+(state==='todo'?(all.length?'All done for this day':'No tasks on this day'):'Nothing done yet')+'</b><p>'+(state==='todo'?'Add a task and it shows here and on My Day.':'Tick a task and it moves here.')+'</p>'+(state==='todo'&&sel>=TODAY?'<button class="btn sm" data-new>Add a task</button>':'')+'</div>';
+    HM.refresh($('#task-list'));
+    // summary card
+    $('#sum-lab').textContent=isToday?'Left today':'Left on '+nice(sel);
+    $('#sum-left').textContent=todo.length; $('#sum-of').textContent='of '+all.length+' task'+(all.length===1?'':'s');
+    $('#sum-bar').style.setProperty('--v',(all.length?Math.round(done.length/all.length*100):0)+'%');
+    var nx=todo.filter(function(t){return !isToday||mins(t.t||'0:0')>=NOW})[0];
+    $('#sum-next').textContent=nx?'Next: '+nx.t+' · '+nx.title:(todo.length?todo.length+' still open from earlier':'Nothing left. Good work.');
+    $('#c-tasks').textContent=onDay(key(TODAY)).filter(function(t){return !t.done}).length;
+    $('#new-task').disabled=false;
+  }
+  function render(){renderWeek();renderTasks()}
+  function byId(i){return TASKS.filter(function(t){return t.id===i})[0]}
+  $('#wk-days').addEventListener('click',function(e){var b=e.target.closest('[data-day]'); if(b){sel=parse(b.getAttribute('data-day'));render()}});
+  $('#wk-prev').onclick=function(){sel=add(sel,-7);render()}; $('#wk-next').onclick=function(){sel=add(sel,7);render()};
+  $('#go-today').onclick=function(){sel=new Date(TODAY);render()};
+  $('#seg-state').addEventListener('hm:change',function(e){state=e.detail.value;renderTasks()});
+
+  var meetTask=null;
+  $('#task-list').addEventListener('change',function(e){
+    var row=e.target.closest('.trow'); if(!row) return; var t=byId(+row.getAttribute('data-id'));
+    if(!e.target.checked){ t.done=0; t.result=''; render(); HM.toast('Back in To do · '+t.title); return; }
+    if(t.type==='Meeting'){
+      e.target.checked=false;
+      var passed=t.d<key(TODAY)||(t.d===key(TODAY)&&mins(t.t)<=NOW);
+      if(!passed){ HM.toast('You can answer after '+t.t+', when the meeting has started.'); return; }
+      meetTask=t; $('#md-sub').textContent=(t.lead||t.title)+' · '+(t.d===key(TODAY)?'today':nice(parse(t.d)))+' '+t.t+' · '+(t.place||''); HM.open('#meet-dialog'); return;
+    }
+    var lf=t.fu&&FU.filter(function(f){return f.n===t.fu&&(f.g==='overdue'||f.g==='today')})[0];
+    if(lf){ e.target.checked=false; openFu(lf); return; }
+    HM.slideOut(row,function(){ t.done=1; render(); });
+    HM.toast('Done · '+t.title,{undo:function(){t.done=0;render()}});
+  });
+  $('#meet-dialog').addEventListener('click',function(e){
+    var b=e.target.closest('[data-meet]'); if(!b||!meetTask) return; var t=meetTask, r=b.getAttribute('data-meet');
+    t.done=1; t.result=r+(r==='Cancelled'?' · not a no-show':r==='No-show'?' · counted':''); HM.close(); render();
+    HM.toast(r+' · '+(t.lead||t.title)+(r==='Client showed up'?' · add the next step in Calendar':''),{undo:function(){t.done=0;t.result='';render()}});
+  });
+
+  /* row menu */
+  function menuTask(){var m=$('#task-menu'), r=m._src&&m._src.closest('.trow'); return r?byId(+r.getAttribute('data-id')):null}
+  $('#tm-later').onclick=function(){ var t=menuTask(); if(!t) return; var od=t.d, n=add(parse(t.d),1); if(dow(n)>4) n=add(n,7-dow(n)); t.d=key(n); t.late=0; render(); HM.toast('Moved to '+nice(n)+' · '+t.title,{undo:function(){t.d=od;render()}}); };
+  $('#tm-del').addEventListener('hm:confirm',function(){ var t=menuTask(); if(!t) return; var i=TASKS.indexOf(t); TASKS.splice(i,1); render(); HM.toast('Task deleted · '+t.title,{undo:function(){TASKS.splice(i,0,t);render()}}); });
+  $('#tm-change').onclick=function(){ var t=menuTask(); if(t) openTask(t); };
+
+  /* new / change dialog */
+  function openTask(t){
+    editing=t||null; $('#td-title').textContent=t?'Change task':'New task'; $('#td-save').textContent=t?'Save the change':'Save the task';
+    $('#td-text').value=t?t.title:''; $('#td-day').value=t?(t.d<key(TODAY)?key(TODAY):t.d):(sel<TODAY?key(TODAY):key(sel)); setTime($('#td-time'),t?t.t:'');
+    $('#td-lead').value=t&&t.lead?t.lead:''; var ty=t?(/Call|WhatsApp|Meeting/.test(t.type)?t.type:'Other'):'Call';
+    $$('#td-type > *').forEach(function(b){b.classList.toggle('on',b.textContent===ty)});
+    $$('#task-form .invalid').forEach(function(f){f.classList.remove('invalid')});
+    HM.open('#task-dialog'); setTimeout(function(){$('#td-text').focus()},60);
+  }
+  $('#new-task').onclick=function(){openTask()};
+  document.addEventListener('click',function(e){ if(e.target.closest('[data-new]')) openTask(); });
+  $('#td-text').oninput=function(){setErr('#f-text','')}; $('#td-day').oninput=function(){setErr('#f-day','')}; $('#td-time').onchange=function(){setErr('#f-time','')};
+  $('#task-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var tx=$('#td-text').value.trim(), k=$('#td-day').value, tm=$('#td-time').value, ty=val('#td-type'), ok=true;
+    ok=setErr('#f-text',tx?'':'Write what you need to do.')&&ok;
+    ok=setErr('#f-day',!k?'Choose a day.':(k<key(TODAY)?'This day has passed. Choose today or later.':''))&&ok;
+    ok=setErr('#f-time',ty==='Meeting'&&!tm?'A meeting needs a time.':(tm&&k===key(TODAY)&&mins(tm)<NOW?'This time has passed. It is 14:55 now.':''))&&ok;
+    if(!ok) return;
+    var lead=$('#td-lead').value, t=editing;
+    if(t){ if(t.type!=='From Emir'||ty!=='Other') t.type=ty; t.title=tx; t.d=k; t.t=tm; t.lead=lead; t.late=0; }
+    else { t=T(k,tm,ty,tx,lead?'Lead: '+lead:'Added by you',{lead:lead}); TASKS.push(t); }
+    sel=parse(k); state='todo'; $$('#seg-state > *').forEach(function(b,i){b.classList.toggle('on',i===0)});
+    HM.close(); render();
+    HM.toast((editing?'Task changed · ':'Task saved · ')+nice(sel)+(tm?' '+tm:''));
+  });
+
+  /* ====================== FOLLOW-UPS ====================== */
+  var FU=[
+    {g:'overdue',n:'Sara Nunes',ph:'+351 91 234 5678',pr:'Damac Islands · villa',st:'called',about:'Asked for villa prices',how:'Call',when:'Today 11:00',late:'Overdue since 11:00'},
+    {g:'today',n:'Marco Bellini',ph:'+39 333 455 4821',pr:'The Archive · 2BR · AED 2M',st:'interested',about:'Send payment plan',how:'WhatsApp',when:'15:30'},
+    {g:'today',n:'Priya Shah',ph:'+91 98765 43210',pr:'Valia · 1BR · AED 1.4M',st:'interested',about:'Call after her meeting',how:'Call',when:'16:00'},
+    {g:'today',n:'Lucas Martin',ph:'+33 6 12 34 56 78',pr:'The Archive · 3BR · AED 2.5M',st:'interested',about:'Compare Archive and Valia',how:'Call',when:'17:15'},
+    {g:'today',n:'Ahmed Hassan',ph:'+966 50 123 4567',pr:'Shahrukhz · 1BR',st:'called',about:'Best time in KSA',how:'Call',when:'19:00'},
+    {g:'tomorrow',n:'Elena Kuznetsova',ph:'+7 912 345 67 89',pr:'Damac Islands · AED 4.1M',st:'offer',about:'Answer on the offer',how:'Call',when:'Thu 12 Nov 11:00'},
+    {g:'tomorrow',n:'Dave Patel',ph:'+44 7700 900 456',pr:'Shahrukhz · 2BR',st:'called',about:'Wants the floor plan first',how:'WhatsApp',when:'Thu 12 Nov 14:00'},
+    {g:'week',n:'Hanna Alabbas',ph:'+971 55 320 7788',pr:'The Archive · 2BR',st:'called',about:'No answer twice · try again',how:'Call',when:'Fri 13 Nov 11:00'},
+    {g:'week',n:'Omar Khalil',ph:'+971 50 222 3344',pr:'Valia · 2BR',st:'meeting',about:'After the meeting · his decision',how:'Call',when:'Fri 13 Nov 15:00'}
+  ];
+  var STG={called:'Called',interested:'Interested',offer:'Offer',meeting:'Meeting','new':'New'}, grp='overdue', GN={overdue:'Overdue',today:'Today',tomorrow:'Tomorrow',week:'This week'};
+  function renderFu(){
+    var list=FU.filter(function(f){return f.g===grp});
+    $$('#fu-tabs .tab').forEach(function(b){var g=b.getAttribute('data-fu'), n=FU.filter(function(f){return f.g===g}).length; b.classList.toggle('on',g===grp); $('.count',b).textContent=n;});
+    var ov=FU.filter(function(f){return f.g==='overdue'});
+    $('#c-over').textContent=ov.length; $('#c-over').hidden=!ov.length;
+    $('#w-over-n').textContent=ov.length; $('#w-over-n').classList.toggle('red',!!ov.length); $('#w-over-s').textContent=ov.length?ov[0].n+' · '+ov[0].late.toLowerCase().replace('overdue ',''):'Nothing is late. Good work.';
+    $('#fu-table tbody').innerHTML=list.map(function(f){ var i=FU.indexOf(f);
+      return '<tr data-i="'+i+'" data-href="lead.html"><td><span class="t-main">'+f.n+'</span><div class="t-sub">'+f.pr+'</div></td><td class="t-mono">'+f.ph+'</td><td><span class="chip stage-'+f.st+'">'+STG[f.st]+'</span></td><td>'+f.about+'</td><td><span class="small muted"><i data-icon="'+(f.how==='Call'?'phone':'whatsapp')+'" class="i-sm"></i> '+f.how+'</span></td><td class="'+(f.late?'overdue':'')+'">'+(f.late||f.when)+'</td>'+
+        '<td><div class="row-actions">'+(f.how==='WhatsApp'?'<button class="btn xs" data-msg="whatsapp|'+f.n+'|'+f.ph+'"><i data-icon="whatsapp"></i>WhatsApp</button>':'<button class="btn xs" data-call="'+f.n+'|'+f.ph+'"><i data-icon="phone"></i>Call</button>')+'<button class="btn xs dark" data-done><i data-icon="check"></i>Done</button><button class="btn xs icon" data-menu="#fu-menu" data-tip="More" aria-label="More"><i data-icon="more"></i></button></div></td></tr>';
+    }).join('');
+    $('#fu-table').hidden=!list.length; $('#fu-empty').hidden=!!list.length;
+    $('#fu-count').textContent=list.length+' follow-up'+(list.length===1?'':'s')+' · '+GN[grp].toLowerCase();
+    $('#fu-callall').style.display=list.length?'':'none'; $('#fu-callall span').textContent=list.length===1?'Call this one now':'Call these '+list.length+' one by one';
+    HM.refresh($('#fu-table'));
+  }
+  $('#fu-tabs').addEventListener('click',function(e){var b=e.target.closest('[data-fu]'); if(b){grp=b.getAttribute('data-fu');renderFu()}});
+  var fuCur=null;
+  $('#fu-table').addEventListener('click',function(e){
+    var b=e.target.closest('[data-done]'); if(!b) return; openFu(FU[+b.closest('tr').getAttribute('data-i')]);
+  });
+  function openFu(f){ fuCur=f;
+    $('#fd-title').textContent='What happened with '+fuCur.n.split(' ')[0]+'?'; $('#fd-sub').textContent=fuCur.pr+' · '+fuCur.about+' · '+(fuCur.late||fuCur.when);
+    $$('#fd-opts > *').forEach(function(o){o.classList.remove('on')}); ['#f-next','#f-meet','#f-reason'].forEach(function(s){$(s).hidden=true});
+    $$('#fu-dialog .invalid').forEach(function(f){f.classList.remove('invalid')}); $('#fd-note').value=''; $('#fd-next').value=''; $('#fd-reason').value='';
+    HM.open('#fu-dialog');
+  }
+  $('#fd-opts').addEventListener('hm:change',function(e){ var v=e.detail.value; setErr('#f-what',''); $('#f-next').hidden=v!=='spoke'; $('#f-meet').hidden=v!=='meeting'; $('#f-reason').hidden=v!=='lost'; });
+  $('#fd-save').onclick=function(){
+    var v=val('#fd-opts'), f=fuCur, ok=true, msg='';
+    if(!v){ setErr('#f-what','Choose what happened.'); return; }
+    if(v==='spoke'){ ok=setErr('#f-next',$('#fd-next').value?'':'Choose the next step.'); msg='Done · spoke with '+f.n+' · next: '+$('#fd-next').value; }
+    if(v==='meeting'){ var k=$('#fd-mday').value; ok=setErr('#f-mday',!k?'Choose a day.':(k<key(TODAY)?'This day has passed.':'')); if(ok) msg='Meeting booked with '+f.n+' · '+nice(parse(k))+' '+$('#fd-mtime').value+' · it is in your tasks and calendar'; }
+    if(v==='lost'){ ok=setErr('#f-reason',$('#fd-reason').value?'':'Choose a reason.'); msg=f.n+' marked as lost · '+$('#fd-reason').value; }
+    if(!ok) return;
+    var old={g:f.g,when:f.when,late:f.late,about:f.about}, i=FU.indexOf(f);
+    if(v==='noanswer'){ f.g='tomorrow'; f.when='Thu 12 Nov 11:00'; f.late=''; f.about='No answer · try again'; msg='No answer · '+f.n+' moved to tomorrow 11:00'; }
+    else FU.splice(i,1);
+    var lt=TASKS.filter(function(t){return t.fu===f.n&&!t.done})[0], mt=null, ltOld=lt&&{d:lt.d,t:lt.t,late:lt.late};
+    if(lt){ if(v==='noanswer'){ lt.d='2026-11-12'; lt.t='11:00'; lt.late=0; } else { lt.done=1; lt.result={spoke:'Spoke · next: '+$('#fd-next').value,meeting:'Booked a meeting',lost:'Not interested · lead is Lost'}[v]; } }
+    if(v==='meeting'){ mt=T($('#fd-mday').value,$('#fd-mtime').value||'11:00','Meeting','Meeting with '+f.n,f.pr,{lead:f.n,place:'Office'}); TASKS.push(mt); }
+    HM.close(); renderFu(); render();
+    HM.toast(msg,{undo:function(){ if(v==='noanswer'){f.g=old.g;f.when=old.when;f.late=old.late;f.about=old.about} else FU.splice(i,0,f);
+      if(lt){ lt.done=0; lt.result=''; lt.d=ltOld.d; lt.t=ltOld.t; lt.late=ltOld.late; } if(mt) TASKS.splice(TASKS.indexOf(mt),1); renderFu(); render(); }});
+  };
+  function menuFu(){var m=$('#fu-menu'), r=m._src&&m._src.closest('tr'); return r?FU[+r.getAttribute('data-i')]:null}
+  function moveFu(f,to,when){ var old={g:f.g,when:f.when,late:f.late}; f.g=to; f.when=when; f.late=''; renderFu(); HM.toast(f.n+' moved to '+when,{undo:function(){f.g=old.g;f.when=old.when;f.late=old.late;renderFu()}}); }
+  $('#fm-tomorrow').onclick=function(){ var f=menuFu(); if(f) moveFu(f,'tomorrow','Thu 12 Nov 11:00'); };
+  $('#fm-later').onclick=function(){ var f=menuFu(); if(!f) return; var nx={overdue:['tomorrow','Thu 12 Nov 11:00'],today:['tomorrow','Thu 12 Nov 11:00'],tomorrow:['week','Fri 13 Nov 11:00'],week:['week','Mon 16 Nov 11:00']}[f.g]; moveFu(f,nx[0],nx[1]); };
+
+  /* top tabs keep the address and the sidebar in step */
+  $('#top-tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]'); if(b) history.replaceState(null,'','#'+b.getAttribute('data-tab')), window.dispatchEvent(new HashChangeEvent('hashchange'));});
+  function titleFromHash(){ var fu=location.hash==='#follow-ups'; var h=document.querySelector('.tb-title h1'); if(h) h.textContent=fu?'Follow-ups':'Tasks'; }
+  window.addEventListener('hashchange',titleFromHash);
+
+  $('#w-over').addEventListener('click',function(e){ e.preventDefault(); $('#top-tabs [data-tab="follow-ups"]').click(); grp='overdue'; renderFu(); });
+  render(); renderFu(); titleFromHash();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Incoming · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .inc-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+  .wrow{display:flex;align-items:center;gap:16px;padding:18px 22px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-1);min-width:0}
+  .wrow+.wrow{margin-top:12px}
+  .wrow .who{flex:1;min-width:0}
+  .wrow .who .nm{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:680}
+  .wrow .who .sub{font-size:13px;color:var(--ink-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wrow .who .why{font-size:12.5px;color:var(--ink-3);margin-top:4px;display:flex;align-items:center;gap:6px}
+  .wait{flex:none;width:96px;text-align:right;line-height:1.1}
+  .wait b{display:block;font-size:26px;font-weight:720;letter-spacing:-.03em}
+  .wait span{font-size:12px;color:var(--ink-3)}
+  .wait.old b{color:var(--red-ink)}
+  .wrow.vip{box-shadow:var(--shadow-1),inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
+  .sumline{display:flex;align-items:baseline;gap:10px;margin:2px 0 14px}
+  .sumline b.num{font-size:40px}
+  .rule{display:flex;gap:10px;font-size:13px;color:var(--ink-2);line-height:1.45}
+  .rule i{color:var(--ink-3);margin-top:1px}
+  #vip-t td{height:60px}
+  #vip-t .cd{font-weight:700}
+  #vip-t .row-actions{opacity:1}
+</style>
+</head>
+<body data-page="incoming" data-role="any">
+<main>
+
+  <!-- ================= OWNER ================= -->
+  <div data-only="owner">
+    <div class="page-head" style="margin-bottom:8px">
+      <div class="tabs pills" data-tabs style="margin:0">
+        <button class="tab on" data-tab="waiting">Waiting <span class="count red" id="w-count">3</span></button>
+        <button class="tab" data-tab="vip">VIP leads I gave <span class="count">5</span></button>
+      </div>
+      <span class="grow"></span>
+      <a class="btn" href="add-lead.html"><i data-icon="crown"></i>Add a lead and give it as VIP</a>
+    </div>
+
+    <div data-panel="waiting">
+      <div class="inc-grid">
+        <div>
+          <div class="sumline"><b class="num" id="w-num">3</b><span class="label" id="w-sub">leads wait for an agent · the oldest waits 42 min</span></div>
+          <div id="w-list"></div>
+          <div class="card hide" id="w-empty"><div class="empty"><span class="ic" style="background:var(--green-soft);color:var(--green-ink)"><i data-icon="check" class="i-xl"></i></span><b>Incoming is empty</b><p>Every lead has an agent. New free leads show up here first.</p><a class="btn sm" href="add-lead.html">Add a lead</a></div></div>
+        </div>
+        <aside class="col gap-16" style="position:sticky;top:calc(var(--tb-h) + 4px)">
+          <section class="card">
+            <div class="card-head"><h3>Share equally</h3><span class="card-icon"><i data-icon="users"></i></span></div>
+            <p class="small muted">Gives the <b class="ink-2" id="share-n">2 normal leads</b> to the working agents with the fewest open leads. <b class="ink-2">A VIP lead is never shared</b>: you choose the agent.</p>
+            <button class="btn block mt-16" id="share" data-confirm="Tap again to share 2 leads">Share the normal leads equally</button>
+          </section>
+          <section class="card" style="gap:12px">
+            <h3>How a lead gets here</h3>
+            <div class="rule"><i data-icon="clock"></i><span>An imported lead not called in <b>24 hours</b> comes back.</span></div>
+            <div class="rule"><i data-icon="crown"></i><span>A VIP lead not called in time comes back, and you are told.</span></div>
+            <div class="rule"><i data-icon="plus"></i><span>Anyone can add a lead and leave it in Incoming.</span></div>
+            <div class="rule"><i data-icon="user"></i><span>Leads of a deactivated agent come here.</span></div>
+            <a class="card-link" href="automations.html">Change the take-back times <i data-icon="arrow-right" class="i-sm"></i></a>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <div data-panel="vip" hidden>
+      <div class="filters">
+        <div class="seg" data-seg id="vip-seg"><button class="on" data-value="all">All · 5</button><button data-value="needs">Needs you · 2</button><button data-value="well">Going well · 3</button></div>
+        <span class="grow"></span><span class="result-count" id="vip-count">5 VIP leads</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="vip-t">
+          <thead><tr><th>Lead</th><th>Agent</th><th>Given</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="small muted mt-12"><i data-icon="info" class="i-sm"></i> “Give to another agent” starts a new clock of 30 minutes. The first agent is told.</p>
+    </div>
+  </div>
+
+  <!-- ================= AGENT: free leads ================= -->
+  <div data-only="agent">
+    <div class="inc-grid">
+      <div>
+        <div class="sumline"><b class="num" id="a-num">2</b><span class="label" id="a-sub">free leads to take · the first agent who takes a lead gets it</span></div>
+        <div id="a-list"></div>
+        <div class="card hide" id="a-empty"><div class="empty"><span class="ic"><i data-icon="inbox" class="i-xl"></i></span><b>No free leads now</b><p>You took them all. New free leads show up here.</p><a class="btn sm" href="my-leads.html">Open My leads</a></div></div>
+      </div>
+      <aside class="col gap-16" style="position:sticky;top:calc(var(--tb-h) + 4px)">
+        <section class="card" style="gap:12px">
+          <h3>The rules</h3>
+          <div class="rule"><i data-icon="check"></i><span>“Take this lead” moves it to <b>My leads</b>. It is yours at once.</span></div>
+          <div class="rule"><i data-icon="phone"></i><span>Call it <b>today</b>. A lead nobody calls comes back here.</span></div>
+          <div class="rule"><i data-icon="crown"></i><span>A VIP lead cannot be taken. Emir or George gives it.</span></div>
+        </section>
+        <a class="shortcut" href="my-leads.html" style="background:var(--surface);box-shadow:var(--shadow-1)"><i data-icon="users"></i><span class="grow">My leads</span><span class="badge">62</span><i data-icon="arrow-right"></i></a>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<!-- Give to an agent -->
+<div class="dialog" id="give-dlg" role="dialog" aria-label="Give to an agent">
+  <div class="dialog-head"><div class="grow"><h3 id="give-title">Give to…</h3><p id="give-sub"></p></div><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="dialog-body">
+    <div class="opt-list" data-chips id="give-agents" style="max-height:300px;overflow:auto;padding:2px"></div>
+    <div class="field" id="give-time-f"><span class="field-label">Must call within</span>
+      <div class="seg block" data-seg id="give-time"><button>15 min</button><button class="on">30 min</button><button>1 hour</button><button>Today</button></div>
+    </div>
+    <p class="small muted">Fewest open leads first. People on leave or absent cannot be chosen.</p>
+  </div>
+  <div class="dialog-foot"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" id="give-go">Give</button></div>
+</div>
+
+<script src="app.js"></script>
+<script src="lead-kit.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var owner=HM.role==='owner';
+  var W=[ // name, project, source, wait min, reason, vip, phone
+    {n:'Lina Rahimi',pr:'Damac Islands',src:'Import · Nov_batch_C.xlsx',w:42,why:'Shan did not call in 24 h',p:'+971 52 700 1122'},
+    {n:'Kevin Brooks',pr:'The Archive',src:'Walk-in',w:16,why:'Added by Abdullah · left in Incoming',p:'+44 7700 900 777'},
+    {n:'Omar Khan',pr:'Shahrukhz',src:'Email to owner',w:11,why:'Bassam did not call in 30 min',vip:1,p:'+971 50 333 2211'}
+  ];
+  function rowHtml(l){
+    var btn=owner?'<button class="btn '+(l.vip?'primary':'dark')+'" data-give="'+l.n+'">'+(l.vip?'Give again':'Give to an agent')+'</button>'
+      :(l.vip?'<span class="chip line"><i data-icon="lock" class="i-sm"></i>Only an owner gives it</span>':'<button class="btn dark" data-take="'+l.n+'">Take this lead</button>');
+    return '<div class="wrow'+(l.vip?' vip':'')+'" data-lead="'+l.n+'"><span class="av lg" data-name="'+l.n+'"></span><div class="who"><div class="nm">'+l.n+(l.vip?'<span class="vip-tag">VIP</span>':'')+'</div>'+
+      '<div class="sub">'+l.pr+' · '+l.src+(owner?' · '+l.p:'')+'</div><div class="why"><i data-icon="info" class="i-sm"></i>'+l.why+'</div></div>'+
+      '<div class="wait'+(l.w>30?' old':'')+'"><b>'+l.w+' min</b><span>waiting</span></div>'+btn+'</div>';
+  }
+  var listEl=$(owner?'#w-list':'#a-list');
+  listEl.innerHTML=W.map(rowHtml).join(''); HM.refresh(listEl);
+  function left(){ return $$('.wrow',listEl).filter(function(r){return !r._gone}); }
+  function sync(){
+    var rows=left(), n=rows.length, names=rows.map(function(r){return r.getAttribute('data-lead')});
+    var ws=W.filter(function(l){return names.indexOf(l.n)>-1}), normal=ws.filter(function(l){return !l.vip}).length;
+    if(owner){
+      $('#w-num').textContent=n; $('#w-count').textContent=n; $('#w-count').style.display=n?'':'none';
+      $('#w-sub').textContent=n?'lead'+(n===1?' waits':'s wait')+' for an agent · the oldest waits '+Math.max.apply(0,ws.map(function(l){return l.w}))+' min':'leads wait';
+      $('#w-empty').classList.toggle('hide',n>0);
+      $('#share-n').textContent=normal+' normal lead'+(normal===1?'':'s'); $('#share').classList.toggle('disabled',!normal); $('#share').setAttribute('data-confirm','Tap again to share '+normal+' lead'+(normal===1?'':'s'));
+    } else { $('#a-num').textContent=normal; $('#a-sub').textContent=(normal===1?'free lead to take':'free leads to take')+(normal?' · the first agent who takes a lead gets it':' · you took them all')+(n>normal?' · 1 VIP lead waits for an owner':''); $('#a-empty').classList.toggle('hide',n>0); }
+  }
+  function gone(names,msg){
+    var rows=names.map(function(n){return $('.wrow[data-lead="'+n+'"]',listEl)}).filter(Boolean);
+    rows.forEach(function(r){ r._gone=1; HM.slideOut(r,function(){ sync(); }); });
+    HM.toast(msg,{undo:function(){ rows.forEach(function(r){ r._gone=0; r.style.display=''; r.classList.add('pulse-row'); }); sync(); }});
+  }
+
+  if(!owner){
+    listEl.addEventListener('click',function(e){ var b=e.target.closest('[data-take]'); if(!b) return; var n=b.getAttribute('data-take'); gone([n],n+' is now in My leads · call today'); });
+    sync(); return;
+  }
+
+  /* ---- owner: give dialog ---- */
+  var A=LK.agents.slice().sort(function(a,b){ return ((a.off||0)-(b.off||0))||((a.open>=a.max)-(b.open>=b.max))||(a.open-b.open); });
+  var give={lead:null,to:'',vipRow:null};
+  function agentList(skip){
+    var first=true;
+    $('#give-agents').innerHTML=A.filter(function(a){return a.n!==skip}).map(function(a){
+      var best=first&&!a.off&&a.st==='office'; if(best){ first=false; give.to=a.n; }
+      return '<button class="opt'+(best?' on':'')+'"'+(a.off?' disabled':'')+' data-value="'+a.n+'"><span class="av" data-name="'+(a.full||a.n)+'" data-status="'+a.st+'"></span><span class="grow"><b class="bold">'+a.n+'</b>'+(best?' <span class="chip green" style="height:20px">Best match</span>':'')+'<div class="small muted">'+(a.off?(a.st==='leave'?'On leave':'Absent'):a.open>=a.max?'Above the desk maximum ('+a.max+')':a.st==='office'?a.lang:a.tx)+'</div></span><span class="small muted">'+a.open+' open</span></button>';
+    }).join('');
+    HM.refresh($('#give-agents')); $('#give-go').textContent='Give to '+give.to;
+  }
+  function openGive(l,skip,vipRow){
+    give.lead=l; give.vipRow=vipRow||null;
+    $('#give-title').textContent='Give '+l.n+' to…'; $('#give-sub').textContent=(l.vip?'VIP · ':'')+l.pr+(l.why?' · '+l.why:'');
+    $('#give-time-f').style.display=l.vip?'':'none'; $$('#give-time button').forEach(function(b,k){ b.classList.toggle('on',k===1); }); agentList(skip); HM.open('#give-dlg');
+  }
+  listEl.addEventListener('click',function(e){ var b=e.target.closest('[data-give]'); if(!b) return; var l=W.filter(function(x){return x.n===b.getAttribute('data-give')})[0]; openGive(l,l.vip?'Bassam':''); });
+  $('#give-agents').addEventListener('hm:change',function(e){ give.to=e.detail.value; $('#give-go').textContent='Give to '+give.to; });
+  $('#give-go').addEventListener('click',function(){
+    var l=give.lead, t=$('#give-time .on').textContent; HM.close($('#give-dlg'));
+    var msg=l.vip?l.n+' given to '+give.to+' as VIP · '+(t==='Today'?'must call today':t+' to call'):l.n+' given to '+give.to+' · '+give.to+' is told now';
+    var cd=t==='15 min'?'15:00':t==='1 hour'?'60:00':t==='Today'?'':'30:00', v0=V.filter(function(x){return x.n===l.n})[0], old=v0?{a:v0.a,at:v0.at,st:v0.st,cd:v0.cd,note:v0.note,total:v0.total}:null;
+    var nw={a:give.to,at:'14:55',st:'wait',cd:cd,note:cd?'':'Must call today · before 18:00'};
+    if(give.vipRow){ setVip(l.n,nw); HM.toast(msg,{undo:function(){ if(old){ setVip(l.n,old); } }}); }
+    else { gone([l.n],msg); if(l.vip) setVip(l.n,nw); }
+  });
+  $('#share').addEventListener('hm:confirm',function(){
+    var names=left().filter(function(r){return !r.classList.contains('vip')}).map(function(r){return r.getAttribute('data-lead')}); if(!names.length) return;
+    var to=['Tej','Olga'];
+    gone(names,names.length+(names.length===1?' lead':' leads')+' shared · '+names.map(function(n,k){ return n+' → '+to[k%2]; }).join(' · ')+(names.length===1?' · '+to[0]+' is told':' · both are told'));
+  });
+  sync();
+
+  /* ---- owner: VIP leads I gave ---- */
+  var V=[
+    {n:'Omar Khan',pr:'Shahrukhz',a:'Bassam',at:'14:20',st:'back',note:'Not called in 30 min · back in Incoming'},
+    {n:'Khalid Al Mansoori',pr:'The Archive · 2BR · AED 2.5M',a:'Rocky',at:'14:49',st:'wait',cd:'24:12'},
+    {n:'Daniel Rossi',pr:'Valia',a:'Nelson',at:'11:05',st:'called',note:'Called 11:19 · 14 min after you gave it'},
+    {n:'Aisha Noor',pr:'The Archive',a:'Talha',at:'Mon 9 Nov',st:'meeting',note:'Meeting Thu 15:00'},
+    {n:'Irina Volkova',pr:'Damac Islands · AED 3.8M',a:'Yuliia',at:'Thu 5 Nov',st:'offer',note:'Offer sent · follow-up tomorrow'}
+  ];
+  var CH={back:'<span class="chip red pip">Came back</span>',wait:'<span class="chip amber pip">Waiting</span>',called:'<span class="chip stage-called">Called</span>',meeting:'<span class="chip stage-meeting">Meeting</span>',offer:'<span class="chip stage-offer">Offer</span>',mine:'<span class="chip dark">You call</span>'};
+  var seg='all', T0=Date.now();
+  // the clock keeps running when the table is drawn again
+  function left2(v){ var p=String(v.cd).split(':'), s=Math.max(0,(+p[0])*60+(+p[1])-Math.floor((Date.now()-(v.t0||T0))/1000)), m=Math.floor(s/60); s=s%60; return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
+  function vipRender(){
+    var rows=V.filter(function(v){ var needs=v.st==='back'||v.st==='wait'; return seg==='all'||(seg==='needs')===needs; });
+    $('#vip-t tbody').innerHTML=rows.map(function(v){
+      var act=v.st==='back'?'<button class="btn xs dark" data-v="give">Give to another agent</button><button class="btn xs" data-v="self">I will call myself</button>'
+        :v.st==='wait'?'<button class="btn xs" data-v="remind">Remind the agent</button><button class="btn xs" data-v="give">Give to another agent</button>'
+        :v.st==='mine'?'<button class="btn xs" data-call="'+v.n+'|+971 50 333 2211"><i data-icon="phone"></i>Call</button>':'<a class="btn xs ghost" href="'+LK.url(v.n,{pr:v.pr.split(' · ')[0],s:v.st,a:v.a,vip:1,nx:v.note})+'">Open the lead</a>';
+      var who=v.st==='mine'?'<span class="person"><span class="av sm me">ED</span>You</span>':'<span class="person"><span class="av sm" data-name="'+(v.a==='Rocky'?'Rocky Khan':v.a)+'"></span>'+v.a+'</span>';
+      var sub=v.st==='wait'&&!v.cd?v.note:v.st==='wait'?'<span class="cd" data-countdown="'+left2(v)+'" data-countdown-total="'+(v.total||'30:00')+'" data-over="time is over">'+left2(v)+'</span> left to call':v.note;
+      return '<tr data-vip="'+v.n+'"><td><span class="t-main">'+v.n+'</span> <span class="vip-tag">VIP</span><div class="t-sub">'+v.pr+'</div></td><td>'+who+'</td><td class="t-sub">'+v.at+'</td><td>'+CH[v.st]+'<div class="t-sub" style="margin-top:3px">'+sub+'</div></td><td><div class="row-actions">'+act+'</div></td></tr>';
+    }).join('');
+    HM.refresh($('#vip-t'));
+    var needs=V.filter(function(v){return v.st==='back'||v.st==='wait'}).length, b=$$('#vip-seg button');
+    b[1].textContent='Needs you · '+needs; b[2].textContent='Going well · '+(V.length-needs-V.filter(function(v){return v.st==='mine'}).length);
+    $('#vip-count').textContent=rows.length+' VIP lead'+(rows.length===1?'':'s');
+  }
+  function setVip(name,o){ var v=V.filter(function(x){return x.n===name})[0]; if(!v) return; for(var k in o) v[k]=o[k]; if(o.cd&&!o.total){ v.total=o.cd; v.t0=Date.now(); } vipRender(); var tr=$('[data-vip="'+name+'"]'); if(tr) $$('td',tr).forEach(function(td){td.classList.add('pulse-row')}); }
+  $('#vip-seg').addEventListener('hm:change',function(e){ seg=e.detail.value; vipRender(); });
+  $('#vip-t').addEventListener('click',function(e){
+    var b=e.target.closest('[data-v]'); if(!b) return; var name=b.closest('tr').getAttribute('data-vip'), v=V.filter(function(x){return x.n===name})[0], k=b.getAttribute('data-v');
+    if(k==='remind'){ HM.toast('Reminder goes to '+v.a+' now · “Call '+LK.first(v.n)+', the clock is running”'); b.classList.add('disabled'); b.textContent='Reminded 14:55'; }
+    if(k==='self'){ var old=v.st; setVip(name,{st:'mine',note:'You took it 14:55'}); HM.toast(name+' is yours now · call him',{undo:function(){ setVip(name,{st:old,note:'Not called in 30 min · back in Incoming'}); }}); }
+    if(k==='give'){ openGive({n:v.n,pr:v.pr,vip:1,why:'30 min to call'},v.a,true); }
+  });
+  vipRender();
+})();
+</script>
+</body>
+</html>

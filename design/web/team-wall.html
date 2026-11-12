@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team wall · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .lay{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+  .feed{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .side{display:flex;flex-direction:column;gap:16px;position:sticky;top:84px}
+  /* post box */
+  .postbox{display:flex;gap:14px;align-items:flex-start}
+  .postbox .field{flex:1}
+  .postbox textarea{min-height:64px;border:0;box-shadow:none;background:var(--surface-2);font-size:15px;padding:14px 16px;border-radius:16px}
+  .postbox textarea:focus{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .postbox-foot{display:flex;align-items:center;gap:12px;margin-top:10px;padding-left:54px}
+  /* posts */
+  .post{gap:0}
+  .post-head{display:flex;align-items:center;gap:12px}
+  .post-head .who{flex:1;min-width:0}
+  .post-head .who b{display:block;font-weight:650;font-size:15px}
+  .post-head .who span{font-size:12.5px;color:var(--ink-3)}
+  .post p.txt{font-size:15.5px;line-height:1.5;margin-top:12px;white-space:pre-line}
+  .post.news{box-shadow:var(--shadow-1),inset 4px 0 0 var(--accent)}
+  .post.win{background:var(--hero);color:var(--hero-ink)}
+  .post.win .post-head .who span{color:var(--hero-ink-2)}
+  .post.win .win-line{font-size:30px;font-weight:740;letter-spacing:-.035em;line-height:1.1;margin-top:16px}
+  .post.win .win-sub{color:var(--hero-ink-2);margin-top:6px}
+  .reacts{display:flex;align-items:center;gap:8px;margin-top:16px}
+  .react{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:999px;background:var(--surface-2);font-weight:650;font-size:13.5px;transition:.15s}
+  .react:hover{background:var(--surface-3);transform:translateY(-1px)}
+  .react.on{background:var(--accent-soft);color:var(--accent-ink);box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .react .em{font-size:16px;line-height:1}
+  .post.win .react{background:rgba(255,255,255,.1);color:#fff}
+  .post.win .react.on{background:var(--accent);box-shadow:none}
+  .reacts .grow{flex:1}
+  .ev-row{display:flex;gap:14px;align-items:center;padding:10px 0}
+  .ev-row+.ev-row{border-top:1px solid var(--line)}
+  .ev-date{width:52px;height:52px;border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;font-size:10.5px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .ev-date b{font-size:18px;color:var(--ink);letter-spacing:-.02em;line-height:1.05}
+</style>
+</head>
+<body data-page="team-wall" data-role="any" data-sub="News and wins from the whole office">
+<main>
+
+  <div class="lay">
+    <div class="feed">
+
+      <!-- post box -->
+      <section class="card">
+        <form id="post-form" novalidate>
+          <div class="postbox">
+            <span class="av lg me" id="me-av"></span>
+            <div class="field" id="f-post"><textarea class="textarea" id="post-text" placeholder="Share news, a win or a question with the team"></textarea></div>
+          </div>
+          <div class="postbox-foot">
+            <label class="switch" data-only="owner"><input type="checkbox" id="as-news" checked><span class="track"></span>Owner news · stays on top</label>
+            <span class="small muted" data-only="agent">Everyone in the office sees it.</span>
+            <span class="grow" style="flex:1"></span>
+            <span class="small muted" id="post-count">0 / 500</span>
+            <button class="btn primary"><i data-icon="megaphone"></i>Post</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="tabs pills" id="f" style="margin:0;border:0">
+        <button class="tab on" data-f="all">All</button>
+        <button class="tab" data-f="news">Owner news <span class="count">2</span></button>
+        <button class="tab" data-f="win">Wins <span class="count">1</span></button>
+      </div>
+
+      <div class="feed" id="posts"></div>
+      <div class="card" id="none" hidden><div class="empty"><span class="ic"><i data-icon="megaphone" class="i-xl"></i></span><b>Nothing here yet</b><p>Be the first to post.</p></div></div>
+    </div>
+
+    <aside class="side">
+      <section class="card">
+        <div class="card-head"><h3>Coming up</h3><a class="card-link" href="calendar.html">Calendar <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <div class="ev-row"><span class="ev-date">Thu<b>12</b></span><div class="grow"><b class="bold">Weekly sales meeting</b><div class="small muted">18:00 · Office · Room 1</div></div></div>
+        <div class="ev-row"><span class="ev-date">Tue<b>17</b></span><div class="grow"><b class="bold">Cityscape Global expo</b><div class="small muted">17–19 Nov · DWTC · stand B12</div></div></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h3>Best of Homes · week 46</h3><a class="card-link" href="best-of-homes.html">Ranking <i data-icon="arrow-right" class="i-sm"></i></a></div>
+        <a class="list-row" href="best-of-homes.html"><b class="num-sm" style="width:22px">1</b><span class="av sm" data-name="Talha"></span><span class="grow bold">Talha</span><b>1,980</b></a>
+        <a class="list-row" href="best-of-homes.html"><b class="num-sm" style="width:22px">2</b><span class="av sm" data-name="Rocky Khan"></span><span class="grow bold">Rocky</span><b>1,740</b></a>
+        <a class="list-row" href="best-of-homes.html"><b class="num-sm" style="width:22px">3</b><span class="av sm" data-name="Nelson"></span><span class="grow bold">Nelson</span><b>1,310</b></a>
+      </section>
+      <section class="card flat">
+        <b class="bold">What goes on the wall</b>
+        <p class="small muted mt-4">News, wins and questions for everyone. A booked unit is posted by the CRM. Client names and phone numbers stay on the lead page.</p>
+      </section>
+    </aside>
+  </div>
+
+  <div class="menu" id="post-menu">
+    <button class="menu-item" id="pm-pin" data-only="owner"><i data-icon="bookmark"></i>Pin or unpin</button>
+    <button class="menu-item danger" id="pm-del" data-confirm="Tap again to delete"><i data-icon="trash"></i>Delete the post</button>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var owner=HM.role==='owner', me=HM.me.name;
+  $('#me-av').textContent=HM.initials?HM.initials(me):me.slice(0,2).toUpperCase();
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var id=0;
+  var POSTS=[
+    {id:++id,who:'Emir Dulovic',role:'Founder & CEO',when:'Today 09:12',kind:'news',pin:1,txt:'Cityscape Global is on 17–19 Nov at DWTC, stand B12.\nEveryone takes one shift. Confirm your shift in Tasks today.',clap:8,fire:5,link:['tasks.html','Open Tasks']},
+    {id:++id,who:'Talha',role:'Agent · Dubai off-plan',when:'Today 12:40',kind:'win',win:'Talha booked a unit',sub:'Damac Islands · AED 2.9M · posted by the CRM',clap:9,fire:6,myfire:1},
+    {id:++id,who:'Abdullah Mahi',role:'Office admin',when:'Today 11:20',kind:'post',txt:'The new Valia price list is in Projects. The old PDF is removed.',clap:5,fire:1,link:['projects.html','Open Projects']},
+    {id:++id,who:'Yuliia',role:'Agent · Dubai off-plan',when:'Today 11:05',kind:'post',txt:'A client from Kyiv asks about Valia. Who has the newest price list?',clap:2,fire:0},
+    {id:++id,who:'Nelson',role:'Agent · Abu Dhabi',when:'Yesterday 17:45',kind:'post',txt:'Tip for the Valia sales centre: park at gate 2, it is free for clients. The show flat is open until 19:00.',clap:6,fire:2},
+    {id:++id,who:'Emir Dulovic',role:'Founder & CEO',when:'Mon 9 Nov 08:30',kind:'news',txt:'This week we push The Archive. Valia launches soon: write down every client who asks, the first units go fast.',clap:7,fire:4,link:['projects.html','Open Projects']}
+  ];
+  var f='all';
+  function render(){
+    var list=POSTS.filter(function(p){return f==='all'||p.kind===f}).sort(function(a,b){return (b.pin||0)-(a.pin||0)});
+    $('#posts').innerHTML=list.map(function(p){
+      var mine=p.who===me, can=mine||owner;
+      return '<article class="card post '+(p.kind==='news'?'news':p.kind==='win'?'win':'')+'" data-id="'+p.id+'"><div class="post-head"><span class="av lg" data-name="'+p.who+'"></span><div class="who"><b>'+p.who+(mine?' <span class="chip">You</span>':'')+'</b><span>'+p.role+' · '+p.when+'</span></div>'+
+        (p.pin?'<span class="chip orange"><i data-icon="bookmark" class="i-sm"></i>Pinned</span>':'')+(p.kind==='news'?'<span class="chip dark">Owner news</span>':'')+(p.kind==='win'?'<span class="chip green"><i data-icon="trophy" class="i-sm"></i>Win · +300 points</span>':'')+
+        (can?'<button class="btn icon sm ghost'+(p.kind==='win'?' on-dark':'')+'" data-menu="#post-menu" data-tip="More" aria-label="More"><i data-icon="more"></i></button>':'')+'</div>'+
+        (p.kind==='win'?'<div class="win-line">'+esc(p.win)+'</div><div class="win-sub">'+esc(p.sub)+'</div>':'<p class="txt">'+esc(p.txt)+'</p>')+
+        '<div class="reacts"><button class="react'+(p.myclap?' on':'')+'" data-r="clap" aria-label="Clap"><span class="em">👏</span><span>'+p.clap+'</span></button><button class="react'+(p.myfire?' on':'')+'" data-r="fire" aria-label="Fire"><span class="em">🔥</span><span>'+p.fire+'</span></button><span class="grow"></span>'+
+        (p.link?'<a class="btn sm'+(p.kind==='win'?' on-dark':'')+'" href="'+p.link[0]+'">'+p.link[1]+' <i data-icon="arrow-right"></i></a>':'')+'</div></article>';
+    }).join('');
+    $('#none').hidden=!!list.length;
+    $$('#f .tab').forEach(function(t){var k=t.getAttribute('data-f'), c=$('.count',t); if(c) c.textContent=POSTS.filter(function(p){return p.kind===k}).length;});
+    HM.refresh($('#posts'));
+  }
+  function byEl(el){var a=el.closest('.post'); return a?POSTS.filter(function(p){return p.id===+a.getAttribute('data-id')})[0]:null}
+  $('#posts').addEventListener('click',function(e){
+    var r=e.target.closest('.react'); if(!r) return; var p=byEl(r), k=r.getAttribute('data-r'), m='my'+k;
+    p[m]=!p[m]; p[k]+=p[m]?1:-1; r.classList.toggle('on',!!p[m]); r.lastElementChild.textContent=p[k];
+  });
+  $('#f').addEventListener('click',function(e){var b=e.target.closest('[data-f]'); if(!b) return; f=b.getAttribute('data-f'); $$('#f .tab').forEach(function(t){t.classList.toggle('on',t===b)}); render();});
+  function menuPost(){var m=$('#post-menu'); return m._src?byEl(m._src):null}
+  $('#pm-del').addEventListener('hm:confirm',function(){ var p=menuPost(); if(!p) return; var i=POSTS.indexOf(p); POSTS.splice(i,1); render(); HM.toast('Post deleted',{undo:function(){POSTS.splice(i,0,p);render()}}); });
+  var pin=$('#pm-pin'); if(pin) pin.onclick=function(){ var p=menuPost(); if(!p) return; p.pin=p.pin?0:1; render(); HM.toast(p.pin?'Pinned on top of the wall':'Not pinned any more'); };
+
+  /* post box */
+  var ta=$('#post-text');
+  function setErr(msg){ var f=$('#f-post'); f.classList.toggle('invalid',!!msg); var s=$('.error',f); if(!s){s=document.createElement('span');s.className='error';f.appendChild(s)} s.textContent=msg||''; }
+  ta.oninput=function(){ setErr(''); $('#post-count').textContent=ta.value.length+' / 500'; $('#post-count').classList.toggle('t-red',ta.value.length>500); };
+  $('#post-form').addEventListener('submit',function(e){
+    e.preventDefault(); var t=ta.value.trim();
+    if(!t){ setErr('Write something first.'); ta.focus(); return; }
+    if(t.length>500){ setErr('Too long. Keep it under 500 letters.'); return; }
+    var news=owner&&$('#as-news')&&$('#as-news').checked, p={id:++id,who:me,role:HM.me.title||'',when:'Just now',kind:news?'news':'post',pin:news?1:0,txt:t,clap:0,fire:0};
+    POSTS.unshift(p); ta.value=''; ta.oninput(); f='all'; $$('#f .tab').forEach(function(x,i){x.classList.toggle('on',i===0)}); render();
+    var el=$('#posts .post[data-id="'+p.id+'"]'); if(el) el.classList.add('fade-in');
+    HM.toast(news?'Posted as owner news · everyone gets a notification':'Posted on the team wall',{undo:function(){POSTS.splice(POSTS.indexOf(p),1);render()}});
+  });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendance · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  .counters{display:grid;grid-template-columns:1.5fr repeat(5,1fr);gap:10px}
+  .cnt{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:18px;background:var(--surface);box-shadow:var(--shadow-1);text-align:left;transition:.15s;min-width:0}
+  .cnt:hover{box-shadow:var(--shadow-2)}
+  .cnt.on{box-shadow:inset 0 0 0 2px var(--ink)}
+  .cnt .label{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .cnt.all{background:var(--hero);color:#fff;flex-direction:row;align-items:center;gap:16px}
+  .cnt.all .label{color:var(--hero-ink-2)}
+  .cnt.all.on{box-shadow:inset 0 0 0 2px var(--accent)}
+  #today td{height:56px}
+  #today .why{max-width:330px;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+  #today .acts{display:flex;gap:6px;justify-content:flex-end}
+  .grid8{display:grid;grid-template-columns:150px repeat(8,1fr) 150px;gap:6px 8px;align-items:center}
+  .grid8 .hd{font-size:11px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);text-align:center}
+  .grid8 .hd.today{color:var(--accent-ink)}
+  .cell{height:30px;border-radius:9px;display:grid;place-items:center;font-size:11.5px;font-weight:650;background:var(--green-soft);color:var(--green-ink)}
+  .cell.late{background:var(--amber-soft);color:var(--amber-ink)}.cell.out{background:var(--blue-soft);color:var(--blue-ink)}
+  .cell.leave{background:var(--violet-soft);color:var(--violet-ink)}.cell.abs{background:var(--red);color:#fff}
+  .grid8 .sum{font-size:12.5px;color:var(--ink-3);text-align:right;white-space:nowrap}
+  .req{gap:14px}
+  .req .facts{display:flex;flex-wrap:wrap;gap:6px}
+  .req .refuse-box{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--surface-2)}
+  .req .refuse-box[hidden],.banner[hidden],.card[hidden]{display:none}
+  .ans-row{display:flex;align-items:center;gap:12px;padding:12px 0;min-width:0}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .wd{padding:12px;border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:4px;min-width:0}
+  .wd b{font-size:13px}.wd span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+  .wd.today{background:var(--accent-soft)}.wd.today span{color:var(--accent-ink)}
+  .wd.off{opacity:.5}
+  .map{height:210px;border-radius:18px;position:relative;overflow:hidden;background:
+    linear-gradient(90deg,transparent 48%,var(--surface) 48% 52%,transparent 52%),
+    linear-gradient(0deg,transparent 58%,var(--surface) 58% 63%,transparent 63%),
+    linear-gradient(120deg,transparent 30%,var(--surface) 30% 33%,transparent 33%),var(--surface-3)}
+  .map .pinp{position:absolute;left:61%;top:38%;width:38px;height:38px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--blue);display:grid;place-items:center;color:#fff;box-shadow:0 0 0 8px rgba(62,123,250,.2)}
+  .map .pinp i{transform:rotate(45deg)}
+</style>
+</head>
+<body data-page="team-attendance" data-role="owner" data-sub="Wednesday, 11 November · shift 09:00 – 18:00">
+<main>
+
+  <div class="tabs" data-tabs style="margin-top:4px">
+    <button class="tab on" data-tab="today">Team today</button>
+    <button class="tab" data-tab="leave">Leave requests <span class="count red" id="leave-count">2</span></button>
+    <button class="tab" data-tab="mine">My attendance</button>
+    <span class="grow" style="flex:1"></span>
+    <a class="tab" href="settings-attendance.html"><i data-icon="settings" class="i-sm"></i>Rules</a>
+  </div>
+
+  <!-- ================= TEAM TODAY ================= -->
+  <div data-panel="today">
+    <div class="counters" id="counters">
+      <button class="cnt all on" data-f=""><b class="num-hero" style="font-size:52px" data-count>10</b><span><b style="font-size:15px">agents today</b><span class="label">8 working now · 2 away</span></span></button>
+      <button class="cnt" data-f="office"><b class="num" data-count>6</b><span class="label"><span class="dot green"></span>In office</span></button>
+      <button class="cnt" data-f="late"><b class="num" data-count>1</b><span class="label"><span class="dot amber"></span>Late</span></button>
+      <button class="cnt" data-f="outside"><b class="num" data-count>1</b><span class="label"><span class="dot blue"></span>Outside</span></button>
+      <button class="cnt" data-f="leave"><b class="num" data-count>1</b><span class="label"><span class="dot violet"></span>On leave</span></button>
+      <button class="cnt" data-f="absent"><b class="num t-red" data-count>1</b><span class="label"><span class="dot red"></span>Absent</span></button>
+    </div>
+
+    <div class="table-wrap mt-16">
+      <table class="table" id="today">
+        <thead><tr><th>Agent</th><th>Status</th><th>Check-in</th><th>Place · reason</th><th>Desk</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <section class="card mt-16" aria-label="Last 8 working days">
+      <div class="card-head"><h3>Last 8 working days</h3>
+        <div class="legend"><span><span class="dot green"></span>In office</span><span><span class="dot amber"></span>Late</span><span><span class="dot blue"></span>Outside</span><span><span class="dot violet"></span>Leave</span><span><span class="dot red"></span>Absent</span></div>
+        <button class="btn xs" data-toast="Report saved · attendance-November.xlsx"><i data-icon="download"></i>Month report (Excel)</button></div>
+      <div class="grid8" id="grid"></div>
+    </section>
+  </div>
+
+  <!-- ================= LEAVE REQUESTS ================= -->
+  <div data-panel="leave" hidden>
+    <div class="bento">
+      <div class="c-7 col gap-16">
+        <div class="row"><h3 class="grow">Waiting for your answer</h3><span class="small muted">The agent is told as soon as you answer</span></div>
+        <div class="col gap-16" id="waiting"></div>
+        <div class="card" id="no-wait" hidden><div class="empty"><span class="ic"><i data-icon="check" class="i-xl"></i></span><b>No leave request is waiting</b><p>New requests show here and in “Needs you now”.</p></div></div>
+      </div>
+      <section class="card c-5" aria-label="Answered">
+        <div class="card-head"><h3>Answered</h3><span class="small muted">last 30 days</span></div>
+        <div class="divide" id="answered"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= MY ATTENDANCE ================= -->
+  <div data-panel="mine" hidden>
+    <div class="bento">
+      <section class="card c-4">
+        <div class="card-head"><h3>Today</h3><span class="chip att-office" id="my-chip">In office</span></div>
+        <div class="stat"><b class="num-hero" id="my-time">09:02</b><span class="label" id="my-sub">Checked in · office Wi-Fi “homes.me-Office”</span></div>
+        <div class="card-foot"><button class="btn" id="my-out" data-confirm="Tap again to check out">Check out</button><span>Owners can call without a check-in.</span></div>
+      </section>
+      <section class="card c-8">
+        <div class="card-head"><h3>This week</h3><span class="small muted">Week 46 · 9 – 15 Nov</span></div>
+        <div class="week">
+          <div class="wd"><b>Mon 9</b><span>08:58 – 18:20</span><span class="chip att-office">In office</span></div>
+          <div class="wd"><b>Tue 10</b><span>09:05 – 19:02</span><span class="chip att-office">In office</span></div>
+          <div class="wd today"><b>Wed 11</b><span>09:02 – now</span><span class="chip att-office">In office</span></div>
+          <div class="wd"><b>Thu 12</b><span>–</span></div>
+          <div class="wd"><b>Fri 13</b><span>–</span></div>
+          <div class="wd off"><b>Sat 14</b><span>Day off</span></div>
+          <div class="wd off"><b>Sun 15</b><span>Day off</span></div>
+        </div>
+        <div class="row gap-24 mt-24">
+          <div class="stat"><b class="num">7</b><span class="label">Days in office · Nov</span></div>
+          <div class="stat"><b class="num">1</b><span class="label">Day outside</span></div>
+          <div class="stat"><b class="num">0</b><span class="label">Late</span></div>
+          <div class="stat"><b class="num">0</b><span class="label">Leave days</span></div>
+          <span class="grow"></span><button class="btn sm" data-toast="File saved · Emir-November.pdf"><i data-icon="download"></i>Month PDF</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- shared location panel -->
+<aside class="panel" id="loc-panel" aria-label="Shared location">
+  <div class="panel-head"><h2>Nelson is outside</h2><button class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+  <div class="panel-body col gap-16">
+    <div class="person"><span class="av xl" data-name="Nelson" data-status="outside"></span><div class="who"><b class="big">Nelson</b><span>Agent · Abu Dhabi desk</span><span class="chip att-outside mt-8">Outside until 16:00</span></div></div>
+    <div class="map"><span class="pinp"><i data-icon="user"></i></span></div>
+    <p class="small muted">Location shared once at 10:15, when he started. It is not followed live.</p>
+    <dl class="kv">
+      <div class="kv-row"><dt>Why</dt><dd>Viewing with a client</dd></div>
+      <div class="kv-row"><dt>With who</dt><dd>Omar K.</dd></div>
+      <div class="kv-row"><dt>Where</dt><dd>Valia sales centre · The Oasis</dd></div>
+      <div class="kv-row"><dt>Back by</dt><dd>16:00</dd></div>
+      <div class="kv-row"><dt>Checked in</dt><dd>10:15 · outside</dd></div>
+    </dl>
+  </div>
+  <div class="panel-foot"><a class="btn" href="tel:+971500000009"><i data-icon="phone"></i>Phone Nelson</a><span class="grow"></span><button class="btn ghost" data-close>Close</button></div>
+</aside>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+
+  /* ---- team today: problems first ---- */
+  var T=[
+    ['Bassam','absent','Absent · alert 10:00','–','No check-in and no leave request','Abu Dhabi'],
+    ['Shan','late','Late · 24 min','09:24','Traffic on SZR','Arabic desk'],
+    ['Nelson','outside','Outside until 16:00','10:15','Viewing with Omar K. · Valia sales centre','Abu Dhabi'],
+    ['Sultan','leave','Annual leave 10–11 Nov','–','Approved on 2 Nov · back Thursday','Arabic desk'],
+    ['Talha','office','In office','08:52','Office Wi-Fi','Dubai off-plan'],
+    ['Rocky','office','In office','08:55','Office Wi-Fi','Dubai off-plan'],
+    ['Yuliia','office','In office','08:58','Office Wi-Fi','Dubai off-plan'],
+    ['Olga','office','In office','09:03','Office Wi-Fi','Dubai off-plan'],
+    ['Srdjan','office','In office','09:06','Office Wi-Fi','Dubai off-plan'],
+    ['Tej','office','In office','09:08','Office Wi-Fi','Dubai off-plan']
+  ];
+  function acts(a){
+    if(a[1]==='absent') return '<a class="btn sm" href="tel:+971500000010"><i data-icon="phone"></i>Phone '+a[0]+'</a><button class="btn sm" data-leave="'+a[0]+'" data-confirm="Tap again to mark as leave">Mark as leave</button>';
+    if(a[1]==='outside') return '<button class="btn sm" data-open="#loc-panel"><i data-icon="pin"></i>See shared location</button>';
+    if(a[1]==='late') return '<a class="btn sm" href="tel:+971500000007"><i data-icon="phone"></i>Phone '+a[0]+'</a>';
+    return '';
+  }
+  $('#today tbody').innerHTML=T.map(function(a){
+    return '<tr data-s="'+a[1]+'"><td><span class="person"><span class="av" data-name="'+a[0]+'" data-status="'+a[1]+'"></span><span class="who"><b>'+a[0]+'</b></span></span></td><td><span class="chip att-'+a[1]+'">'+a[2]+'</span></td><td class="t-mono">'+a[3]+'</td><td class="why">'+a[4]+'</td><td class="t-sub">'+a[5]+'</td><td><div class="acts">'+acts(a)+'</div></td></tr>';
+  }).join('');
+  HM.refresh($('#today'));
+  $('#counters').addEventListener('click',function(e){
+    var b=e.target.closest('.cnt'); if(!b) return; var f=b.getAttribute('data-f');
+    $$('.cnt').forEach(function(c){c.classList.toggle('on',c===b)});
+    $$('#today tbody tr').forEach(function(r){r.hidden=!!f&&r.getAttribute('data-s')!==f});
+  });
+  /* dashboards link here with ?show=late (office · late · outside · leave · absent) */
+  var show=(location.search.match(/[?&]show=([a-z]+)/)||[])[1], sb=show&&$('.cnt[data-f="'+show+'"]'); if(sb) sb.click();
+  function recount(){ // counters follow the table
+    ['office','late','outside','leave','absent'].forEach(function(k){ $('.cnt[data-f="'+k+'"] .num').textContent=$$('#today tbody tr[data-s="'+k+'"]').length; });
+    var away=$$('#today tbody tr[data-s="leave"],#today tbody tr[data-s="absent"]').length;
+    $('.cnt.all .label').textContent=(10-away)+' working now · '+away+' away';
+    $('.cnt[data-f="absent"] .num').classList.toggle('t-red',$$('#today tbody tr[data-s="absent"]').length>0);
+    var on=$('.cnt.on'), f=on&&on.getAttribute('data-f');
+    if(f&&!$$('#today tbody tr[data-s="'+f+'"]').length) on=$('.cnt.all'); // nobody left in this group: show everyone
+    if(on) on.click();
+  }
+  document.addEventListener('hm:confirm',function(e){
+    var b=e.target.closest('[data-leave]'); if(!b) return;
+    var tr=b.closest('tr'), old=tr.innerHTML;
+    $('.chip',tr).className='chip att-leave'; $('.chip',tr).textContent='Leave · marked by you'; $('.why',tr).textContent='Marked as leave at 14:55 · the alert is off'; tr.setAttribute('data-s','leave'); $('.av',tr).setAttribute('data-status','leave'); $('.acts',tr).innerHTML='';
+    recount();
+    HM.toast(b.getAttribute('data-leave')+' is marked as on leave today · the alert is off',{undo:function(){tr.innerHTML=old; tr.setAttribute('data-s','absent'); recount();}});
+  });
+
+  /* ---- 8-day grid ---- */
+  var DAYS=['Mon 2','Tue 3','Wed 4','Thu 5','Fri 6','Mon 9','Tue 10','Today'];
+  var G=[['Talha','oooooooo'],['Rocky','oooxoooo'],['Yuliia','oooooooo'],['Olga','oooloooo'],['Srdjan','oolooooo'],['Tej','oooovooo'],['Shan','olooolol'],['Nelson','oxooxoox'],['Sultan','oooooovv'],['Bassam','oolooloa']];
+  var K={o:['','✓','In office'],l:['late','L','Late'],x:['out','O','Outside'],v:['leave','V','Leave'],a:['abs','A','Absent']};
+  var h='<span></span>'+DAYS.map(function(d,i){return '<span class="hd'+(i===7?' today':'')+'">'+d+'</span>'}).join('')+'<span></span>';
+  G.forEach(function(g){
+    var late=(g[1].match(/l/g)||[]).length, abs=(g[1].match(/a/g)||[]).length, lv=(g[1].match(/v/g)||[]).length, sum=[late?late+' late':'',abs?abs+' absent':'',lv?lv+' leave':''].filter(Boolean).join(' · ')||'All on time';
+    h+='<span class="person"><span class="av sm" data-name="'+g[0]+'"></span><b>'+g[0]+'</b></span>'+g[1].split('').map(function(c,i){var k=K[c];return '<span class="cell '+k[0]+'" data-tip="'+g[0]+' · '+DAYS[i]+' · '+k[2]+'" data-tip-pos="top">'+k[1]+'</span>'}).join('')+'<span class="sum'+(abs||late>1?' t-red':'')+'">'+sum+'</span>';
+  });
+  $('#grid').innerHTML=h; HM.refresh($('#grid'));
+
+  /* ---- leave requests ---- */
+  var REASONS=['Too many people away','Busy week · launch','Talk to me first'];
+  var W=[
+    {id:'rocky',name:'Rocky',st:'office',type:'Annual leave',when:'Wed 18 – Fri 20 Nov',short:'18–20 Nov · 3 days',days:'3 working days',why:'“Family visit”',left:'14 annual days left',asked:'Asked today 14:07',warn:'Cityscape Global expo is 17–19 Nov. Nobody else is away on these days.'},
+    {id:'shan',name:'Shan',st:'late',type:'Sick leave',when:'Sat 14 Nov',short:'Sat 14 Nov · 1 day',days:'1 day',why:'“Doctor visit”',left:'3 sick days used this year',asked:'Asked today 09:31',warn:''}
+  ];
+  var A=[
+    {name:'Sultan',st:'leave',txt:'Annual · 10–11 Nov · 2 days',ans:'Approved',by:'by you · 2 Nov'},
+    {name:'Tej',st:'office',txt:'Half day · Fri 6 Nov',ans:'Approved',by:'by George · 4 Nov'},
+    {name:'Olga',st:'office',txt:'Personal · Fri 30 Oct',ans:'Refused',by:'Busy week · launch · 27 Oct'}
+  ];
+  function reqCard(r){
+    return '<section class="card req" data-id="'+r.id+'"><div class="row"><span class="person grow"><span class="av lg" data-name="'+r.name+'" data-status="'+r.st+'"></span><span class="who"><b class="big">'+r.name+' · '+r.type+'</b><span>'+r.asked+'</span></span></span><span class="chip amber pip">Waiting</span></div>'+
+      '<div class="row gap-24"><div class="stat"><b class="num-sm">'+r.when+'</b><span class="label">'+r.days+'</span></div></div>'+
+      '<div class="facts"><span class="chip lg">'+r.why+'</span><span class="chip lg">'+r.left+'</span></div>'+
+      (r.warn?'<div class="banner amber"><i data-icon="calendar"></i><span class="grow">'+r.warn+'</span></div>':'')+
+      '<div class="refuse-box" hidden><span class="field-label">Why do you refuse? The agent sees this.</span><div class="chips" data-chips>'+REASONS.map(function(x){return '<button class="chip-opt">'+x+'</button>'}).join('')+'</div><span class="small t-red err" hidden>Choose a reason first.</span><div class="row"><button class="btn sm danger solid" data-act="refuse-go">Refuse the request</button><button class="btn sm ghost" data-act="refuse-cancel">Cancel</button></div></div>'+
+      '<div class="row main-acts"><button class="btn dark" data-act="approve"><i data-icon="check"></i>Approve</button><button class="btn" data-act="refuse">Refuse</button><span class="grow"></span><a class="card-link" href="calendar.html">See the calendar <i data-icon="arrow-right" class="i-sm"></i></a></div></section>';
+  }
+  function ansRow(a,i){
+    var ok=a.ans==='Approved';
+    return '<div class="ans-row" data-i="'+i+'"><span class="av" data-name="'+a.name+'" data-status="'+a.st+'"></span><span class="grow"><b class="bold">'+a.name+'</b><div class="small muted truncate">'+a.txt+'</div><div class="small muted truncate">'+a.by+'</div></span><span class="chip '+(ok?'green':'red')+'">'+a.ans+'</span>'+(a.req?'<button class="btn xs" data-act="change">Change my answer</button>':'')+'</div>';
+  }
+  function draw(){
+    $('#waiting').innerHTML=W.map(reqCard).join(''); $('#answered').innerHTML=A.map(ansRow).join('');
+    $('#no-wait').hidden=W.length>0; $('#waiting').style.display=W.length?'':'none';
+    var c=$('#leave-count'); c.textContent=W.length; c.style.display=W.length?'':'none';
+    HM.refresh($('[data-panel="leave"]'));
+  }
+  function answer(id,ans,why){
+    var i=W.map(function(r){return r.id}).indexOf(id), r=W[i]; if(!r) return;
+    W.splice(i,1);
+    A.unshift({name:r.name,st:r.st,txt:r.type.replace(' leave','')+' · '+r.short,ans:ans,by:(why?why+' · just now':'by you · just now'),req:r});
+    draw(); HM.toast(r.name+'’s leave is '+ans.toLowerCase()+' · '+r.name+' is told now');
+  }
+  $('[data-panel="leave"]').addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]'); if(!b) return;
+    var act=b.getAttribute('data-act'), card=b.closest('.req');
+    if(act==='approve') answer(card.getAttribute('data-id'),'Approved');
+    if(act==='refuse'){ $('.refuse-box',card).hidden=false; $('.main-acts',card).style.display='none'; }
+    if(act==='refuse-cancel'){ $('.refuse-box',card).hidden=true; $('.main-acts',card).style.display=''; }
+    if(act==='refuse-go'){ var on=$('.chip-opt.on',card); if(!on){ $('.err',card).hidden=false; return; } answer(card.getAttribute('data-id'),'Refused',on.textContent); }
+    if(act==='change'){ var a=A.splice(+b.closest('.ans-row').getAttribute('data-i'),1)[0]; W.push(a.req); draw(); HM.toast('Answer taken back · '+a.name+'’s request waits again'); }
+  });
+  draw();
+
+  /* ---- my attendance ---- */
+  $('#my-out').addEventListener('hm:confirm',function(){
+    var out=this._out=!this._out;
+    $('#my-chip').className='chip'+(out?'':' att-office'); $('#my-chip').textContent=out?'Checked out':'In office';
+    $('#my-sub').textContent=out?'Checked out at 14:55 · 5 h 53 min today':'Checked in · office Wi-Fi “homes.me-Office”';
+    this.textContent=out?'Check in again':'Check out'; if(out) this.removeAttribute('data-confirm'); else this.setAttribute('data-confirm','Tap again to check out');
+    HM.toast(out?'You are checked out':'You are checked in again · 14:55');
+  });
+  $('#my-out').addEventListener('click',function(){ if(this._out&&!this.hasAttribute('data-confirm')){ var b=this; setTimeout(function(){ if(b._out){ b._out=false; $('#my-chip').className='chip att-office'; $('#my-chip').textContent='In office'; $('#my-sub').textContent='Checked in again at 14:55 · office Wi-Fi “homes.me-Office”'; b.textContent='Check out'; b.setAttribute('data-confirm','Tap again to check out'); HM.toast('You are checked in again · 14:55'); } },0); } });
+})();
+</script>
+</body>
+</html>

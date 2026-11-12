@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Search · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden]{display:none!important}
+.sr{max-width:860px;margin:18px auto 0}
+.sr-box{display:flex;align-items:center;gap:14px;height:68px;padding:0 20px;border-radius:22px;background:var(--surface);box-shadow:var(--shadow-2);transition:box-shadow .15s}
+.sr-box:focus-within{box-shadow:var(--shadow-2),0 0 0 2px var(--accent)}
+.sr-box input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:20px;font-weight:520;letter-spacing:-.01em}
+.sr-box input::placeholder{color:var(--ink-4)}
+.sr-box>i{color:var(--ink-3)}
+.sr-grp{font-size:11px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:12px 12px 6px}
+.sr-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;min-width:0;transition:background .12s}
+.sr-row:hover,.sr-row.act{background:var(--surface-2)}
+.sr-row .grow b{font-weight:650}.sr-row mark{background:var(--accent-soft);color:var(--accent-ink);border-radius:4px;padding:0 1px}
+.sr-row .sub{display:block;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-type{width:66px;flex:none;font-size:11px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.sr-row .card-icon{width:34px;height:34px;border-radius:11px}
+.sr-row>i:last-child{color:var(--ink-4)}
+.sr-row.locked{cursor:default}
+</style>
+</head>
+<body data-page="search" data-role="any">
+<main>
+<div class="sr">
+  <div class="sr-box"><i data-icon="search" class="i-lg"></i><input id="q" type="text" placeholder="Name, phone, project, screen" autocomplete="off" autofocus><button class="btn icon sm ghost" id="q-x" aria-label="Clear" hidden><i data-icon="x"></i></button><kbd>Enter opens the first result</kbd></div>
+  <div class="row mt-16"><div class="tabs pills mb-0" id="kinds" style="margin:0">
+    <button class="tab on" data-k="all">All <span class="count" data-c="all"></span></button><button class="tab" data-k="lead">Leads <span class="count" data-c="lead"></span></button><button class="tab" data-k="project">Projects <span class="count" data-c="project"></span></button><button class="tab" data-k="task">Tasks <span class="count" data-c="task"></span></button><button class="tab" data-k="screen">Screens <span class="count" data-c="screen"></span></button>
+  </div><span class="grow"></span><span class="result-count" id="sr-n"></span></div>
+  <div id="recent" class="mt-24">
+    <h4 class="mb-8">Recent</h4>
+    <div class="row wrap gap-8" id="recent-chips"></div>
+    <h4 class="mb-8 mt-24">You opened last</h4>
+    <div class="card pad-sm" id="recent-list"></div>
+  </div>
+  <div id="results" class="card pad-sm mt-16" hidden></div>
+  <div id="none" class="card mt-16" hidden><div class="empty"><span class="ic"><i data-icon="search" class="i-xl"></i></span><b>Nothing found</b><p id="none-t"></p><div class="btn-row" style="justify-content:center"><a class="btn primary" id="none-add" href="add-lead.html"><i data-icon="plus"></i>Add as a new lead</a><a class="btn" href="homes-ai.html"><i data-icon="sparkles"></i>Ask Homes AI</a></div></div></div>
+  <p class="small muted mt-16" id="sr-rule"></p>
+</div>
+</main>
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return [].slice.call(document.querySelectorAll(s))}, owner=HM.role==='owner', kind='all';
+  var mine=[['Khalid Al Mansoori','+971 50 555 0101','The Archive · 2BR · AED 2.5M','New',1],['Sara Nunes','+351 91 234 5678','Damac Islands · villa','Called'],['Marco Bellini','+39 333 455 4821','The Archive · 2BR · AED 2M','Interested'],['Priya Shah','+91 98765 43210','Valia · 1BR · AED 1.4M','Interested'],['Lucas Martin','+33 6 12 34 56 78','The Archive · 3BR · AED 2.5M','Interested'],['Ahmed Hassan','+966 50 123 4567','Shahrukhz · 1BR','Called'],['Sami Najahi','+971 50 410 2233','The Archive · imported','New'],['Neil Smith','+44 7700 900 123','Shahrukhz · imported','New'],['Parvez Hossain','+880 17 1234 5678','The Archive · imported','New'],['Hanna Alabbas','+971 55 320 7788','The Archive · 2BR','Called'],['Dave Patel','+44 7700 900 456','Shahrukhz · 2BR','Called'],['Vanessa Pecoraro','+39 347 111 2222','Al Seef · 1BR','Called'],['Elena Kuznetsova','+7 912 345 67 89','Damac Islands · AED 4.1M','Offer'],['Bridget Cardoso','+351 91 220 1188','The Archive · 2BR','Interested'],['Omar Khalil','+971 50 222 3344','Valia · 2BR','Meeting'],['Tom Becker','','Shahrukhz · studio','Lost']];
+  var others=[['Daniel Rossi','+39 320 555 0199','The Archive','Called',1,'Nelson'],['Aisha Noor','+971 52 880 1144','Damac Islands','Meeting',1,'Talha'],['Fatima Al Zaabi','+971 56 700 2211','Valia · 2BR','Interested',0,'Yuliia'],['Lina Rahimi','+971 58 640 9090','Damac Islands · import','New',0,'Incoming'],['Kevin Brooks','+44 7700 900 789','The Archive · walk-in','New',0,'Incoming'],['Omar Khan','+971 50 990 1212','Shahrukhz','New',1,'Incoming']];
+  var D=[];
+  mine.forEach(function(l){ D.push({k:'lead',t:l[0],phone:l[1],s:l[2],stage:l[3],vip:l[4],agent:'Rocky',href:'lead.html'}); });
+  others.forEach(function(l){ D.push({k:'lead',t:l[0],phone:l[1],s:l[2],stage:l[3],vip:l[4],agent:l[5],href:l[5]==='Incoming'?'incoming.html':'lead.html'}); });
+  [['The Archive','Imtiaz · Business Bay · from AED 1.6M · selling now'],['Shahrukhz','Danube · Sheikh Zayed Road · from AED 1.2M · selling now'],['Damac Islands','Damac · Dubailand · from AED 2.7M · selling now'],['Valia','Emaar · The Oasis · from AED 1.4M · launching soon']].forEach(function(p){ D.push({k:'project',t:p[0],s:p[1],href:'project.html?p='+p[0].toLowerCase().replace(/^the /,'').replace(/\s+/g,'-'),icon:'building'}); });
+  [['Follow up Sara Nunes','Overdue since 11:00','tasks.html#follow-ups','clock',1],['Call the VIP lead Khalid','Today 15:20','tasks.html','phone'],['Send payment plan to Marco','Today 15:30','tasks.html','whatsapp'],['Site visit with Lucas Martin','Today 16:30 · The Archive sales centre','calendar.html','calendar'],['Call Ahmed Hassan','Tomorrow 10:00','tasks.html','phone'],['Weekly sales meeting','Tomorrow 18:00 · team','calendar.html','users'],['Cityscape Global expo','17–19 Nov · DWTC · stand B12','calendar.html','calendar']].forEach(function(t){ D.push({k:'task',t:t[0],s:t[1],href:t[2],icon:t[3],late:t[4]}); });
+  var screens=[['My Day','my-day.html','sun','a'],['Dashboard','owner-home.html','grid','o'],['Incoming · free leads','incoming.html','inbox'],['My leads','my-leads.html','users','a'],['All leads','all-leads.html','users','o'],['Add lead','add-lead.html','plus'],['Pipeline','pipeline.html','columns'],['Start calling','calling.html','phone','a'],['Transfers','transfers.html','swap'],['Import Excel','import.html','upload','o'],['Calendar','calendar.html','calendar'],['Tasks','tasks.html','tasks'],['Follow-ups','tasks.html#follow-ups','clock'],['Projects','projects.html','building'],['Sales offers','sales-offers.html','tag'],['Team','team.html','user'],['Team wall','team-wall.html','megaphone'],['Best of Homes','best-of-homes.html','trophy'],['Attendance','attendance.html','pin','a'],['Team attendance','team-attendance.html','pin','o'],['Notifications','notifications.html','bell'],['Homes AI','homes-ai.html','sparkles'],['My profile','profile.html','user'],['Security · password','profile.html#security','lock'],['Business card','digital-card.html','card'],['Feedback · report a bug','feedback.html','message'],['Settings','settings.html','settings'],['Notification settings','settings.html#notifications','bell'],['Phone app · install guide','install-guide.html','download'],['Team and roles','settings-team.html','users','o'],['Automations · take-back rule','automations.html','zap','o'],['Desks','desks.html','layout','o']];
+  screens.forEach(function(s){ if(s[3]&&((s[3]==='o')!==owner)) return; D.push({k:'screen',t:s[0],s:'Screen',href:s[1],icon:s[2]}); });
+  [['Talha','Dubai off-plan'],['Rocky Khan','Dubai off-plan · Arabic desk'],['Yuliia','Dubai off-plan'],['Olga','Dubai off-plan'],['Srdjan','Dubai off-plan'],['Tej','Dubai off-plan'],['Shan','Arabic desk'],['Nelson','Abu Dhabi'],['Sultan','Arabic desk'],['Bassam','Abu Dhabi']].forEach(function(a){ D.push({k:'screen',label:'Person',t:a[0]+' · agent · '+a[1],s:'Screen',href:'team.html',icon:'user'}); });
+  [['Emir Dulovic','Founder & CEO'],['George Vanous','Partner'],['Abdullah Mahi','Office admin']].forEach(function(a){ D.push({k:'screen',label:'Person',t:a[0]+' · '+a[1],s:'Screen',href:'team.html',icon:'user'}); });
+  var stage={New:'stage-new',Called:'stage-called',Interested:'stage-interested',Meeting:'stage-meeting',Offer:'stage-offer',Lost:'stage-lost'};
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
+  function hl(t,q){ var i=t.toLowerCase().indexOf(q); return (i<0||!q)?esc(t):esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length)); }
+  function digits(s){ return (s||'').replace(/\D/g,''); }
+  function match(d,q){ if(!q) return false; var shut=d.k==='lead'&&!owner&&d.agent!=='Rocky'&&d.agent!=='Incoming'; /* another agent's lead: found by name or full phone only */
+    if(((shut?d.t:d.t+' '+(d.s||'')+' '+(d.stage||''))).toLowerCase().indexOf(q)>-1) return true; if(shut&&digits(q).length<7) return false;
+    var qd=digits(q); if(d.k==='lead' && qd.length>=3 && /^[\d\s+().\-]+$/.test(q)){ var pd=digits(d.phone); return pd.indexOf(qd.replace(/^00/,''))>-1 || pd.indexOf(qd.replace(/^0/,''))>-1; } return false; }
+  function row(d,q){
+    if(d.k==='lead'){ var own=owner||d.agent==='Rocky', free=d.agent==='Incoming';
+      if(!own && !free) return '<div class="sr-row locked"><span class="av" data-name="'+esc(d.t)+'"></span><span class="grow"><b>'+hl(d.t,q)+'</b><span class="sub">This lead is with '+d.agent+'. You cannot open it.</span></span><span class="chip"><i data-icon="lock" class="i-sm"></i>with '+d.agent+'</span><span class="sr-type">Lead</span></div>';
+      return '<a class="sr-row" href="'+d.href+'"><span class="av" data-name="'+esc(d.t)+'"></span><span class="grow"><b>'+hl(d.t,q)+'</b>'+(d.vip?' <span class="vip-tag">VIP</span>':'')+'<span class="sub">'+(d.phone?esc(d.phone)+' · ':'')+hl(d.s,q)+'</span></span>'+(free?'<span class="chip amber pip">Free in Incoming</span>':(owner?'<span class="small muted">with '+d.agent+'</span>':''))+'<span class="chip '+stage[d.stage]+'">'+d.stage+'</span><span class="sr-type">Lead</span><i data-icon="chevron-right"></i></a>'; }
+    return '<a class="sr-row" href="'+d.href+'"><span class="card-icon"><i data-icon="'+d.icon+'"></i></span><span class="grow"><b>'+hl(d.t,q)+'</b>'+(d.k!=='screen'?'<span class="sub'+(d.late?' overdue':'')+'">'+hl(d.s,q)+'</span>':'')+'</span><span class="sr-type">'+(d.label||d.k)+'</span><i data-icon="chevron-right"></i></a>'; }
+  var names={lead:'Leads',project:'Projects',task:'Tasks',screen:'Screens'};
+  function run(){ var raw=$('#q').value, q=raw.trim().toLowerCase(); $('#q-x').hidden=!raw;
+    if(!q){ $('#recent').hidden=false; $('#results').hidden=true; $('#none').hidden=true; $('#sr-n').textContent=''; $$('[data-c]').forEach(function(c){c.textContent=''; c.style.display='none'}); return; }
+    var all=D.filter(function(d){return match(d,q)}), cnt={all:all.length,lead:0,project:0,task:0,screen:0}; all.forEach(function(d){cnt[d.k]++});
+    $$('[data-c]').forEach(function(c){ c.textContent=cnt[c.dataset.c]; c.style.display=''; });
+    var res=kind==='all'?all:all.filter(function(d){return d.k===kind}); $('#recent').hidden=true;
+    if(!res.length){ $('#results').hidden=true; $('#none').hidden=false; var ph=/^[\d\s+().\-]{5,}$/.test(raw.trim());
+      $('#none-t').textContent = (kind!=='all'&&all.length) ? 'No '+names[kind].toLowerCase()+' for “'+raw.trim()+'”. There are '+all.length+' results in other groups.' : ph ? 'No lead has the number '+raw.trim()+'. It is a new number.' : 'No lead, project, task or screen for “'+raw.trim()+'”.';
+      $('#none-add').href='add-lead.html?'+(ph?'phone=':'name=')+encodeURIComponent(raw.trim()); $('#sr-n').textContent='0 results'; return; }
+    $('#none').hidden=true; var h=''; ['lead','project','task','screen'].forEach(function(k){ var g=res.filter(function(d){return d.k===k}); if(!g.length) return; h+='<div class="sr-grp">'+names[k]+' · '+g.length+'</div>'+g.map(function(d){return row(d,q)}).join(''); });
+    $('#results').innerHTML=h; $('#results').hidden=false; HM.refresh($('#results')); $('#sr-n').textContent=res.length+(res.length===1?' result':' results'); }
+  $('#q').addEventListener('input',run);
+  $('#q').addEventListener('keydown',function(e){ if(e.key==='Enter'){ var a=$('#results a.sr-row'); if(a && !$('#results').hidden) location.href=a.getAttribute('href'); } if(e.key==='Escape'){ this.value=''; run(); } });
+  $('#q-x').addEventListener('click',function(){ $('#q').value=''; run(); $('#q').focus(); });
+  $$('#kinds .tab').forEach(function(t){ t.addEventListener('click',function(){ kind=t.dataset.k; $$('#kinds .tab').forEach(function(x){x.classList.toggle('on',x===t)}); run(); }); });
+  var rec=owner?['Omar Khan','Bassam','050 555 0101','The Archive','import']:['Marco','+39 333','Valia','payment plan','follow-ups'];
+  $('#recent-chips').innerHTML=rec.map(function(r){return '<button class="chip-opt"><i data-icon="clock" class="i-sm"></i>'+esc(r)+'</button>'}).join('');
+  $$('#recent-chips .chip-opt').forEach(function(b){ b.addEventListener('click',function(){ $('#q').value=b.textContent.trim(); run(); $('#q').focus(); }); });
+  $('#recent-list').innerHTML=[D[2],D[0],D[14],D.filter(function(d){return d.t==='The Archive'})[0]].map(function(d){return row(d,'')}).join('');
+  $('#sr-rule').textContent = owner ? 'You see every lead. Type a phone number in any form: +971 50…, 050… or 0097150…' : 'You can open your own leads and the free leads. For a lead of another agent you see only who has it. Type a phone number in any form.';
+  HM.refresh(document.querySelector('.sr'));
+  var p=/[?&]q=([^&]*)/.exec(location.search); if(p){ $('#q').value=decodeURIComponent(p[1].replace(/\+/g,' ')); }
+  run();
+})();
+</script>
+</body>
+</html>

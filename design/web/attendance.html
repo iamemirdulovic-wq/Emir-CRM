@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendance · homes.me</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* page-only layout */
+  [hidden]{display:none!important}
+  .top-tabs{margin-bottom:18px}
+  .top-tabs .tab{font-size:15px;padding-left:4px;padding-right:4px;margin-right:22px}
+  /* hero */
+  #hero{min-height:292px;justify-content:space-between}
+  .h-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--hero-ink-2);display:flex;align-items:center;gap:8px}
+  .h-eyebrow .dot{width:8px;height:8px}
+  .h-big{font-size:56px;font-weight:740;letter-spacing:-.045em;line-height:1.02;margin-top:10px}
+  .h-sub{color:var(--hero-ink-2);font-size:15px;margin-top:8px;max-width:520px}
+  .h-facts{display:flex;gap:36px;margin-top:22px}
+  .h-facts div b{display:block;font-size:24px;font-weight:720;letter-spacing:-.03em;line-height:1.1}
+  .h-facts div span{font-size:12.5px;color:var(--hero-ink-2)}
+  .demo-switch{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-3);margin-top:12px}
+  /* week strip */
+  .wk7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .wk7 button{border-radius:14px;padding:10px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--surface-2);transition:.15s;min-width:0}
+  .wk7 button:hover{background:var(--surface-3)}
+  .wk7 button.on{box-shadow:inset 0 0 0 2px var(--ink)}
+  .wk7 .dn{font-size:10.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .wk7 .dd{font-size:19px;font-weight:720;letter-spacing:-.02em;line-height:1}
+  .wk7 .st{width:100%;height:5px;border-radius:3px;background:var(--line-2)}
+  .wk7 .tt{font-size:11.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+  .wk7 .today .dn{color:var(--accent-ink)}
+  .s-ok{background:var(--green)!important}.s-late{background:var(--amber)!important}.s-out{background:var(--blue)!important}.s-leave{background:var(--violet)!important}.s-abs{background:var(--red)!important}
+  .guide{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:12.5px;color:var(--ink-2)}
+  .guide span{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .tile .num{display:block}
+  /* month */
+  .mcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+  .mcal .mh{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:0 8px 4px}
+  .md{height:76px;border-radius:14px;padding:8px 10px;background:var(--surface-2);display:flex;flex-direction:column;justify-content:space-between;text-align:left;transition:.15s;min-width:0}
+  .md b{font-size:13px;font-weight:680}
+  .md span{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .md.blank{background:none;pointer-events:none}
+  .md.off{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-4);pointer-events:none}
+  .md.future{color:var(--ink-3)}
+  .md.ok{background:var(--green-soft);color:var(--green-ink)}.md.late{background:var(--amber-soft);color:var(--amber-ink)}
+  .md.out{background:var(--blue-soft);color:var(--blue-ink)}.md.leave{background:var(--violet-soft);color:var(--violet-ink)}.md.abs{background:var(--red-soft);color:var(--red-ink)}
+  .md.asked{background:repeating-linear-gradient(135deg,var(--violet-soft) 0 6px,transparent 6px 12px);color:var(--violet-ink);box-shadow:inset 0 0 0 1px var(--violet-soft)}
+  .md:not(.off):not(.blank):hover{filter:brightness(.96)}
+  .md.on{box-shadow:inset 0 0 0 2px var(--ink)}
+  .md.today b{background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;margin:-1px 0 0 -4px;align-self:flex-start}
+  .tot{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 10px}
+  .tot b{display:block;font-size:26px;font-weight:720;letter-spacing:-.03em;line-height:1.1}
+  .tot span{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  /* leave */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pend{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;background:var(--violet-soft);color:var(--violet-ink)}
+  .pend .grow b{display:block;font-size:16px;font-weight:680}
+  .upl{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--line-2);color:var(--ink-2);font-weight:600;width:100%;text-align:left}
+  .upl:hover{border-color:var(--ink-3)}
+  .upl.has{border-style:solid;border-color:var(--green);background:var(--green-soft);color:var(--green-ink)}
+  .field.invalid .upl{border-color:var(--red)}
+</style>
+</head>
+<body data-page="attendance" data-role="agent" data-sub="Wednesday, 11 November 2026 · shift 09:00 – 18:00">
+<main>
+
+  <div class="tabs top-tabs" data-tabs>
+    <button class="tab on" data-tab="today">Today</button>
+    <button class="tab" data-tab="month">Month</button>
+    <button class="tab" data-tab="leave">Leave <span class="count" id="c-pend">1</span></button>
+  </div>
+
+  <!-- ====================== TODAY ====================== -->
+  <div data-panel="today">
+    <div class="bento">
+      <section class="card hero c-7" id="hero" aria-live="polite"></section>
+
+      <section class="card c-5">
+        <div class="card-head"><h3>This week</h3><span class="small muted">Week 46 · 24 h 14 min so far</span></div>
+        <div class="wk7" id="wk7"></div>
+        <div class="card flat mt-12" id="wk-detail" style="padding:12px 14px"></div>
+        <div class="guide mt-auto" style="padding-top:14px">
+          <span><span class="dot green"></span>In office, on time</span><span><span class="dot amber"></span>Late · after 09:10</span>
+          <span><span class="dot blue"></span>Working outside</span><span><span class="dot violet"></span>Leave</span>
+          <span><span class="dot red"></span>Absent</span><span><span class="dot" style="background:var(--line-2)"></span>Day off or not yet</span>
+        </div>
+      </section>
+    </div>
+
+    <div class="bento">
+      <a class="card c-3 tile" href="#month" data-goto="month"><span class="label">On time in November</span><div class="stat-row mt-4"><b class="num" data-count>6</b><span class="delta up">of 8 days</span></div></a>
+      <a class="card c-3 tile" href="#month" data-goto="month"><span class="label">Late</span><div class="stat-row mt-4"><b class="num" data-count>1</b><span class="delta">Wed 4 Nov · 8 min</span></div></a>
+      <a class="card c-3 tile" href="#month" data-goto="month"><span class="label">Working outside</span><div class="stat-row mt-4"><b class="num" data-count>1</b><span class="delta">Fri 6 Nov · viewing</span></div></a>
+      <a class="card c-3 tile" href="#leave" data-goto="leave"><span class="label">Annual leave left</span><div class="stat-row mt-4"><b class="num" data-count>14</b><span class="delta" id="tile-asked">3 days asked</span></div></a>
+    </div>
+
+    <div class="bento">
+      <section class="card c-7">
+        <div class="card-head"><h3>Today, step by step</h3><span class="small muted">Wed 11 Nov</span></div>
+        <div class="timeline" id="log"></div>
+      </section>
+      <section class="card c-5">
+        <div class="card-head"><h3>How check-in works</h3></div>
+        <dl class="kv">
+          <div class="kv-row"><dt>Shift</dt><dd>09:00 – 18:00, Monday to Friday</dd></div>
+          <div class="kv-row"><dt>Late</dt><dd>Check-in after 09:10</dd></div>
+          <div class="kv-row"><dt>Where</dt><dd>Only on the office Wi-Fi “homes.me-Office”</dd></div>
+          <div class="kv-row"><dt>Not in office</dt><dd>Use “I'm working outside”</dd></div>
+          <div class="kv-row"><dt>Time</dt><dd>The real time is saved. Nobody can change it.</dd></div>
+        </dl>
+      </section>
+    </div>
+    <div class="demo-switch">Demo: see each state
+      <div class="seg sm" data-seg id="demo"><button data-value="out">Not checked in</button><button data-value="in">In office</button><button data-value="outside">Outside</button><button data-value="done">Checked out</button></div>
+    </div>
+  </div>
+
+  <!-- ====================== MONTH ====================== -->
+  <div data-panel="month" hidden>
+    <div class="bento">
+      <section class="card c-8">
+        <div class="card-head">
+          <h3 id="m-title" style="font-size:17px">November 2026</h3>
+          <div class="seg sm" data-seg id="m-seg"><button data-value="8">Sep</button><button data-value="9">Oct</button><button class="on" data-value="10">Nov</button></div>
+          <button class="btn sm" id="m-pdf"><i data-icon="download"></i>Month PDF</button>
+        </div>
+        <div class="mcal" id="mcal"></div>
+      </section>
+      <div class="stack c-4">
+        <section class="card">
+          <div class="card-head"><h3 id="t-title">Totals · November</h3></div>
+          <div class="tot" id="totals"></div>
+          <div class="card-foot" id="t-foot">Hours in the office: 60 h 12 min</div>
+        </section>
+        <section class="card">
+          <div class="card-head mb-8"><h3 id="d-title">Wed 11 Nov</h3><span class="chip" id="d-chip">In office</span></div>
+          <dl class="kv" id="d-kv"></dl>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== LEAVE ====================== -->
+  <div data-panel="leave" hidden>
+    <div class="bento">
+      <section class="card c-4"><span class="label">Annual leave left</span><div class="stat-row mt-4"><b class="num-hero" style="font-size:56px">14</b><span class="delta">of 22 days this year</span></div><div class="bar green mt-12" style="--v:64%"><i></i></div></section>
+      <section class="card c-4"><span class="label">Sick days used</span><div class="stat-row mt-4"><b class="num-hero" style="font-size:56px">3</b><span class="delta">last: Wed 14 Oct</span></div><div class="card-foot">A sick note is needed from day 2.</div></section>
+      <section class="card c-4"><span class="label">Waiting for an answer</span><div class="stat-row mt-4"><b class="num-hero" style="font-size:56px" id="n-pend">1</b><span class="delta" id="pend-delta">Emir or George answers</span></div><div class="card-foot"><button class="btn primary" data-open="#leave-panel"><i data-icon="plus"></i>Request leave</button></div></section>
+    </div>
+
+    <div class="section-title"><h2>Waiting</h2></div>
+    <div class="col" id="pend-list"></div>
+
+    <div class="section-title"><h2>History</h2><span class="small muted">This year</span></div>
+    <div class="table-wrap">
+      <table class="table" id="hist">
+        <thead><tr><th>Type</th><th>Days</th><th>Working days</th><th>Reason</th><th>Asked</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td><span class="t-main">Sick</span></td><td>Wed 14 Oct</td><td>1</td><td>Fever</td><td>14 Oct 08:10</td><td><span class="chip green">Approved · Emir</span></td></tr>
+          <tr><td><span class="t-main">Annual</span></td><td>Mon 21 – Fri 25 Sep</td><td>5</td><td>Trip home</td><td>2 Sep</td><td><span class="chip green">Approved · Emir</span></td></tr>
+          <tr><td><span class="t-main">Personal</span></td><td>Thu 13 Aug</td><td>1</td><td>Bank papers</td><td>10 Aug</td><td><span class="chip red">Refused · Busy week · launch</span></td></tr>
+          <tr><td><span class="t-main">Sick</span></td><td>Tue 2 – Wed 3 Jun</td><td>2</td><td>Flu · sick note added</td><td>2 Jun 07:45</td><td><span class="chip green">Approved · George</span></td></tr>
+          <tr><td><span class="t-main">Annual</span></td><td>Mon 23 – Wed 25 Mar</td><td>3</td><td>Eid with family</td><td>1 Mar</td><td><span class="chip green">Approved · Emir</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ WORKING OUTSIDE (side panel) ============ -->
+  <aside class="panel" id="outside-panel" aria-label="Working outside">
+    <form id="out-form" novalidate style="display:contents">
+    <div class="panel-head"><h2>I'm working outside</h2><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="panel-body col gap-16">
+      <p class="muted">Tell the office where you are. Emir and George see it on the team page.</p>
+      <div class="field" id="f-loc"><span class="field-label">Your location <span class="req" style="color:var(--red)">*</span></span>
+        <button type="button" class="upl" id="loc-btn"><i data-icon="pin"></i><span class="grow">Share my location</span><span class="small muted">one time only</span></button>
+        <span class="hint">We read it once, now. We do not follow you.</span></div>
+      <div class="field" id="f-why"><span class="field-label">Why are you outside? <span class="req" style="color:var(--red)">*</span></span>
+        <div class="chips" data-chips id="out-why"><button type="button" class="chip-opt">Viewing with a client</button><button type="button" class="chip-opt">Site visit</button><button type="button" class="chip-opt">Meeting at the developer</button><button type="button" class="chip-opt">Event or expo</button><button type="button" class="chip-opt">Bank or papers</button><button type="button" class="chip-opt">Other</button></div></div>
+      <div class="field"><label>With who</label><input class="input" id="out-who" placeholder="Omar K." list="lead-names"><datalist id="lead-names"><option>Omar Khalil</option><option>Lucas Martin</option><option>Marco Bellini</option><option>Priya Shah</option><option>Khalid Al Mansoori</option></datalist></div>
+      <div class="field" id="f-where"><label>Where exactly <span class="req">*</span></label><input class="input" id="out-where" placeholder="Valia sales centre, The Oasis"></div>
+      <div class="field" id="f-back"><span class="field-label">Back by <span class="req" style="color:var(--red)">*</span></span>
+        <div class="chips" data-chips id="out-back"><button type="button" class="chip-opt">16:30</button><button type="button" class="chip-opt">17:30</button><button type="button" class="chip-opt">18:00</button><button type="button" class="chip-opt">Tomorrow</button></div></div>
+      <div class="field"><label>Note</label><textarea class="textarea" style="min-height:64px" placeholder="Anything the office should know"></textarea></div>
+    </div>
+    <div class="panel-foot"><button type="button" class="btn ghost" data-close>Cancel</button><span class="grow"></span><button class="btn primary">Start working outside</button></div>
+    </form>
+  </aside>
+
+  <!-- ============ REQUEST LEAVE (side panel) ============ -->
+  <aside class="panel" id="leave-panel" aria-label="Request leave">
+    <form id="leave-form" novalidate style="display:contents">
+    <div class="panel-head"><h2>Request leave</h2><button type="button" class="btn icon sm ghost" data-close aria-label="Close"><i data-icon="x"></i></button></div>
+    <div class="panel-body col gap-16">
+      <div class="row gap-8 wrap"><span class="chip green">14 annual days left</span><span class="chip">3 sick days used</span><span class="chip violet" id="lp-pend">1 waiting</span></div>
+      <div class="field"><span class="field-label">Type</span>
+        <div class="chips" data-chips id="lv-type"><button type="button" class="chip-opt on">Annual</button><button type="button" class="chip-opt">Sick</button><button type="button" class="chip-opt">Personal</button><button type="button" class="chip-opt">Half day</button><button type="button" class="chip-opt">Work from home</button><button type="button" class="chip-opt">Other</button></div></div>
+      <div class="two">
+        <div class="field" id="f-from"><label>From <span class="req">*</span></label><input class="input" type="date" id="lv-from" min="2026-11-11"></div>
+        <div class="field" id="f-to"><label>To <span class="req">*</span></label><input class="input" type="date" id="lv-to" min="2026-11-11"></div>
+      </div>
+      <div class="field" id="f-half" hidden><span class="field-label">Which half</span><div class="seg block" data-seg id="lv-half"><button type="button" class="on">Morning · 09:00 – 13:30</button><button type="button">Afternoon · 13:30 – 18:00</button></div></div>
+      <div class="banner" id="lv-count"><i data-icon="calendar"></i><span class="grow">Choose the days. Saturday and Sunday are days off and are not counted.</span></div>
+      <div class="field" id="f-reason"><label>Reason <span class="req">*</span></label><textarea class="textarea" id="lv-reason" style="min-height:72px" placeholder="Family visit"></textarea></div>
+      <div class="field" id="f-note" hidden><span class="field-label">Sick note</span>
+        <button type="button" class="upl" id="note-btn"><i data-icon="upload"></i><span class="grow">Add the sick note</span><span class="small muted">photo or PDF</span></button>
+        <span class="hint">Needed from day 2. You can add it later.</span></div>
+      <p class="small muted">Emir or George answers. You get a notification. Your leads stay with you.</p>
+    </div>
+    <div class="panel-foot"><button type="button" class="btn ghost" data-close>Cancel</button><span class="grow"></span><button class="btn primary">Send the request</button></div>
+    </form>
+  </aside>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var TODAY=new Date(2026,10,11);
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function p2(n){return (n<10?'0':'')+n}
+  function key(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+  function parse(k){var a=k.split('-');return new Date(+a[0],a[1]-1,+a[2])}
+  function add(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+  function dow(d){return (d.getDay()+6)%7}
+  function nice(d){return DOW[dow(d)]+' '+d.getDate()+' '+MON[d.getMonth()].slice(0,3)}
+  function hm(m){return Math.floor(m/60)+' h '+p2(m%60)+' min'}
+  function mins(t){var a=t.split(':');return a[0]*60+ +a[1]}
+  function setErr(f,msg){ f=typeof f==='string'?$(f):f; f.classList.toggle('invalid',!!msg); var s=$('.error',f); if(!s){s=document.createElement('span');s.className='error';f.appendChild(s)} s.textContent=msg||''; return !msg; }
+  function val(q){var o=$(q+' > .on');return o?(o.getAttribute('data-value')||o.textContent.trim()):''}
+
+  /* ---------- day data (Rocky) ---------- */
+  var SPECIAL={
+    '2026-09-08':{s:'late',i:'09:16',note:'Metro delay'}, '2026-09-15':{s:'out',i:'09:00',place:'The Archive sales centre · viewing with Lucas M.'},
+    '2026-09-21':{s:'leave',lv:'Annual leave'},'2026-09-22':{s:'leave',lv:'Annual leave'},'2026-09-23':{s:'leave',lv:'Annual leave'},'2026-09-24':{s:'leave',lv:'Annual leave'},'2026-09-25':{s:'leave',lv:'Annual leave'},
+    '2026-10-06':{s:'late',i:'09:21',note:'Traffic on SZR'}, '2026-10-14':{s:'leave',lv:'Sick leave'}, '2026-10-20':{s:'out',i:'09:05',place:'Damac Islands sales centre · site visit'},
+    '2026-10-27':{s:'late',i:'09:12',note:'No reason written'}, '2026-10-29':{s:'out',i:'10:00',place:'DWTC · event'},
+    '2026-11-02':{i:'08:50'},'2026-11-03':{i:'08:57'},'2026-11-04':{s:'late',i:'09:18',note:'Traffic on SZR'},'2026-11-05':{i:'08:53'},
+    '2026-11-06':{s:'out',i:'09:30',place:'Valia sales centre · viewing with Omar K.'},'2026-11-09':{i:'08:51',o:'18:06'},'2026-11-10':{i:'09:02',o:'18:01'},
+    '2026-11-11':{i:'08:55',o:''}
+  };
+  var PEND=[{type:'Annual',from:'2026-11-18',to:'2026-11-20',days:3,reason:'Family visit',asked:'Today 14:07'}];
+  function askedOn(k){ for(var i=0;i<PEND.length;i++) if(k>=PEND[i].from&&k<=PEND[i].to) return PEND[i]; return null; }
+  function day(d){
+    var k=key(d), w=dow(d), x=SPECIAL[k]||{}, r={k:k,d:d,s:x.s||'ok'}, pq=askedOn(k);
+    if(w>4) return {k:k,d:d,s:'off'};
+    if(pq&&d>TODAY){ r.s='asked'; x={lv:pq.type+' leave · asked'}; }
+    if(d>TODAY&&r.s!=='asked') return {k:k,d:d,s:'future'};
+    if(r.s==='asked'||r.s==='leave'){ r.lv=x.lv||'Annual leave · asked'; return r; }
+    var n=d.getDate(), m=48+(n*7)%19; r.i=x.i||(m>59?'09:'+p2(m-60):'08:'+p2(m)); r.o=x.o!=null?x.o:'18:'+p2((n*3)%12); r.note=x.note||''; r.place=x.place||'Office Wi-Fi · homes.me-Office';
+    return r;
+  }
+  var LAB={ok:'In office',late:'Late',out:'Outside',leave:'Leave',abs:'Absent',off:'Day off',future:'',asked:'Leave asked'};
+  var CHIP={ok:'att-office',late:'att-late',out:'att-outside',leave:'att-leave',asked:'att-leave',abs:'att-absent'};
+
+  /* ====================== TODAY: hero states ====================== */
+  var state={ 'in':'in', out:'out', outside:'outside' }[localStorage.getItem('hmCheckin')||'in']||'in';
+  var inAt='08:55';
+  function isLate(){return mins(inAt)>550}
+  function workedNow(){return hm(Math.max(0,895-mins(inAt)))}
+  var outInfo={where:'Valia sales centre',who:'Omar K.',back:'16:30',why:'Viewing with a client'};
+  function hero(){
+    var h='';
+    if(state==='out') h='<div><span class="h-eyebrow"><span class="dot green"></span>Office Wi-Fi found · homes.me-Office</span><div class="h-big">Ready to start your day?</div><p class="h-sub">Shift 09:00 – 18:00. It is 14:55 now, so this check-in counts as late. The real time is saved.</p></div>'+
+      '<div class="btn-row"><button class="btn lg on-dark primary" id="b-in"><i data-icon="check"></i>Check in</button><button class="btn lg on-dark" data-open="#outside-panel"><i data-icon="pin"></i>I\'m working outside today</button></div>';
+    else if(state==='in') h='<div><span class="h-eyebrow"><span class="dot '+(isLate()?'amber':'green')+'"></span>Checked in · '+(isLate()?'late':'on time')+'</span><div class="h-big">In office since '+inAt+'</div>'+
+      '<div class="h-facts"><div><b>'+workedNow()+'</b><span>worked today</span></div><div><b>18:00</b><span>shift ends</span></div><div><b>homes.me-Office</b><span>office Wi-Fi</span></div></div></div>'+
+      '<div class="btn-row"><button class="btn lg on-dark" data-open="#outside-panel"><i data-icon="pin"></i>I\'m working outside</button><button class="btn lg on-dark" id="b-out" data-confirm="Tap again to check out"><i data-icon="logout"></i>Check out</button><span class="grow"></span></div>';
+    else if(state==='outside') h='<div><span class="h-eyebrow"><span class="dot blue"></span>Working outside · location shared once at 14:55</span><div class="h-big">Outside · back by '+outInfo.back+'</div><p class="h-sub">'+esc(outInfo.where)+(outInfo.who?' · with '+esc(outInfo.who):'')+' · '+esc(outInfo.why)+'</p></div>'+
+      '<div class="btn-row"><button class="btn lg on-dark primary" id="b-back"><i data-icon="check"></i>I\'m back in the office</button><button class="btn lg on-dark" data-open="#outside-panel"><i data-icon="edit"></i>Change</button></div>';
+    else h='<div><span class="h-eyebrow"><span class="dot" style="background:var(--hero-ink-3)"></span>Checked out at 14:55</span><div class="h-big">Day finished</div>'+
+      '<div class="h-facts"><div><b>'+inAt+'</b><span>check in</span></div><div><b>14:55</b><span>check out</span></div><div><b>'+workedNow()+'</b><span>worked today</span></div></div></div>'+
+      '<div class="btn-row"><button class="btn lg on-dark primary" id="b-again"><i data-icon="refresh"></i>Check in again</button><span class="small" style="color:var(--hero-ink-2)">Checked out by mistake? Check in again and the day goes on.</span></div>';
+    $('#hero').innerHTML=h; HM.refresh($('#hero'));
+    $$('#demo > *').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-value')===state)});
+    var L=[];
+    if(state!=='out') L.push([isLate()?'amber':'green','check','Checked in · '+(isLate()?'late':'on time'),'Office Wi-Fi homes.me-Office',inAt]);
+    else L.push(['red','alert','Not checked in yet','Shift started 09:00 · late after 09:10','14:55']);
+    if(state==='outside') L.push(['blue','pin','Working outside · '+outInfo.where,(outInfo.who?'With '+outInfo.who+' · ':'')+'back by '+outInfo.back+' · location shared once','14:55']);
+    if(state==='done') L.push(['','logout','Checked out',workedNow()+' worked · 3 h 05 min before the shift ends','14:55']);
+    if(state==='in') L.push(['','clock','Shift ends','Check out when you leave. If you forget, the day closes at 18:00.','18:00']);
+    $('#log').innerHTML=L.map(function(x){return '<div class="tl-item"><span class="tl-dot '+x[0]+'"><i data-icon="'+x[1]+'"></i></span><div class="tl-body"><b>'+esc(x[2])+'</b><p>'+esc(x[3])+'</p><span class="tl-time">'+x[4]+'</span></div></div>'}).join('');
+    HM.refresh($('#log'));
+    HM.setCheckin(state==='in'?'in':state==='outside'?'outside':'out');
+    var pill=$('#hm-checkin'); if(pill&&state==='outside') pill.textContent='Outside · back '+outInfo.back; if(pill&&state==='done'){pill.textContent='Checked out · 14:55';} if(pill&&state==='in') pill.textContent='In office · '+inAt;
+    week();
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function setState(s,msg,undoTo){ var old=state; state=s; hero(); if(msg) HM.toast(msg,undoTo?{undo:function(){state=old;hero()}}:null); }
+  $('#hero').addEventListener('click',function(e){
+    if(e.target.closest('#b-in')){ inAt='14:55'; setState('in','Checked in at 14:55. Have a good day.'); HM.confetti(); }
+    if(e.target.closest('#b-back')) setState('in','Welcome back. You are in the office again.',1);
+    if(e.target.closest('#b-again')) setState('in','Checked in again · 14:55');
+  });
+  $('#hero').addEventListener('hm:confirm',function(e){ if(e.target.closest('#b-out')) setState('done','Checked out · 14:55 · '+workedNow()+' worked',1); });
+  $('#demo').addEventListener('hm:change',function(e){ state=e.detail.value; inAt='08:55'; hero(); });
+
+  /* week strip */
+  var wsel=key(TODAY);
+  function todayRec(){ var r=day(TODAY); r.i=inAt; if(isLate()) r.s='late'; if(state==='out'){r.s='abs';r.i='';} if(state==='outside'){r.s='out';r.place=outInfo.where+(outInfo.who?' · with '+outInfo.who:'');} if(state==='done') r.o='14:55'; return r; }
+  function week(){
+    var s=add(TODAY,-dow(TODAY)), h='';
+    for(var i=0;i<7;i++){ var d=add(s,i), r=key(d)===key(TODAY)?todayRec():day(d), c={ok:'s-ok',late:'s-late',out:'s-out',leave:'s-leave',asked:'s-leave',abs:'s-abs'}[r.s]||'';
+      h+='<button class="'+(r.k===key(TODAY)?'today ':'')+(r.k===wsel?'on':'')+'" data-k="'+r.k+'"><span class="dn">'+DOW[i]+'</span><span class="dd">'+d.getDate()+'</span><span class="st '+c+'"></span><span class="tt">'+(r.i||(r.s==='off'?'off':r.s==='abs'?'no':'–'))+'</span></button>'; }
+    $('#wk7').innerHTML=h; var d2=parse(wsel), r2=wsel===key(TODAY)?todayRec():day(d2);
+    $('#wk-detail').innerHTML='<div class="row"><b class="bold grow">'+nice(d2)+(wsel===key(TODAY)?' · today':'')+'</b>'+(CHIP[r2.s]?'<span class="chip '+CHIP[r2.s]+'">'+(wsel===key(TODAY)&&state==='out'?'Not checked in':LAB[r2.s])+'</span>':'<span class="chip">'+(r2.s==='off'?'Day off':'Not yet')+'</span>')+'</div><div class="small muted mt-4">'+detailLine(r2)+'</div>';
+  }
+  function detailLine(r){
+    if(r.s==='off') return 'Saturday and Sunday are days off.';
+    if(r.s==='future') return 'Shift 09:00 – 18:00.';
+    if(r.s==='abs') return 'No check-in yet. Shift started at 09:00.';
+    if(r.s==='leave'||r.s==='asked') return r.lv;
+    return 'In '+r.i+' · out '+(r.o||'not yet')+' · '+(r.o?hm(mins(r.o)-mins(r.i)):workedNow()+' so far')+(r.s==='out'?' · '+r.place:'')+(r.note?' · '+r.note:'');
+  }
+  $('#wk7').addEventListener('click',function(e){var b=e.target.closest('[data-k]'); if(b){wsel=b.getAttribute('data-k');week()}});
+  document.addEventListener('click',function(e){var a=e.target.closest('[data-goto]'); if(a){e.preventDefault(); $('[data-tab="'+a.getAttribute('data-goto')+'"]').click(); window.scrollTo(0,0);}});
+
+  /* ---------- working outside form ---------- */
+  $('#loc-btn').onclick=function(){ this.classList.add('has'); $('.grow',this).textContent='Location shared · The Oasis, Dubai'; this.lastElementChild.textContent='14:55 · once'; setErr('#f-loc',''); };
+  ['#out-why','#out-back'].forEach(function(s){$(s).addEventListener('hm:change',function(){setErr($(s).closest('.field'),'')})});
+  $('#out-where').oninput=function(){setErr('#f-where','')};
+  $('#out-form').addEventListener('submit',function(e){
+    e.preventDefault(); var ok=true;
+    ok=setErr('#f-loc',$('#loc-btn').classList.contains('has')?'':'Share your location one time to go on.')&&ok;
+    ok=setErr('#f-why',val('#out-why')?'':'Choose why you are outside.')&&ok;
+    ok=setErr('#f-where',$('#out-where').value.trim()?'':'Write where exactly you are.')&&ok;
+    ok=setErr('#f-back',val('#out-back')?'':'Choose when you are back.')&&ok;
+    if(!ok) return;
+    outInfo={where:$('#out-where').value.trim(),who:$('#out-who').value.trim(),back:val('#out-back'),why:val('#out-why')};
+    HM.close(); setState('outside','You are working outside · back by '+outInfo.back.toLowerCase()+'. The office can see it.',1);
+  });
+
+  /* ====================== MONTH ====================== */
+  var mon=10, dsel=key(TODAY);
+  function month(){
+    var first=new Date(2026,mon,1), dim=new Date(2026,mon+1,0).getDate(), h=DOW.map(function(d){return '<div class="mh">'+d+'</div>'}).join(''), T={ok:0,late:0,out:0,leave:0,abs:0,asked:0}, minsAll=0;
+    for(var b=0;b<dow(first);b++) h+='<div class="md blank"></div>';
+    for(var n=1;n<=dim;n++){ var d=new Date(2026,mon,n), r=day(d);
+      if(T[r.s]!=null) T[r.s]++; if(r.i&&r.o) minsAll+=mins(r.o)-mins(r.i); if(r.k===key(TODAY)) minsAll+=360;
+      h+='<button class="md '+r.s+(r.k===key(TODAY)?' today':'')+(r.k===dsel?' on':'')+'" data-k="'+r.k+'"><b>'+n+'</b><span>'+(r.s==='off'?'':r.s==='future'?'':r.s==='leave'?r.lv:r.s==='asked'?'Leave asked':r.s==='out'?'Outside '+r.i:r.s==='late'?'Late '+r.i:r.i)+'</span></button>'; }
+    $('#mcal').innerHTML=h; $('#m-title').textContent=MON[mon]+' 2026'; $('#t-title').textContent='Totals · '+MON[mon];
+    var worked=T.ok+T.late+T.out;
+    $('#totals').innerHTML=[['green','On time',T.ok],['amber','Late',T.late],['blue','Outside',T.out],['violet','Leave',T.leave],['red','Absent',T.abs],['','Days worked',worked]].map(function(x){return '<div><b>'+x[2]+'</b><span>'+(x[0]?'<span class="dot '+x[0]+'"></span>':'')+x[1]+'</span></div>'}).join('');
+    $('#t-foot').textContent='Hours: '+hm(minsAll)+(mon===10?' · month is not finished'+(T.asked?' · '+T.asked+' leave days asked':''):'');
+    detail();
+  }
+  function detail(){
+    var d=parse(dsel), today=dsel===key(TODAY), r=today?todayRec():day(d);
+    $('#d-title').textContent=nice(d)+(today?' · today':''); var c=$('#d-chip'); c.className='chip '+(CHIP[r.s]||''); c.textContent=LAB[r.s]||'Not yet';
+    var rows=[];
+    if(r.s==='leave'||r.s==='asked') rows=[['Type',r.lv],['Answer',r.s==='asked'?'Waiting for Emir':'Approved']];
+    else if(r.s==='future') rows=[['Shift','09:00 – 18:00']];
+    else if(r.s==='abs') rows=[['Check in','Not yet'],['Shift','Started at 09:00']];
+    else rows=[['Check in',r.i+(r.s==='late'?' · '+(mins(r.i)-540)+' min late':' · on time')],['Check out',r.o||'Not yet'],['Worked',r.o?hm(mins(r.o)-mins(r.i)):workedNow()+' so far'],['Where',r.place]].concat(r.note?[['Note',r.note]]:[]);
+    $('#d-kv').innerHTML=rows.map(function(x){return '<div class="kv-row"><dt style="width:90px">'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'}).join('');
+  }
+  $('#mcal').addEventListener('click',function(e){var b=e.target.closest('[data-k]'); if(b){dsel=b.getAttribute('data-k');month()}});
+  $('#m-seg').addEventListener('hm:change',function(e){ mon=+e.detail.value; dsel=mon===10?key(TODAY):key(new Date(2026,mon,mon===8?8:6)); month(); });
+  $('#m-pdf').onclick=function(){ HM.toast('Month PDF is ready · Rocky-Khan-attendance-'+MON[mon]+'-2026.pdf'); };
+
+  /* ====================== LEAVE ====================== */
+  function range(a,b){return a===b?nice(parse(a)):nice(parse(a))+' – '+nice(parse(b))}
+  function pend(){
+    $('#pend-list').innerHTML=PEND.length?PEND.map(function(p,i){return '<div class="pend" data-i="'+i+'"><span class="card-icon" style="background:var(--surface);color:var(--violet-ink)"><i data-icon="calendar"></i></span><span class="grow"><b>'+p.type+' · '+range(p.from,p.to)+' · '+p.days+(p.days===0.5?' day':' working day'+(p.days===1?'':'s'))+'</b><span class="small">“'+esc(p.reason)+'” · asked '+p.asked+' · waiting for Emir</span></span><span class="chip violet pip">Waiting</span><button class="btn sm" data-cancel data-confirm="Tap again to cancel">Cancel request</button></div>'}).join('')
+      :'<div class="card"><div class="empty" style="padding:22px"><b>Nothing is waiting</b><p>When you ask for leave it shows here until Emir or George answers.</p></div></div>';
+    HM.refresh($('#pend-list'));
+    $('#n-pend').textContent=PEND.length; $('#c-pend').textContent=PEND.length; $('#c-pend').hidden=!PEND.length; $('#lp-pend').textContent=PEND.length+' waiting';
+    $('#pend-delta').textContent=PEND.length?'Emir or George answers':'No open request';
+    var an=askedAnnual(); $('#tile-asked').textContent=an?an+' day'+(an===1?'':'s')+' asked':'nothing asked';
+  }
+  $('#pend-list').addEventListener('hm:confirm',function(e){
+    var row=e.target.closest('.pend'); if(!row) return; var i=+row.getAttribute('data-i'), p=PEND[i]; PEND.splice(i,1);
+    pend(); month(); week(); HM.toast('Leave request cancelled · '+range(p.from,p.to),{undo:function(){PEND.splice(i,0,p); pend();month();week();}});
+  });
+  function askedAnnual(){return PEND.reduce(function(t,p){return t+(p.type==='Annual'?p.days:0)},0)}
+  function overlap(a,b){ for(var i=0;i<PEND.length;i++) if(a<=PEND[i].to&&b>=PEND[i].from) return PEND[i]; return null; }
+  function workDays(a,b){var n=0;for(var d=parse(a);d<=parse(b);d=add(d,1)) if(dow(d)<5) n++; return n}
+  function checkLeave(show){
+    var ty=val('#lv-type'), half=ty==='Half day', a=$('#lv-from').value, b=half?a:$('#lv-to').value, ok=true, eA='', eB='';
+    $('#f-to').style.visibility=half?'hidden':''; $('#f-half').hidden=!half; $('#f-note').hidden=ty!=='Sick';
+    if(!a) eA='Choose the first day.'; else if(a<key(TODAY)) eA='This day has passed.'; else if(dow(parse(a))>4) eA=DOW[dow(parse(a))]==='Sat'?'Saturday is a day off.':'Sunday is a day off.';
+    if(!half){ if(!b) eB='Choose the last day.'; else if(b<a) eB='The last day is before the first day.'; else if(dow(parse(b))>4) eB='This is a day off. Choose a working day.'; }
+    var c=$('#lv-count'), n=(!eA&&!eB)?(half?0.5:workDays(a,b)):0, left=14-askedAnnual(), ov=n?overlap(a,b):null;
+    if(ov){ c.className='banner red'; $('span',c).innerHTML='<b>You already asked for these days.</b> '+ov.type+' · '+range(ov.from,ov.to)+' is waiting for an answer. Choose other days or cancel that request first.'; if(show){ setErr('#f-from',''); setErr('#f-to',''); } return 0; }
+    if(n){ c.className='banner '+(ty==='Annual'&&n>left?'red':'green'); $('span',c).innerHTML=ty==='Annual'&&n>left?'<b>'+n+' working days.</b> You have '+left+' annual days free'+(left<14?' ('+(14-left)+' already asked)':'')+'.':'<b>'+(half?'Half a day':n+' working day'+(n===1?'':'s'))+'</b> · '+range(a,b)+(ty==='Annual'?' · '+(left-n)+' annual days left after this':'')+(n!==workDays(a,b)||half?'':(Math.round((parse(b)-parse(a))/864e5)+1>n?' · days off are not counted':'')); }
+    else { c.className='banner'; $('span',c).textContent='Choose the days. Saturday and Sunday are days off and are not counted.'; }
+    if(show){ ok=setErr('#f-from',eA)&&ok; if(!half) ok=setErr('#f-to',eB)&&ok; if(ty==='Annual'&&n>left) ok=false; }
+    return ok?n:0;
+  }
+  $('#lv-type').addEventListener('hm:change',function(){checkLeave()});
+  $('#lv-from').oninput=function(){ setErr('#f-from',''); if(!$('#lv-to').value||$('#lv-to').value<this.value) $('#lv-to').value=this.value; $('#lv-to').min=this.value||'2026-11-11'; checkLeave(); };
+  $('#lv-to').oninput=function(){ setErr('#f-to',''); checkLeave(); };
+  $('#lv-reason').oninput=function(){ setErr('#f-reason',''); };
+  $('#note-btn').onclick=function(){ this.classList.add('has'); $('.grow',this).textContent='sick-note.jpg'; this.lastElementChild.textContent='Added'; };
+  $('#leave-form').addEventListener('submit',function(e){
+    e.preventDefault(); var n=checkLeave(true), r=$('#lv-reason').value.trim();
+    var okR=setErr('#f-reason',r.length>=3?'':'Write a short reason.');
+    if(!n||!okR) return;
+    var ty=val('#lv-type'), a=$('#lv-from').value, b=ty==='Half day'?a:$('#lv-to').value, p={type:ty,from:a,to:b,days:n,reason:r,asked:'Today 14:55'};
+    PEND.unshift(p); HM.close(); pend(); month(); week(); $('#leave-form').reset(); $('#note-btn').classList.remove('has'); checkLeave();
+    HM.toast('Leave request is with Emir · '+range(a,b)+' · you get a notification with the answer',{undo:function(){PEND.splice(PEND.indexOf(p),1);pend();month();week()}});
+  });
+
+  hero(); month(); pend();
+})();
+</script>
+</body>
+</html>
