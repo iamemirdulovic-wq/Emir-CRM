@@ -124,6 +124,32 @@ export const TRUNCATE_ORDER = [
    */
   'app_settings',
   'app_secrets',
+  /*
+   * v2's tables (migration 0036). Children before parents, like the rest of
+   * this list -- though FOREIGN_KEY_CHECKS is off while it runs, so the order
+   * is for the reader rather than the database.
+   *
+   * Every one of these was missing until the guard below caught it. A table
+   * that is never emptied hands its rows to the next test, and the failure
+   * lands on whichever test happens to run after the one that wrote them.
+   */
+  'link_opens',
+  'tracking_links',
+  'message_taps',
+  'call_logs',
+  'meetings',
+  'outside_trips',
+  'leave_requests',
+  'office_networks',
+  'lead_transfers',
+  'vip_handoffs',
+  'desk_members',
+  'desks',
+  'live_projects',
+  'banners',
+  'feedback_tickets',
+  'notification_prefs',
+  'telegram_links',
   'website_leads',
   'ai_messages',
   'ai_conversations',
