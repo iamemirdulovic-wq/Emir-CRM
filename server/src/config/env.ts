@@ -95,6 +95,18 @@ const envSchema = z.object({
    * CRM can be used for calls and imports before WhatsApp is connected.
    */
   ALLOW_FAKE_WHATSAPP: boolish.default(false),
+  /*
+   * This is the test copy, not the real CRM.
+   *
+   * Set on newcrm.emirdulovic.com and nowhere else. It does two things that
+   * both matter: every screen carries a banner saying the data is a copy, and
+   * nothing addressed to a real person can leave the server -- no WhatsApp, no
+   * email, no push. Those are already silent without their keys, but "I forgot
+   * which site I pasted the key into" is exactly the mistake that sends a test
+   * message to a client, so the test copy refuses on principle rather than for
+   * want of a credential.
+   */
+  IS_TEST_COPY: boolish.default(false),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),

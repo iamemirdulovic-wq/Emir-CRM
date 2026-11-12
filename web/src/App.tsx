@@ -36,6 +36,7 @@ import { Wall } from './pages/Wall.js';
 import { V2Shell } from './v2/Shell.js';
 import { Placeholder } from './v2/Placeholder.js';
 import { V2Leads } from './v2/Leads.js';
+import { TestCopyBanner } from './components/TestCopyBanner.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -60,6 +61,7 @@ function PublicOnly({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <AuthProvider>
+      <TestCopyBanner />
       <Routes>
         <Route
           path="/login"

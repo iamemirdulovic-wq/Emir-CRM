@@ -263,6 +263,9 @@ export function emailProvider(smtp?: {
   if (override) return override;
 
   const cfg = env();
+  /* The test copy holds a copy of every client's real address. It does not
+     send, even when it has a perfectly good key. See config/test-copy.ts. */
+  if (cfg.IS_TEST_COPY) return new NullProvider();
   if (!cfg.FEATURE_EMAIL_SENDING) return new NullProvider();
 
   switch (cfg.EMAIL_PROVIDER) {

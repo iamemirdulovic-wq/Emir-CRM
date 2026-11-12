@@ -1,6 +1,7 @@
 import { execute, queryOne, withRetryingTransaction } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
+import { refuseOutbound } from '../config/test-copy.js';
 import { maskPhone } from '../lib/redact.js';
 import { notFound } from '../lib/errors.js';
 import { WA_WINDOW_MS } from '../config/constants.js';
@@ -128,6 +129,20 @@ export type WhatsAppSendRequest = {
 /** Send on WhatsApp, subject to every guard. */
 export async function sendWhatsApp(request: WhatsAppSendRequest): Promise<SendOutcome> {
   const { context, contact, conversationId } = await loadGuardContext(request.contactId, 'whatsapp');
+
+  /* Before any guard, because this one is not about consent or quiet hours:
+     the test copy holds real numbers and must never reach one. */
+  if (refuseOutbound('whatsapp', contact.phone_e164 ?? contact.wa_id ?? '')) {
+    return {
+      sent: false,
+      retryable: false,
+      blocked: {
+        allowed: false,
+        reason: 'test_copy',
+        message: 'This is the test copy of the CRM. Nothing is sent to a real number from here.',
+      },
+    };
+  }
 
   const decision = evaluateGuards(context, {
     channel: 'whatsapp',

@@ -7,6 +7,15 @@ import { applyDirection, setLocale } from './i18n.js';
 type AuthState = {
   user: CurrentUser | null;
   loading: boolean;
+  /**
+   * This server is the test copy, not the real CRM.
+   *
+   * Carried from the sign-in and the session check rather than guessed from
+   * the address, so it is true because the server says so. Somebody will have
+   * both sites open on the same phone, and the band across the top is how
+   * they know which one they are typing into.
+   */
+  isTestCopy: boolean;
   signIn: (email: string, password: string, rememberMe: boolean) => Promise<CurrentUser>;
   /** Spend a one-time sign-in link and start the session. */
   signInWithLink: (token: string, rememberMe: boolean) => Promise<CurrentUser>;
@@ -30,11 +39,13 @@ function applyServerLocale(serverLocale: string): void {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTestCopy, setIsTestCopy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const response = await api.get<{ user: CurrentUser }>('/api/auth/me');
+      const response = await api.get<{ user: CurrentUser; isTestCopy?: boolean }>('/api/auth/me');
       setUser(response.user);
+      setIsTestCopy(response.isTestCopy === true);
       applyServerLocale(response.user.locale);
       applyDirection();
       /*
@@ -84,8 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const can = useCallback((permission: string) => user?.permissions.includes(permission) ?? false, [user]);
 
   const value = useMemo<AuthState>(
-    () => ({ user, loading, signIn, signInWithLink, signOut, refresh, can }),
-    [user, loading, signIn, signInWithLink, signOut, refresh, can],
+    () => ({ user, loading, isTestCopy, signIn, signInWithLink, signOut, refresh, can }),
+    [user, loading, isTestCopy, signIn, signInWithLink, signOut, refresh, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

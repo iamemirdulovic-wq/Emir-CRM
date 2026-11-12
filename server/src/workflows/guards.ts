@@ -60,7 +60,10 @@ export type GuardReason =
   | 'quiet_hours'
   | 'rate_limited'
   | 'bot_paused'
-  | 'window_closed_needs_template';
+  | 'window_closed_needs_template'
+  /* Not a rule about the contact at all: this server is the test copy and
+     holds real numbers it must never reach. See config/test-copy.ts. */
+  | 'test_copy';
 
 export function evaluateGuards(ctx: GuardContext, intent: SendIntent): GuardDecision {
   const rules = ctx.rules ?? MESSAGING_DEFAULTS;

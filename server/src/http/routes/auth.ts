@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
+import { isTestCopy } from '../../config/test-copy.js';
 import { SESSION_TTL_DEFAULT_MS, SESSION_TTL_REMEMBER_MS } from '../../config/constants.js';
 import { queryOne, execute } from '../../db/client.js';
 import { badRequest, tooManyRequests, unauthorized } from '../../lib/errors.js';
@@ -226,6 +227,13 @@ authRouter.post(
         mustChangePassword: user.must_change_password === 1,
         permissions: permissionsFor(user.role),
       },
+      /*
+       * True only on newcrm.emirdulovic.com. The screen puts a band across
+       * the top saying the data is a copy, because somebody will open both
+       * sites on the same phone and need to know in one glance which one
+       * they are typing into.
+       */
+      isTestCopy: isTestCopy(),
     });
   }),
 );
@@ -320,6 +328,13 @@ authRouter.post(
         mustChangePassword: user.must_change_password === 1,
         permissions: permissionsFor(user.role),
       },
+      /*
+       * True only on newcrm.emirdulovic.com. The screen puts a band across
+       * the top saying the data is a copy, because somebody will open both
+       * sites on the same phone and need to know in one glance which one
+       * they are typing into.
+       */
+      isTestCopy: isTestCopy(),
     });
   }),
 );
@@ -362,6 +377,13 @@ authRouter.get(
         needsWelcome: !welcome.completed && !welcome.skipped,
         permissions: permissionsFor(user.role),
       },
+      /*
+       * True only on newcrm.emirdulovic.com. The screen puts a band across
+       * the top saying the data is a copy, because somebody will open both
+       * sites on the same phone and need to know in one glance which one
+       * they are typing into.
+       */
+      isTestCopy: isTestCopy(),
     });
   }),
 );

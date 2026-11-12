@@ -1,5 +1,6 @@
 import { createSign } from 'node:crypto';
 import { env } from '../config/env.js';
+import { refuseOutbound } from '../config/test-copy.js';
 import { query, execute } from '../db/client.js';
 import { logger, errorContext } from '../lib/logger.js';
 
@@ -69,6 +70,9 @@ export type PushMessage = {
 
 /** Send to every device registered to a user. Returns how many were accepted. */
 export async function pushToUser(userId: string, message: PushMessage): Promise<number> {
+  /* A phone registered against the real CRM is the same phone here: the test
+     copy must not make it buzz. See config/test-copy.ts. */
+  if (refuseOutbound('push', userId)) return 0;
   const tokens = await query<{ id: string; token: string }>('SELECT id, token FROM push_tokens WHERE user_id = ?', [userId]);
   if (tokens.length === 0) {
     logger.debug('no push tokens registered for user', { userId });
