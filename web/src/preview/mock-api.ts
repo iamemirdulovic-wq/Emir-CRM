@@ -1255,6 +1255,51 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* Incoming, role-shaped exactly as the real endpoint shapes it. */
+  { method: 'GET', pattern: /^\/api\/v2\/incoming$/, handler: () => {
+    const rows = myLeadRows().slice(0, 6);
+    const free = rows.map((row, i) => ({
+      id: `free-${i}`,
+      contactId: row.contact_id,
+      name: row.full_name,
+      phone: row.phone_e164,
+      language: i % 2 === 0 ? 'English' : 'Arabic',
+      project: row.project_name,
+      budgetMaxAed: row.budget_max_aed,
+      source: row.source,
+      score: row.lead_score,
+      isVip: i === 1,
+      waitingMinutes: [12, 48, 190, 1500, 23, 4][i] as number,
+      returnedAt: i === 2 ? new Date(Date.now() - 3 * 3_600_000).toISOString() : null,
+      bounceCount: i === 2 ? 1 : 0,
+      reason: i === 4 ? 'no_agent_available' : null,
+    }));
+    if (currentUser().role === 'agent') return { role: 'agent', free };
+    return {
+      role: 'owner',
+      free,
+      cameBack: free.slice(2, 3),
+      agents: USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, i) => ({
+        id: u.id,
+        name: u.name,
+        photoUrl: photoOf(u.id),
+        openLeads: [14, 9, 22, 6, 11][i % 5] as number,
+        availability: 'available',
+        markedToday: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
+      })),
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/v2\/incoming\/([^/]+)\/take$/, handler: () => ({ taken: true }) },
+  { method: 'POST', pattern: /^\/api\/v2\/incoming\/share$/, handler: ({ body }) => {
+    const ids = (body as { opportunityIds?: string[] }).opportunityIds ?? [];
+    const agents = (body as { agentUserIds?: string[] }).agentUserIds ?? [];
+    return {
+      given: Math.max(0, ids.length - 1),
+      vipSkipped: 1,
+      perAgent: agents.map((id, i) => ({ agentUserId: id, n: Math.floor((ids.length - 1) / agents.length) + (i === 0 ? (ids.length - 1) % agents.length : 0) })),
+    };
+  } },
+
   /* The call queue: the Today rows, VIP first, as the real endpoint sorts them. */
   { method: 'GET', pattern: /^\/api\/v2\/queue$/, handler: () => {
     const rows = myLeadRows().filter((r) => r.next_step_at !== null).slice(0, 12);

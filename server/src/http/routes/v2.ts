@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import {
-  actorFrom, blockUntilPasswordChanged, currentUser, requireAuth,
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireRole,
 } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { agentHome, ownerHome, type Home } from '../../v2/home.js';
@@ -10,6 +10,9 @@ import { acceptVip, refuseVip } from '../../v2/vip.js';
 import {
   answerTap, callQueue, CALL_OUTCOMES, finishCall, logTap, startCall, TAP_RESULTS,
 } from '../../v2/calls.js';
+import {
+  agentsWithLoad, cameBack, freeLeads, shareLeads, takeLead,
+} from '../../v2/incoming.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -179,5 +182,51 @@ v2Router.patch(
   asyncHandler(async (req: Request, res: Response) => {
     const input = answerSchema.parse(req.body);
     res.json(await answerTap(actorFrom(req), currentUser(req), String(req.params.id), input));
+  }),
+);
+
+/* ── incoming ──────────────────────────────────────────────────────────── */
+
+/**
+ * The free-lead queue.
+ *
+ * Both roles see the same leads; an owner also gets the people to hand them
+ * to and the ones that bounced back to them. An agent is never sent the team
+ * list — who else holds how many leads is not their business, and it is the
+ * sort of thing that leaks into a conversation.
+ */
+v2Router.get(
+  '/incoming',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const free = await freeLeads();
+    if (user.role === 'agent') {
+      res.json({ role: 'agent', free });
+      return;
+    }
+    const [agents, back] = await Promise.all([agentsWithLoad(), cameBack(user.id)]);
+    res.json({ role: 'owner', free, agents, cameBack: back });
+  }),
+);
+
+/** "Take this lead." */
+v2Router.post(
+  '/incoming/:id/take',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await takeLead(actorFrom(req), currentUser(req), String(req.params.id)));
+  }),
+);
+
+const shareSchema = z.object({
+  opportunityIds: z.array(z.string().min(1).max(36)).min(1).max(500),
+  agentUserIds: z.array(z.string().min(1).max(36)).min(1).max(50),
+});
+
+/** "Share the normal leads equally." VIP leads are never in the share. */
+v2Router.post(
+  '/incoming/share',
+  requireRole('owner', 'admin', 'manager'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await shareLeads(actorFrom(req), shareSchema.parse(req.body)));
   }),
 );

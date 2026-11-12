@@ -99,10 +99,12 @@ function nextStep(row: Row): { text: string; urgent: boolean } {
   return { text: `${late ? 'Overdue' : 'Due'} ${when}${note}`, urgent: late };
 }
 
-export function V2Leads() {
+export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get('tab') as TabKey) ?? 'today';
+  /* Follow-ups is this screen opened on what is late. The tab is then not the
+     reader's to change, so the URL does not decide it. */
+  const tab = fixedTab ?? (params.get('tab') as TabKey) ?? 'today';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [more, setMore] = useState<Row[]>([]);
@@ -177,6 +179,7 @@ export function V2Leads() {
         )}
       </div>
 
+      {!fixedTab && (
       <div className="v2-tabs" role="tablist">
         {TABS.map((t) => (
           <button
@@ -192,6 +195,7 @@ export function V2Leads() {
           </button>
         ))}
       </div>
+      )}
 
       {leads.error && <ErrorNote>{leads.error}</ErrorNote>}
       {!leads.data && !leads.error && <Spinner />}
