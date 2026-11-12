@@ -37,6 +37,7 @@ import { V2Shell } from './v2/Shell.js';
 import { Placeholder } from './v2/Placeholder.js';
 import { V2Leads } from './v2/Leads.js';
 import { V2Home } from './v2/Home.js';
+import { V2Calling } from './v2/Calling.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -107,7 +108,7 @@ export function App() {
           <Route path="/v2/leads/:id" element={<V2Lead />} />
           <Route path="/v2/follow-ups" element={<Placeholder title="Follow-ups" phase="phase 5 — calling" />} />
           <Route path="/v2/pipeline" element={<Placeholder title="Pipeline" phase="phase 5 — calling" />} />
-          <Route path="/v2/calling" element={<Placeholder title="Calling" phase="phase 5 — calling" />} />
+          <Route path="/v2/calling" element={<V2Calling />} />
           <Route path="/v2/transfers" element={<Placeholder title="Transfers" phase="phase 9 — transfer" />} />
           <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
           <Route path="/v2/calendar" element={<Placeholder title="Calendar" phase="phase 7 — calendar" />} />

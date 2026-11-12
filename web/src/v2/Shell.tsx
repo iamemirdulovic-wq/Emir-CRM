@@ -251,6 +251,7 @@ function titleFor(pathname: string, role: string): string {
     import: 'Import',
     calendar: 'Calendar',
     tasks: 'Tasks',
+    calling: 'Calling',
     projects: 'Projects',
     offers: 'Sales offers',
     team: 'Team',

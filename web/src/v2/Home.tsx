@@ -150,7 +150,10 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
   }
 
   return (
-    <div className="v2-home">
+    /* `p-my-day` turns on the design's own styles for this page. Every page
+       block in `v2-home.css` is scoped to one of these, so two pages can use
+       the same class name for different things, exactly as the design does. */
+    <div className="v2-home p-my-day">
       <h1 className="v2-hi">
         {greet(home.now)}, {home.me.firstName}
         <span>{home.now}</span>
@@ -763,7 +766,7 @@ function AiLine({ home }: { home: AgentHome }) {
 function OwnerDay({ home }: { home: OwnerHome }) {
   const n = home.todayNumbers;
   return (
-    <div className="v2-home">
+    <div className="v2-home p-owner-home">
       <h1 className="v2-hi">
         {greet(home.now)}, {home.me.firstName}
         <span>{home.now}</span>

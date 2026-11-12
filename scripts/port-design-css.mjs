@@ -238,16 +238,33 @@ writeFileSync(
 
 /* ── 2. the pages that carry their own styles ───────────────────────────── */
 
+/**
+ * Each page's own rules, and the class that turns them on.
+ *
+ * The design loads one page at a time, so its page styles can safely use the
+ * same class name for two different things. This app loads every stylesheet
+ * at once, so each page's block is scoped to a `p-*` class that only that
+ * screen's root element carries. Without it, the calling screen's `.card`
+ * tweak would reach the home screen's cards.
+ */
 const PAGES = [
-  ['my-day.html', 'My Day'],
-  ['owner-home.html', "the owner's home"],
+  ['my-day.html', 'My Day', 'p-my-day'],
+  ['owner-home.html', "the owner's home", 'p-owner-home'],
+  ['calling.html', 'calling', 'p-calling'],
+  ['incoming.html', 'incoming', 'p-incoming'],
+  ['my-leads.html', 'my leads', 'p-my-leads'],
+  ['lead.html', 'the lead page', 'p-lead'],
 ];
 
-const pageCss = PAGES.map(([file, what]) => {
+const pageCss = PAGES.map(([file, what, pageClass]) => {
   const html = readFileSync(path.join(DESIGN, file), 'utf8');
   const block = /<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? '';
-  return `\n/* ── ${what} (${file}) ─────────────────────────────────────── */\n`
-    + port(block, { keepAtRules: false });
+  const ported = port(block, { keepAtRules: false })
+    /* `.v2 X` becomes `.v2 .p-page X`, on every selector. */
+    .replace(/^\.v2 /gm, `.v2 .${pageClass} `)
+    .replace(/, \.v2 /g, `, .v2 .${pageClass} `)
+    .replace(new RegExp(`\\.v2 \\.${pageClass} \\.${pageClass}\\b`, 'g'), `.v2 .${pageClass}`);
+  return `\n/* ── ${what} (${file}) · scoped to .${pageClass} ───────────── */\n${ported}`;
 }).join('\n');
 
 const PAGE_HEADER = `/*

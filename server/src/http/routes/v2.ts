@@ -7,6 +7,9 @@ import {
 import { rateLimit } from '../middleware/rate-limit.js';
 import { agentHome, ownerHome, type Home } from '../../v2/home.js';
 import { acceptVip, refuseVip } from '../../v2/vip.js';
+import {
+  answerTap, callQueue, CALL_OUTCOMES, finishCall, logTap, startCall, TAP_RESULTS,
+} from '../../v2/calls.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -90,5 +93,91 @@ v2Router.post(
     res.json(await refuseVip(
       actorFrom(req), String(req.params.id), currentUser(req).id, note ?? null,
     ));
+  }),
+);
+
+/* ── calling ───────────────────────────────────────────────────────────── */
+
+/** The day's queue: the Today list, VIP first. */
+v2Router.get(
+  '/queue',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({ items: await callQueue(currentUser(req)) });
+  }),
+);
+
+const startSchema = z.object({
+  opportunityId: z.string().min(1).max(36),
+  source: z.enum(['lead', 'dialler', 'followup', 'incoming', 'other']).optional(),
+  /*
+   * The browser says whether the agent went ahead without checking in. It is
+   * not trusted as a claim of innocence -- the server can only ever be told
+   * "I was not checked in", never "I was" -- but it is the only place that
+   * knows the agent pressed "Call anyway", and the owner is shown it.
+   */
+  notCheckedIn: z.boolean().optional(),
+});
+
+v2Router.post(
+  '/calls',
+  rateLimit({
+    windowMs: 60_000,
+    max: 60,
+    keyFor: (req) => `call:${currentUser(req).id}`,
+    message: 'That is a lot of calls in a minute. Please wait a moment.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = startSchema.parse(req.body);
+    res.json(await startCall(actorFrom(req), currentUser(req), input));
+  }),
+);
+
+const outcomeSchema = z.object({
+  outcome: z.enum(CALL_OUTCOMES),
+  note: z.string().max(500).nullable().optional(),
+  callBackAt: z.string().min(4).max(40).nullable().optional(),
+  reason: z.string().max(60).nullable().optional(),
+});
+
+/** What happened on the call. This is also what moves the lead. */
+v2Router.patch(
+  '/calls/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = outcomeSchema.parse(req.body);
+    res.json(await finishCall(actorFrom(req), currentUser(req), String(req.params.id), input));
+  }),
+);
+
+const tapSchema = z.object({
+  opportunityId: z.string().min(1).max(36),
+  app: z.enum(['whatsapp', 'telegram']),
+  templateKey: z.string().max(80).nullable().optional(),
+  text: z.string().max(4000).nullable().optional(),
+});
+
+/**
+ * The agent tapped WhatsApp or Telegram.
+ *
+ * Recorded as a tap, never as a message sent: the CRM hands the agent over to
+ * the real app and has no way of knowing what happened there. Asking
+ * afterwards is the honest version, and it is what the design asks for.
+ */
+v2Router.post(
+  '/taps',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await logTap(currentUser(req), tapSchema.parse(req.body)));
+  }),
+);
+
+const answerSchema = z.object({
+  result: z.enum(TAP_RESULTS),
+  note: z.string().max(500).nullable().optional(),
+});
+
+v2Router.patch(
+  '/taps/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = answerSchema.parse(req.body);
+    res.json(await answerTap(actorFrom(req), currentUser(req), String(req.params.id), input));
   }),
 );

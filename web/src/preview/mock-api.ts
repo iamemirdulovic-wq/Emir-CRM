@@ -1255,6 +1255,41 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* The call queue: the Today rows, VIP first, as the real endpoint sorts them. */
+  { method: 'GET', pattern: /^\/api\/v2\/queue$/, handler: () => {
+    const rows = myLeadRows().filter((r) => r.next_step_at !== null).slice(0, 12);
+    return {
+      items: rows.map((row, i) => ({
+        id: row.id,
+        contactId: row.contact_id,
+        name: row.full_name,
+        phone: row.phone_e164,
+        project: row.project_name,
+        unitType: '2 Bedroom',
+        budgetMinAed: 1_000_000,
+        budgetMaxAed: row.budget_max_aed,
+        language: i % 3 === 0 ? 'Arabic, English' : 'English',
+        stage: row.stage_key,
+        score: row.lead_score,
+        scoreReason: row.score_reason,
+        isVip: i === 0,
+        nextStepAt: row.next_step_at,
+        nextStepNote: row.next_step_note,
+        lastContactAt: row.last_contact_at,
+        noAnswerCount: row.no_answer_count,
+        calledToday: false,
+      })),
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/v2\/calls$/, handler: () => ({ id: `call-${Date.now()}` }) },
+  { method: 'PATCH', pattern: /^\/api\/v2\/calls\/([^/]+)$/, handler: ({ body }) => ({
+    stageKey: 'attempted_contact',
+    status: 'open',
+    nextStepAt: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+    said: `Saved: ${String((body as { outcome?: string }).outcome ?? '').replace(/_/g, ' ')}`,
+  }) },
+  { method: 'POST', pattern: /^\/api\/v2\/taps$/, handler: () => ({ id: `tap-${Date.now()}` }) },
+  { method: 'PATCH', pattern: /^\/api\/v2\/taps\/([^/]+)$/, handler: () => ({ moved: true }) },
   { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/accept$/, handler: () => ({ acceptedAt: new Date().toISOString() }) },
   { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/refuse$/, handler: () => ({ refusedAt: new Date().toISOString() }) },
 

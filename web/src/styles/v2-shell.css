@@ -559,3 +559,126 @@
   .v2 .d-ring.d-lg{ --size:120px; }
   .v2 .d-ring.d-lg b{ font-size:28px; }
 }
+
+/* ── Calling, and the check-in gate ─────────────────────────────────────
+ *
+ * The design's own calling.html styles come across in `v2-home.css` under
+ * `.p-calling`; these are the pieces this build adds — the queue beside the
+ * lead, the outcome buttons, and the gate dialog.
+ */
+.v2-calling{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+.v2-topline{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--surface); border-radius:var(--r-card);
+  padding:12px 18px; box-shadow:var(--shadow-1);
+}
+.v2-pos{ font-weight:700; font-size:15px; white-space:nowrap; }
+.v2-pos span{ color:var(--ink-3); font-weight:500; }
+.v2-topline .d-bar{ flex:1; min-width:120px; }
+.v2-counts{ display:flex; gap:14px; font-size:12.5px; color:var(--ink-3); white-space:nowrap; }
+.v2-counts b{ color:var(--ink); font-weight:700; }
+
+.v2-call-grid{ display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:var(--gap); align-items:start; }
+.v2-call-main{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+@media (max-width:1100px){ .v2-call-grid{ grid-template-columns:1fr; } }
+
+/* `.v2 .d-card` sets `flex-direction:column`, and it is more specific than a
+   bare class, so this one has to be too. */
+.v2 .v2-call-lead{ flex-direction:row; gap:24px; align-items:stretch; }
+.v2-call-l{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.v2-call-r{ flex:none; width:230px; }
+@media (max-width:767px){
+  .v2 .v2-call-lead{ flex-direction:column; }
+  .v2-call-r{ width:auto; }
+}
+
+.v2-c-name{ display:flex; align-items:center; gap:8px; font-size:17px; font-weight:680; flex-wrap:wrap; }
+.v2-c-phone{
+  display:block; margin-top:10px; font-size:38px; font-weight:760;
+  letter-spacing:-.045em; line-height:1; color:inherit; text-decoration:none;
+}
+.v2-c-meta{ margin-top:10px; display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--hero-ink-2); }
+.v2-c-meta b{ color:#fff; font-weight:650; }
+.v2-c-why{
+  margin-top:10px; display:flex; align-items:center; gap:8px; font-size:13px;
+  color:var(--hero-ink-2); padding-left:12px; border-left:2px solid var(--accent);
+}
+.v2-c-btns{ margin-top:auto; padding-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
+.v2-logged{ margin-top:10px; font-size:11.5px; color:var(--hero-ink-3); }
+.v2-c-kv{ margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
+.v2-c-kv dt{ color:var(--hero-ink-3); }
+.v2-c-kv dd{ margin:0; color:#fff; font-weight:600; }
+
+/* Locked until the agent has actually tapped Call or WhatsApp. */
+.v2-locked{ opacity:.55; }
+.v2-lockmsg{ display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-3); }
+
+.v2-outs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
+.v2-outb{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  height:44px; border-radius:var(--r-ctl); background:var(--surface-2);
+  font-size:13px; font-weight:600; color:var(--ink-2); transition:.15s;
+}
+.v2-outb:hover:not(:disabled){ background:var(--surface-3); color:var(--ink); }
+.v2-outb:disabled{ opacity:.45; cursor:default; }
+.v2-outb-on{ background:var(--accent); color:var(--on-accent); }
+
+.v2-sub{
+  margin:14px 0 0; display:flex; flex-direction:column; gap:8px;
+  font-size:13px; color:var(--ink-2);
+}
+.v2-sub-form{ flex-direction:row; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+.v2-field{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-3); }
+.v2-field-wide{ flex:1; min-width:180px; margin-top:14px; }
+.v2-field-label{ font-size:12px; color:var(--ink-3); }
+.v2-chips{ display:flex; gap:7px; flex-wrap:wrap; }
+.v2-chip-opt{
+  height:30px; padding:0 12px; border-radius:var(--r-pill);
+  background:var(--surface-2); font-size:12.5px; font-weight:600; color:var(--ink-2);
+}
+.v2-chip-opt-on{ background:var(--accent-soft); color:var(--accent-ink); }
+.v2-saved{
+  margin:14px 0 0; display:flex; align-items:center; gap:7px;
+  font-size:13px; color:var(--green-ink); font-weight:600;
+}
+
+.v2-navrow{ margin-top:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.v2-nav-hint{ flex:1; min-width:140px; text-align:center; }
+.v2-disabled{ opacity:.4; cursor:default; }
+
+.v2-queue{ position:sticky; top:calc(var(--tb-h) + 4px); max-height:calc(100vh - var(--tb-h) - 40px); overflow:auto; }
+.v2-queue-head{ margin-bottom:8px; }
+.v2-queue-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.v2-qrow{
+  width:100%; display:flex; align-items:center; gap:9px; text-align:left;
+  padding:8px; border-radius:var(--r-ctl); transition:background .12s; min-width:0;
+}
+.v2-qrow:hover{ background:var(--surface-2); }
+.v2-qrow-on{ background:var(--accent-soft); }
+.v2-qrow-done{ opacity:.5; }
+.v2-qrow-done b{ text-decoration:line-through; }
+.v2-qrow-n{ flex:none; width:20px; font-size:11px; color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.v2-qrow-who{ flex:1; min-width:0; line-height:1.25; }
+.v2-qrow-who b{ display:block; font-size:13px; font-weight:620; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-qrow-who span{ display:block; font-size:11.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.v2-sumgrid{ display:flex; gap:22px; margin:14px 0; }
+.v2-sumgrid b{ display:block; font-size:30px; font-weight:740; letter-spacing:-.03em; }
+.v2-sumgrid span{ font-size:12px; color:var(--ink-3); }
+
+/* The gate. A dialog, not a lock: all three answers let the call happen. */
+.v2-gate-bar{ margin-bottom:4px; }
+.v2-gate-said{ margin:0; font-size:12.5px; color:var(--ink-3); }
+.v2-scrim{
+  position:fixed; inset:0; z-index:90; display:grid; place-items:center;
+  background:rgba(22,21,26,.5); padding:20px;
+}
+.v2-dialog{
+  width:min(440px,100%); background:var(--surface); border-radius:var(--r-card);
+  padding:24px; box-shadow:var(--shadow-3); display:flex; flex-direction:column; gap:10px;
+}
+.v2-dialog h2{ font-size:19px; font-weight:700; }
+.v2-dialog p{ margin:0; font-size:13px; color:var(--ink-2); }
+.v2-dialog-acts{ display:flex; flex-direction:column; gap:8px; margin:6px 0; }
+.v2-dialog-form{ gap:12px; }
