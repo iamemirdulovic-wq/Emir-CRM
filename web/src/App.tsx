@@ -48,6 +48,9 @@ import { V2Transfers } from './v2/Transfers.js';
 import { V2Team, V2Person } from './v2/Team.js';
 import { V2Projects } from './v2/Projects.js';
 import { V2Wall } from './v2/Wall.js';
+import { V2Ai } from './v2/Ai.js';
+import { V2Automations } from './v2/Automations.js';
+import { V2Activity } from './v2/Activity.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -132,9 +135,9 @@ export function App() {
           <Route path="/v2/team/:id" element={<V2Person />} />
           <Route path="/v2/wall" element={<V2Wall />} />
           <Route path="/v2/attendance" element={<V2Attendance />} />
-          <Route path="/v2/activity" element={<Placeholder title="Activity" phase="phase 11 — owner tools" />} />
-          <Route path="/v2/ai" element={<Placeholder title="Homes AI" phase="phase 14 — Homes AI" />} />
-          <Route path="/v2/automations" element={<Placeholder title="Automations" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/activity" element={<V2Activity />} />
+          <Route path="/v2/ai" element={<V2Ai />} />
+          <Route path="/v2/automations" element={<V2Automations />} />
           <Route path="/v2/settings" element={<Placeholder title="Settings" phase="phase 12 — team and me" />} />
           <Route path="/v2/profile" element={<V2Person />} />
           <Route path="/v2/more" element={<V2More />} />
