@@ -8,6 +8,8 @@ import { queryOne } from '../../db/client.js';
 import { resetRateLimits } from '../middleware/rate-limit.js';
 import { createApp } from '../app.js';
 import { signIn } from '../../testing/http.js';
+import { saveRoutingSettings } from '../../routing/settings.js';
+import { SYSTEM_ACTOR } from '../../audit/audit.js';
 
 /**
  * The five-minute clock is opt-in on a lead somebody adds by hand.
@@ -69,7 +71,16 @@ describeWithDb('the clock on a lead added by hand', () => {
     expect(await slaJobs(), 'the lead is theirs; nothing should take it back').toBe(0);
   });
 
+  /*
+   * Urgent still arms a clock -- once the rule is switched on.
+   *
+   * It is off by default from 12 Nov, by Emir's instruction, so this test
+   * turns it on for itself like the others that cover the five-minute rule.
+   * Off means off everywhere, Hot included: a switch that some screens
+   * ignore is worse than no switch.
+   */
   it('starts one when the owner says it is urgent', async () => {
+    await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
     const agent = await createTestUser({ role: 'agent' });
     const cookie = await signIn(base, await createTestUser({ role: 'owner' }));
 
