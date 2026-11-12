@@ -13,9 +13,13 @@ import {
 import {
   agentsWithLoad, cameBack, freeLeads, shareLeads, takeLead,
 } from '../../v2/incoming.js';
-import { queryOne } from '../../db/client.js';
+import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
 import { leadTabCounts } from '../../leads/counts.js';
+import {
+  allLeave, answerLeave, askForLeave, cancelLeave, LEAVE_KINDS, leaveTakenThisYear, myLeave,
+} from '../../v2/leave.js';
+import { attendanceMonth, dayState, dubaiDate } from '../../attendance/attendance.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -284,5 +288,90 @@ v2Router.get(
       tasks: Number(tasks?.n ?? 0),
       leave: Number(leave?.n ?? 0),
     });
+  }),
+);
+
+/* ── attendance and leave ──────────────────────────────────────────────── */
+
+/**
+ * My own month.
+ *
+ * The live `/api/attendance/month` is owner-only, which is right for the team
+ * grid — but it left an agent unable to see their own record at all. This one
+ * is scoped to the caller and cannot be pointed at anybody else.
+ */
+v2Router.get(
+  '/attendance/me',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const to = dubaiDate();
+    const from = new Date(Date.parse(`${to}T00:00:00Z`) - 59 * 86_400_000)
+      .toISOString().slice(0, 10);
+
+    const [today, days, leave, taken] = await Promise.all([
+      dayState(user.id, networkIp(req)),
+      query<{ on_date: string; kind: string; was_late: number; note: string | null }>(
+        `SELECT DATE_FORMAT(on_date, '%Y-%m-%d') AS on_date, kind, was_late, note
+           FROM attendance
+          WHERE user_id = ? AND on_date >= ?
+          ORDER BY on_date DESC`,
+        [user.id, from],
+      ),
+      myLeave(user.id),
+      leaveTakenThisYear(user.id),
+    ]);
+
+    res.json({ today, from, to, days, leave, taken });
+  }),
+);
+
+/** The team grid, and every leave request there is to answer. */
+v2Router.get(
+  '/attendance/team',
+  requireRole('owner', 'admin', 'manager'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const to = dubaiDate();
+    const from = new Date(Date.parse(`${to}T00:00:00Z`) - 13 * 86_400_000)
+      .toISOString().slice(0, 10);
+    const [month, leave] = await Promise.all([attendanceMonth(from, to), allLeave()]);
+    /* `attendanceMonth` already carries its own from/to; spreading it after
+       ours would silently win, so it goes first. */
+    res.json({ ...month, from, to, leave });
+  }),
+);
+
+const askSchema = z.object({
+  kind: z.enum(LEAVE_KINDS),
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reason: z.string().max(500).nullable().optional(),
+});
+
+v2Router.post(
+  '/leave',
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = askSchema.parse(req.body);
+    res.status(201).json(await askForLeave(actorFrom(req), currentUser(req), input));
+  }),
+);
+
+const answerLeaveSchema = z.object({
+  status: z.enum(['approved', 'refused']),
+  note: z.string().max(500).nullable().optional(),
+});
+
+v2Router.patch(
+  '/leave/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = answerLeaveSchema.parse(req.body);
+    res.json(await answerLeave(actorFrom(req), currentUser(req), String(req.params.id), input));
+  }),
+);
+
+v2Router.post(
+  '/leave/:id/cancel',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await cancelLeave(actorFrom(req), currentUser(req), String(req.params.id)));
   }),
 );

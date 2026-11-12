@@ -512,7 +512,8 @@
 .v2-table td{ padding:9px 10px; border-top:1px solid var(--line); vertical-align:middle; }
 .v2-table tbody tr:hover{ background:var(--surface-2); }
 .v2-table .person{ display:flex; align-items:center; gap:9px; min-width:0; }
-.v2-table .who b{ font-weight:620; }
+.v2-table .who b{ display:block; font-weight:620; }
+.v2-table .who .d-small{ display:block; }
 @media (max-width:767px){
   /* Four numbers per agent will not fit a phone, so the two that matter on a
      phone stay and the rest go. Nothing is hidden that is not also on the
@@ -891,3 +892,43 @@
   background:var(--red-soft); color:var(--red-ink); font-size:13px; font-weight:600;
 }
 .v2-addlead-foot{ display:flex; gap:10px; justify-content:flex-end; padding-bottom:10px; }
+
+/* ── Attendance and leave ───────────────────────────────────────────────── */
+.v2-att{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2 .v2-att-today{ gap:8px; align-items:flex-start; }
+.v2-att-acts{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:6px; }
+
+.v2-att-grid{ display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 10px; }
+.v2-att-day{
+  width:14px; height:14px; border-radius:4px; display:inline-block; flex:none;
+  background:var(--surface-3);
+}
+.v2-att-office{ background:var(--green); }
+.v2-att-late{ background:var(--amber); }
+.v2-att-outside{ background:var(--blue); }
+.v2-att-none{ background:var(--surface-3); }
+.v2-att-closed{ background:transparent; box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-4); }
+.v2-att-key{ display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-3); }
+.v2-att-key span{ display:inline-flex; align-items:center; gap:5px; }
+.v2-att-team{ overflow-x:auto; }
+.v2-att-team .v2-table th{ padding:0 4px 8px; font-size:10px; }
+.v2-att-team .v2-table td{ padding:6px 4px; }
+
+.v2-leave-form{
+  display:flex; flex-direction:column; gap:10px; padding:14px;
+  border-radius:var(--r-ctl); background:var(--surface-2); margin:4px 0 10px;
+  align-items:flex-start;
+}
+.v2-leave-form .v2-two, .v2-leave-form .v2-field-wide{ width:100%; }
+.v2-leave-list{ list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:7px; }
+.v2-leave-row{
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border-radius:var(--r-ctl); background:var(--surface-2); flex-wrap:wrap;
+}
+.v2-leave-what{ flex:1; min-width:160px; line-height:1.3; }
+.v2-leave-what b{ display:block; font-size:13px; font-weight:620; }
+.v2-leave-kind{ text-transform:capitalize; }
+.v2-leave-what>span{ display:block; font-size:12px; color:var(--ink-3); }
+.v2-leave-why{ font-style:italic; }
+.v2-leave-note{ flex:1 1 200px; max-width:280px; }
+.v2-leave-answer{ align-items:center; }

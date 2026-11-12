@@ -1255,6 +1255,87 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* Attendance: my own sixty days, and the team grid for an owner. */
+  { method: 'GET', pattern: /^\/api\/v2\/attendance\/me$/, handler: () => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const days: Array<{ on_date: string; kind: string; was_late: number; note: string | null }> = [];
+    for (let back = 1; back < 60; back += 1) {
+      const at = new Date(today.getTime() - back * 86_400_000);
+      if (at.getUTCDay() === 0) continue;
+      if (back % 11 === 0) continue;
+      days.push({
+        on_date: iso(at),
+        kind: back % 7 === 3 ? 'outside' : 'office',
+        was_late: back % 9 === 4 ? 1 : 0,
+        note: back % 7 === 3 ? 'Emaar sales centre' : null,
+      });
+    }
+    return {
+      today: {
+        closed: false, marked: null, markedAt: null, wasLate: false, note: null,
+        onOfficeNetwork: true, enabled: true, startsAt: '09:00',
+      },
+      from: iso(new Date(today.getTime() - 59 * 86_400_000)),
+      to: iso(today),
+      days,
+      taken: { annual: 6, sick: 2 },
+      leave: [
+        {
+          id: 'lv-1', userId: 'u-1', kind: 'annual',
+          fromDate: iso(new Date(today.getTime() + 20 * 86_400_000)),
+          toDate: iso(new Date(today.getTime() + 24 * 86_400_000)),
+          workingDays: 4, reason: 'Family wedding', status: 'pending', decisionNote: null,
+        },
+        {
+          id: 'lv-2', userId: 'u-1', kind: 'sick',
+          fromDate: iso(new Date(today.getTime() - 30 * 86_400_000)),
+          toDate: iso(new Date(today.getTime() - 30 * 86_400_000)),
+          workingDays: 1, reason: null, status: 'approved', decisionNote: 'Get well.',
+        },
+      ],
+    };
+  } },
+  { method: 'GET', pattern: /^\/api\/v2\/attendance\/team$/, handler: () => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const dates = Array.from({ length: 14 }, (_u, i) => {
+      const at = new Date(today.getTime() - (13 - i) * 86_400_000);
+      return { date: iso(at), closed: at.getUTCDay() === 0 };
+    });
+    const people = USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, n) => ({
+      userId: u.id,
+      name: u.name,
+      role: u.role,
+      photoUrl: photoOf(u.id),
+      days: dates.map((d, i) => ({
+        date: d.date,
+        kind: d.closed || (i + n) % 9 === 0 ? null : (i + n) % 5 === 0 ? 'outside' : 'office',
+        at: null,
+        late: (i + n) % 7 === 2,
+        note: null,
+      })),
+      inOffice: 9, outside: 2, late: 1, absent: 1,
+    }));
+    return {
+      from: dates[0]!.date, to: dates[dates.length - 1]!.date, dates, people,
+      leave: [{
+        id: 'lv-9', userId: people[0]?.userId ?? 'u-2', userName: people[0]?.name ?? 'Rocky',
+        kind: 'annual',
+        fromDate: iso(new Date(today.getTime() + 10 * 86_400_000)),
+        toDate: iso(new Date(today.getTime() + 12 * 86_400_000)),
+        workingDays: 3, reason: 'Trip home', status: 'pending', decisionNote: null,
+      }],
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/v2\/leave$/, handler: ({ body }) => ({
+    id: `lv-${Date.now()}`, ...(body as Record<string, unknown>), workingDays: 2, status: 'pending',
+  }) },
+  { method: 'PATCH', pattern: /^\/api\/v2\/leave\/([^/]+)$/, handler: ({ body }) => ({
+    ...(body as Record<string, unknown>), id: 'lv-9',
+  }) },
+  { method: 'POST', pattern: /^\/api\/v2\/leave\/([^/]+)\/cancel$/, handler: () => ({ cancelled: true }) },
+
   /* The numbers on the menu, in one answer, as the real endpoint gives them. */
   { method: 'GET', pattern: /^\/api\/v2\/badges$/, handler: () => {
     const rows = myLeadRows();

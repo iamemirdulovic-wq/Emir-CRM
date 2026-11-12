@@ -41,6 +41,7 @@ import { V2Calling } from './v2/Calling.js';
 import { V2Incoming } from './v2/Incoming.js';
 import { V2Pipeline } from './v2/Pipeline.js';
 import { V2AddLead } from './v2/AddLead.js';
+import { V2Attendance } from './v2/Attendance.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -123,7 +124,7 @@ export function App() {
           <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
           <Route path="/v2/team" element={<Placeholder title="Team" phase="phase 12 — team and me" />} />
           <Route path="/v2/wall" element={<Placeholder title="Team wall" phase="phase 12 — team and me" />} />
-          <Route path="/v2/attendance" element={<Placeholder title="Attendance" phase="phase 8 — attendance" />} />
+          <Route path="/v2/attendance" element={<V2Attendance />} />
           <Route path="/v2/activity" element={<Placeholder title="Activity" phase="phase 11 — owner tools" />} />
           <Route path="/v2/ai" element={<Placeholder title="Homes AI" phase="phase 14 — Homes AI" />} />
           <Route path="/v2/automations" element={<Placeholder title="Automations" phase="phase 11 — owner tools" />} />
