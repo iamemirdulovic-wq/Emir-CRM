@@ -6,6 +6,7 @@ import {
 } from '../testing/db.js';
 import { execute, queryOne } from '../db/client.js';
 import { newId } from '../lib/ids.js';
+import { dubaiDate } from '../attendance/attendance.js';
 import { resetRateLimits } from '../http/middleware/rate-limit.js';
 import { setEnvForTesting } from '../config/env.js';
 import { createApp } from '../http/app.js';
@@ -187,7 +188,12 @@ describeWithDb('transfers', () => {
   it('does not offer somebody who is on leave today', async () => {
     const one = await createTestUser({ role: 'agent', name: 'One' });
     const away = await createTestUser({ role: 'agent', name: 'Away' });
-    const today = new Date().toISOString().slice(0, 10);
+    /* Dubai's date, not this machine's. The product asks MySQL for
+       `CONVERT_TZ(NOW(), '+00:00', '+04:00')`, so between 20:00 and midnight
+       UTC a row written for the UTC date is yesterday's leave in Dubai and
+       the person is not away after all. The test passed for twenty hours a
+       day and failed for four, which is worse than failing always. */
+    const today = dubaiDate();
     await execute(
       `INSERT INTO leave_requests (id, user_id, kind, from_date, to_date, working_days, status)
        VALUES (?, ?, 'annual', ?, ?, 1, 'approved')`,

@@ -23,6 +23,15 @@ import { attendanceMonth, dayState, dubaiDate } from '../../attendance/attendanc
 import { tasksInRange } from '../../services/tasks.js';
 import { ownerPredicate } from '../../auth/scope.js';
 import { execute } from '../../db/client.js';
+import {
+  NOTIFY_GROUPS, ALWAYS_ON, notifySettings, saveNotifySettings, saveSchema as notifySchema,
+} from '../../v2/notify-prefs.js';
+import { attendanceSettings } from '../../attendance/settings.js';
+import { listAutomations } from '../../services/automations.js';
+import { companyDetails, companyIssues } from '../../config/company.js';
+import { monthSpend, usd } from '../../ai/usage.js';
+import { pushReadiness } from '../../services/integration-status.js';
+import { setupChecklist } from '../../services/setup-checklist.js';
 import { newId } from '../../lib/ids.js';
 import { writeAudit } from '../../audit/audit.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
@@ -651,6 +660,98 @@ v2Router.get(
       })),
       canSeeNumbers: isOwner,
     });
+  }),
+);
+
+/* ── the line under each office shortcut ───────────────────────────────── */
+
+/**
+ * The numbers the Settings → General shortcuts show.
+ *
+ * `design/web/settings.html` puts a live fact under each office link — "13
+ * people · 9 have notifications on", "$38 of $100 used this month" — rather
+ * than a description. That is the difference between a menu and a dashboard,
+ * and it is the reason an owner opens the right page instead of all eight.
+ *
+ * One endpoint rather than eight requests from one card. Owner and admin
+ * only, because every number in it is one an agent cannot act on.
+ */
+v2Router.get(
+  '/settings-summary',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const [attendance, automations, company, spend, push, setup] = await Promise.all([
+      attendanceSettings(),
+      listAutomations(),
+      companyDetails(),
+      monthSpend(),
+      pushReadiness(),
+      setupChecklist(),
+    ]);
+
+    res.json({
+      people: push.agentsTotal,
+      /* "Notifications on" means a device is registered. The server having
+         credentials is a separate matter, and the health page's problem. */
+      notifyOn: push.agentsTotal - push.agentsWithoutDevice,
+      attendance: {
+        enabled: attendance.enabled,
+        start: attendance.start,
+        end: attendance.end,
+        graceMinutes: attendance.graceMinutes,
+      },
+      automations: {
+        on: automations.filter((one) => one.isActive).length,
+        total: automations.length,
+      },
+      company: { missing: companyIssues(company).length },
+      ai: { spentUsd: usd(spend.micros), capUsd: usd(spend.capMicros) },
+      /* The setup checklist is the honest version of "system health": it
+         counts the things that are switched on, from the same places the
+         features read. */
+      health: { ok: setup.items.length - setup.outstanding, total: setup.items.length },
+    });
+  }),
+);
+
+/* ── what each person wants to hear about ──────────────────────────────── */
+
+/**
+ * My notification settings.
+ *
+ * Scoped to the caller by construction: the user id comes from the session,
+ * so there is no route here by which one person reads or writes another's.
+ * The groups are sent with the values so the screen does not carry its own
+ * copy of the list — a switch added on the server appears on screen without
+ * a matching frontend change, and cannot drift out of step with what the
+ * server actually honours.
+ */
+v2Router.get(
+  '/notify',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json({
+      ...(await notifySettings(user.id)),
+      groups: Object.entries(NOTIFY_GROUPS).map(([key, group]) => ({
+        key,
+        title: group.title,
+        forRole: group.forRole,
+        switches: Object.entries(group.switches).map(([id, one]) => ({
+          id,
+          title: one.title,
+          note: one.note,
+          alwaysOn: ALWAYS_ON.has(id),
+        })),
+      })),
+    });
+  }),
+);
+
+v2Router.put(
+  '/notify',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await saveNotifySettings(user.id, notifySchema.parse(req.body)));
   }),
 );
 

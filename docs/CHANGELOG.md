@@ -2,6 +2,71 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Settings, rebuilt from the design file
+
+Emir, looking at the Settings screen being typed: *"Wait what design you make
+now? Why its not match? With the new design"*
+
+He was right. The design package holds **50 page designs** in `design/web/`.
+The port script had pulled the page-specific styling out of **six** of them —
+my-day, owner-home, calling, incoming, my-leads, lead — and every screen built
+after that was built from `docs/v2/pages.md` and the API endpoints instead of
+from its own design file. Right colours, right components, invented layouts.
+The Settings screen being written at that moment was one page with three
+boxes; `settings.html` is a section list with eight office pages behind it.
+
+**Settings is now built from the design**, as five panels inside one shell:
+General (theme as three miniatures, sounds with a test tone, language, the
+office shortcuts with live numbers under each), My notifications, Company,
+Attendance rules and Homes AI. Automations moved in behind the same nav.
+
+What the design asks for that the CRM could not do yet, now done on the
+server: **per-person notification settings** — about thirty switches, storing
+only the differences from the default so a switch added later arrives on for
+everybody, and refusing in the database, not only on screen, to let a VIP
+alert be switched off; **the attendance rules** the design asks an owner
+(working outside, the location asked once, "are you back?", whether a call
+needs a check-in and whether "call anyway" is allowed); **what Homes AI may
+do**, one switch per feature, so the AI can be narrowed rather than only
+turned off; and **this month's AI spend per feature**, because "$38" does not
+tell an owner which switch to turn off.
+
+**One thing in the design cannot be built as drawn.** It asks for the office
+*Wi-Fi network name*, "exactly as on the phone". No browser exposes the Wi-Fi
+name, on any platform. The screen asks for the office's internet address
+instead, which is what the live CRM already checks, and shows the address this
+computer is being seen from so an owner sitting in the office can save it
+without knowing what an IP address is.
+
+### Three bugs the screenshots found that the tests could not
+
+**Every icon in a styled slot was in the wrong place.** The design writes an
+icon as `<i data-icon="phone">`; we render an `<svg>`. So `.input-icon>i`,
+which is `position:absolute`, never matched, the icon became a flex child
+that shoved the input sideways, and the office phone number was clipped
+inside its own box. The same miss meant the open section's icon never turned
+orange. The port script now emits every `i` selector a second time for `svg`.
+
+**Each settings panel was wearing Settings' stylesheet.** Every design page
+carries its own `<style>` block, ported and scoped to one class. The shell set
+that class once, so the Company page's two-column grid never applied and its
+preview column sat under the form instead of beside it.
+
+**All seven settings routes overflowed a phone.** `design/web/` is the
+computer design — `.set` is 216px plus 896px, which is 1112px of content on a
+390px screen — and there is no phone version of these pages. They now stack,
+with the section list as a scrolling row above the panel.
+
+### And one test that was wrong four hours a day
+
+`transfers.integration.test.ts` wrote its leave row for the **UTC** date while
+the product correctly asks MySQL for Dubai's. Between 20:00 and midnight UTC
+the two differ, the leave was yesterday's, and the person was not away after
+all. It passed for twenty hours a day and failed for four.
+
+Server 147 files, 2751 tests. Web 482. Polish: 208 screens, nothing
+overflowing, clipped or undersized.
+
 ## One card for a batch, and an X to close it
 
 Emir: *"When I add bulk leads it continues opening one-by-one notifications,

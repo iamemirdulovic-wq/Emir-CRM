@@ -48,6 +48,22 @@ export type SettingName =
   | 'ATT_SAT_END'
   | 'ATT_CLOSED_DAYS'
   | 'ATT_GRACE_MINUTES'
+  /* The rest of what `design/web/settings-attendance.html` asks an owner,
+     which used to be hard-coded behaviour. Owner-only, like the rest. */
+  | 'ATT_OUTSIDE_ALLOWED'
+  | 'ATT_OUTSIDE_LOCATION_ONCE'
+  | 'ATT_OUTSIDE_ASK_BACK'
+  | 'ATT_OUTSIDE_TELL_OWNERS'
+  | 'ATT_CALL_NEEDS_CHECKIN'
+  | 'ATT_CALL_ANYWAY'
+  /* What Homes AI may do, from `design/web/ai-settings.html`. Each one is a
+     feature an owner can switch off without touching the key, so the AI can
+     be narrowed rather than only turned off entirely. */
+  | 'AI_CAN_SUMMARY'
+  | 'AI_CAN_BEST_TIME'
+  | 'AI_CAN_VOICE'
+  | 'AI_CAN_BRIEF'
+  | 'AI_CAN_CHAT'
   /* The company as it introduces itself to a client — see config/company.ts.
      These used to be constants in the source; they reach every WhatsApp
      footer, every email signature, the business card and every offer. */

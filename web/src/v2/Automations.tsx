@@ -4,6 +4,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Spinner, ErrorNote } from '../design/ui.js';
+import { SettingsShell, SettingsTitle } from './settings/Shell.js';
 
 /**
  * Automations: what the CRM does on its own.
@@ -45,20 +46,28 @@ export function V2Automations() {
     }
   }
 
-  if (list.error) return <ErrorNote>{list.error}</ErrorNote>;
-  if (!list.data) return <Spinner />;
+  /* Loading and failing happen inside the shell too, so the section list
+     does not flash in and out while the page settles. */
+  if (list.error) {
+    return <SettingsShell page="p-automations"><div className="d-set-body"><ErrorNote>{list.error}</ErrorNote></div></SettingsShell>;
+  }
+  if (!list.data) {
+    return <SettingsShell page="p-automations"><div className="d-set-body"><Spinner /></div></SettingsShell>;
+  }
 
   const on = list.data.items.filter((o) => o.isActive).length;
 
+  /* Inside the settings shell, because `design/web/automations.html` is one
+     of the pages behind the Settings nav rather than a screen of its own.
+     The page's own content is still the simple list below — the design's
+     take-back hero and its grouped switches are a rebuild, not a restyle. */
   return (
-    <div className="v2-autos">
-      <header className="v2-inc-head">
-        <h1 className="v2-hi">Automations</h1>
-        <p className="d-muted">
-          {on} of {list.data.items.length} running
-          {!canSwitch && ' · only an owner or admin can change them'}
-        </p>
-      </header>
+    <SettingsShell page="p-automations">
+      <div className="d-set-body v2-autos">
+        <SettingsTitle
+          title="Automations"
+          note={`Rules the CRM runs by itself, so no lead is forgotten. ${on} of ${list.data.items.length} running${!canSwitch ? ' · only an owner or admin can change them' : ''}`}
+        />
 
       {problem && <p className="v2-problem">{problem}</p>}
 
@@ -108,7 +117,8 @@ export function V2Automations() {
           <p>The workflows that come with the CRM appear here once they are installed.</p>
         </div>
       )}
-    </div>
+      </div>
+    </SettingsShell>
   );
 }
 

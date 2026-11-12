@@ -1231,3 +1231,48 @@ two agents cannot take the same lead; who took what is audited.
 list of the same rows is a second chance to disagree with itself — which is
 exactly the bug Emir reported on 11 November ("we have leads means new 419,
 but we can't see all the leads").
+
+
+## Screens are built from the design file, not from the written spec — 12 Nov 2026
+
+Emir stopped the build mid-screen: the layouts did not match his design
+package. He was right, and the cause was mechanical. `design/web/` holds 50
+page designs. The port script had been given six of them, and every screen
+built after those six was built from `docs/v2/pages.md` and the API endpoints.
+They came out in the right colours with the right components and the wrong
+shapes.
+
+**The rule now: open the design HTML first.** Port its `<style>` block through
+`scripts/port-design-css.mjs` as a `p-*` scoped block, add the page to that
+script's `PAGES` list, and build the markup to match the design's. The written
+spec says what a screen must do; the design file says what it looks like, and
+where they differ the design file wins.
+
+Two things fall out of this that are worth knowing before the next screen:
+
+- **`<i>` vs `<svg>`.** The design styles icons through the element name. We
+  render Lucide SVGs. Every such rule is now emitted twice by the port script,
+  once for each. Before that fix the icon in every input sat outside the box
+  and the open nav section's icon never turned orange — on every screen, for
+  weeks, with a green test suite.
+- **The design is the computer design.** Its grids are fixed desktop widths
+  and there is no phone version of the settings pages. The phone layout for
+  anything ported from `design/web/` is ours to write, and `npm run polish`
+  is what catches it.
+
+Emir chose this over finishing the remaining screens quickly and matching them
+later. The screens already built with invented layouts — Calendar, Tasks,
+Attendance, Team, Transfers, Projects, Wall, Bell, Find, Pipeline, Homes AI,
+Automations, Activity — are to be redone the same way.
+
+## The office network is an address, not a Wi-Fi name — 12 Nov 2026
+
+`design/web/settings-attendance.html` asks for the office Wi-Fi network name,
+"exactly as on the phone". No browser exposes the Wi-Fi SSID, on any platform,
+and no permission unlocks it. The live CRM already checks the public address
+the office's internet line is seen from, so the screen asks for that, and
+shows the address this computer is being seen from so an owner sitting in the
+office can save it without knowing what an IP address is.
+
+It is a deterrent, not a lock — a VPN into the office defeats it — and that
+was already the case before this screen existed.

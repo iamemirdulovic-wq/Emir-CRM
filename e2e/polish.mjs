@@ -67,6 +67,16 @@ const ROUTES = [
   ['/v2/tasks', 'v2-tasks'], ['/v2/attendance', 'v2-attendance'],
   ['/v2/team', 'v2-team'], ['/v2/profile', 'v2-profile'],
   ['/v2/projects', 'v2-projects'], ['/v2/more', 'v2-more'],
+  /* Settings, one route per panel: they share a shell but each lays its
+     own page out, and the Company page's two columns are exactly the kind
+     of thing that only breaks at one width. */
+  ['/v2/settings', 'v2-settings'],
+  ['/v2/settings/notifications', 'v2-settings-notifications'],
+  ['/v2/settings/company', 'v2-settings-company'],
+  ['/v2/settings/attendance', 'v2-settings-attendance'],
+  ['/v2/settings/ai', 'v2-settings-ai'],
+  ['/v2/settings/automations', 'v2-settings-automations'],
+  ['/v2/settings/team', 'v2-settings-team'],
 ];
 
 const VIEWPORTS = [['desktop', 1440, 1000], ['mobile', 390, 844]];

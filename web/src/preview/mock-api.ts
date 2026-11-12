@@ -923,6 +923,126 @@ function previewMessaging() {
   };
 }
 
+/* ── settings state the preview mutates ─────────────────────────────────
+ *
+ * Module-level so a change made on one panel is still there when the page is
+ * navigated away from and back, the way it would be with a real server.
+ */
+
+const notifyState = {
+  switches: {} as Record<string, boolean>,
+  computer: true,
+  sounds: true,
+  volume: 0.12,
+  soundNewLead: true,
+  soundWon: true,
+  quiet: '22:00-08:00' as string | null,
+  vipIgnoresQuiet: true,
+};
+
+/** The groups, with the server's own wording. */
+const NOTIFY_GROUPS = [
+  { key: 'agent_leads', title: 'My leads', forRole: 'agent', switches: [
+    { id: 'vip_lead', title: 'VIP lead from the owner', note: 'You have a time limit to call. This alert is always loud.', alwaysOn: true },
+    { id: 'new_lead', title: 'New lead given to me', note: 'From the owner, an import or a transfer', alwaysOn: false },
+    { id: 'going_back', title: 'Lead goes back soon', note: '10 min before a VIP lead and 1 hour before an imported lead goes back to Incoming', alwaysOn: false },
+    { id: 'link_opened', title: 'Client opened my link', note: 'Brochure, payment plan or location link', alwaysOn: false },
+    { id: 'transfer_in', title: 'Transfer request for me', note: 'A colleague wants to give you a lead', alwaysOn: false },
+    { id: 'what_happened', title: '"What happened?" reminders', note: 'When a WhatsApp or Telegram tap has no update yet', alwaysOn: false },
+  ] },
+  { key: 'agent_day', title: 'My day', forRole: 'agent', switches: [
+    { id: 'followup_due', title: 'Follow-up is due', note: 'At the time you planned', alwaysOn: false },
+    { id: 'meeting_soon', title: 'Meeting or site visit', note: '2 hours before, and again 15 min before', alwaysOn: false },
+    { id: 'how_did_it_go', title: '"How did it go?"', note: 'After each meeting · answer before 21:00', alwaysOn: false },
+    { id: 'task_from_owner', title: 'Task from the owner', note: 'A new task or a change', alwaysOn: false },
+    { id: 'check_in', title: 'Check-in reminder', note: 'At the start of the shift, only if you are not checked in', alwaysOn: false },
+  ] },
+  { key: 'agent_team', title: 'Team and office', forRole: 'agent', switches: [
+    { id: 'leave_answered', title: 'Leave request answered', note: 'Approved or refused', alwaysOn: false },
+    { id: 'owner_news', title: 'News from the owner', note: 'Home banners and owner posts on the Team wall', alwaysOn: false },
+    { id: 'wall', title: 'Team wall and Best of Homes', note: 'New posts, reactions, weekly results', alwaysOn: false },
+  ] },
+  { key: 'owner_leads', title: 'Leads', forRole: 'owner', switches: [
+    { id: 'vip_late', title: 'VIP lead not called in time', note: 'The lead came back to Incoming', alwaysOn: true },
+    { id: 'incoming_waiting', title: 'Leads waiting in Incoming', note: 'When a lead waits more than 15 min', alwaysOn: false },
+    { id: 'transfer_approval', title: 'Transfer needs my approval', note: 'Leads in Meeting or Offer stage', alwaysOn: false },
+    { id: 'unit_booked', title: 'Unit booked', note: 'An agent marks a lead as Won', alwaysOn: false },
+    { id: 'wrong_number', title: 'Wrong number flagged', note: 'An agent says the number is wrong', alwaysOn: false },
+    { id: 'import_done', title: 'Import finished', note: 'Result per agent', alwaysOn: false },
+  ] },
+  { key: 'owner_team', title: 'Team', forRole: 'owner', switches: [
+    { id: 'leave_requests', title: 'Leave requests', note: 'A new request to answer', alwaysOn: false },
+    { id: 'agent_absent', title: 'Agent absent', note: 'No check-in and no leave an hour into the shift', alwaysOn: false },
+    { id: 'agent_late', title: 'Agent late', note: 'Check-in after the grace minutes', alwaysOn: false },
+    { id: 'working_outside', title: 'Working outside', note: 'An agent starts or ends work outside', alwaysOn: false },
+    { id: 'meeting_result_missing', title: 'Meeting result missing', note: 'Not answered by 21:00', alwaysOn: false },
+  ] },
+  { key: 'owner_system', title: 'System', forRole: 'owner', switches: [
+    { id: 'new_sign_in', title: 'New or unusual sign-in', note: 'A new device or a new place', alwaysOn: false },
+    { id: 'blocking_bug', title: 'Blocking bug report', note: 'Feedback marked "Blocking my work"', alwaysOn: false },
+    { id: 'health', title: 'System health problem', note: 'A service is slow or down', alwaysOn: false },
+    { id: 'ai_budget', title: 'Homes AI budget', note: 'At 80% and at 100% of the month', alwaysOn: false },
+  ] },
+];
+
+/** The same six that start off on the real server. */
+const NOTIFY_OFF = new Set(['check_in', 'wall', 'wrong_number', 'agent_late', 'working_outside', 'ai_budget']);
+
+function previewNotify() {
+  const switches: Record<string, boolean> = {};
+  for (const group of NOTIFY_GROUPS) {
+    for (const one of group.switches) {
+      switches[one.id] = notifyState.switches[one.id] ?? !NOTIFY_OFF.has(one.id);
+    }
+  }
+  return { ...notifyState, switches, groups: NOTIFY_GROUPS };
+}
+
+const companyState = {
+  legalName: 'Emigeo Homes Real Estate L.L.C',
+  tradingName: 'homes.me',
+  /* Left blank on purpose: the whole point of the preview panel is showing
+     what a missing TRN looks like in the offer footer. */
+  trn: '',
+  orn: '41234',
+  licenceNo: 'CN-4821907',
+  licenceExpiry: '2027-03-14',
+  address: 'Office 1204, Bay Square 11, Business Bay, Dubai, UAE',
+  phone: '+971 4 123 4567',
+  whatsapp: '+971 50 123 4567',
+  email: 'hello@homes.me',
+  website: 'homes.me',
+  logoUrl: '',
+};
+
+const attendanceState = {
+  enabled: false,
+  officeIps: [] as string[],
+  start: '10:00',
+  end: '19:00',
+  satStart: '11:00',
+  satEnd: '15:00',
+  closedDays: [0],
+  graceMinutes: 10,
+  outsideAllowed: true,
+  outsideLocationOnce: true,
+  outsideAskBack: true,
+  outsideTellOwners: false,
+  callNeedsCheckIn: true,
+  callAnyway: true,
+};
+
+const aiState = {
+  capUsd: 100,
+  features: { summary: true, bestTime: true, voice: true, brief: true, chat: true } as Record<string, boolean>,
+};
+
+const knowledgeState = {
+  company: `We are homes.me, a real estate brokerage in Business Bay, Dubai. We sell off-plan projects in Dubai and Abu Dhabi.
+Our clients are mostly investors from the GCC, Europe, India and CIS countries. Agents speak English, Arabic, Russian, Hindi, Urdu and Serbian.
+Write short and simple English. Say "booking", not other words for it. Never promise a price, a discount or a return.`,
+};
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -1482,6 +1602,119 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/v2\/leave\/([^/]+)\/cancel$/, handler: () => ({ cancelled: true }) },
 
   /* The numbers on the menu, in one answer, as the real endpoint gives them. */
+  /*
+   * ── v2 settings ────────────────────────────────────────────────────────
+   *
+   * The shapes the Settings panels read. Deliberately not all tidy: the
+   * company has a missing TRN and the office has no address saved, because
+   * those are the states the screens were built to make obvious and a demo
+   * where everything is filled in never shows them.
+   */
+  { method: 'GET', pattern: /^\/api\/v2\/notify$/, handler: () => previewNotify() },
+  { method: 'PUT', pattern: /^\/api\/v2\/notify$/, handler: ({ body }) => {
+    const patch = (body ?? {}) as Record<string, unknown>;
+    if (patch.switches) {
+      for (const [key, on] of Object.entries(patch.switches as Record<string, boolean>)) {
+        /* The real server refuses to switch a VIP alert off. */
+        notifyState.switches[key] = key === 'vip_lead' || key === 'vip_late' ? true : on;
+      }
+    }
+    for (const key of ['computer', 'sounds', 'volume', 'soundNewLead', 'soundWon', 'vipIgnoresQuiet', 'quiet']) {
+      if (patch[key] !== undefined) (notifyState as Record<string, unknown>)[key] = patch[key];
+    }
+    return previewNotify();
+  } },
+
+  { method: 'GET', pattern: /^\/api\/v2\/settings-summary$/, handler: () => ({
+    people: 13,
+    notifyOn: 9,
+    attendance: { enabled: false, start: '10:00', end: '19:00', graceMinutes: 10 },
+    automations: { on: AUTOMATIONS.filter((a) => a.isActive).length, total: AUTOMATIONS.length },
+    company: { missing: 1 },
+    ai: { spentUsd: '38.40', capUsd: '100.00' },
+    health: { ok: 4, total: 5 },
+  }) },
+
+  { method: 'GET', pattern: /^\/api\/company$/, handler: () => ({
+    company: { ...companyState },
+    issues: companyState.trn.trim()
+      ? []
+      : ['No TRN. Every sales offer footer and every invoice needs it.'],
+    messaging: {
+      quietFrom: 22, quietTo: 8, maxPer24h: 3, botPauseHours: 24,
+      describes: 'No automated messages 22:00–08:00 Dubai time', customised: false,
+    },
+  }) },
+  { method: 'PUT', pattern: /^\/api\/company$/, handler: ({ body }) => {
+    Object.assign(companyState, (body ?? {}) as Record<string, string>);
+    return { company: { ...companyState }, issues: [] };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/attendance\/settings$/, handler: () => ({
+    ...attendanceState,
+    /* The documentation range, never a real office address. */
+    yourIp: '203.0.113.17',
+  }) },
+  { method: 'PUT', pattern: /^\/api\/attendance\/settings$/, handler: ({ body }) => {
+    Object.assign(attendanceState, (body ?? {}) as Record<string, unknown>);
+    return { ...attendanceState, yourIp: '203.0.113.17' };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/ai\/usage$/, handler: () => ({
+    spentUsd: '38.40',
+    capUsd: String(aiState.capUsd.toFixed(2)),
+    calls: 1284,
+    spentMicros: 38_400_000,
+    capMicros: aiState.capUsd * 1_000_000,
+    byFeature: [
+      { feature: 'summary', micros: 14_100_000, calls: 612, usd: '14.10' },
+      { feature: 'voice', micros: 9_200_000, calls: 143, usd: '9.20' },
+      { feature: 'ask', micros: 8_300_000, calls: 388, usd: '8.30' },
+      { feature: 'brief', micros: 4_100_000, calls: 11, usd: '4.10' },
+      { feature: 'best-time', micros: 2_700_000, calls: 130, usd: '2.70' },
+    ],
+    features: { ...aiState.features },
+    featureList: [
+      { key: 'summary', name: 'AI_CAN_SUMMARY', title: 'Write "In short" on each lead', note: '3 lines from the notes and timeline, new after each change' },
+      { key: 'bestTime', name: 'AI_CAN_BEST_TIME', title: 'Suggest the best time to call', note: "From the client's country, local time and past answers" },
+      { key: 'voice', name: 'AI_CAN_VOICE', title: 'Turn voice notes into text', note: 'And find fields like budget and unit: "Save 4 to lead"' },
+      { key: 'brief', name: 'AI_CAN_BRIEF', title: 'Write the morning brief for owners', note: 'One short text on the dashboard at 08:30' },
+      { key: 'chat', name: 'AI_CAN_CHAT', title: 'Answer questions in Homes AI chat', note: 'Agents ask about their own leads. Owners ask about the team.' },
+    ],
+  }) },
+  { method: 'PUT', pattern: /^\/api\/ai\/limits$/, handler: ({ body }) => {
+    const patch = (body ?? {}) as { capUsd?: number; features?: Record<string, boolean> };
+    if (patch.capUsd !== undefined) aiState.capUsd = patch.capUsd;
+    if (patch.features) Object.assign(aiState.features, patch.features);
+    return { capUsd: String(aiState.capUsd.toFixed(2)), features: { ...aiState.features } };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/ai\/knowledge$/, handler: () => ({
+    sections: [
+      {
+        section: 'company',
+        title: 'About us',
+        language: 'en',
+        content: knowledgeState.company,
+      },
+    ],
+  }) },
+  { method: 'PUT', pattern: /^\/api\/ai\/knowledge\/([^/]+)$/, handler: ({ body }) => {
+    knowledgeState.company = ((body ?? {}) as { content?: string }).content ?? '';
+    return { saved: true };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/integrations\/setup-checklist$/, handler: () => ({
+    outstanding: 1,
+    items: [
+      { key: 'email', title: 'Email', consequence: 'Client emails will not send.', ready: true, to: '/settings/integrations' },
+      { key: 'whatsapp', title: 'WhatsApp', consequence: 'Follow-ups outside 24 hours will not send.', ready: true, to: '/settings/integrations' },
+      { key: 'push', title: 'Phone alerts', consequence: 'The five-minute rule only works with the CRM open.', ready: true, to: '/settings/integrations' },
+      { key: 'ai', title: 'Homes AI', consequence: 'Every AI answer fails with a key error.', ready: true, to: '/settings/ai' },
+      { key: 'attendance', title: 'Office check-in', consequence: 'Nobody is asked to check in.', ready: false, to: '/v2/settings/attendance' },
+    ],
+  }) },
+
   { method: 'GET', pattern: /^\/api\/v2\/badges$/, handler: () => {
     const rows = myLeadRows();
     const now = Date.now();

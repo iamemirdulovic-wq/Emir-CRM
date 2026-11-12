@@ -50,6 +50,12 @@ import { V2Projects } from './v2/Projects.js';
 import { V2Wall } from './v2/Wall.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
+import { V2SettingsGeneral } from './v2/settings/General.js';
+import { V2SettingsNotifications } from './v2/settings/Notifications.js';
+import { V2SettingsCompany } from './v2/settings/Company.js';
+import { V2SettingsAttendance } from './v2/settings/Attendance.js';
+import { V2SettingsAi } from './v2/settings/Ai.js';
+import { V2SettingsHealth, V2SettingsPhoneApp, V2SettingsTeam } from './v2/settings/Soon.js';
 import { V2Activity } from './v2/Activity.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
@@ -137,8 +143,22 @@ export function App() {
           <Route path="/v2/attendance" element={<V2Attendance />} />
           <Route path="/v2/activity" element={<V2Activity />} />
           <Route path="/v2/ai" element={<V2Ai />} />
+          {/* Settings, as `design/web/settings.html` lays it out: one shell
+              with the section list, a panel per page behind it. The office
+              pages are owner and admin only, enforced by every endpoint they
+              read as well as by the nav not showing them. */}
+          <Route path="/v2/settings" element={<V2SettingsGeneral />} />
+          <Route path="/v2/settings/notifications" element={<V2SettingsNotifications />} />
+          <Route path="/v2/settings/phone-app" element={<V2SettingsPhoneApp />} />
+          <Route path="/v2/settings/team" element={<V2SettingsTeam />} />
+          <Route path="/v2/settings/attendance" element={<V2SettingsAttendance />} />
+          <Route path="/v2/settings/automations" element={<V2Automations />} />
+          <Route path="/v2/settings/company" element={<V2SettingsCompany />} />
+          <Route path="/v2/settings/ai" element={<V2SettingsAi />} />
+          <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
+          {/* The old address kept working, since it is in the nav of every
+              screen already shipped. */}
           <Route path="/v2/automations" element={<V2Automations />} />
-          <Route path="/v2/settings" element={<Placeholder title="Settings" phase="phase 12 — team and me" />} />
           <Route path="/v2/profile" element={<V2Person />} />
           <Route path="/v2/more" element={<V2More />} />
           <Route path="/v2/templates" element={<Placeholder title="Templates" phase="later" />} />

@@ -123,6 +123,12 @@ const settingsSchema = z.object({
   satEnd: z.string().max(5).optional(),
   closedDays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   graceMinutes: z.number().int().min(0).max(120).optional(),
+  outsideAllowed: z.boolean().optional(),
+  outsideLocationOnce: z.boolean().optional(),
+  outsideAskBack: z.boolean().optional(),
+  outsideTellOwners: z.boolean().optional(),
+  callNeedsCheckIn: z.boolean().optional(),
+  callAnyway: z.boolean().optional(),
 });
 
 attendanceRouter.put(

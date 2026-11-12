@@ -76,6 +76,31 @@ function keyframes(css) {
  * on the whole file matters: `#fff` in a declaration is a colour, and a pass
  * over the text turned `color:#fff` into `color:.id-fff`.
  */
+/**
+ * The design writes an icon as `<i data-icon="phone">`; we render `<Icon/>`,
+ * which is an `<svg class="lucide">`.
+ *
+ * So every rule that styles an icon through its element name misses ours. It
+ * is not cosmetic: `.input-icon>i` is `position:absolute`, and without it the
+ * icon becomes a flex child that pushes the input sideways and clips the
+ * phone number inside it. `.set-nav a.on i` is what makes the open section's
+ * icon orange. Both looked fine in a passing test suite and wrong on screen.
+ *
+ * So each selector that names `i` is emitted twice, once with `svg`. The
+ * design also uses `<i>` as a plain fill element — the bar inside `.bar`, the
+ * grace band on the shift bar — and those keep working because the `<i>`
+ * selector is still there and no `<svg>` is ever in those places.
+ */
+function alsoForSvg(part) {
+  /* `i` as an element selector: at the start or after a combinator, and not
+     part of a class or attribute name. `.d-input-icon` must not match. */
+  const swapped = part.replace(
+    /(^|[\s>+~(])i(?=$|[\s>+~).:[\]#,])/g,
+    (_whole, before) => `${before}svg`,
+  );
+  return swapped === part ? null : swapped;
+}
+
 function scope(selector) {
   const parts = [];
   for (const raw of selector.split(',')) {
@@ -94,6 +119,8 @@ function scope(selector) {
       parts.push(`.v2${prefixed.slice('body'.length)}`);
     } else {
       parts.push(`.v2 ${prefixed}`);
+      const svg = alsoForSvg(prefixed);
+      if (svg) parts.push(`.v2 ${svg}`);
     }
   }
   return parts.join(', ');
@@ -222,6 +249,11 @@ const BASE = `
 .v2 :where(h3) {font-size:15px;font-weight:650;letter-spacing:-.01em}
 .v2 :where(h4) {font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 .v2 :where(a) {color:inherit;text-decoration:none}
+/* ui.css styles this one as \`a.link\`. Carried over for a <button> too,
+   because an action that is a link in the design and a button in React is
+   still the same thing on screen. */
+.v2 a.d-link, .v2 button.d-link {color:var(--accent-ink);font-weight:600}
+.v2 a.d-link:hover, .v2 button.d-link:hover {text-decoration:underline}
 .v2 :where(button) {font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
 .v2 :where(input, select, textarea) {font:inherit;color:inherit}
 .v2 :where(kbd) {font:600 11px/1 var(--font);padding:4px 6px;border-radius:6px;background:var(--surface-3);color:var(--ink-3)}
@@ -261,6 +293,15 @@ const PAGES = [
   ['incoming.html', 'incoming', 'p-incoming'],
   ['my-leads.html', 'my leads', 'p-my-leads'],
   ['lead.html', 'the lead page', 'p-lead'],
+  /* Settings and the office pages behind it. Added when it turned out the
+     first Settings screen had been built from the written spec rather than
+     from `settings.html`, and looked nothing like it. */
+  ['settings.html', 'settings', 'p-settings'],
+  ['company.html', 'the company page', 'p-company'],
+  ['settings-team.html', 'team and roles', 'p-set-team'],
+  ['settings-attendance.html', 'attendance rules', 'p-set-attendance'],
+  ['ai-settings.html', "Homes AI's settings", 'p-ai-settings'],
+  ['automations.html', 'automations', 'p-automations'],
 ];
 
 const pageCss = PAGES.map(([file, what, pageClass]) => {
@@ -294,4 +335,4 @@ const PAGE_HEADER = `/*
 
 writeFileSync(path.join(STYLES, 'v2-home.css'), `${PAGE_HEADER}${pageCss}\n`);
 
-console.log('ported ui.css and 2 page stylesheets');
+console.log(`ported ui.css and ${PAGES.length} page stylesheets`);

@@ -1220,3 +1220,114 @@
 .v2-heat-h{ font-size:10px; color:var(--ink-4); text-align:center; }
 .v2-heat-d{ font-size:11px; color:var(--ink-3); padding-right:6px; white-space:nowrap; }
 .v2-heat-c{ height:20px; border-radius:5px; background:var(--accent); display:block; }
+
+/* ── Settings ────────────────────────────────────────────────────────────
+ *
+ * What the design's own stylesheets do not cover. Everything structural —
+ * `.d-set`, `.d-set-nav`, `.d-th-grid`, `.d-co-grid`, `.d-ai-top` — is ported
+ * from `design/web/ui.css` and the settings pages' own style blocks; these are
+ * the few states the design draws with its demo script instead of CSS.
+ */
+
+/* A group of switches that its parent switch has turned off. Dimmed, not
+   hidden: it should be clear what turning the parent back on would restore. */
+.v2-set-dim {opacity:.45}
+.v2-set-dim input {pointer-events:none}
+
+/* The design's inline `grid-template-columns:1fr 1fr` on the language list. */
+.v2-set-two {display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* A time or minutes field, at the design's fixed 140px. */
+.v2-set-time {width:140px;flex:none}
+.v2-set-unit {align-self:center;white-space:nowrap}
+
+/* `settings.html`'s last card: avatar, name, then two buttons. */
+.v2 .v2-set-account {flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+
+/* The notifications hero, which the design lays out as a row. */
+.v2 .v2-ntf-top {flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+.v2-ntf-mark {width:52px;height:52px;border-radius:16px}
+.v2-ntf-mark svg.lucide {width:22px;height:22px}
+
+/* A field's own validation line. Red, and it takes the hint's place rather
+   than appearing under it, so the row does not change height. */
+.v2-field-error {font-size:12px;font-weight:500;color:var(--red-ink)}
+
+/* Company preview: a detail that has not been filled in yet. Shown as the
+   word for the missing thing, in the colour of something wrong, because a
+   blank space in a preview reads as "nothing goes here". */
+.v2-co-blank {color:var(--red-ink);font-style:italic}
+.v2-co-faint {opacity:.7}
+
+/* The company text boxes on the Homes AI page. */
+.v2-ai-know {min-height:150px}
+
+/* ── Settings on a phone ─────────────────────────────────────────────────
+ *
+ * The design has no phone version of these pages: `design/web/` is the
+ * computer design, and the phone shell is its own document. So every
+ * two-column grid in it is a fixed desktop width — `.d-set` is 216px plus
+ * 896px, which is 1112px of content inside a 390px screen. The polish run
+ * found all seven settings routes overflowing, both themes.
+ *
+ * Rather than narrow the columns, everything stacks: the section list becomes
+ * a scrolling row of links above the panel, every label-and-controls row
+ * becomes label-then-controls, and every side-by-side grid becomes one column.
+ */
+@media (max-width: 900px) {
+  .v2 .d-set {grid-template-columns:minmax(0,1fr);gap:14px}
+
+  /* The section list reads as a row of tabs, scrolled sideways. Not sticky:
+     a sticky strip on a phone eats a third of the screen. */
+  .v2 .d-set-nav {position:static;flex-direction:row;gap:6px;overflow-x:auto;
+    padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .v2 .d-set-nav::-webkit-scrollbar {display:none}
+  .v2 .d-set-nav a {flex:none}
+  /* "Mine" and "Office" are headings for a column, not a row. */
+  .v2 .d-set-nav .d-set-label {display:none}
+  .v2 .d-set-nav a.d-set-out {margin-top:0}
+
+  .v2 .d-set-row {grid-template-columns:minmax(0,1fr);gap:12px}
+  .v2 .p-company .d-set-row {grid-template-columns:minmax(0,1fr)}
+  .v2 .d-form-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-company .d-co-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-company .d-co-side {position:static}
+  .v2 .p-ai-settings .d-ai-top {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-settings .d-office-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-automations .d-tb-grid {grid-template-columns:minmax(0,1fr)}
+
+  /* Three theme cards side by side leaves each one 110px wide, which is
+     narrower than the miniature inside it. */
+  .v2 .p-settings .d-th-grid {grid-template-columns:1fr 1fr}
+
+  /* The save bar wraps instead of pushing its buttons off the right. */
+  .v2 .d-set-savebar {flex-wrap:wrap;justify-content:stretch}
+  .v2 .d-set-savebar .d-btn {flex:1 1 auto}
+
+  .v2-set-two {grid-template-columns:1fr}
+  .v2 .v2-set-account {flex-wrap:wrap}
+  .v2-set-time {width:100%}
+
+  /* A switch row is label, maybe a chip, then the switch. On a phone the
+     note wraps and the switch must stay beside it rather than below. */
+  .v2 .d-switch-row {flex-wrap:wrap}
+  .v2 .d-switch-row .d-txt {flex:1 1 60%;min-width:0}
+}
+
+/* An inline link that is a real target for a thumb. 18px of text is a
+   28px-tall tap area once the padding is there, and the negative margin
+   keeps the line of prose it sits in from growing. */
+.v2 a.d-link, .v2 button.d-link {display:inline-block;padding:5px 2px;margin:-5px -2px}
+
+/* The automations switch was 26px tall, which the polish run counts as too
+   small for a thumb and it is right. */
+.v2-toggle {min-height:28px}
+
+/* The big AI number is sized for a wide card. */
+@media (max-width: 480px) {
+  .v2 .p-ai-settings .d-num-hero {font-size:34px}
+}
+
+/* A design page with nothing behind it yet: what it will do, as a list. */
+.v2-soon-list {margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;
+  font-size:13px;color:var(--ink-2)}
