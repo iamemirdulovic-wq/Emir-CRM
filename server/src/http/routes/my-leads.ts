@@ -103,6 +103,10 @@ const SELECT = `
          o.budget_min_aed, o.budget_max_aed, o.lead_score, o.score_band, o.score_reason,
          o.next_step_type, o.next_step_at, o.next_step_note, o.last_contact_at,
          o.no_answer_count, o.created_at, o.owner_user_id, o.unit_type, o.preferred_location,
+         /* v2: the VIP tag on a row, and the lead that came back. Added to
+            the existing shape rather than a second endpoint -- one list, one
+            query, whichever version is asking. */
+         o.is_vip, o.returned_at,
          c.full_name, c.phone_e164, c.email, c.language, c.dnc, c.last_inbound_at,
          u.name AS owner_name
     FROM opportunities o

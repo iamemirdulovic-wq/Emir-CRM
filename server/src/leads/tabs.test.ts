@@ -65,12 +65,24 @@ describe('the tab definitions', () => {
   /*
    * Won and Lost leads are history, not work. A tab that counts them is a tab
    * that never reaches zero, and a counter nobody can clear gets ignored.
+   *
+   * Two tabs are history on purpose and say so in their names: All, and Lost,
+   * which v2 adds. Naming them here rather than loosening the rule keeps the
+   * rule meaning what it says -- a third exemption has to be argued for in
+   * this file, not slipped in beside a new tab.
    */
+  const HISTORY_TABS = new Set(['all', 'lost']);
+
   it('keeps closed leads out of every working tab', () => {
     for (const tab of LEAD_TABS) {
-      if (tab === 'all') continue;
+      if (HISTORY_TABS.has(tab)) continue;
       expect(TABS[tab].where, tab).toContain("o.status = 'open'");
     }
+  });
+
+  it('has exactly two tabs that show closed leads', () => {
+    const showsClosed = LEAD_TABS.filter((tab) => !TABS[tab].where.includes("o.status = 'open'"));
+    expect(new Set(showsClosed)).toEqual(HISTORY_TABS);
   });
 
   /* Deleted leads must not reappear through any tab, including All. */

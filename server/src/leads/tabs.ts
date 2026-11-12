@@ -15,7 +15,13 @@
  * midnight in Dubai, not by midnight wherever the server happens to be.
  */
 
-export const LEAD_TABS = ['today', 'new', 'hot', 'overdue', 'no_next_step', 'all'] as const;
+/*
+ * `vip` and `lost` are v2's, and they are added rather than swapped in: the
+ * live My Leads reads this same list, so removing a tab would empty a screen
+ * ten people use today. The v2 screen shows the seven the design asks for;
+ * the live one keeps showing its six.
+ */
+export const LEAD_TABS = ['today', 'new', 'hot', 'overdue', 'no_next_step', 'vip', 'lost', 'all'] as const;
 export type LeadTab = (typeof LEAD_TABS)[number];
 
 /** Dubai is UTC+4 all year — no daylight saving to reason about. */
@@ -106,6 +112,30 @@ export const TABS: Record<LeadTab, TabDefinition> = {
     orderBy: 'o.lead_score DESC, o.created_at DESC',
     emptyTitle: 'Everything has a next step',
     emptyHint: 'Every open lead has somebody coming back to it. This is the one to keep at zero.',
+  },
+
+  vip: {
+    label: 'VIP',
+    /*
+     * A lead the owner handed over personally, with a deadline on it. Open
+     * only: a VIP lead that is Won has stopped being a promise to keep.
+     */
+    where: `${OPEN} AND o.is_vip = 1`,
+    orderBy: 'o.created_at DESC',
+    emptyTitle: 'No VIP leads',
+    emptyHint: 'A VIP lead is one the owner gives you personally, with a time to call by.',
+  },
+
+  lost: {
+    label: 'Lost',
+    /*
+     * The one tab that is deliberately not "open". Lost leads are the reason
+     * the tab exists -- to be looked back over, and sometimes reopened.
+     */
+    where: "o.status = 'lost' AND o.deleted_at IS NULL",
+    orderBy: 'o.stage_changed_at DESC',
+    emptyTitle: 'Nothing lost',
+    emptyHint: 'Leads you mark Lost collect here, with the reason you gave.',
   },
 
   all: {

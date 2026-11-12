@@ -35,6 +35,7 @@ import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
 import { V2Shell } from './v2/Shell.js';
 import { Placeholder } from './v2/Placeholder.js';
+import { V2Leads } from './v2/Leads.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -97,7 +98,7 @@ export function App() {
         >
           <Route path="/v2" element={<Placeholder title="Home" phase="phase 4 — leads" />} />
           <Route path="/v2/incoming" element={<Placeholder title="Incoming" phase="phase 4 — leads" />} />
-          <Route path="/v2/leads" element={<Placeholder title="Leads" phase="phase 4 — leads" />} />
+          <Route path="/v2/leads" element={<V2Leads />} />
           <Route path="/v2/leads/new" element={<Placeholder title="Add lead" phase="phase 4 — leads" />} />
           <Route path="/v2/leads/:id" element={<Placeholder title="Lead" phase="phase 4 — leads" />} />
           <Route path="/v2/follow-ups" element={<Placeholder title="Follow-ups" phase="phase 5 — calling" />} />

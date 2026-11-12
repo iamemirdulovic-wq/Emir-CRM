@@ -230,3 +230,122 @@
   background:var(--surface-2); border:1px solid var(--line);
   border-radius:var(--r-sm); padding:4px 8px;
 }
+
+/* ---------- the lead list ---------- */
+
+.v2-leads-head{ display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.v2-leads-sum{ margin:0; font-size:14px; color:var(--ink-2); }
+.v2-leads-sum b{ color:var(--ink); font-variant-numeric:tabular-nums; }
+.v2-leads-links{ margin-left:auto; display:flex; gap:14px; }
+.v2-leads-links a{ font-size:13px; color:var(--accent-ink); text-decoration:none; font-weight:600; }
+.v2-leads-links a:hover{ text-decoration:underline; }
+
+.v2-leads-bar{ display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+.v2-find{
+  flex:1 1 280px; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-ctl); color:var(--ink-3);
+}
+.v2-find input{
+  flex:1; min-width:0; border:0; background:transparent; outline:none;
+  font:inherit; font-size:14px; color:var(--ink);
+}
+.v2-start{
+  display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 15px;
+  border-radius:var(--r-ctl); background:var(--accent); color:var(--on-accent);
+  text-decoration:none; font-size:13.5px; font-weight:650; white-space:nowrap;
+}
+.v2-start:hover{ background:var(--accent-600); }
+
+.v2-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:10px; margin-bottom:4px; }
+.v2-tab-b{
+  display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 13px;
+  border:1px solid var(--line); border-radius:var(--r-pill); background:var(--surface);
+  color:var(--ink-2); font:inherit; font-size:13px; font-weight:600;
+  cursor:pointer; white-space:nowrap;
+}
+.v2-tab-b:hover{ border-color:var(--line-2); color:var(--ink); }
+.v2-tab-b-on{ background:var(--accent-soft); border-color:transparent; color:var(--accent-ink); }
+.v2-tab-n{ font-size:11.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.v2-tab-b-on .v2-tab-n{ color:var(--accent-ink); }
+
+.v2-rows{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.v2-row-lead{
+  display:grid; align-items:center; gap:12px;
+  grid-template-columns:minmax(180px,2fr) 150px 92px 104px minmax(160px,1.6fr) 92px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-ctl);
+  padding:10px 14px;
+}
+.v2-row-lead:hover{ border-color:var(--line-2); box-shadow:var(--shadow-1); }
+.v2-row-main{ display:flex; align-items:center; gap:10px; min-width:0; text-decoration:none; color:inherit; }
+.v2-row-who{ display:flex; flex-direction:column; min-width:0; }
+.v2-row-name{
+  font-size:14px; font-weight:650; display:flex; align-items:center; gap:7px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.v2-row-sub{ font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-vip{
+  font-size:9.5px; font-weight:800; letter-spacing:.06em; padding:2px 6px;
+  border-radius:var(--r-pill); background:var(--accent); color:var(--on-accent);
+}
+.v2-row-phone{ font-size:13px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.v2-row-where{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.v2-flag{ font-size:15px; line-height:1; }
+.v2-local{ font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+
+.v2-stage{
+  display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px;
+  border-radius:var(--r-pill); background:var(--surface-3); color:var(--ink-2);
+  font-size:11.5px; font-weight:650; white-space:nowrap; justify-self:start;
+}
+.v2-stage::before{ content:''; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.7; }
+.v2-stage-new{ color:var(--ink-3); }
+.v2-stage-called{ color:var(--ink-2); }
+.v2-stage-interested{ color:var(--ink); }
+.v2-stage-meeting{ background:var(--hero); color:var(--hero-ink); }
+.v2-stage-offer{ background:var(--accent-soft); color:var(--accent-ink); }
+.v2-stage-won{ background:var(--green-soft); color:var(--green-ink); }
+.v2-stage-lost{ background:var(--surface-3); color:var(--ink-4); }
+
+.v2-step{ font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-step-urgent{ color:var(--red-ink); font-weight:600; }
+
+.v2-row-do{ display:flex; gap:7px; justify-self:end; }
+.v2-do{
+  width:var(--tap); height:36px; border-radius:var(--r-ctl);
+  display:grid; place-items:center; text-decoration:none;
+}
+.v2-do-call{ background:var(--accent-soft); color:var(--accent-ink); }
+.v2-do-call:hover{ background:var(--accent); color:var(--on-accent); }
+.v2-do-wa{ background:var(--green-soft); color:var(--green-ink); }
+.v2-do-wa:hover{ background:var(--green); color:#fff; }
+.v2-do[href=""],.v2-do:not([href]){ opacity:.35; pointer-events:none; }
+
+.v2-more{ display:flex; align-items:center; justify-content:center; gap:14px; padding:18px 0 4px; }
+.v2-count{ font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.v2-btn{
+  height:36px; padding:0 14px; border-radius:var(--r-ctl);
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+}
+.v2-btn:hover:not(:disabled){ border-color:var(--line-2); background:var(--surface-2); }
+.v2-btn:disabled{ opacity:.55; cursor:default; }
+
+.v2-empty{ text-align:center; padding:48px 20px; }
+.v2-empty-mark{
+  width:48px; height:48px; border-radius:14px; margin:0 auto 14px;
+  display:grid; place-items:center; background:var(--surface-3); color:var(--ink-3);
+}
+.v2-empty h2{ margin:0 0 6px; font-size:17px; font-weight:700; }
+.v2-empty p{ margin:0 0 16px; color:var(--ink-2); font-size:14px; }
+
+/* On a phone the row becomes a card: the grid cannot hold six columns in
+   390px without something being unreadable, and a phone number that has to
+   be scrolled sideways is a phone number nobody calls. */
+@media (max-width:767px){
+  .v2-row-lead{ grid-template-columns:1fr auto; grid-template-areas:'main do' 'meta do' 'step step'; }
+  .v2-row-main{ grid-area:main; }
+  .v2-row-phone{ grid-area:meta; }
+  .v2-row-where,.v2-stage{ display:none; }
+  .v2-step{ grid-area:step; white-space:normal; }
+  .v2-row-do{ grid-area:do; }
+}

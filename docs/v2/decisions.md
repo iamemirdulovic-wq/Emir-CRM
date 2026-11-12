@@ -200,3 +200,20 @@ should not make on my own. Mapping it onto Agent would take away the team they
 manage. So: `manager` keeps today's meaning and today's permissions, and the "invite
 someone" screen offers only Owner, Admin and Agent. Nobody's access changes, and
 Emir can retire the role later with one decision instead of a migration.
+
+---
+
+## 7. Twelve-hour, in exactly one place
+
+v3 §5 says a **24-hour clock everywhere**, and every CRM time obeys it: due
+times, meeting times, shift times, the calendar.
+
+The one exception is **the client's own local time** on a lead row and on the
+lead page. Emir asked for that by name on 10 November — *"should be 12 hours
+time, is like not 16 17 18, like should be 3 a.m. 4 p.m."* — and it is the
+right call for that column specifically. Its whole purpose is to be read at a
+glance before dialling: "3 PM" needs no arithmetic, "15:00" needs a small one,
+and a column that exists to save a sum should not cost one.
+
+Written down so it reads as a decision and not as a corner somebody missed. If
+Emir would rather it matched everything else, it is one function.
