@@ -47,6 +47,7 @@ import { V2Calendar } from './v2/Calendar.js';
 import { V2Transfers } from './v2/Transfers.js';
 import { V2Team, V2Person } from './v2/Team.js';
 import { V2Projects } from './v2/Projects.js';
+import { V2Wall } from './v2/Wall.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -129,7 +130,7 @@ export function App() {
           <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
-          <Route path="/v2/wall" element={<Placeholder title="Team wall" phase="phase 12 — team and me" />} />
+          <Route path="/v2/wall" element={<V2Wall />} />
           <Route path="/v2/attendance" element={<V2Attendance />} />
           <Route path="/v2/activity" element={<Placeholder title="Activity" phase="phase 11 — owner tools" />} />
           <Route path="/v2/ai" element={<Placeholder title="Homes AI" phase="phase 14 — Homes AI" />} />
