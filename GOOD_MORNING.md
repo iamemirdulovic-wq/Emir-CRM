@@ -32,14 +32,17 @@ The whole of an agent's day, and most of yours.
 | **Calendar** | Tasks and meetings in one month grid. A meeting that has been asks how it went |
 | **Tasks** | Late / today / open / done, tick them off, add one |
 | **Attendance** | Check in, working outside, your last sixty days, ask for days off, answer the team's |
+| **The team** | Who everybody is, who is in today, what they speak. Agents are not shown each other's lead counts |
+| **A person** | Their page, bio, languages, badges — the same profile the old CRM builds |
+| **Projects** | The library, with filters. Nothing quoted that is not in the projects table |
 | **Everywhere** | Search (Ctrl-K, any phone format), the bell, real numbers on the menu, the phone's More screen |
 
 ## What is not built yet
 
-Projects, sales offers, import, the team pages, the team wall, your settings,
-Homes AI and automations. Each one has a page that says so plainly rather than
+Sales offers, import, the team wall, your settings, Homes AI, automations and
+the activity report. Each one has a page that says so plainly rather than
 pretending — *"Not built yet. It arrives in phase 11."* Nothing is a dead
-link.
+link, and the old screens for all of them still work at their old addresses.
 
 The three the design marks **later** — Inbox, Email, Templates — are drawn
 greyed, as drawn, and the old screens still work at their old addresses.
@@ -66,10 +69,22 @@ You said not to ask, so I decided and wrote each one down in `DECISIONS.md`.
   once (I have not added a cap — a silent limit mid-morning is worse than
   none).
 
+## How I know it works
+
+- **2,741 tests on the server**, in 146 files, against a real database.
+  Nothing skipped. All green.
+- **471 tests in the browser code.** All green.
+- **180 screens walked by a real browser** — 45 pages, phone and computer,
+  light and dark. Nothing overflows, nothing is cut off, no errors in the
+  console.
+- Every screen in the table above I opened and used myself: taking a lead,
+  saving a call result, dragging a card, sharing leads out, booking a
+  meeting, asking for days off.
+
 ## Still to do, in the order I would do it
 
-Projects → sales offers → import → team and profiles → your settings →
-Homes AI → automations.
+Sales offers → import → your settings → the team wall → activity and
+reports → Homes AI → automations.
 
 ---
 

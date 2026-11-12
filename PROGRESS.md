@@ -551,3 +551,43 @@ deploys this app. See `DECISIONS.md`, 31 Oct.)
       first of each month
 - [x] 19.14 28 tests, 18 against a real MySQL. `/attendance` added to the
       polish route list; clean over 112 screens
+
+---
+
+## v2 — the second version (12 November 2026)
+
+Built on the `v2` branch, beside the live CRM, which is untouched. Every box
+below was opened in a browser and used, not just compiled.
+
+- [x] **The design system, ported by a script.** `scripts/port-design-css.mjs`
+      scopes every rule under `.v2`, prefixes every design class `d-`, renames
+      every animation. Forty-two class names are shared between the design and
+      the live app; the first drawing put the countdown ring on top of the
+      agent's phone number because of one of them
+- [x] **The shell.** Sidebar that folds, the phone's floating bar and dial
+      button, the top strip on a phone, real numbers on every badge from one
+      request, the bell, Ctrl-K search that takes any phone format, the More
+      screen
+- [x] **My Day** — the four hero states, VIP with a live countdown, tiles, call
+      list, best time to ring, follow-ups, transfers, waiting-for-update, link
+      opens, leads by stage, banners
+- [x] **The owner's dashboard** — needs you now, team today, today in numbers,
+      team right now
+- [x] **Calling** — tap first then say what happened, Next locked until a
+      result is saved, the check-in gate with all three answers
+- [x] **Leads, the lead page, Add a lead** — seven tabs with paging, the
+      client's clock on every row, the phone number as the biggest thing on the
+      screen, the four actions wired, a duplicate that blocks the save
+- [x] **Incoming** — free leads, the claim that two agents cannot both win,
+      share equally in two clicks, VIP never shared
+- [x] **Pipeline** — drag to move, Lost asks why, Won asks if you are sure
+- [x] **Transfers** — the lead stays with the sender until accepted, Meeting
+      and Offer need the owner, VIP cannot go sideways, one open request each
+- [x] **Calendar and Tasks** — tasks and meetings in one grid, a meeting that
+      has been asks how it went
+- [x] **Attendance and leave** — an agent can see their own month at last,
+      ask for days off, and an owner answers with a reason
+- [x] **The team, a person's page, the project library**
+- [x] **The polish pass covers v2** — 45 routes, 180 screens, clean
+- [ ] Sales offers, import, settings, the team wall, activity, Homes AI,
+      automations — each has a page that says so
