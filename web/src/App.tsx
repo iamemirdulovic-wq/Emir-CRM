@@ -44,6 +44,7 @@ import { V2AddLead } from './v2/AddLead.js';
 import { V2Attendance } from './v2/Attendance.js';
 import { V2Tasks } from './v2/Tasks.js';
 import { V2Calendar } from './v2/Calendar.js';
+import { V2Transfers } from './v2/Transfers.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -118,7 +119,7 @@ export function App() {
           <Route path="/v2/follow-ups" element={<V2Leads fixedTab="overdue" />} />
           <Route path="/v2/pipeline" element={<V2Pipeline />} />
           <Route path="/v2/calling" element={<V2Calling />} />
-          <Route path="/v2/transfers" element={<Placeholder title="Transfers" phase="phase 9 — transfer" />} />
+          <Route path="/v2/transfers" element={<V2Transfers />} />
           <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />

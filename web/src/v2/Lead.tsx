@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
+import { TransferLead } from './TransferLead.js';
 
 /**
  * One lead, and everything you can do to it.
@@ -69,6 +70,8 @@ export function V2Lead() {
   const { id = '' } = useParams();
   const { user } = useAuth();
   const [tab, setTab] = useState<'notes' | 'timeline' | 'info' | 'files'>('timeline');
+  const [handingOver, setHandingOver] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
 
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
@@ -154,14 +157,30 @@ export function V2Lead() {
         <Soon icon="x" label="Lost" phase="phase 4" />
       </nav>
 
-      <p className="v2-transfer-row">
-        <Soon
-          icon="repeat"
-          label={isOwner ? 'Give this lead to another agent' : 'Transfer this lead to another agent'}
-          phase="phase 9"
-          wide
+      {/* Handing it on. The lead stays here until the other person accepts,
+          which is what the screen says rather than implying it has gone. */}
+      {said && <p className="v2-said">{said}</p>}
+
+      {handingOver ? (
+        <TransferLead
+          opportunityId={lead.id}
+          onCancel={() => setHandingOver(false)}
+          onDone={(told) => { setHandingOver(false); setSaid(told); detail.reload(); }}
         />
-      </p>
+      ) : (
+        <p className="v2-transfer-row">
+          <button
+            type="button"
+            className="v2-act v2-act-wide"
+            onClick={() => setHandingOver(true)}
+          >
+            <Icon name="repeat" />
+            {lead.is_vip === 1
+              ? 'A VIP lead goes back to whoever gave it, not sideways'
+              : 'Give this lead to somebody else'}
+          </button>
+        </p>
+      )}
 
       <div className="v2-lead-cols">
         <section className="v2-card">

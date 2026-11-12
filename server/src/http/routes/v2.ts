@@ -26,6 +26,10 @@ import { execute } from '../../db/client.js';
 import { newId } from '../../lib/ids.js';
 import { writeAudit } from '../../audit/audit.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
+import {
+  answerTransfer, approveTransfer, askToTransfer, cancelTransfer, listTransfers,
+  TRANSFER_REASONS, whoCouldTakeIt,
+} from '../../v2/transfers.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -525,5 +529,63 @@ v2Router.patch(
       after: input,
     });
     res.json({ saved: true });
+  }),
+);
+
+/* ── transfers ─────────────────────────────────────────────────────────── */
+
+v2Router.get(
+  '/transfers',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listTransfers(currentUser(req)));
+  }),
+);
+
+/** Who this lead could go to, best first. */
+v2Router.get(
+  '/transfers/who',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({ items: await whoCouldTakeIt(currentUser(req).id) });
+  }),
+);
+
+const askTransferSchema = z.object({
+  opportunityId: z.string().min(1).max(36),
+  toUserId: z.string().min(1).max(36),
+  reason: z.enum(TRANSFER_REASONS),
+  note: z.string().max(500).nullable().optional(),
+});
+
+v2Router.post(
+  '/transfers',
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = askTransferSchema.parse(req.body);
+    res.status(201).json(await askToTransfer(actorFrom(req), currentUser(req), input));
+  }),
+);
+
+/** The receiver's answer. Accepting is the moment the lead moves. */
+v2Router.post(
+  '/transfers/:id/answer',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { accept } = z.object({ accept: z.boolean() }).parse(req.body);
+    res.json(await answerTransfer(actorFrom(req), currentUser(req), String(req.params.id), accept));
+  }),
+);
+
+/** The owner agreeing a Meeting or Offer lead may move at all. */
+v2Router.post(
+  '/transfers/:id/approve',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { agree } = z.object({ agree: z.boolean() }).parse(req.body);
+    res.json(await approveTransfer(actorFrom(req), currentUser(req), String(req.params.id), agree));
+  }),
+);
+
+v2Router.post(
+  '/transfers/:id/cancel',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await cancelTransfer(actorFrom(req), currentUser(req), String(req.params.id)));
   }),
 );

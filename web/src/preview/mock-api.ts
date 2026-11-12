@@ -1255,6 +1255,50 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* Transfers, in the four lists the real endpoint returns. */
+  { method: 'GET', pattern: /^\/api\/v2\/transfers$/, handler: () => {
+    const mine = currentUser();
+    const make = (i: number, over: Record<string, unknown>) => ({
+      id: `tr-${i}`,
+      opportunityId: LEADS[i % LEADS.length]!.id,
+      leadName: LEADS[i % LEADS.length]!.name,
+      project: LEADS[i % LEADS.length]!.project,
+      stage: ['new_lead', 'engaged_qualified', 'appointment_scheduled'][i % 3],
+      fromUserId: USERS[1]!.id,
+      fromName: USERS[1]!.name,
+      toUserId: mine.id,
+      toName: mine.name,
+      reason: ['language', 'leave', 'too_many'][i % 3],
+      note: i % 3 === 0 ? 'He asked for a Russian speaker' : null,
+      status: 'pending',
+      requestedAt: new Date(Date.now() - i * 3_600_000).toISOString(),
+      expiresAt: new Date(new Date().setHours(18, 0, 0, 0)).toISOString(),
+      ...over,
+    });
+    return {
+      forMe: [make(0, {})],
+      iSent: [make(1, { fromUserId: mine.id, fromName: mine.name, toUserId: USERS[2]!.id, toName: USERS[2]!.name })],
+      toApprove: mine.role === 'agent' ? [] : [make(2, { status: 'needs_approval' })],
+      recent: mine.role === 'agent' ? [] : [make(3, { status: 'accepted' }), make(4, { status: 'refused' })],
+    };
+  } },
+  { method: 'GET', pattern: /^\/api\/v2\/transfers\/who$/, handler: () => ({
+    items: USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, i) => ({
+      id: u.id,
+      name: u.name,
+      photoUrl: photoOf(u.id),
+      openLeads: [4, 9, 14, 22][i % 4] as number,
+      language: i % 2 === 0 ? 'en' : 'ar',
+      markedToday: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
+      onLeave: i === 3,
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/v2\/transfers$/, handler: ({ body }) => ({
+    id: `tr-${Date.now()}`, status: 'pending', toName: 'Omar Farouk',
+    ...(body as Record<string, unknown>),
+  }) },
+  { method: 'POST', pattern: /^\/api\/v2\/transfers\/([^/]+)\/(answer|approve|cancel)$/, handler: () => ({ ok: true }) },
+
   /* The calendar window: tasks and meetings together, as one answer. */
   { method: 'GET', pattern: /^\/api\/v2\/calendar$/, handler: ({ query }) => {
     const from = new Date(query.get('from') ?? Date.now());
