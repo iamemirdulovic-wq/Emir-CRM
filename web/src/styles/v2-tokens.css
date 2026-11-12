@@ -1,0 +1,128 @@
+/*
+ * The v2 design system: homes.me orange on warm grey.
+ *
+ * Copied from the token block at the top of `design/web/ui.css`, which the
+ * master prompt (v3, 12 Nov 2026, §1.1) names as the design system for the
+ * whole product -- phone and computer, light and dark. The values are
+ * verbatim; only the comments are mine. If a colour here disagrees with
+ * `ui.css`, `ui.css` is right and this file is wrong.
+ *
+ * The green look the phone screens were drawn in is retired. So is the teal
+ * glass of the live CRM. One accent, orange, for the single main action on a
+ * screen, for active states and for anything urgent. Colour otherwise means
+ * status and nothing else.
+ *
+ * Section 2 at the bottom maps the OLD token names onto these, so the 31
+ * screens already built take the new look without being rewritten one at a
+ * time. The prompt asks for exactly that: "existing pages get the new look in
+ * this phase so nothing looks half old." The map is scaffolding -- each screen
+ * drops out of it as it is rebuilt properly, and the file is done when the map
+ * is empty.
+ */
+
+/* ---------- 1. THE DESIGN SYSTEM (verbatim from ui.css) ---------- */
+
+:root[data-v2]{
+  --bg:#F2F0EC; --surface:#FFFFFF; --surface-2:#F7F5F2; --surface-3:#EEEBE6;
+  --line:#EAE6E0; --line-2:#DAD5CD;
+  --ink:#16151A; --ink-2:#4E4B54; --ink-3:#86828C; --ink-4:#A29EA6;
+  --accent:#FF5A2E; --accent-600:#EB491D; --accent-soft:#FFEDE6; --accent-ink:#C53B12; --on-accent:#FFFFFF;
+  --hero:#141317; --hero-2:#1E1D22; --hero-3:#2A2930; --hero-line:rgba(255,255,255,.09);
+  --hero-ink:#FFFFFF; --hero-ink-2:rgba(255,255,255,.64); --hero-ink-3:rgba(255,255,255,.4);
+  --green:#17A569; --green-soft:#E1F5EB; --green-ink:#0B7548;
+  --amber:#E89B0C; --amber-soft:#FDF1D8; --amber-ink:#8F5D06;
+  --red:#E5484D;   --red-soft:#FDE7E7;   --red-ink:#BE2F35;
+  --blue:#3E7BFA;  --blue-soft:#E5EEFF;  --blue-ink:#2356C8;
+  --violet:#8B5CF6;--violet-soft:#EEE8FE;--violet-ink:#6137CC;
+
+  /* The six stages, as neutral pills that darken towards the sale: grey when
+     the lead is new, near-black at Meeting, orange at Offer, green at Won. */
+  --st-new:#C8C3BB; --st-called:#A19C94; --st-interested:#6E6A72; --st-meeting:#2C2A31;
+  --st-offer:var(--accent); --st-won:var(--green); --st-lost:#D9D5CF;
+
+  --shadow-1:0 1px 2px rgba(22,21,26,.04);
+  --shadow-2:0 10px 30px -12px rgba(22,21,26,.18),0 2px 6px rgba(22,21,26,.04);
+  --shadow-3:0 24px 60px -16px rgba(22,21,26,.32),0 4px 14px rgba(22,21,26,.08);
+  --r-card:22px; --r-ctl:12px; --r-sm:8px; --r-pill:999px;
+  --sb-w:248px; --tb-h:68px; --gap:16px; --pad:22px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  color-scheme:light;
+}
+
+:root[data-v2][data-theme="dark"]{
+  --bg:#0C0C0E; --surface:#17171A; --surface-2:#1E1E22; --surface-3:#27272C;
+  --line:#28282D; --line-2:#37373D;
+  --ink:#F4F3F1; --ink-2:#BDBAC1; --ink-3:#86838B; --ink-4:#7D7A84;
+  --accent:#FF6436; --accent-600:#FF7A52; --accent-soft:rgba(255,100,54,.16); --accent-ink:#FF9070;
+  --hero:#1D1C21; --hero-2:#28272D; --hero-3:#34333A; --hero-line:rgba(255,255,255,.1);
+  --green:#2CC384; --green-soft:rgba(44,195,132,.15); --green-ink:#5FDBA5;
+  --amber:#F2AE2B; --amber-soft:rgba(242,174,43,.15); --amber-ink:#F6C563;
+  --red:#F2646A;   --red-soft:rgba(242,100,106,.16);  --red-ink:#FF8C90;
+  --blue:#5C92FF;  --blue-soft:rgba(92,146,255,.16);  --blue-ink:#8FB3FF;
+  --violet:#A283FA;--violet-soft:rgba(162,131,250,.17);--violet-ink:#BDA7FF;
+  --st-new:#4B4950; --st-called:#6D6A73; --st-interested:#9B98A1; --st-meeting:#ECEAE7; --st-lost:#35343A;
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 12px 32px -12px rgba(0,0,0,.7);
+  --shadow-3:0 28px 70px -16px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.06);
+  color-scheme:dark;
+}
+
+/*
+ * `ui.css` does not define these, because its prototype has no phone layout.
+ * The phone screens in `design/screens/` do, so they are named here rather
+ * than left as numbers scattered through the stylesheets.
+ */
+:root[data-v2]{
+  --bar-h:64px;          /* floating bottom bar */
+  --bar-gap:12px;        /* its inset from the screen edge */
+  --dial:60px;           /* the round dial button */
+  --tap:44px;            /* the smallest a tap target may be */
+  --sheet-r:24px;        /* a bottom sheet's top corners */
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+
+/* ---------- 2. THE OLD NAMES, POINTED AT THE NEW VALUES ---------- */
+/*
+ * Scaffolding, not design. Every name below belongs to the retired teal glass
+ * system and is still used by screens built before 12 Nov. Mapping them here
+ * means the whole CRM changes colour in one step instead of looking half old
+ * for a month.
+ *
+ * Two of these are deliberately lossy and worth knowing about:
+ *   - the glass tints become flat surfaces, because the new system has no
+ *     frosted glass at all;
+ *   - the six stage colours of the old pipeline become the six neutral stage
+ *     pills, which is a change of meaning as well as colour: stages are no
+ *     longer six different hues.
+ */
+:root[data-v2]{
+  --primary:var(--accent);
+  --primary-2:var(--accent-600);
+  --primary-soft:var(--accent-soft);
+  --primary-ink:var(--accent-ink);
+  --grad:linear-gradient(135deg,var(--accent) 0%,var(--accent-600) 100%);
+
+  --glass:var(--surface);
+  --glass-2:var(--surface-2);
+  --glass-strong:var(--surface);
+  --glass-line:var(--line);
+  --blur:none;
+  --shadow:var(--shadow-1);
+
+  --side-bg:var(--surface);
+  --side-ink:var(--ink-2);
+
+  --s-new:var(--st-new);
+  --s-att:var(--st-called);
+  --s-eng:var(--st-interested);
+  --s-apt:var(--st-meeting);
+  --s-deal:var(--st-offer);
+  --s-won:var(--st-won);
+  --s-lost:var(--st-lost);
+
+  --wa:var(--green);
+  --wa-soft:var(--green-soft);
+  --hot:var(--red);
+}
