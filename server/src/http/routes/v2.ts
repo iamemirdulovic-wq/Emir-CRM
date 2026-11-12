@@ -589,3 +589,86 @@ v2Router.post(
     res.json(await cancelTransfer(actorFrom(req), currentUser(req), String(req.params.id)));
   }),
 );
+
+/* ── the team ──────────────────────────────────────────────────────────── */
+
+/**
+ * Who everybody is.
+ *
+ * Readable by everybody, because an agent who has just joined needs to know
+ * who speaks Russian and who covers Abu Dhabi — that is the whole point of
+ * the screen. What an agent is **not** given is how many leads each colleague
+ * is holding or how they are performing: that is the owner's to see, and it
+ * is the sort of number that turns a directory into a league table in the
+ * canteen.
+ */
+v2Router.get(
+  '/team',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const isOwner = user.role !== 'agent';
+
+    const rows = await query<Record<string, unknown>>(
+      /* `job_title`, `brn` and `languages` live on `users`; the profile table
+         holds the written-up version of a person. Both are read here. */
+      `SELECT u.id, u.name, u.email, u.role, u.photo_url AS photoUrl, u.title,
+              u.job_title AS jobTitle, u.languages AS userLanguages,
+              p.headline, p.languages, p.specialities,
+              p.public_phone AS phone, p.whatsapp,
+              a.kind AS markedToday,
+              EXISTS (SELECT 1 FROM leave_requests l
+                       WHERE l.user_id = u.id AND l.status = 'approved'
+                         AND DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
+                             BETWEEN l.from_date AND l.to_date) AS onLeave,
+              ${isOwner
+    ? `(SELECT COUNT(*) FROM opportunities o
+          WHERE o.owner_user_id = u.id AND o.status = 'open' AND o.deleted_at IS NULL)`
+    : 'NULL'} AS openLeads
+         FROM users u
+         LEFT JOIN agent_profiles p ON p.user_id = u.id
+         LEFT JOIN attendance a ON a.user_id = u.id
+              AND a.on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
+        WHERE u.is_active = 1 AND u.role <> 'automation'
+        ORDER BY FIELD(u.role, 'owner', 'admin', 'manager', 'agent'), u.name`,
+    );
+
+    res.json({
+      items: rows.map((r) => ({
+        id: String(r.id),
+        name: String(r.name),
+        email: isOwner ? String(r.email) : null,
+        role: String(r.role),
+        photoUrl: (r.photoUrl as string | null) ?? null,
+        title: (r.jobTitle as string | null) ?? (r.title as string | null) ?? null,
+        headline: (r.headline as string | null) ?? null,
+        languages: readList(r.languages ?? r.userLanguages),
+        specialities: readList(r.specialities),
+        phone: (r.phone as string | null) ?? null,
+        whatsapp: (r.whatsapp as string | null) ?? null,
+        markedToday: (r.markedToday as string | null) ?? null,
+        onLeave: Number(r.onLeave ?? 0) === 1,
+        openLeads: r.openLeads === null ? null : Number(r.openLeads),
+      })),
+      canSeeNumbers: isOwner,
+    });
+  }),
+);
+
+/**
+ * A list column that may be JSON or may be a comma-separated string.
+ *
+ * `agent_profiles.languages` has been written both ways over the life of this
+ * app, and a screen that throws on the older shape is a screen that works
+ * until somebody opens an old profile.
+ */
+function readList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== 'string' || value.trim() === '') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {
+    /* Not JSON, so the older comma-separated form. */
+  }
+  return value.split(',').map((part) => part.trim()).filter(Boolean);
+}

@@ -1255,6 +1255,30 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* The team directory, with the numbers only an owner is sent. */
+  { method: 'GET', pattern: /^\/api\/v2\/team$/, handler: () => {
+    const isOwner = currentUser().role !== 'agent';
+    return {
+      canSeeNumbers: isOwner,
+      items: USERS.filter((u) => u.role !== 'automation').map((u, i) => ({
+        id: u.id,
+        name: u.name,
+        email: isOwner ? u.email : null,
+        role: u.role,
+        photoUrl: photoOf(u.id),
+        title: u.role === 'owner' ? 'Founder' : u.role === 'manager' ? 'Sales manager' : 'Property consultant',
+        headline: i % 2 === 0 ? 'Off-plan, Dubai Marina and JVC' : 'Abu Dhabi waterfront',
+        languages: i % 3 === 0 ? ['English', 'Arabic'] : i % 3 === 1 ? ['English', 'Russian'] : ['English', 'Hindi'],
+        specialities: ['Emaar', 'Damac'],
+        phone: '+971500000000',
+        whatsapp: '+971500000000',
+        markedToday: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
+        onLeave: i === 4,
+        openLeads: isOwner ? [14, 9, 22, 6, 11][i % 5] : null,
+      })),
+    };
+  } },
+
   /* Transfers, in the four lists the real endpoint returns. */
   { method: 'GET', pattern: /^\/api\/v2\/transfers$/, handler: () => {
     const mine = currentUser();
