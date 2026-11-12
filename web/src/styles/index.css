@@ -11,3 +11,10 @@
 @import './card-studio.css';
 /* The first-sign-in welcome: full screen, outside the shell. */
 @import './welcome.css';
+/*
+ * v2. Both files are inert until a page sets `data-v2` on <html>, which only
+ * the v2 shell does -- so the thirty-one screens already built keep their own
+ * look while the two versions exist side by side.
+ */
+@import './v2-tokens.css';
+@import './v2-shell.css';

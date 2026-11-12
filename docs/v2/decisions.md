@@ -166,3 +166,37 @@ So:
 The "are you back?" interrupt works unchanged: the server already knows when a
 request arrives from an office address, so it can ask once when someone marked
 outside reappears on it.
+
+---
+
+## 6. The four open questions, decided
+
+Emir, 12 November: *"just go ahead, don't ask me anything today, you just build it."*
+So these are mine. Each is reversible, and each is written here to be overruled.
+
+**1. WhatsApp — build it the v3 way: each agent's own number.**
+v3 is the newer brief and it is explicit (§5): no API, the CRM opens WhatsApp with a
+ready message, the agent presses send, the CRM logs the tap and asks what happened.
+That is what v2 gets. The Cloud API code already in the repo is **not deleted** — it
+stays, unreferenced by v2, so switching it back on later is a config change rather
+than a rebuild. Deciding this way also costs nothing that is working today: the API
+path needs Meta approvals that are not in place.
+
+**2. Other lead sources — build the three v3 names, keep the rest alive.**
+Owner hand-off, Excel import, agents add their own (§3). The Meta, website and Google
+endpoints stay in the codebase and stay harmless: each is already inert without its
+key, and none is set. Nothing is removed, nothing is advertised in v2's screens.
+
+**3. Inbox, Email, Templates — keep them working, show them as "later".**
+This is the one place v3 contradicts itself: §1 says grey them out, §4 says nothing
+the live CRM does may be lost. Both can be true. The menu shows them greyed and
+labelled "later", exactly as drawn — and the routes keep working for anyone who
+opens them, in the old look, untouched. Nothing is lost and nothing is promised.
+
+**4. The `manager` role — leave it exactly as it is.**
+v3 names three roles; the live CRM has four, with real people in the fourth. Mapping
+manager onto Admin would hand them every agent's leads, which is a privacy change I
+should not make on my own. Mapping it onto Agent would take away the team they
+manage. So: `manager` keeps today's meaning and today's permissions, and the "invite
+someone" screen offers only Owner, Admin and Agent. Nobody's access changes, and
+Emir can retire the role later with one decision instead of a migration.

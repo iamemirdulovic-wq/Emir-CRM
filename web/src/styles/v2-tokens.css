@@ -51,6 +51,17 @@
   color-scheme:light;
 }
 
+/*
+ * Dark, two ways, which is how every other stylesheet here does it and why
+ * the first version of this file only worked half the time:
+ *
+ *   [data-theme="dark"]              the person chose dark
+ *   :not([data-theme="light"]) in a  the person chose Auto and their
+ *   prefers-color-scheme: dark query  computer is dark
+ *
+ * With only the first, "Auto" renders light on a dark machine -- which is
+ * exactly what the first screenshot of the v2 shell showed.
+ */
 :root[data-v2][data-theme="dark"]{
   --bg:#0C0C0E; --surface:#17171A; --surface-2:#1E1E22; --surface-3:#27272C;
   --line:#28282D; --line-2:#37373D;
@@ -67,6 +78,25 @@
   --shadow-2:0 12px 32px -12px rgba(0,0,0,.7);
   --shadow-3:0 28px 70px -16px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.06);
   color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root[data-v2]:not([data-theme="light"]){
+  --bg:#0C0C0E; --surface:#17171A; --surface-2:#1E1E22; --surface-3:#27272C;
+  --line:#28282D; --line-2:#37373D;
+  --ink:#F4F3F1; --ink-2:#BDBAC1; --ink-3:#86838B; --ink-4:#7D7A84;
+  --accent:#FF6436; --accent-600:#FF7A52; --accent-soft:rgba(255,100,54,.16); --accent-ink:#FF9070;
+  --hero:#1D1C21; --hero-2:#28272D; --hero-3:#34333A; --hero-line:rgba(255,255,255,.1);
+  --green:#2CC384; --green-soft:rgba(44,195,132,.15); --green-ink:#5FDBA5;
+  --amber:#F2AE2B; --amber-soft:rgba(242,174,43,.15); --amber-ink:#F6C563;
+  --red:#F2646A;   --red-soft:rgba(242,100,106,.16);  --red-ink:#FF8C90;
+  --blue:#5C92FF;  --blue-soft:rgba(92,146,255,.16);  --blue-ink:#8FB3FF;
+  --violet:#A283FA;--violet-soft:rgba(162,131,250,.17);--violet-ink:#BDA7FF;
+  --st-new:#4B4950; --st-called:#6D6A73; --st-interested:#9B98A1; --st-meeting:#ECEAE7; --st-lost:#35343A;
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 12px 32px -12px rgba(0,0,0,.7);
+  --shadow-3:0 28px 70px -16px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.06);
+  color-scheme:dark;
+  }
 }
 
 /*

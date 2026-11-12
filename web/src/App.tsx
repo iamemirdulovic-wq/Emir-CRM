@@ -33,6 +33,8 @@ import { Attendance } from './pages/Attendance.js';
 import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
+import { V2Shell } from './v2/Shell.js';
+import { Placeholder } from './v2/Placeholder.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -77,6 +79,48 @@ export function App() {
         {/* Full screen, outside the shell. Not wrapped in Protected: Protected
             is what sends people here, so wrapping it would loop. */}
         <Route path="/welcome" element={<Welcome />} />
+        {/*
+          * v2 — the new version, built beside the live one.
+          *
+          * Its own shell, its own look (the shell sets `data-v2`, which is what
+          * turns the orange system on), and its own URLs under /v2, so every
+          * screen already built keeps working untouched while the two exist
+          * side by side. The master prompt's build order replaces these
+          * placeholders one phase at a time.
+          */}
+        <Route
+          element={
+            <Protected>
+              <V2Shell />
+            </Protected>
+          }
+        >
+          <Route path="/v2" element={<Placeholder title="Home" phase="phase 4 — leads" />} />
+          <Route path="/v2/incoming" element={<Placeholder title="Incoming" phase="phase 4 — leads" />} />
+          <Route path="/v2/leads" element={<Placeholder title="Leads" phase="phase 4 — leads" />} />
+          <Route path="/v2/leads/new" element={<Placeholder title="Add lead" phase="phase 4 — leads" />} />
+          <Route path="/v2/leads/:id" element={<Placeholder title="Lead" phase="phase 4 — leads" />} />
+          <Route path="/v2/follow-ups" element={<Placeholder title="Follow-ups" phase="phase 5 — calling" />} />
+          <Route path="/v2/pipeline" element={<Placeholder title="Pipeline" phase="phase 5 — calling" />} />
+          <Route path="/v2/calling" element={<Placeholder title="Calling" phase="phase 5 — calling" />} />
+          <Route path="/v2/transfers" element={<Placeholder title="Transfers" phase="phase 9 — transfer" />} />
+          <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
+          <Route path="/v2/calendar" element={<Placeholder title="Calendar" phase="phase 7 — calendar" />} />
+          <Route path="/v2/tasks" element={<Placeholder title="Tasks" phase="phase 7 — calendar" />} />
+          <Route path="/v2/projects" element={<Placeholder title="Projects" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/team" element={<Placeholder title="Team" phase="phase 12 — team and me" />} />
+          <Route path="/v2/wall" element={<Placeholder title="Team wall" phase="phase 12 — team and me" />} />
+          <Route path="/v2/attendance" element={<Placeholder title="Attendance" phase="phase 8 — attendance" />} />
+          <Route path="/v2/activity" element={<Placeholder title="Activity" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/ai" element={<Placeholder title="Homes AI" phase="phase 14 — Homes AI" />} />
+          <Route path="/v2/automations" element={<Placeholder title="Automations" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/settings" element={<Placeholder title="Settings" phase="phase 12 — team and me" />} />
+          <Route path="/v2/profile" element={<Placeholder title="My profile" phase="phase 12 — team and me" />} />
+          <Route path="/v2/more" element={<Placeholder title="More" phase="phase 2 — shell" />} />
+          <Route path="/v2/templates" element={<Placeholder title="Templates" phase="later" />} />
+        </Route>
+
         {/* One shell around every signed-in screen, as the design has it. */}
         <Route
           element={
