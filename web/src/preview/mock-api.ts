@@ -2429,6 +2429,39 @@ const ROUTES: Route[] = [
    * preview could ever have caught "it's just repeating only first two
    * leads all over again."
    */
+  /*
+   * One lead, for the v2 lead page.
+   *
+   * Declared after `/counts` and `/:id/next`, because this pattern matches
+   * anything and would swallow them -- the same trap the real route has, and
+   * the reason one-lead.integration.test.ts opens with a test for it.
+   */
+  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)$/, handler: ({ params }) => {
+    const row = myLeadRows().find((r) => r.id === params[0]) ?? myLeadRows()[0]!;
+    const lead = LEADS.find((l) => l.id === row.id) ?? LEADS[0]!;
+    return {
+      lead: {
+        ...row,
+        is_vip: row.id === LEADS[0]!.id ? 1 : 0,
+        returned_at: null,
+        unit_type: lead.unitType ?? '2 bedroom',
+        preferred_location: lead.project ?? null,
+        budget_min_aed: lead.budgetMin ?? null,
+        language: lead.language ?? 'English',
+        email: `${lead.name.split(' ')[0]!.toLowerCase()}@example.com`,
+      },
+      contact: { id: row.contact_id, full_name: row.full_name, phone_e164: row.phone_e164 },
+      activities: [
+        { id: 'a-1', type: 'lead.created', body: 'Added from an import', created_at: ago(2880) },
+        { id: 'a-2', type: 'call.logged', body: 'No answer', created_at: ago(300) },
+        { id: 'a-3', type: 'note.added', body: 'Asked for the payment plan', created_at: ago(90) },
+      ],
+      tags: ['src:import', 'lang:en'],
+      tasks: [], consents: [], opportunities: [],
+      importedRow: null,
+    };
+  } },
+
   { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/next$/, handler: ({ params, query }) => {
     const tab = query.get('tab') ?? 'all';
     const rows = myLeadRows().filter((row) => {

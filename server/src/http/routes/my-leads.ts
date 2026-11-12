@@ -10,6 +10,7 @@ import { badRequest, notFound } from '../../lib/errors.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { leadBrief, refreshNotesDigest } from '../../ai/lead-review.js';
 import { isLeadTab, TABS, LEAD_TABS, type LeadTab } from '../../leads/tabs.js';
+import { contact360 } from '../../services/contacts.js';
 import {
   LEAD_ACTIONS, LOST_REASONS, PROBLEM_REASONS, runLeadAction,
 } from '../../leads/actions.js';
@@ -383,6 +384,35 @@ myLeadsRouter.post(
     const digest = await refreshNotesDigest(opportunityId, { force: true });
     const brief = await leadBrief(opportunityId);
     res.json({ ...brief, refreshed: digest !== null });
+  }),
+);
+
+/**
+ * One lead, and everything the lead page shows about it.
+ *
+ * Registered after `/counts` and the other named paths, so `:id` cannot
+ * swallow them -- Express matches in the order routes are declared, and a
+ * `/:id` placed above `/counts` would make the counts endpoint unreachable
+ * for ever, silently.
+ *
+ * It answers with the opportunity and the contact's full record together,
+ * because the page needs both and two requests for one screen is two chances
+ * for half of it to arrive.
+ */
+myLeadsRouter.get(
+  '/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+
+    const lead = await queryOne<Record<string, unknown>>(
+      `${SELECT} WHERE o.id = ? AND o.deleted_at IS NULL`,
+      [opportunityId],
+    );
+    if (!lead) throw notFound('That lead no longer exists.');
+
+    const detail = await contact360(String(lead.contact_id));
+    res.json({ lead, ...detail });
   }),
 );
 
