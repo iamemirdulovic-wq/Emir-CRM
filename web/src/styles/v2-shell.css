@@ -932,3 +932,73 @@
 .v2-leave-why{ font-style:italic; }
 .v2-leave-note{ flex:1 1 200px; max-width:280px; }
 .v2-leave-answer{ align-items:center; }
+
+/* ── Tasks ──────────────────────────────────────────────────────────────── */
+.v2-tasks{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-task-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.v2 .v2-task{ flex-direction:row; align-items:center; gap:12px; padding:13px 16px; }
+.v2-task-done{ opacity:.55; }
+.v2-task-done .v2-task-what b{ text-decoration:line-through; }
+.v2-tick{
+  width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center;
+  box-shadow:inset 0 0 0 1.5px var(--line-2); color:transparent; transition:.15s;
+}
+.v2-tick:hover{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+.v2-tick-on{ background:var(--green); box-shadow:none; color:#fff; }
+.v2-task-what{ flex:1; min-width:0; line-height:1.35; }
+.v2-task-what b{ display:block; font-size:14px; font-weight:620; }
+.v2-task-what>span{
+  display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-3);
+}
+.v2-task-note{ display:block !important; font-style:italic; }
+.v2 .v2-newtask{ gap:10px; align-items:flex-start; }
+.v2 .v2-newtask .v2-two, .v2 .v2-newtask .v2-field-wide{ width:100%; }
+
+/* ── The calendar ───────────────────────────────────────────────────────── */
+.v2-cal{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-cal-head{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:space-between; }
+.v2-cal-move{ display:flex; align-items:center; gap:10px; }
+.v2-cal-grid{
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px;
+  background:var(--surface); border-radius:var(--r-card); padding:14px; box-shadow:var(--shadow-1);
+}
+.v2-cal-dow{
+  font-size:11px; font-weight:650; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); text-align:center; padding-bottom:4px;
+}
+.v2-cal-day{
+  min-height:68px; border-radius:var(--r-ctl); background:var(--surface-2);
+  display:flex; flex-direction:column; align-items:flex-start; gap:5px;
+  padding:7px 8px; transition:background .12s, box-shadow .12s;
+}
+.v2-cal-day:hover{ background:var(--surface-3); }
+.v2-cal-off{ opacity:.4; }
+.v2-cal-today .v2-cal-n{ color:var(--accent-ink); font-weight:750; }
+.v2-cal-picked{ box-shadow:inset 0 0 0 2px var(--accent); }
+.v2-cal-n{ font-size:12.5px; font-weight:600; }
+.v2-cal-marks{ display:flex; flex-wrap:wrap; gap:3px; }
+.v2-cal-mark{ width:7px; height:7px; border-radius:50%; display:block; }
+.v2-cal-meeting{ background:var(--accent); }
+.v2-cal-task{ background:var(--blue); }
+.v2-cal-late{ background:var(--red); }
+.v2-cal-done{ background:var(--line-2); }
+@media (max-width:767px){
+  .v2-cal-day{ min-height:52px; padding:5px; }
+  .v2-cal-grid{ padding:10px; gap:3px; }
+}
+
+.v2-day-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
+.v2-day-row{
+  display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:var(--r-ctl); background:var(--surface-2); flex-wrap:wrap;
+}
+.v2-day-meeting{ box-shadow:inset 3px 0 0 var(--accent); }
+.v2-day-when{ flex:none; font-size:13px; font-weight:650; font-variant-numeric:tabular-nums; }
+.v2-day-what{ flex:1; min-width:140px; line-height:1.3; }
+/* Only the fallback is capitalised — a title somebody typed is theirs.
+   `text-transform` on the whole line turned "Meeting at the office" into
+   "Meeting At The Office". */
+.v2-day-what b{ display:block; font-size:13.5px; font-weight:620; }
+.v2-day-kind{ text-transform:capitalize; }
+.v2-day-what>span{ display:block; font-size:12px; color:var(--ink-3); }
+.v2-done{ text-decoration:line-through; opacity:.7; }

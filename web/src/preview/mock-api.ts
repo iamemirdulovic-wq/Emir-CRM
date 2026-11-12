@@ -1255,6 +1255,45 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* The calendar window: tasks and meetings together, as one answer. */
+  { method: 'GET', pattern: /^\/api\/v2\/calendar$/, handler: ({ query }) => {
+    const from = new Date(query.get('from') ?? Date.now());
+    const to = new Date(query.get('to') ?? Date.now());
+    const tasks = TASKS.slice(0, 8).map((task, i) => ({
+      id: `ct-${i}`,
+      type: task.type ?? 'call',
+      title: task.title,
+      due_at: new Date(Date.now() + (i - 3) * 86_400_000 + 9 * 3_600_000).toISOString(),
+      completed_at: i % 4 === 0 ? new Date().toISOString() : null,
+      opportunity_id: LEADS[i % LEADS.length]!.id,
+      full_name: LEADS[i % LEADS.length]!.name,
+    })).filter((t) => new Date(t.due_at) >= from && new Date(t.due_at) < to);
+
+    const meetings = [0, 2, 5, 9].map((offset, i) => {
+      const starts = new Date(Date.now() + (offset - 2) * 86_400_000);
+      starts.setHours(16, 0, 0, 0);
+      return {
+        id: `mt-${i}`,
+        opportunityId: LEADS[i % LEADS.length]!.id,
+        kind: i % 2 === 0 ? 'site_visit' : 'meeting',
+        title: i % 2 === 0 ? 'Site visit' : 'Meeting at the office',
+        startsAt: starts.toISOString(),
+        endsAt: new Date(starts.getTime() + 3_600_000).toISOString(),
+        allDay: false,
+        place: i % 2 === 0 ? 'Emaar Beachfront sales centre' : 'Office',
+        result: offset < 2 ? 'showed' : null,
+        interest: null,
+        who: LEADS[i % LEADS.length]!.name,
+        phone: LEADS[i % LEADS.length]!.phone,
+        agent: USERS[1]?.name ?? 'Rocky',
+      };
+    }).filter((m) => new Date(m.startsAt) >= from && new Date(m.startsAt) < to);
+
+    return { from: from.toISOString(), to: to.toISOString(), tasks, meetings };
+  } },
+  { method: 'POST', pattern: /^\/api\/v2\/meetings$/, handler: () => ({ id: `mt-${Date.now()}` }) },
+  { method: 'PATCH', pattern: /^\/api\/v2\/meetings\/([^/]+)\/result$/, handler: () => ({ saved: true }) },
+
   /* Attendance: my own sixty days, and the team grid for an owner. */
   { method: 'GET', pattern: /^\/api\/v2\/attendance\/me$/, handler: () => {
     const today = new Date();

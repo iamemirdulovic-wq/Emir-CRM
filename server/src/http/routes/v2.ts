@@ -20,6 +20,12 @@ import {
   allLeave, answerLeave, askForLeave, cancelLeave, LEAVE_KINDS, leaveTakenThisYear, myLeave,
 } from '../../v2/leave.js';
 import { attendanceMonth, dayState, dubaiDate } from '../../attendance/attendance.js';
+import { tasksInRange } from '../../services/tasks.js';
+import { ownerPredicate } from '../../auth/scope.js';
+import { execute } from '../../db/client.js';
+import { newId } from '../../lib/ids.js';
+import { writeAudit } from '../../audit/audit.js';
+import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -373,5 +379,151 @@ v2Router.post(
   '/leave/:id/cancel',
   asyncHandler(async (req: Request, res: Response) => {
     res.json(await cancelLeave(actorFrom(req), currentUser(req), String(req.params.id)));
+  }),
+);
+
+/* ── the calendar ──────────────────────────────────────────────────────── */
+
+const calendarSchema = z.object({
+  from: z.string().min(10).max(40),
+  to: z.string().min(10).max(40),
+  scope: z.enum(['mine', 'team']).default('mine'),
+});
+
+/**
+ * Everything in a window: tasks and meetings together.
+ *
+ * Two tables, one answer, because a day with a viewing at four and a call at
+ * five is one day to the person living it. The browser sends real instants
+ * rather than dates — a task due at 23:30 belongs to the day it is 23:30 in
+ * for whoever is looking, and only the browser knows that.
+ */
+v2Router.get(
+  '/calendar',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const { from, to, scope } = calendarSchema.parse(req.query);
+    const visible = await visibleUserIds(user);
+    const ids = scope === 'mine' ? [user.id] : visible;
+    const fence = ownerPredicate('m.user_id', ids);
+
+    const [tasks, meetings] = await Promise.all([
+      tasksInRange(user.id, visible, { from, to, scope: scope === 'mine' ? 'mine' : 'team' }),
+      query<Record<string, unknown>>(
+        `SELECT m.id, m.opportunity_id AS opportunityId, m.kind, m.title, m.starts_at AS startsAt,
+                m.ends_at AS endsAt, m.all_day AS allDay, m.place, m.result, m.interest,
+                c.full_name AS who, c.phone_e164 AS phone, u.name AS agent
+           FROM meetings m
+           LEFT JOIN contacts c ON c.id = m.contact_id
+           JOIN users u ON u.id = m.user_id
+          WHERE m.deleted_at IS NULL AND ${fence.sql}
+            AND m.starts_at < ? AND m.ends_at > ?
+          ORDER BY m.starts_at ASC
+          LIMIT 500`,
+        [...fence.params, to, from],
+      ),
+    ]);
+
+    res.json({
+      from,
+      to,
+      tasks,
+      meetings: meetings.map((m) => ({
+        id: String(m.id),
+        opportunityId: (m.opportunityId as string | null) ?? null,
+        kind: String(m.kind),
+        title: (m.title as string | null) ?? null,
+        startsAt: m.startsAt,
+        endsAt: m.endsAt,
+        allDay: Number(m.allDay ?? 0) === 1,
+        place: (m.place as string | null) ?? null,
+        result: (m.result as string | null) ?? null,
+        interest: (m.interest as string | null) ?? null,
+        who: (m.who as string | null) ?? null,
+        phone: (m.phone as string | null) ?? null,
+        agent: String(m.agent),
+      })),
+    });
+  }),
+);
+
+const meetingSchema = z.object({
+  opportunityId: z.string().max(36).nullable().optional(),
+  contactId: z.string().max(36).nullable().optional(),
+  kind: z.enum(['meeting', 'site_visit', 'call', 'follow_up', 'team']).default('meeting'),
+  title: z.string().max(160).nullable().optional(),
+  startsAt: z.string().min(10).max(40),
+  endsAt: z.string().min(10).max(40),
+  place: z.string().max(200).nullable().optional(),
+});
+
+/** Put something in the diary. It is always yours; there is no "for" field. */
+v2Router.post(
+  '/meetings',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const input = meetingSchema.parse(req.body);
+    if (Date.parse(input.endsAt) <= Date.parse(input.startsAt)) {
+      throw badRequest('It has to finish after it starts.');
+    }
+
+    const id = newId();
+    await execute(
+      `INSERT INTO meetings
+         (id, opportunity_id, contact_id, user_id, kind, title, starts_at, ends_at, place, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, input.opportunityId ?? null, input.contactId ?? null, user.id, input.kind,
+        input.title ?? null, new Date(input.startsAt), new Date(input.endsAt),
+        input.place ?? null, user.id,
+      ],
+    );
+    await writeAudit({
+      actor: actorFrom(req), action: 'meeting.added', entityType: 'meeting', entityId: id,
+      after: input,
+    });
+    res.status(201).json({ id });
+  }),
+);
+
+const resultSchema = z.object({
+  result: z.enum(['showed', 'no_show', 'rescheduled', 'booked', 'cancelled']),
+  note: z.string().max(500).nullable().optional(),
+  interest: z.enum(['hot', 'warm', 'cold']).nullable().optional(),
+});
+
+/**
+ * How the meeting went.
+ *
+ * Asked for rather than assumed: a meeting in the diary with no result is the
+ * single thing an owner cannot read a week later, and "it happened" is not
+ * the same as "they came".
+ */
+v2Router.patch(
+  '/meetings/:id/result',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const input = resultSchema.parse(req.body);
+    const id = String(req.params.id);
+
+    const meeting = await queryOne<{ user_id: string }>(
+      'SELECT user_id FROM meetings WHERE id = ? AND deleted_at IS NULL', [id],
+    );
+    if (!meeting) throw notFound('That meeting is no longer there.');
+    if (meeting.user_id !== user.id && user.role === 'agent') {
+      throw forbidden('That is somebody else’s meeting.');
+    }
+
+    await execute(
+      `UPDATE meetings
+          SET result = ?, result_note = ?, interest = ?, result_at = NOW(3)
+        WHERE id = ?`,
+      [input.result, input.note ?? null, input.interest ?? null, id],
+    );
+    await writeAudit({
+      actor: actorFrom(req), action: 'meeting.result', entityType: 'meeting', entityId: id,
+      after: input,
+    });
+    res.json({ saved: true });
   }),
 );
