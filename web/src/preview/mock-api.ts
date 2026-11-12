@@ -1545,11 +1545,24 @@ const ROUTES: Route[] = [
       all: rows.length,
     };
   } },
-  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body }) => ({
-    stageKey: 'engaged_qualified', status: 'open', nextStepAt: null,
-    needsNextStep: (body as { action?: string }).action !== 'won',
-    said: 'Logged',
-  }) },
+  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body }) => {
+    const action = (body as { action?: string }).action ?? 'call';
+    const stage = action === 'won' ? 'won'
+      : action === 'lost' ? 'lost'
+        : action === 'meeting' ? 'appointment_scheduled'
+          : action === 'call_back' ? 'attempted_contact' : 'engaged_qualified';
+    const said = action === 'won' ? 'Marked Won. Congratulations.'
+      : action === 'lost' ? 'Closed, with the reason you gave.'
+        : action === 'meeting' ? 'Meeting booked and in your calendar.'
+          : 'Follow-up set.';
+    return {
+      stageKey: stage,
+      status: action === 'won' ? 'won' : action === 'lost' ? 'lost' : 'open',
+      nextStepAt: (body as { nextStep?: { at?: string } }).nextStep?.at ?? null,
+      needsNextStep: false,
+      said,
+    };
+  } },
   { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/next-step$/, handler: () => ({
     stageKey: 'attempted_contact', status: 'open',
     nextStepAt: new Date(Date.now() + 86_400_000).toISOString(),

@@ -7,6 +7,7 @@ import { Icon } from '../design/index.js';
 import { Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { TransferLead } from './TransferLead.js';
+import { ActionButton, LeadAction, type LeadActionKind } from './LeadAction.js';
 
 /**
  * One lead, and everything you can do to it.
@@ -71,6 +72,7 @@ export function V2Lead() {
   const { user } = useAuth();
   const [tab, setTab] = useState<'notes' | 'timeline' | 'info' | 'files'>('timeline');
   const [handingOver, setHandingOver] = useState(false);
+  const [doing, setDoing] = useState<LeadActionKind | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
 
@@ -151,11 +153,20 @@ export function V2Lead() {
           <Icon name="message-circle" />WhatsApp
         </a>
         <Soon icon="send" label="Telegram" phase="phase 6" />
-        <Soon icon="calendar-check" label="Follow-up" phase="phase 7" />
-        <Soon icon="calendar-days" label="Meeting" phase="phase 7" />
-        <Soon icon="trophy" label="Won" phase="phase 7" />
-        <Soon icon="x" label="Lost" phase="phase 4" />
+        <ActionButton kind="follow_up" label="Follow-up" onClick={() => setDoing('follow_up')} />
+        <ActionButton kind="meeting" label="Meeting" onClick={() => setDoing('meeting')} />
+        <ActionButton kind="won" label="Won" onClick={() => setDoing('won')} />
+        <ActionButton kind="lost" label="Lost" onClick={() => setDoing('lost')} />
       </nav>
+
+      {doing && (
+        <LeadAction
+          kind={doing}
+          opportunityId={lead.id}
+          onCancel={() => setDoing(null)}
+          onDone={(told) => { setDoing(null); setSaid(told); detail.reload(); }}
+        />
+      )}
 
       {/* Handing it on. The lead stays here until the other person accepts,
           which is what the screen says rather than implying it has gone. */}

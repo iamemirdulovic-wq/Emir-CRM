@@ -1022,3 +1022,10 @@
   background:var(--accent-soft); color:var(--accent-ink);
   padding:2px 6px; border-radius:var(--r-pill);
 }
+
+/* ── The four actions that move a lead ──────────────────────────────────── */
+.v2-action{ display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+.v2-action-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
+.v2-action .v2-field-wide, .v2-action .v2-two{ width:100%; margin-top:0; }
+.v2-act-won{ background:var(--green-soft); color:var(--green-ink); }
+.v2-act-lost{ background:var(--red-soft); color:var(--red-ink); }
