@@ -1106,6 +1106,158 @@ const ROUTES: Route[] = [
 
   /* My Leads. The mock leads are reshaped into the row the screen expects,
      with a spread of next-step states so every colour can be seen. */
+  /*
+   * ── v2 home ───────────────────────────────────────────────────────────
+   *
+   * Built from the same demo leads the rest of the preview uses, so the
+   * figures on the home screen agree with the list behind them. Every block
+   * of the page has something in it -- a VIP lead with a live clock, a tap
+   * waiting for an update, a link somebody opened, a banner -- because a
+   * preview where half the blocks are empty is a preview that cannot show
+   * whether they work. `?as=agent` for My Day, otherwise the owner's.
+   */
+  { method: 'GET', pattern: /^\/api\/v2\/home$/, handler: () => {
+    const rows = myLeadRows();
+    const now = new Date();
+    const dubai = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Dubai',
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    }).format(now);
+    const me = currentUser();
+    const counts = {
+      today: rows.filter((r) => r.next_step_at !== null).length,
+      new: rows.filter((r) => r.stage_key === 'new_lead').length,
+      hot: rows.filter((r) => r.score_band === 'hot').length,
+      overdue: rows.filter((r) => r.next_step_at !== null && new Date(r.next_step_at) < now).length,
+      no_next_step: rows.filter((r) => r.next_step_at === null).length,
+      vip: 1,
+      lost: 2,
+      all: rows.length,
+    };
+    const asLead = (row: (typeof rows)[number]) => ({
+      id: row.id,
+      name: row.full_name,
+      phone: row.phone_e164,
+      project: row.project_name,
+      stage: row.stage_key,
+      score: row.lead_score,
+      nextStepAt: row.next_step_at,
+      nextStepNote: row.next_step_note,
+      lastContactAt: row.last_contact_at,
+      isVip: false,
+    });
+    const banners = [
+      {
+        id: 'b-1',
+        title: 'Cityscape Global · 17–19 Nov',
+        body: 'DWTC · stand B12. Everyone is on the stand for one day.',
+        linkUrl: null,
+      },
+      {
+        id: 'b-2',
+        title: 'Valia launches soon',
+        body: 'Emaar · The Oasis · from AED 1.4M · 80 / 20.',
+        linkUrl: null,
+      },
+    ];
+
+    if (me.role !== 'agent') {
+      const team = USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, i) => ({
+        id: u.id,
+        name: u.name,
+        photoUrl: photoOf(u.id),
+        marked: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
+        openLeads: rows.filter((r) => r.owner_name === u.name).length || 3 + i,
+        callsToday: [11, 7, 4, 0, 9][i % 5] as number,
+        lastSeenAt: new Date(now.getTime() - (i + 1) * 23 * 60_000).toISOString(),
+      }));
+      return {
+        role: 'owner',
+        me: { name: me.name, firstName: me.name.split(' ')[0] },
+        now: dubai,
+        needsYou: [
+          { kind: 'vip_late', n: 1, text: 'VIP lead not called in time', action: 'Give again', to: '/v2/incoming' },
+          { kind: 'waiting', n: 3, text: 'leads waiting to be given out', action: 'Give', to: '/v2/incoming' },
+          { kind: 'transfer', n: 1, text: 'lead transfers need your approval', action: 'Approve', to: '/v2/transfers' },
+          { kind: 'leave', n: 2, text: 'leave requests to answer', action: 'Answer', to: '/v2/attendance' },
+        ],
+        teamToday: {
+          inOffice: team.filter((t) => t.marked === 'office').length,
+          late: 1,
+          outside: team.filter((t) => t.marked === 'outside').length,
+          absent: team.filter((t) => t.marked === null).length,
+          closed: false,
+        },
+        todayNumbers: {
+          newLeads: counts.new, calls: 31, whatsapp: 18, telegram: 2,
+          meetings: 3, unitsBooked: 1, overdue: counts.overdue, noNextStep: counts.no_next_step,
+        },
+        teamRightNow: team,
+        freeLeads: 3,
+        banners,
+        unread: 2,
+      };
+    }
+
+    return {
+      role: 'agent',
+      me: { name: me.name, firstName: me.name.split(' ')[0] },
+      now: dubai,
+      attendance: {
+        closed: false, marked: 'office', markedAt: new Date(now.getTime() - 5 * 3_600_000).toISOString(),
+        wasLate: false, note: null, onOfficeNetwork: true, enabled: true, startsAt: '09:00',
+      },
+      counts,
+      freeLeads: 3,
+      today: { calls: 18, answered: 11, messages: 9, meetings: 1, newLeads: 3 },
+      goals: { calls: 40, messages: 20, meetings: 2 },
+      streakDays: 12,
+      kudosThisMonth: 4,
+      byStage: [
+        { stage: 'new_lead', n: counts.new },
+        { stage: 'attempted_contact', n: 16 },
+        { stage: 'engaged_qualified', n: 14 },
+        { stage: 'appointment_scheduled', n: 8 },
+        { stage: 'deal_sent', n: 6 },
+        { stage: 'won', n: 2 },
+      ],
+      nextUp: asLead(rows[0]!),
+      callNow: rows.slice(0, 8).map(asLead),
+      vip: {
+        id: 'vip-1',
+        leadId: rows[1]!.id,
+        name: rows[1]!.full_name,
+        phone: rows[1]!.phone_e164,
+        project: rows[1]!.project_name,
+        givenBy: 'Emir',
+        note: 'Wrote to me by email. Serious, wants to see the show flat this week. Call him in English.',
+        deadlineAt: new Date(now.getTime() + 24 * 60_000 + 12_000).toISOString(),
+        accepted: false,
+      },
+      waitingUpdate: [
+        {
+          id: 'tap-1', app: 'whatsapp', name: rows[2]!.full_name, leadId: rows[2]!.id,
+          tappedAt: new Date(now.getTime() - 24 * 60_000).toISOString(),
+        },
+        {
+          id: 'tap-2', app: 'telegram', name: rows[3]!.full_name, leadId: rows[3]!.id,
+          tappedAt: new Date(now.getTime() - 105 * 60_000).toISOString(),
+        },
+      ],
+      linkOpens: [{
+        name: rows[4]!.full_name, leadId: rows[4]!.id, label: 'Brochure', kind: 'brochure',
+        openedAt: new Date(now.getTime() - 18 * 60_000).toISOString(), opens: 2,
+      }],
+      transfersForMe: 1,
+      tasksOverdue: counts.overdue,
+      unread: 2,
+      banners,
+    };
+  } },
+  { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/accept$/, handler: () => ({ acceptedAt: new Date().toISOString() }) },
+  { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/refuse$/, handler: () => ({ refusedAt: new Date().toISOString() }) },
+
   { method: 'GET', pattern: /^\/api\/my-leads$/, handler: ({ query }) => {
     const tab = query.get('tab') ?? 'today';
     const matching = myLeadRows().filter((row) => {

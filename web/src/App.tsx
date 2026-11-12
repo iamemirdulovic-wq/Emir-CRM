@@ -36,6 +36,7 @@ import { Wall } from './pages/Wall.js';
 import { V2Shell } from './v2/Shell.js';
 import { Placeholder } from './v2/Placeholder.js';
 import { V2Leads } from './v2/Leads.js';
+import { V2Home } from './v2/Home.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -99,7 +100,7 @@ export function App() {
             </Protected>
           }
         >
-          <Route path="/v2" element={<Placeholder title="Home" phase="phase 4 — leads" />} />
+          <Route path="/v2" element={<V2Home />} />
           <Route path="/v2/incoming" element={<Placeholder title="Incoming" phase="phase 4 — leads" />} />
           <Route path="/v2/leads" element={<V2Leads />} />
           <Route path="/v2/leads/new" element={<Placeholder title="Add lead" phase="phase 4 — leads" />} />

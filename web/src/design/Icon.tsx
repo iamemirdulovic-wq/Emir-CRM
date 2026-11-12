@@ -27,7 +27,7 @@ import {
   FileOutput, FileSignature, FileSpreadsheet, FileText, Files, Filter, Flame, Folder, FolderInput,
   FolderPlus, Gauge, GitCompare, Globe,
   GripVertical, HandCoins, Hourglass, IdCard, Inbox, Info, Instagram, Kanban, KeyRound,
-  ImageUp, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Lightbulb, Link, List, Loader2,
+  ImageUp, Landmark, Layers, Lock, HelpCircle, LayoutDashboard, LayoutGrid, LayoutTemplate, Lightbulb, Link, List, Loader2,
   LogOut, Mail, MapPin, Megaphone, Menu, MessageCircle, MessageSquare, MessageSquareHeart,
   Mic, Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOutgoing, PieChart, Play,
   PencilLine, Pin, Plus, Quote, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
@@ -58,6 +58,9 @@ const ICONS = {
   'hand-coins': HandCoins, 'hourglass': Hourglass, 'id-card': IdCard, 'inbox': Inbox, 'image-up': ImageUp,
   'info': Info, 'instagram': Instagram, 'kanban': Kanban, 'key-round': KeyRound,
   'landmark': Landmark, 'layers': Layers, 'layout-dashboard': LayoutDashboard,
+  /* v2: the padlock in the "check in to start calling" card, and the
+     question mark on "How did it go?". */
+  'lock': Lock, 'help-circle': HelpCircle,
   'layout-grid': LayoutGrid, 'layout-template': LayoutTemplate, 'lightbulb': Lightbulb,
   'copy': Copy, 'copy-plus': CopyPlus, 'files': Files, 'folder-input': FolderInput,
   'folder-plus': FolderPlus, 'undo-2': Undo2,

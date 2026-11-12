@@ -18,6 +18,7 @@ import { publicLeadsRouter } from './routes/public-leads.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { addLeadRouter } from './routes/add-lead.js';
 import { myLeadsRouter } from './routes/my-leads.js';
+import { v2Router } from './routes/v2.js';
 import { notesRouter } from './routes/notes.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
@@ -213,6 +214,7 @@ export function createApp(): Express {
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/leads', addLeadRouter);
   app.use('/api/my-leads', myLeadsRouter);
+  app.use('/api/v2', v2Router);
   app.use('/api/email', emailRouter);
   app.use('/api/activity', activityRouter);
   /* The photo first, and unauthenticated: it is on a business card that

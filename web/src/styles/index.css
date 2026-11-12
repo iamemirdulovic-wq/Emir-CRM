@@ -12,9 +12,18 @@
 /* The first-sign-in welcome: full screen, outside the shell. */
 @import './welcome.css';
 /*
- * v2. Both files are inert until a page sets `data-v2` on <html>, which only
- * the v2 shell does -- so the thirty-one screens already built keep their own
- * look while the two versions exist side by side.
+ * v2. All three are inert until a page sets `data-v2` on <html> and renders
+ * inside `.v2`, which only the v2 shell does -- so the thirty-one screens
+ * already built keep their own look while the two versions exist side by
+ * side. v2-ui.css is the design's own component layer and comes last.
  */
 @import './v2-tokens.css';
+/*
+ * The design's own sheets first, ours last: `v2-shell.css` is where a rule
+ * that has to beat the design goes, and at equal specificity the later file
+ * wins. With it imported first, every phone rule we wrote lost silently to
+ * the generated ones and the home screen scrolled sideways at 390px.
+ */
+@import './v2-ui.css';
+@import './v2-home.css';
 @import './v2-shell.css';

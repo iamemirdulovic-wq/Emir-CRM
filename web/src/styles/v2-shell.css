@@ -449,3 +449,113 @@
   .v2-acts{ gap:7px; }
   .v2-act{ flex:1 1 calc(50% - 4px); justify-content:center; }
 }
+
+/* ── Home: My Day and the owner's day ───────────────────────────────────
+ *
+ * Only what the design's own component layer (`v2-ui.css`) does not already
+ * give. Anything here that looks like a tweak to a design class is a
+ * deliberate one, and says why.
+ */
+.v2-home{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+.v2-hi{
+  margin:0; font-size:26px; font-weight:700; letter-spacing:-.03em;
+  display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+}
+.v2-hi span{ font-size:13px; font-weight:500; color:var(--ink-3); letter-spacing:0; }
+
+/* The hero is 268px tall in the design; on a phone it grows instead, because
+   four states of different heights in a fixed box is how text gets clipped. */
+.v2-row1{ grid-template-rows:268px; }
+@media (max-width:1100px){ .v2-row1{ grid-template-rows:auto; } }
+
+.v2-ready-top{ align-items:center; }
+.v2-next{ margin-top:14px; }
+.v2-lock-red{ color:var(--red); }
+.v2-head-tight{ margin-bottom:8px; }
+.v2-card-tight{ flex:none; padding:18px 20px; }
+.v2-foot{ padding-top:10px; }
+.v2-np-row{ align-items:center; }
+.v2-np-what{ margin-top:8px; font-size:15px; display:block; }
+.v2-srow-top{ border-top:1px solid var(--line); margin-top:4px; padding-top:10px; }
+.v2-icon-blue{
+  width:28px; height:28px; border-radius:9px;
+  background:var(--blue-soft); color:var(--blue-ink);
+}
+.v2-self-start{ align-self:flex-start; }
+
+.v2-owner-acts{ display:flex; gap:10px; flex-wrap:wrap; }
+
+.v2-stage-card{ flex-direction:row; align-items:stretch; gap:20px; padding:16px 22px; }
+.v2-stage-side{
+  width:150px; flex:none; display:flex; flex-direction:column; justify-content:center; gap:3px;
+}
+@media (max-width:767px){
+  .v2-stage-card{ flex-direction:column; }
+  .v2-stage-side{ width:auto; }
+}
+
+.v2-banners .slide{ display:flex; }
+
+/* The team table. The design's own `.table` is in v2-ui.css; this is the one
+   column rule it cannot know: who is a person, and people get a face. */
+.v2-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.v2-table th{
+  text-align:left; font-size:11px; font-weight:650; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3); padding:0 10px 8px; white-space:nowrap;
+}
+.v2-table td{ padding:9px 10px; border-top:1px solid var(--line); vertical-align:middle; }
+.v2-table tbody tr:hover{ background:var(--surface-2); }
+.v2-table .person{ display:flex; align-items:center; gap:9px; min-width:0; }
+.v2-table .who b{ font-weight:620; }
+@media (max-width:767px){
+  /* Four numbers per agent will not fit a phone, so the two that matter on a
+     phone stay and the rest go. Nothing is hidden that is not also on the
+     team screen, which is one tap away. */
+  .v2-table th:nth-child(4), .v2-table td:nth-child(4),
+  .v2-table th:nth-child(5), .v2-table td:nth-child(5){ display:none; }
+}
+
+/* ── The design on a phone ──────────────────────────────────────────────
+ *
+ * `design/web/*.html` is the computer design: a twelve-column bento grid,
+ * fixed-height heroes, side-by-side hero columns. None of that survives a
+ * 390px screen, and the first phone screenshot of the home page scrolled
+ * sideways to 575px — the single thing the design research says agents hate
+ * most.
+ *
+ * These are ours, not the design's, and they do one thing: at phone width
+ * every card becomes full width and every side-by-side becomes stacked.
+ * The phone's own 59 screens are a later phase; until then the computer
+ * design has to fold rather than overflow.
+ */
+@media (max-width:767px){
+  .v2 .d-bento{ grid-template-columns:1fr; }
+  .v2 [class*="d-c-"]{ grid-column:1 / -1; }
+  .v2 .d-row1, .v2 .v2-row1{ grid-template-rows:auto; }
+
+  /* The hero's two columns become two rows, and it stops being 268px tall. */
+  .v2 .d-hero{ padding:18px; }
+  .v2 .d-hs{ flex-direction:column; gap:16px; }
+  .v2 .d-hs .d-side{ width:auto; }
+  .v2 .d-hero-phone{ font-size:30px; white-space:normal; word-break:break-all; }
+  .v2 .d-hero-who{ white-space:normal; }
+  .v2 .d-hero-btns{ flex-wrap:wrap; }
+  .v2 .d-goals{ width:auto !important; }
+
+  /* The stage strip reads as a row of bars; on a phone it scrolls rather
+     than squeezing six labels into 390px. */
+  .v2 .d-pstrip{ overflow-x:auto; max-width:100%; }
+
+  /* A time and its chip side by side is 403px of content on a 390px screen. */
+  .v2 .v2-np-row{ flex-wrap:wrap; }
+  /* A row of "name · when" and a button: the name shrinks, the button does not. */
+  .v2 .d-srow{ flex-wrap:wrap; }
+  .v2 .d-srow .d-grow{ min-width:0; }
+  .v2 .d-crow{ flex-wrap:wrap; height:auto; padding:8px; }
+  .v2 .d-mini-stats{ flex-wrap:wrap; }
+
+  .v2 .d-num-hero{ font-size:56px; }
+  .v2 .d-ring.d-lg{ --size:120px; }
+  .v2 .d-ring.d-lg b{ font-size:28px; }
+}
