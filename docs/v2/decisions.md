@@ -95,3 +95,39 @@ with its own permissions and live accounts.
 Address of the new version · office 16 or 12 on the card · "Emigeo" or "EMIGEO" ·
 do owners check in before calling · take-back times · which transfers need approval ·
 owner tools for the admin too · Telegram backup now or later.
+
+---
+
+## 4. The testers' seven disagreements, ruled on
+
+`tester-rules.md` ends with seven places where two brokers wanted opposite
+things. Five are already decided by v3; two are mine and small.
+
+| The testers disagreed about | Settled | Where |
+|---|---|---|
+| Check-in: a hard lock before calling, or a question at the moment of the call | **A question at the moment of the call** — check in and call / I am working outside / call anyway (marked) | v3 §5 |
+| How much of a colleague's book an agent may see | **Profiles and results, never their leads** | v3 §2 |
+| Who may delete a plan on the team calendar | **Owners change team plans; agents can only hide them** | v3 §6 |
+| Per-page numbers, or one number everywhere | **One number everywhere**, computed once on the server. (What counts as *open* / *won* / *booked* is still Emir's to define — v3 §12 q9) | v3 §5 |
+| Native date controls or our own picker | **Real date and time pickers, 24-hour clock, everywhere** | v3 §5 |
+| Toast cap: one at a time, or two | **Two, when one of them holds an Undo.** A cap of one can hide the Undo behind the next toast, and an Undo nobody can reach is not an Undo | mine |
+| Dense rows, or full text that wraps | **Two lines on the phone; one line with the full value on hover on the computer.** The agents who wanted wrapping were on phones; the owner who slimmed the rows was on a wide screen. Both get what they asked for | mine |
+
+### What the testers found that we must not repeat
+
+Their findings are about the design prototype, not about the CRM that is live —
+but v3 §1 says to treat them as real-use rules. Four of the seven worst are things
+this CRM has done to Emir in the last week, which is reason enough to take them
+seriously:
+
+- **A link must carry its record.** Every route to a lead opened the same person.
+  (This is exactly the "Next lead" bug of 11 Nov: it walked to the same lead for
+  ever.)
+- **A toast is not a record.** "Saved" on screen with nothing written down.
+  Already a hard rule in v3 §5: never write "sent" for something the CRM did not send.
+- **The CRM must remember what you just did** — results, calls and check-in time
+  survive changing page.
+- **Every number must open exactly the set it counted.** Click 456, get 456.
+- **Role comes from the session, never the URL.** One tester reached an owner page
+  and "became owner for the whole site". Our server checks roles server-side today;
+  it gets a guard test in Phase 2 so it cannot regress.
