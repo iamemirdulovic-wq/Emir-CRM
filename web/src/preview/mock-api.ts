@@ -1255,6 +1255,44 @@ const ROUTES: Route[] = [
       banners,
     };
   } },
+  /* The project library, in the shape `listLibrary` returns. */
+  { method: 'GET', pattern: /^\/api\/library$/, handler: ({ query }) => {
+    const search = (query.get('search') ?? '').toLowerCase();
+    const emirate = query.get('emirate');
+    const status = query.get('status');
+    const starred = query.get('starred');
+    const items = PROJECTS.map((project, i) => ({
+      id: project.id,
+      slug: project.slug,
+      name: project.name,
+      developer: project.developer,
+      developer_id: null,
+      emirate: project.emirate === 'abu_dhabi' ? 'Abu Dhabi' : 'Dubai',
+      community: project.area,
+      property_type: 'Apartment',
+      sale_status: (['selling_now', 'selling_now', 'coming_soon', 'sold_out'][i % 4]) as string,
+      starting_price_aed: project.starting_price_aed,
+      handover_date: project.handover_date ? '2027-12-01' : null,
+      payment_plan: project.payment_plan,
+      image_url: null,
+      cover_photo_id: null,
+      visibility: 'private',
+      starred: i === 0 ? 1 : 0,
+      verified_at: project.verified_at,
+      archived_at: null,
+      units_available: [24, 8, 0, 0][i % 4] as number,
+      units_total: [120, 40, 60, 0][i % 4] as number,
+    })).filter((one) => {
+      if (emirate && one.emirate !== emirate) return false;
+      if (status && one.sale_status !== status) return false;
+      if (starred === '1' && one.starred !== 1) return false;
+      if (search && ![one.name, one.developer, one.community]
+        .filter(Boolean).join(' ').toLowerCase().includes(search)) return false;
+      return true;
+    });
+    return { items };
+  } },
+
   /* The team directory, with the numbers only an owner is sent. */
   { method: 'GET', pattern: /^\/api\/v2\/team$/, handler: () => {
     const isOwner = currentUser().role !== 'agent';

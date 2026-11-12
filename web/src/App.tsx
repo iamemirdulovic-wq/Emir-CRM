@@ -46,6 +46,7 @@ import { V2Tasks } from './v2/Tasks.js';
 import { V2Calendar } from './v2/Calendar.js';
 import { V2Transfers } from './v2/Transfers.js';
 import { V2Team, V2Person } from './v2/Team.js';
+import { V2Projects } from './v2/Projects.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -124,7 +125,7 @@ export function App() {
           <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
-          <Route path="/v2/projects" element={<Placeholder title="Projects" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/projects" element={<V2Projects />} />
           <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
