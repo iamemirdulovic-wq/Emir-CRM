@@ -131,3 +131,38 @@ seriously:
 - **Role comes from the session, never the URL.** One tester reached an owner page
   and "became owner for the whole site". Our server checks roles server-side today;
   it gets a guard test in Phase 2 so it cannot regress.
+
+---
+
+## 5. "Office Wi-Fi found" — the design asks for something a browser cannot do
+
+The attendance screens are worded around the phone noticing the office network:
+*"OFFICE WI-FI FOUND · homes.me-Office"*, and the only centre-screen interrupt in
+the whole design is *"Are you back in the office? Office Wi-Fi found"* when someone
+marked outside rejoins it.
+
+**A web page cannot read the Wi-Fi name.** No browser exposes the SSID, on any
+platform, and none will.
+
+This is not a blocker, because **the live CRM already solves it another way**: the
+server compares the address the request arrives from against the office addresses
+the owner saved (`ATT_OFFICE_IPS`, up to ten, set in Settings → Attendance). Connect
+to the office Wi-Fi and your requests arrive from the office's address; connect to
+mobile data and they do not. It has been working since 10 November.
+
+So:
+
+- **Keep the mechanism.** Office detection stays server-side on the request address.
+  It cannot be faked from the phone, which matters more here than the wording does.
+- **Change the words.** "Office Wi-Fi found" becomes **"You're on the office
+  network"**, and the interrupt becomes **"Are you back in the office?"** with no
+  claim about Wi-Fi. Saying "Wi-Fi" would be describing something we are not doing.
+- **One limit to know, and to tell the team once:** anyone on the office network
+  looks like they are in the office, including someone on it through a VPN from home.
+  The alternative the design implies — a phone that proves where it is — is not
+  available to a web app at all. If that matters later, the honest fix is a QR code
+  at the door, not a different network check.
+
+The "are you back?" interrupt works unchanged: the server already knows when a
+request arrives from an office address, so it can ask once when someone marked
+outside reappears on it.
