@@ -208,19 +208,26 @@ const BASE = `
  * \`a{color:inherit;text-decoration:none}\` every number on the home screen
  * renders as blue underlined link text, because the live app's base sheet
  * styles links for the live app.
+ *
+ * Every element selector is wrapped in \`:where()\`, which contributes nothing
+ * to specificity. Without it \`.v2 button\` (0,1,1) beats \`.v2-chip-opt\`
+ * (0,1,0), and a reset meant to clear the browser's default button styling
+ * quietly cleared ours too: the chips on Add Lead and the outcome buttons on
+ * the calling screen rendered as plain text, and only a screenshot showed it.
+ * A reset should be the weakest rule in the file, not one of the strongest.
  */
-.v2 h1, .v2 h2, .v2 h3, .v2 h4, .v2 p {margin:0}
-.v2 h1 {font-size:22px;font-weight:700;letter-spacing:-.02em}
-.v2 h2 {font-size:18px;font-weight:700;letter-spacing:-.015em}
-.v2 h3 {font-size:15px;font-weight:650;letter-spacing:-.01em}
-.v2 h4 {font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
-.v2 a {color:inherit;text-decoration:none}
-.v2 button {font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
-.v2 input, .v2 select, .v2 textarea {font:inherit;color:inherit}
-.v2 kbd {font:600 11px/1 var(--font);padding:4px 6px;border-radius:6px;background:var(--surface-3);color:var(--ink-3)}
-.v2 hr {border:0;border-top:1px solid var(--line);margin:16px 0}
+.v2 :where(h1, h2, h3, h4, p) {margin:0}
+.v2 :where(h1) {font-size:22px;font-weight:700;letter-spacing:-.02em}
+.v2 :where(h2) {font-size:18px;font-weight:700;letter-spacing:-.015em}
+.v2 :where(h3) {font-size:15px;font-weight:650;letter-spacing:-.01em}
+.v2 :where(h4) {font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.v2 :where(a) {color:inherit;text-decoration:none}
+.v2 :where(button) {font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+.v2 :where(input, select, textarea) {font:inherit;color:inherit}
+.v2 :where(kbd) {font:600 11px/1 var(--font);padding:4px 6px;border-radius:6px;background:var(--surface-3);color:var(--ink-3)}
+.v2 :where(hr) {border:0;border-top:1px solid var(--line);margin:16px 0}
 .v2 {font-variant-numeric:tabular-nums}
-.v2 svg.lucide {width:18px;height:18px;flex:none}
+.v2 :where(svg.lucide) {width:18px;height:18px;flex:none}
 `;
 
 const UI_HEADER = `/*

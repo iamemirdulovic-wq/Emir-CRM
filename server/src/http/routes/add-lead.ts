@@ -7,7 +7,7 @@ import {
 import { requirePermission } from '../middleware/auth.js';
 import { execute, getPool, query, queryOne, withRetryingTransaction } from '../../db/client.js';
 import { normalizeLead } from '../../ingestion/normalize.js';
-import { addActivity, ingestLead } from '../../ingestion/ingest.js';
+import { addActivity, ingestLead, tagContact } from '../../ingestion/ingest.js';
 import { toE164 } from '../../lib/phone.js';
 import { normalizeEmail } from '../../lib/email.js';
 import { writeAudit } from '../../audit/audit.js';
@@ -15,6 +15,23 @@ import { enqueue } from '../../jobs/queue.js';
 import { logger, errorContext } from '../../lib/logger.js';
 import { armSlaTimer } from '../../workflows/workflow-a.js';
 import { recordAssignment } from '../../routing/assignments.js';
+import { newId } from '../../lib/ids.js';
+import { notify } from '../../messaging/notify.js';
+import { badRequest, forbidden } from '../../lib/errors.js';
+import { DUBAI_OFFSET_MINUTES } from '../../routing/hours.js';
+
+/**
+ * Midnight tonight, in Dubai, as a UTC instant.
+ *
+ * "Call them today" means by the end of the working day where the office is.
+ * Reading it off the server's own clock would end a Dubai afternoon's VIP
+ * lead four hours early.
+ */
+function endOfDubaiDay(at: Date = new Date()): Date {
+  const dubai = new Date(at.getTime() + DUBAI_OFFSET_MINUTES * 60_000);
+  dubai.setUTCHours(24, 0, 0, 0);
+  return new Date(dubai.getTime() - DUBAI_OFFSET_MINUTES * 60_000);
+}
 
 /**
  * Adding a lead by hand — a walk-in, a referral, a number from a roadshow.
@@ -125,6 +142,36 @@ const addSchema = z.object({
    * lead that timer — not every lead."
    */
   urgent: z.boolean().optional(),
+
+  /* ── v2 ──────────────────────────────────────────────────────────────
+   * All optional and all off by default, so the live Add Lead screen sends
+   * exactly what it sent before and behaves exactly as it did.
+   */
+  /** A second way to reach them. Kept on the contact, not the lead. */
+  telegram: z.string().max(60).optional(),
+  /**
+   * What they speak, from the design's multi-select.
+   *
+   * `contacts.language` is an 8-character code the routing rules read ("send
+   * an Arabic lead to the Arabic desk"), so it takes the first choice. The
+   * whole list is kept as `lang:` tags, which is what the tag namespaces in
+   * CLAUDE.md are for. Writing "Arabic, English" into the code column fails
+   * silently at fifteen characters, which is exactly what it did the first
+   * time this was built.
+   */
+  languages: z.array(z.string().max(8)).max(6).optional(),
+  /**
+   * The owner handing a lead over personally, with a clock on it.
+   *
+   * Owner and admin only, and only together with an agent to give it to: a
+   * VIP lead with nobody's name on it is just a lead, and the whole point of
+   * the flow is that one named person is now answerable for it.
+   */
+  isVip: z.boolean().optional(),
+  /** 15, 30 or 60 minutes. Null means "today", which ends at midnight Dubai. */
+  callWithinMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]).nullable().optional(),
+  /** What the owner wants the agent to know, and the client never sees. */
+  privateNote: z.string().max(500).optional(),
 });
 
 addLeadRouter.post(
@@ -255,6 +302,63 @@ addLeadRouter.post(
       }
     }
 
+    /*
+     * The extras v2 adds. Each one is skipped entirely when it was not sent,
+     * so nothing here can change what the live screen does.
+     */
+    const firstLanguage = body.languages?.[0] ?? null;
+    if (body.telegram || firstLanguage) {
+      await execute(
+        `UPDATE contacts
+            SET telegram = COALESCE(?, telegram), language = COALESCE(?, language)
+          WHERE id = ?`,
+        [body.telegram ?? null, firstLanguage, result.contactId],
+      ).catch((err: unknown) => logger.error('could not save the extra contact details', errorContext(err)));
+    }
+    for (const code of body.languages ?? []) {
+      await tagContact(getPool(), result.contactId, 'lang', code)
+        .catch((err: unknown) => logger.error('could not tag the language', errorContext(err)));
+    }
+
+    /*
+     * A VIP hand-over. Refused rather than quietly downgraded when it has no
+     * agent on it or comes from somebody who is not the owner: a VIP lead
+     * that silently became an ordinary one would be the worst of both, since
+     * the owner would believe somebody was answerable for it.
+     */
+    if (body.isVip === true) {
+      if (isAgent) throw forbidden('Only an owner or admin can give a VIP lead.');
+      if (!assignTo) throw badRequest('A VIP lead needs an agent to give it to.');
+
+      const minutes = body.callWithinMinutes ?? null;
+      const deadline = minutes === null
+        /* "Today" ends at midnight in Dubai, not in UTC. */
+        ? endOfDubaiDay()
+        : new Date(Date.now() + minutes * 60_000);
+
+      await execute('UPDATE opportunities SET is_vip = 1 WHERE id = ?', [result.opportunityId]);
+      await execute(
+        `INSERT INTO vip_handoffs
+           (id, opportunity_id, given_by, given_to, call_within_minutes, deadline_at, private_note)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId(), result.opportunityId, user.id, assignTo,
+          minutes, deadline, body.privateNote ?? null,
+        ],
+      );
+      await notify({
+        userId: assignTo,
+        type: 'lead_assigned',
+        title: `VIP lead from ${user.name}`,
+        body: minutes === null
+          ? `${body.fullName} — call them today.`
+          : `${body.fullName} — call within ${minutes} minutes.`,
+        link: '/v2',
+        opportunityId: result.opportunityId,
+        priority: 'high',
+      }).catch((err: unknown) => logger.warn('could not tell the agent about the VIP lead', errorContext(err)));
+    }
+
     await writeAudit({
       actor: actorFrom(req),
       action: 'lead.added_manually',
@@ -263,6 +367,7 @@ addLeadRouter.post(
       after: {
         source: body.source, assignedTo: assignTo,
         existingContact: !result.isNewContact, urgent: body.urgent === true,
+        vip: body.isVip === true,
       },
     });
 

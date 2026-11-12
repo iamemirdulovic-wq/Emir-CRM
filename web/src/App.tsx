@@ -40,6 +40,7 @@ import { V2Home } from './v2/Home.js';
 import { V2Calling } from './v2/Calling.js';
 import { V2Incoming } from './v2/Incoming.js';
 import { V2Pipeline } from './v2/Pipeline.js';
+import { V2AddLead } from './v2/AddLead.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -106,7 +107,7 @@ export function App() {
           <Route path="/v2" element={<V2Home />} />
           <Route path="/v2/incoming" element={<V2Incoming />} />
           <Route path="/v2/leads" element={<V2Leads />} />
-          <Route path="/v2/leads/new" element={<Placeholder title="Add lead" phase="phase 4 — leads" />} />
+          <Route path="/v2/leads/new" element={<V2AddLead />} />
           <Route path="/v2/leads/:id" element={<V2Lead />} />
           {/* Follow-ups is the leads list opened on what is late. Same screen,
               same numbers — a second list of the same rows is a second chance to

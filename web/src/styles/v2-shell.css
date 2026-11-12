@@ -851,3 +851,43 @@
 }
 .v2-more-label{ flex:1; min-width:0; }
 .v2-more-later{ opacity:.5; }
+
+/* ── Add a lead ─────────────────────────────────────────────────────────── */
+/*
+ * Page roots are named for the page, not the verb. `.v2-add` is the button in
+ * the top bar; this is the screen. Three times now a screen and a control have
+ * been given one name (`.v2-find`, `.v2-more`, `.v2-add`), and each time the
+ * control's height or display silently reshaped the screen. The guard in
+ * css-collisions.test.ts catches it; the naming is what stops it happening.
+ */
+.v2-addlead{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; max-width:820px; }
+.v2 .v2-addlead-card{ gap:12px; }
+.v2-addlead-card .d-card-t{ margin:0 0 2px; font-size:15px; font-weight:650; }
+.v2-addlead-card .v2-field-wide{ margin-top:0; }
+.v2-two{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.v2-phone-row{ display:grid; grid-template-columns:minmax(0,220px) minmax(0,1fr); gap:12px; }
+@media (max-width:640px){
+  .v2-two, .v2-phone-row{ grid-template-columns:1fr; }
+}
+.v2 .d-input{
+  height:40px; padding:0 12px; border-radius:var(--r-ctl);
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font:inherit; font-size:14px; width:100%; min-width:0;
+}
+.v2 .d-input:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+.v2-field-problem{ margin:0; font-size:12px; color:var(--red-ink); }
+.v2-switch{ display:flex; align-items:center; gap:9px; font-size:13.5px; cursor:pointer; }
+.v2-switch em{ font-style:normal; color:var(--ink-4); }
+.v2-check{ margin:0; font-size:12.5px; color:var(--ink-3); display:inline-flex; align-items:center; gap:5px; }
+.v2-check-ok{ color:var(--green-ink); font-weight:600; }
+.v2-dupe{
+  display:flex; align-items:center; gap:10px; padding:11px 13px;
+  border-radius:var(--r-ctl); background:var(--red-soft); color:var(--red-ink); font-size:13px;
+}
+.v2-dupe b{ display:block; }
+.v2-dupe span span{ display:block; font-weight:500; opacity:.85; }
+.v2-problem{
+  margin:0; padding:11px 14px; border-radius:var(--r-ctl);
+  background:var(--red-soft); color:var(--red-ink); font-size:13px; font-weight:600;
+}
+.v2-addlead-foot{ display:flex; gap:10px; justify-content:flex-end; padding-bottom:10px; }
