@@ -1658,8 +1658,12 @@
      wall is 360px, the bell 340px, a project 392px. Below this they stack,
      and the sticky side column stops being sticky — a column that is as
      tall as the page cannot stick to the top of it. */
+  /* Four pages share the design's `.d-lay` — a column of content beside a
+     316px rail. All four stack on a phone. Tasks was missing from this list,
+     so its "left today" card sat on top of the day's tasks. */
   .v2 .p-wall .d-lay,
   .v2 .p-bell .d-lay,
+  .v2 .p-tasks .d-lay,
   .v2 .p-project .d-lay { grid-template-columns:minmax(0,1fr); }
   .v2 .p-wall .d-side,
   .v2 .p-bell .d-side,
@@ -2835,4 +2839,50 @@
 
   /* The box you tick to finish a task. */
   .v2 input[type="checkbox"] { width: 24px; height: 24px; }
+}
+
+/* ── four more screens that the computer design squeezes onto a phone ──── */
+@media (max-width: 900px) {
+  /* feedback.html offers four kinds of report across the width. Four at
+     390px is 85px a column, and the words inside do not fit, so the grid
+     grows past the screen instead. Two by two. */
+  .v2 .p-feedback .d-fb-types { grid-template-columns: 1fr 1fr; }
+
+  /* home-banners.html is an editor beside a 500px live preview — a fixed
+     column, so the card is 500px wide whatever the screen is. Stacked, with
+     the preview under the fields it previews. */
+  .v2 .p-banners .d-hb { grid-template-columns: minmax(0, 1fr); }
+
+  /* The install guide is two columns of steps beside the QR code. */
+  .v2 .p-install .d-ig-cols { grid-template-columns: minmax(0, 1fr); }
+  /* "Add homes.me to your home screen" does not fit on one line at 390px. */
+  .v2 .p-install .d-btn { white-space: normal; height: auto; min-height: 38px; padding: 8px 14px; }
+}
+
+@media (max-width: 900px) {
+  /* tasks.html lays the week out as seven cards across. Seven cards at 390px
+     is 28px of padding each before a single word, so the row cannot shrink
+     and the whole page drags sideways by seven pixels — enough to feel, not
+     enough to see. It scrolls instead, three and a half days at a time. */
+  .v2 .p-tasks .d-week {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .v2 .p-tasks .d-week::-webkit-scrollbar { display: none; }
+  .v2 .p-tasks .d-wd { flex: 0 0 104px; }
+  .v2 .p-tasks .d-week .d-nav { position: sticky; left: 0; background: var(--bg); z-index: 1; }
+}
+
+@media (max-width: 900px) {
+  /* A task row on a computer is time · kind · what it is · who · Open, all on
+     one line. At 390px the fixed 48px and 92px columns leave the title about
+     forty pixels, so every task read "Call …", "Follo…", "Send…". The row
+     wraps: time and kind on the first line, the task itself on the second,
+     and Open stays on the right where the thumb expects it. */
+  .v2 .p-tasks .d-trow { flex-wrap: wrap; row-gap: 2px; padding: 10px; }
+  .v2 .p-tasks .d-trow .d-tx { flex: 1 0 100%; order: 3; min-width: 0; }
+  .v2 .p-tasks .d-trow > .d-btn,
+  .v2 .p-tasks .d-trow > a.d-btn { order: 2; margin-left: auto; }
+  .v2 .p-tasks .d-trow .d-ty { width: auto; }
 }
