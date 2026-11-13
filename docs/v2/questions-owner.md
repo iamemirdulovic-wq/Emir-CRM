@@ -18,7 +18,7 @@ Emir or on a file this slice did not own.
 
 | The design draws | Where | What it would need |
 |---|---|---|
-| **"Oldest waits 75 min" counts a bug report** | Needs you now, hero chip | A blocking bug's wait is counted from `feedback_tickets.created_at`, which is right. Nothing else is missing here — this row works. |
+| **"Absent · alert 10:00"** on the status chip | Team right now | Nothing records when the absence alert fired, or whether one did. The chip reads **Absent**, and the "In" column is a dash. Adding it means the attendance worker writing an `alerted_at` when it tells the managers. |
 | **"Bassam had 30 min · now back in Incoming"** | Needs you now, VIP row | Built, and it reads the real handoff. But when the lead is *still* with the agent past its deadline the row says "still with them" instead, because `vip_handoffs` does not record the bounce separately from the deadline passing. If the five-minute rule is meant to take the lead back automatically, that is a workflow decision, not a screen one. |
 | **A "now" marker that moves between refreshes** | Calls today | The marker is placed once, when the page loads, from the server's Dubai clock. It does not creep across the chart while the screen is open. Nothing is wrong on screen; it is simply not live until the next load. |
 | **"Telegram" in the calls chart** | Calls today | The bars count calls only (`call_logs`). WhatsApp and Telegram are counted in the line beside the number (`message_taps`) but not drawn as their own columns — the design's chart has one series and so does this. |
@@ -92,3 +92,24 @@ where `design/screens/OwnerHome.dc.html` draws one. On the computer the design
 has no greeting in the page body — the top bar carries the name and the date —
 so the page starts on the period switch, and the date is currently nowhere on
 the screen except inside "Live · 14:55".
+
+## 6. Two small honesties
+
+**The brief's stamp says now, not when the brief was written.** The dashboard's
+hero chip reads the Dubai clock at the moment the page loaded. The design reads
+"Wed 11 Nov · 08:30", the time the morning brief was composed. Nothing records
+that: `/api/activity/insight` counts the facts fresh on every call, so there is
+no "written at" to show. Either the insight endpoint starts storing one, or the
+chip keeps saying now.
+
+**The period switch asks the server again.** Picking Week re-reads the whole
+owner home rather than only the three cards that move. It is one request and it
+is honest — the figures are recounted rather than scaled in the browser — but
+it costs a blink. If that blink is annoying in daily use, the calls and
+meetings-and-units cards can be split onto their own small endpoint.
+
+**The owner's home is now about twenty-eight queries in one request.** They run
+in parallel against a pool of ten connections, and each is a cheap indexed
+count, so it lands well inside a second on this data. It is worth watching as
+the lead table grows: the first thing to move would be the hour chart and the
+seven-day trend, which are the only two that scan a range rather than a key.
