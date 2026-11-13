@@ -33,3 +33,9 @@ web/dist-polish*/
 /*.mjs
 web/dist-*/
 docs/v2/phone-proof/.shots*/
+
+# Scratch scripts. Throwaway probes written while chasing one thing down live
+# here rather than in the repository proper: they have no tests, no comments
+# and a hard-coded port, and a committed one is read later as if it were a
+# tool. The real ones have no leading dot.
+scripts/.tmp-*
