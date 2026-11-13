@@ -44,7 +44,7 @@ export const SCREENS = [
   ['notes', 'Notes', '/v2/leads/o-1', 'agent', { click: 'Notes' }],
   ['add-lead', 'AddLead', '/v2/leads/new', 'agent'],
   ['incoming', 'Incoming', '/v2/incoming', 'agent'],
-  ['owner-assign', 'OwnerAssign', '/v2/incoming', 'owner'],
+  ['owner-assign', 'OwnerAssign', '/v2/vip', 'owner'],
   ['calling', 'Dialer', '/v2/calling', 'agent'],
   ['pipeline', 'Pipeline', '/v2/pipeline', 'agent'],
 
@@ -71,8 +71,8 @@ export const SCREENS = [
   ['wall', 'TeamWall', '/v2/wall', 'agent'],
   ['best', 'Leaderboard', '/v2/best', 'agent'],
   ['profile', 'Profile', '/v2/profile', 'agent'],
-  ['personal-info', 'PersonalInfo', '/v2/profile', 'agent'],
-  ['security', 'Security', '/v2/settings', 'agent'],
+  ['personal-info', 'PersonalInfo', '/v2/me', 'agent'],
+  ['security', 'Security', '/v2/settings/security', 'agent'],
   ['card', 'DigitalCard', '/v2/card', 'agent'],
   ['feedback', 'Feedback', '/v2/feedback', 'agent'],
 
@@ -132,7 +132,19 @@ for (const [key, design, route, role, how = {}] of list) {
     const page = await browser.newPage({
       viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: theme,
     });
-    await page.goto(`${BASE}/?as=${role}#${route}`, { waitUntil: 'networkidle' });
+    if (route === '/login') {
+      /*
+       * The preview signs itself in, so /login bounces to the dashboard and
+       * the picture would show the wrong screen entirely. The flag is read
+       * once when the bundle loads, so it has to be set and then reloaded.
+       */
+      await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => localStorage.setItem('emir.previewSignedOut', '1'));
+      await page.goto(`${BASE}/#/login`, { waitUntil: 'domcontentloaded' });
+      await page.reload({ waitUntil: 'networkidle' });
+    } else {
+      await page.goto(`${BASE}/?as=${role}#${route}`, { waitUntil: 'networkidle' });
+    }
     await page.waitForTimeout(900);
     if (how.click) {
       const target = typeof how.click === 'string' && how.click.includes('.')
