@@ -86,11 +86,41 @@ export function V2Activity() {
   const [hidden, setHidden] = useState<string[]>([]);
   const [reviewing, setReviewing] = useState<SessionRow | null>(null);
 
-  const roster = useAsync<{ items: Person[] }>(() => api.get('/api/v2/team'), []);
-  const sessions = useAsync<{ items: SessionRow[] }>(
-    () => api.get('/api/activity/sessions'), [again],
+  /*
+   * An agent is not offered this page and the server refuses them the data —
+   * but a refusal reads `Role "agent" is not allowed to reports:team`, which
+   * is not a sentence to put in front of a sales agent. So the page says who
+   * it is for and asks the server nothing.
+   */
+  const forMe = user ? user.role !== 'agent' : false;
+  const nothing = Promise.resolve({ items: [] });
+
+  const roster = useAsync<{ items: Person[] }>(
+    () => (forMe ? api.get('/api/v2/team') : nothing), [forMe],
   );
-  const live = useAsync<{ items: LiveRow[] }>(() => api.get('/api/activity/team'), [again]);
+  const sessions = useAsync<{ items: SessionRow[] }>(
+    () => (forMe ? api.get('/api/activity/sessions') : nothing), [again, forMe],
+  );
+  const live = useAsync<{ items: LiveRow[] }>(
+    () => (forMe ? api.get('/api/activity/team') : nothing), [again, forMe],
+  );
+
+  if (!forMe) {
+    return (
+      <div className="p-activity">
+        <section className="d-card">
+          <div className="d-empty">
+            <span className="d-ic"><Icon name="shield" size={26} /></span>
+            <b>This page is for the owner and the managers</b>
+            <p>
+              It shows who used the CRM, from where, and anything unusual about a sign-in.
+              Your own hours are on your profile.
+            </p>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (sessions.error || roster.error) return <ErrorNote>{sessions.error ?? roster.error}</ErrorNote>;
   if (!sessions.data || !roster.data) return <Spinner />;
@@ -658,11 +688,18 @@ function workedToday(rows: SessionRow[]): Map<string, Worked> {
   return out;
 }
 
-/** Why somebody has not been seen: what attendance already knows. */
+/**
+ * Why somebody has not been seen, from what attendance already knows.
+ *
+ * Marked in and still not in the CRM is the one worth saying out loud: on
+ * leave explains itself, and no check-in at all is a different question.
+ */
 function why({ person }: { person: Person }): string {
-  if (person.onLeave) return `${person.name.split(' ')[0]} on leave`;
-  if (person.markedToday) return `${person.name.split(' ')[0]} ${person.markedToday}`;
-  return `${person.name.split(' ')[0]} no check-in`;
+  const first = person.name.split(' ')[0];
+  if (person.onLeave) return `${first} on leave`;
+  if (person.markedToday === 'office') return `${first} in the office`;
+  if (person.markedToday === 'outside') return `${first} outside`;
+  return `${first} no check-in`;
 }
 
 /** Exactly one person with this name, or nobody. */

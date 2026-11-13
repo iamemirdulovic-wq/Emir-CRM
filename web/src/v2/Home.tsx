@@ -822,7 +822,9 @@ function OwnerDay({ home }: { home: OwnerHome }) {
 
       <div className="d-bento">
         <Tile to="/v2/leads?tab=new" label="New leads today" n={n.newLeads ?? 0} note="came in today" />
-        <Tile to="/v2/activity" label="Calls today" n={n.calls ?? 0} note={`${n.whatsapp ?? 0} WhatsApp · ${n.telegram ?? 0} Telegram`} />
+        {/* `owner-home.html` sends this one to Team live, which is where the
+            same clicks are broken down by hour and by agent. */}
+        <Tile to="/v2/team-live" label="Calls today" n={n.calls ?? 0} note={`${n.whatsapp ?? 0} WhatsApp · ${n.telegram ?? 0} Telegram`} />
         <Tile to="/v2/calendar" label="Meetings today" n={n.meetings ?? 0} note="in the calendar" />
         <Tile to="/v2/leads?tab=all" label="Units booked today" n={n.unitsBooked ?? 0} note="moved to Won" />
       </div>
@@ -832,7 +834,7 @@ function OwnerDay({ home }: { home: OwnerHome }) {
           note={(n.overdue ?? 0) > 0 ? 'past their time' : 'all on time'} urgent={(n.overdue ?? 0) > 0} />
         <Tile to="/v2/leads?tab=no_next_step" label="No next step" n={n.noNextStep ?? 0}
           note="nobody coming back to them" urgent={(n.noNextStep ?? 0) > 0} />
-        <Link className="d-card d-c-6 d-tile d-click" to="/v2/activity">
+        <Link className="d-card d-c-6 d-tile d-click" to="/v2/dashboard">
           <span className="d-label">The full dashboard</span>
           <div className="d-stat-row"><span className="d-state">Sources, agents, the funnel and the money</span></div>
           <Icon name="arrow-up-right" />

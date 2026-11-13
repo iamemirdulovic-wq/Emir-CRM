@@ -171,8 +171,8 @@ export function V2Email() {
                 {chosen?.is_system === 1 && <span className="d-vip-tag">BUILT IN</span>}
               </div>
               <div className="d-small d-muted d-mt-4">
-                This is what the client gets. The words in brackets are filled in from
-                their record when you send it.
+                This is what the client gets. The highlighted words are filled in from
+                their record, and your phone and photo are added, when you send it.
               </div>
             </div>
             <div className="d-seg d-sm" role="group" aria-label="Width">
@@ -232,11 +232,14 @@ export function V2Email() {
                         : <p key={i}><Filled text={block} known={known} /></p>
                     ))}
 
+                    {/* Name and email only. The CRM builds the real signature
+                        when it sends — phone, photo, BRN — and a job title
+                        invented here would be a job title in a client's
+                        inbox. */}
                     <div className="d-em-sign">
                       <Avatar name={user?.name ?? '?'} size={44} src={user?.photoUrl ?? undefined} />
                       <div>
                         <b>{user?.name ?? 'Your name'}</b>
-                        <span>Property Consultant</span>
                         <span>{user?.email ?? ''}</span>
                       </div>
                     </div>

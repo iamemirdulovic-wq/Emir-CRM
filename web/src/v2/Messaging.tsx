@@ -164,9 +164,10 @@ export function V2Messaging() {
               <span className="d-label">Taps on WhatsApp or Telegram</span>
               <div className="d-stat-row">
                 <b className="d-num-hero">{report.taps.total}</b>
+                {/* The arrow is the sign, so the number is written plain. */}
                 {report.taps.previous > 0 || report.taps.total > 0 ? (
-                  <span className={move >= 0 ? 'd-delta d-up' : 'd-delta'}>
-                    {move >= 0 ? '+' : ''}{move} {against}
+                  <span className={move >= 0 ? 'd-delta d-up' : 'd-delta d-down'}>
+                    {Math.abs(move)} {against}
                   </span>
                 ) : null}
               </div>
@@ -177,7 +178,7 @@ export function V2Messaging() {
             </section>
 
             <section className="d-card">
-              <span className="d-label">Confirmed · the agent said what happened</span>
+              <span className="d-label">Confirmed · the agent answered</span>
               <div className="d-stat-row">
                 <b className="d-num">{report.confirmed}</b>
                 <span className="d-of">{share(report.confirmed, report.taps.total)} of taps</span>

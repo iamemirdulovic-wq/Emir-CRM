@@ -115,12 +115,18 @@ export function V2SettingsDesks() {
     }
   }
 
-  async function setMax(desk: Desk, max: number) {
+  /** @param back the way out, offered on the toast. Undoing offers no undo. */
+  async function saveMax(desk: Desk, max: number, back: number | null) {
     setBusy(desk.id);
     try {
       await api.patch(`/api/v2/desks/${desk.id}`, { maxOpenLeads: max });
-      toast(`${desk.name} · max ${max} open leads per agent`);
       got.reload();
+      toast(
+        `${desk.name} · max ${max} open leads per agent`,
+        back === null
+          ? undefined
+          : { action: { label: 'Undo', onClick: () => void saveMax(desk, back, null) } },
+      );
     } catch (err) {
       toast(err instanceof Error ? err.message : 'That did not save.');
     } finally {
@@ -133,10 +139,23 @@ export function V2SettingsDesks() {
     setBusy(desk.id);
     try {
       await api.del(`/api/v2/desks/${desk.id}`);
-      toast(`${desk.name} deleted. The agents keep their leads.`);
       setConfirming(null);
       setEditing(null);
       got.reload();
+      /* Adding a desk back under the same name brings the same row back, so
+         undo is a real way out rather than a new desk that looks like it. */
+      toast(`${desk.name} deleted. The agents keep their leads.`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void api.post('/api/v2/desks', {
+              name: desk.name,
+              maxOpenLeads: desk.maxOpenLeads,
+              memberIds: desk.members.map((one) => one.userId),
+            }).then(() => got.reload());
+          },
+        },
+      });
     } catch (err) {
       toast(err instanceof Error ? err.message : 'That did not delete.');
     } finally {
@@ -209,7 +228,7 @@ export function V2SettingsDesks() {
               desk={desk}
               busy={busy === desk.id}
               confirming={confirming === desk.id}
-              onMax={(max) => setMax(desk, max)}
+              onMax={(max) => saveMax(desk, max, desk.maxOpenLeads)}
               onEdit={() => setEditing(desk)}
               onDelete={() => remove(desk)}
             />

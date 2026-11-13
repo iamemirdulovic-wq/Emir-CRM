@@ -20,6 +20,8 @@ import {
   previewSeries,
 } from './data.js';
 import { SETTINGS_ROUTES } from './mock-settings.js';
+import { DASHBOARD_ROUTES } from './mock-dashboard.js';
+import { previewLive } from './live.js';
 
 /**
  * Serves the CRM's API from memory so the UI can be demonstrated without a
@@ -1184,6 +1186,7 @@ function previewRules() {
 const ROUTES: Route[] = [
   /* The settings pages' answers live in their own file; see the note there. */
   ...SETTINGS_ROUTES,
+  ...DASHBOARD_ROUTES,
 
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -3732,6 +3735,93 @@ const ROUTES: Route[] = [
     realtimeClients: 3,
   }) },
 
+  /* ── desks (Settings → Desks) ─────────────────────────────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/desks$/, handler: () => previewDesks() },
+  { method: 'POST', pattern: /^\/api\/v2\/desks$/, handler: ({ body }) => {
+    const id = `dk-${DESKS.length + 1}`;
+    DESKS.push({
+      id,
+      name: String(body.name ?? 'New desk'),
+      maxOpenLeads: body.maxOpenLeads === null ? null : Number(body.maxOpenLeads),
+      memberIds: Array.isArray(body.memberIds) ? (body.memberIds as string[]) : [],
+    });
+    return { id };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/v2\/desks\/([^/]+)$/, handler: ({ params, body }) => {
+    const desk = DESKS.find((one) => one.id === params[0]);
+    if (!desk) throw { status: 404, code: 'not_found', message: 'That desk is not there.' };
+    if (body.name !== undefined) desk.name = String(body.name);
+    if (body.maxOpenLeads !== undefined) {
+      desk.maxOpenLeads = body.maxOpenLeads === null ? null : Number(body.maxOpenLeads);
+    }
+    if (Array.isArray(body.memberIds)) desk.memberIds = body.memberIds as string[];
+    return { ok: true };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/v2\/desks\/([^/]+)$/, handler: ({ params }) => {
+    const at = DESKS.findIndex((one) => one.id === params[0]);
+    if (at >= 0) DESKS.splice(at, 1);
+    return { ok: true };
+  } },
+
+  /* ── what the team is doing right now (see `live.ts`) ─────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/live$/, handler: () => previewLive() },
+
+  /* ── the messaging report ─────────────────────────────────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/messaging$/, handler: ({ query }) =>
+    previewTapReport(query.get('period')) },
+  { method: 'POST', pattern: /^\/api\/v2\/messaging\/remind$/, handler: ({ body }) => {
+    const row = TAP_ROWS.find((one) => one[0] === String(body.userId));
+    return { reminded: row ? Number(row[4]) : 1 };
+  } },
+
+  /* ── managing projects ────────────────────────────────────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/projects\/manage$/, handler: () => ({
+    items: LIBRARY_CARDS.map((card, index) => ({
+      ...card,
+      leads: [115, 64, 52, 0][index] ?? 0,
+      brochure: PROJECT_BROCHURES[card.id] ?? null,
+    })),
+  }) },
+  { method: 'POST', pattern: /^\/api\/library$/, handler: ({ body }) => {
+    const id = `p-new-${LIBRARY_CARDS.length + 1}`;
+    LIBRARY_CARDS.push({
+      ...(LIBRARY_CARDS[LIBRARY_CARDS.length - 1] as (typeof LIBRARY_CARDS)[number]),
+      id,
+      slug: String(body.name ?? 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: String(body.name ?? 'New project'),
+      developer: String(body.developer ?? ''),
+      emirate: String(body.emirate ?? 'dubai'),
+      community: body.community === null ? null : String(body.community ?? ''),
+      sale_status: 'coming_soon',
+      starting_price_aed: body.startingPriceAed ? Number(body.startingPriceAed) : null,
+      starred: 0,
+      archived_at: null,
+      units_available: 0,
+      units_total: 0,
+    });
+    return { id };
+  } },
+  { method: 'PATCH', pattern: /^\/api\/library\/([^/]+)$/, handler: ({ params, body }) => {
+    const card = LIBRARY_CARDS.find((one) => one.id === params[0]);
+    if (!card) throw { status: 404, code: 'not_found', message: 'That project does not exist' };
+    if (body.name !== undefined) card.name = String(body.name);
+    if (body.developer !== undefined) card.developer = String(body.developer);
+    if (body.emirate !== undefined) card.emirate = String(body.emirate);
+    if (body.community !== undefined) card.community = body.community === null ? null : String(body.community);
+    if (body.startingPriceAed !== undefined) {
+      card.starting_price_aed = body.startingPriceAed === null ? null : Number(body.startingPriceAed);
+    }
+    if (body.saleStatus !== undefined) {
+      card.sale_status = String(body.saleStatus) as (typeof card)['sale_status'];
+    }
+    return { ok: true };
+  } },
+  { method: 'POST', pattern: /^\/api\/library\/([^/]+)\/archive$/, handler: ({ params, body }) => {
+    const card = LIBRARY_CARDS.find((one) => one.id === params[0]);
+    if (card) card.archived_at = body.archived ? new Date().toISOString() : null;
+    return { ok: true };
+  } },
+
   /*
    * Homes AI, answering from the demo leads.
    *
@@ -3752,7 +3842,10 @@ const ROUTES: Route[] = [
     const answer = /call|first|priority|now|need/.test(asked)
       ? [
         `${open.length} of your leads are open. Call these first:`,
-        ...open.slice(0, 3).map((lead, i) => `- ${name(lead)} · score ${lead.score}${i === 0 ? ' · highest score' : ''}`),
+        /* The id in square brackets is what the real prompt asks the model
+           for (server/src/ai/ask.ts, rule 6), so the screen's link handling
+           is exercised here too. */
+        ...open.slice(0, 3).map((lead, i) => `- ${name(lead)} · score ${lead.score}${i === 0 ? ' · highest score' : ''} [lead:${lead.id}]`),
         'I have not written to any of them. Open the lead and send it yourself.',
       ].join('\n')
       : /cold|next step|forgot|nothing planned/.test(asked)
@@ -4286,3 +4379,132 @@ const WA_TEMPLATE_LIBRARY = [
     validation: { valid: true, issues: [] },
   },
 ];
+
+/* ── desks, the messaging report and the brochures on the manage screen ───
+ *
+ * Added with those three screens. The desks are the ones in
+ * `design/web/desks.html`, mapped onto the preview's five people, and the
+ * loads are chosen so that one agent is over the limit — a screen where
+ * nothing is wrong demonstrates nothing.
+ */
+
+type PreviewDesk = { id: string; name: string; maxOpenLeads: number | null; memberIds: string[] };
+
+const DESKS: PreviewDesk[] = [
+  { id: 'dk-1', name: 'Dubai off-plan', maxOpenLeads: 60, memberIds: ['u-layla', 'u-priya'] },
+  { id: 'dk-2', name: 'Arabic desk', maxOpenLeads: 50, memberIds: ['u-omar', 'u-layla'] },
+  { id: 'dk-3', name: 'Abu Dhabi', maxOpenLeads: 40, memberIds: ['u-yousef'] },
+];
+
+/** Open leads per person. Omar is seven over the Arabic desk's fifty. */
+const DESK_LOAD: Record<string, number> = {
+  'u-layla': 22, 'u-omar': 57, 'u-priya': 18, 'u-yousef': 14,
+};
+
+function deskMember(userId: string) {
+  const person = USERS.find((one) => one.id === userId);
+  return {
+    userId,
+    name: person?.name ?? 'Somebody',
+    photoUrl: null as string | null,
+    openLeads: DESK_LOAD[userId] ?? 10,
+    markedToday: (userId === 'u-priya' ? 'outside' : 'office') as 'office' | 'outside' | null,
+  };
+}
+
+function previewDesks() {
+  const people = USERS.filter((one) => one.role === 'agent' || one.role === 'manager');
+  return {
+    items: DESKS.map((desk) => ({
+      id: desk.id,
+      name: desk.name,
+      maxOpenLeads: desk.maxOpenLeads,
+      members: desk.memberIds.map(deskMember),
+    })),
+    agents: people.map((person) => ({
+      ...deskMember(person.id),
+      languages: person.languages.map((code) => (code === 'ar' ? 'Arabic' : 'English')),
+      deskIds: DESKS.filter((desk) => desk.memberIds.includes(person.id)).map((desk) => desk.id),
+    })),
+  };
+}
+
+/** userId, taps, replied, links opened, no update. */
+const TAP_ROWS: Array<[string, number, number, number, number]> = [
+  ['u-layla', 26, 13, 6, 0],
+  ['u-omar', 10, 4, 3, 2],
+  ['u-priya', 21, 9, 5, 0],
+  ['u-yousef', 15, 6, 3, 1],
+];
+
+function previewTapReport(asked: string | null) {
+  const period = asked === 'week' || asked === 'month' ? asked : 'today';
+  const times = period === 'month' ? 19 : period === 'week' ? 5 : 1;
+  /* "No update" does not grow with the window the way taps do: an agent
+     answers the old ones. */
+  const open = times > 1 ? Math.ceil(times / 3) : 1;
+
+  const agents = TAP_ROWS.map(([userId, taps, replied, links, noUpdate]) => ({
+    userId,
+    name: USERS.find((one) => one.id === userId)?.name ?? 'Somebody',
+    taps: taps * times,
+    confirmed: taps * times - noUpdate * open,
+    replied: replied * times,
+    linksOpened: links * times,
+    noUpdate: noUpdate * open,
+  })).sort((a, b) => b.noUpdate - a.noUpdate || b.taps - a.taps);
+
+  const total = agents.reduce((sum, one) => sum + one.taps, 0);
+  const confirmed = agents.reduce((sum, one) => sum + one.confirmed, 0);
+  const replied = agents.reduce((sum, one) => sum + one.replied, 0);
+  const rest = confirmed - replied;
+
+  const links = { made: 41 * times, opened: 17 * times, opens: 29 * times };
+
+  return {
+    period,
+    days: period === 'month' ? 30 : period === 'week' ? 7 : 1,
+    taps: {
+      total,
+      whatsapp: Math.round(total * 0.79),
+      telegram: total - Math.round(total * 0.79),
+      previous: Math.round(total * 0.88),
+    },
+    confirmed,
+    noUpdate: total - confirmed,
+    replied,
+    answers: {
+      sent: Math.round(rest * 0.54),
+      replied,
+      no_reply: Math.round(rest * 0.24),
+      changed_mind: Math.round(rest * 0.13),
+      wrong_number: Math.round(rest * 0.06),
+      not_sent: rest - Math.round(rest * 0.54) - Math.round(rest * 0.24)
+        - Math.round(rest * 0.13) - Math.round(rest * 0.06),
+    },
+    links,
+    agents,
+    opened: [
+      ['Marco Bellini', 'Brochure · Emaar Beachfront', 'brochure', 2, 'Layla Hassan'],
+      ['Elena Kuznetsova', 'Payment plan · Damac Lagoons', 'payment_plan', 3, 'Priya Nair'],
+      ['Aisha Noor', 'Location · Emaar Beachfront', 'location', 1, 'Layla Hassan'],
+      ['Ivan Petrov', 'Video · Damac Lagoons', 'video', 1, 'Omar Farouk'],
+      ['Daniel Rossi', 'Location · Shams Abu Dhabi', 'location', 1, 'Yousef Karim'],
+    ].map((row, index) => ({
+      linkId: `lk-${index + 1}`,
+      leadId: LEADS[index % LEADS.length]?.id ?? null,
+      client: String(row[0]),
+      label: String(row[1]),
+      kind: String(row[2]),
+      opens: Number(row[3]),
+      lastOpenedAt: ago(37 + index * 26),
+      agentName: String(row[4]),
+    })),
+  };
+}
+
+/** Two of the four projects have a brochure, so both states are on screen. */
+const PROJECT_BROCHURES: Record<string, { id: string; filename: string; byteSize: number }> = {
+  'p-1': { id: 'doc-1', filename: 'Emaar-Beachfront.pdf', byteSize: 12 * 1_048_576 },
+  'p-2': { id: 'doc-2', filename: 'Damac-Lagoons.pdf', byteSize: 9 * 1_048_576 },
+};

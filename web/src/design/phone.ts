@@ -195,3 +195,21 @@ export function countryOfE164(e164: string | null | undefined): Country | null {
    */
   return matches[0] ?? null;
 }
+
+/**
+ * A stored number, grouped the way its country writes it: `+971 50 123 4567`.
+ *
+ * E.164 is what the database holds and it is unreadable at a glance — at the
+ * fifty pixels the dialler sets it at, an unbroken run of digits is also
+ * wider than a phone. The grouping is the one each country already carries
+ * above, so every screen spaces a number the same way. An unknown country
+ * code is returned untouched rather than guessed at.
+ */
+export function spacedE164(e164: string | null | undefined): string | null {
+  if (!e164) return null;
+  const country = countryOfE164(e164);
+  if (!country) return e164;
+  const national = digitsOf(e164).slice(country.dial.length);
+  if (!national) return e164;
+  return `+${country.dial} ${groupNational(national, country.groups)}`;
+}

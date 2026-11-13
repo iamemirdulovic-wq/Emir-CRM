@@ -73,6 +73,8 @@ import { V2FeedbackInbox } from './v2/settings/FeedbackInbox.js';
 import { V2SettingsBanners } from './v2/settings/Banners.js';
 import { V2Feedback } from './v2/Feedback.js';
 import { V2Activity } from './v2/Activity.js';
+import { V2Dashboard } from './v2/Dashboard.js';
+import { V2Live } from './v2/Live.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
@@ -172,6 +174,10 @@ export function App() {
           <Route path="/v2/search" element={<V2Find />} />
           <Route path="/v2/attendance" element={<V2Attendance />} />
           <Route path="/v2/activity" element={<V2Activity />} />
+          <Route path="/v2/dashboard" element={<V2Dashboard />} />
+          {/* Beside Activity in the design's own segmented control. Owner and
+              admin only — the screen refuses, and so does its endpoint. */}
+          <Route path="/v2/team-live" element={<V2Live />} />
           <Route path="/v2/ai" element={<V2Ai />} />
           {/* Settings, as `design/web/settings.html` lays it out: one shell
               with the section list, a panel per page behind it. The office

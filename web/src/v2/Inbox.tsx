@@ -334,6 +334,13 @@ function Thread({
 
   const timeline = useMemo(() => buildTimeline(thread.data), [thread.data]);
 
+  /* What the chosen template actually says. It is in `wa_templates.components`
+     once the templates have been synced from Meta, and missing before that. */
+  const chosenBody = useMemo(
+    () => bodyOf(approved.find((one) => one.name === templateName)),
+    [approved, templateName],
+  );
+
   async function send() {
     const url = `/api/inbox/conversations/${chat.id}/send`;
     setSending(true);
@@ -348,8 +355,8 @@ function Thread({
           kind: 'template',
           templateName,
           templateLanguage: approved.find((one) => one.name === templateName)?.language ?? 'en',
-          /* The template's own blanks, one per line, in order. */
-          bodyParams: draft.split('\n').map((part) => part.trim()).filter(Boolean),
+          /* The template's own blanks, in order, as the agent typed them. */
+          bodyParams: draft.split('|').map((part) => part.trim()).filter(Boolean),
         });
       } else {
         await api.post(url, { channel: 'whatsapp', kind: 'text', text: draft.trim() });
@@ -436,20 +443,27 @@ function Thread({
       </div>
 
       {templateOnly && (
-        <div className="d-ib-compose v2-ib-tpl">
-          <span className="d-chip d-amber d-pip">Window closed</span>
-          <select
-            className="d-select d-sm d-grow"
-            value={templateName}
-            aria-label="Approved template"
-            onChange={(e) => setTemplateName(e.target.value)}
-          >
-            <option value="">Choose an approved template…</option>
-            {approved.map((one) => (
-              <option key={one.id} value={one.name}>{one.name} · {one.language}</option>
-            ))}
-          </select>
-        </div>
+        <>
+          <div className="d-ib-compose v2-ib-tpl">
+            <span className="d-chip d-amber d-pip">Window closed</span>
+            <select
+              className="d-select d-sm d-grow"
+              value={templateName}
+              aria-label="Approved template"
+              onChange={(e) => setTemplateName(e.target.value)}
+            >
+              <option value="">Choose an approved template…</option>
+              {approved.map((one) => (
+                <option key={one.id} value={one.name}>{one.name} · {one.language}</option>
+              ))}
+            </select>
+          </div>
+          {/* The wording, so the agent can see which blank is which before
+              typing them into one line. Meta numbers them {{1}}, {{2}}. */}
+          {chosenBody && (
+            <p className="d-ib-compose v2-ib-tpl-body">{chosenBody}</p>
+          )}
+        </>
       )}
 
       {mode === 'email' && (
@@ -472,7 +486,7 @@ function Thread({
           disabled={sending}
           placeholder={
             templateOnly
-              ? 'The blanks in the template, one per line'
+              ? 'What goes in the blanks, separated by |'
               : mode === 'note'
                 ? 'A note for your team. The client never sees it.'
                 : 'Write a message…'
@@ -701,6 +715,28 @@ function buildTimeline(thread: ThreadResponse | null): Entry[] {
     out.push(row.entry);
   }
   return out;
+}
+
+/** A template's body text, when the sync has brought it down from Meta. */
+function bodyOf(template: TemplateRow | undefined): string | null {
+  if (!template) return null;
+  const raw = (template as TemplateRow & { components?: unknown }).components;
+  const parsed = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string' && raw.trim() !== ''
+      ? safeParse(raw)
+      : null;
+  if (!Array.isArray(parsed)) return null;
+  const body = parsed.find((one) => (one as { type?: string }).type === 'BODY');
+  return (body as { text?: string } | undefined)?.text ?? null;
+}
+
+function safeParse(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 /** Dubai's day, so a message at 01:00 is not filed under yesterday. */

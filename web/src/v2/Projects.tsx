@@ -166,7 +166,10 @@ export function V2Projects() {
         )}
 
         {canManage && (
-          <>
+          /* The two owner buttons move together: six filter chips and a
+             search box leave no room for them on one line, and a single
+             button stranded under the chips reads like a mistake. */
+          <span className="v2-proj-acts">
             <Link className="d-btn d-sm" to="/v2/settings/banners">
               <Icon name="image-up" />Home banners
             </Link>
@@ -175,7 +178,7 @@ export function V2Projects() {
             <Link className="d-btn d-sm" to="/v2/projects/manage">
               <Icon name="pencil" />Manage projects
             </Link>
-          </>
+          </span>
         )}
       </div>
 

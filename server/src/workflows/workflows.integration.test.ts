@@ -16,7 +16,7 @@ import { handleInboundMessage } from '../ingestion/whatsapp-inbound.js';
 import { parseWhatsAppWebhook } from '../ingestion/sources/whatsapp.js';
 import { runWorkflowA, runSlaCheck } from './workflow-a.js';
 import { resetStorm } from '../routing/storm.js';
-import { saveRoutingSettings } from '../routing/settings.js';
+import { routingSettings, saveRoutingSettings } from '../routing/settings.js';
 import { SYSTEM_ACTOR } from '../audit/audit.js';
 import { runWorkflowBStep, shouldContinue } from './workflow-b.js';
 import { runWorkflowC } from './workflow-c.js';
@@ -94,6 +94,20 @@ describeWithDb('workflows (integration)', () => {
     /* These tests are about the five-minute rule, which is off by default
        since 10 Nov, so they switch it on for themselves. */
     await saveRoutingSettings(SYSTEM_ACTOR, { slaEnabled: true });
+    /*
+     * And read it back.
+     *
+     * Two of these tests failed in a full-suite run on 13 Nov and passed on
+     * their own, every time, including the whole file on its own. Settings sit
+     * behind a thirty-second cache, so the suspect is a stale read: if the rule
+     * is off when a test asks, nothing is armed and nothing is bounced, and the
+     * failure lands as "expected true to be false" a hundred lines away from
+     * the cause. This turns that into a line that names it.
+     */
+    expect(
+      (await routingSettings()).slaEnabled,
+      'the five-minute rule did not read back as on; the settings cache is stale',
+    ).toBe(true);
     setWhatsAppAdapterForTesting(new LogAdapter());
     /*
      * The storm guard counts bounces in a 60-second window and is module

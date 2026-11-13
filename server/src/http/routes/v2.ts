@@ -55,6 +55,10 @@ import {
   TRANSFER_REASONS, whoCouldTakeIt,
 } from '../../v2/transfers.js';
 import { messagingReport, openQuestions, PERIODS, type Period } from '../../v2/messaging.js';
+import {
+  fullDashboard, movePool, PERIODS as DASH_PERIODS, type Period as DashPeriod,
+} from '../../v2/dashboard.js';
+import { teamLive } from '../../v2/live.js';
 import { createDesk, deleteDesk, listDesks, updateDesk } from '../../v2/desks.js';
 import { notify } from '../../messaging/notify.js';
 import { listLibrary } from '../../services/project-library.js';
@@ -914,6 +918,23 @@ v2Router.delete(
   }),
 );
 
+/* ── what the team is doing right now ──────────────────────────────────── */
+
+/**
+ * Today's clicks, by hour and by agent.
+ *
+ * `design/web/team-live.html`. Owner and admin only, and said twice: the role
+ * is checked here, and the figures are fenced inside the service by the
+ * session's own visibility, so neither half alone can leak a colleague's day.
+ */
+v2Router.get(
+  '/live',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await teamLive(currentUser(req)));
+  }),
+);
+
 /* ── from tap to reply ─────────────────────────────────────────────────── */
 
 /**
@@ -930,6 +951,39 @@ v2Router.get(
     const asked = String(req.query.period ?? 'today');
     const period = (PERIODS as readonly string[]).includes(asked) ? (asked as Period) : 'today';
     res.json(await messagingReport(currentUser(req), period));
+  }),
+);
+
+/*
+ * The full dashboard — `design/web/dashboard.html`, page 32.
+ *
+ * Owner and admin only, as the design marks it: the page shows every agent's
+ * numbers side by side and the whole company's money, and a manager's own
+ * team view is `/v2/team`. An unknown period reads as today rather than
+ * failing, because the only way to send one is to type it into the address.
+ */
+v2Router.get(
+  '/dashboard',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const asked = String(req.query.period ?? 'today');
+    const period = (DASH_PERIODS as readonly string[]).includes(asked)
+      ? (asked as DashPeriod) : 'today';
+    res.json(await fullDashboard(currentUser(req), period));
+  }),
+);
+
+/*
+ * "Move 31" on the Going cold card: every open lead of one agent goes back to
+ * Incoming, for the owner to give out again. Nobody new is chosen here — see
+ * `movePool`. Owner and admin only, audited by the bulk machinery it calls.
+ */
+v2Router.post(
+  '/dashboard/move',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({ userId: z.string().min(1).max(36) }).parse(req.body);
+    res.json(await movePool(actorFrom(req), body.userId));
   }),
 );
 

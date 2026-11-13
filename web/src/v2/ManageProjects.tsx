@@ -88,9 +88,11 @@ export function V2ManageProjects() {
     hidden: rows.filter((one) => whoSees(one) === 'hidden').length,
   };
 
-  async function setWho(row: Row, next: Who) {
+  async function setWho(row: Row, next: Who, offerUndo = true) {
     if (whoSees(row) === next) return;
-    if (next === 'hidden' && row.leads > 0 && armed !== row.id) {
+    /* Undoing back to Hidden does not ask again: the owner has just been
+       told what hiding does, and said so twice. */
+    if (next === 'hidden' && row.leads > 0 && armed !== row.id && offerUndo) {
       setArmed(row.id);
       toast(
         `Press “Hidden” again to hide ${row.name}. Agents will not see it. `
@@ -101,6 +103,7 @@ export function V2ManageProjects() {
     }
     setArmed(null);
     setBusy(row.id);
+    const before = whoSees(row);
     try {
       /* Two different writes behind three buttons: coming back from Hidden
          un-archives first, then sets the status the owner asked for. */
@@ -111,12 +114,22 @@ export function V2ManageProjects() {
         await api.patch(`/api/library/${row.id}`, { saleStatus: next });
       }
       const said = WHO.find((one) => one.key === next);
+      got.reload();
       toast(
         next === 'selling_now' && !row.brochure
           ? `${row.name} is now “Selling now” · agents see it, but there is no brochure yet.`
           : `${row.name} is now “${said?.label}” · ${said?.says}`,
+        offerUndo
+          ? {
+            action: {
+              label: 'Undo',
+              /* The row in hand still says what it was, so undo reads the
+                 old state rather than whatever has been reloaded since. */
+              onClick: () => void setWho({ ...row, archived_at: next === 'hidden' ? 'x' : null }, before, false),
+            },
+          }
+          : undefined,
       );
-      got.reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'That did not save.');
     } finally {
@@ -354,10 +367,13 @@ function Brochure({
               href={`/api/library/documents/${row.brochure.id}`}
               target="_blank"
               rel="noreferrer"
+              title={row.brochure.filename}
             >
               <Icon name="file-text" />PDF
-            </a>{' '}
-            <span className="d-t-sub">{megabytes(row.brochure.byteSize)}</span>
+            </a>
+            {/* Under the chip, not beside it: on the line it pushes the two
+                buttons at the end of the row off a 1440 screen. */}
+            <div className="d-t-sub">{megabytes(row.brochure.byteSize)}</div>
           </>
         )
         : (

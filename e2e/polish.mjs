@@ -95,6 +95,7 @@ const ROUTES = [
   ['/v2/card', 'v2-card'],
   ['/v2/messaging', 'v2-messaging'],
   ['/v2/projects/manage', 'v2-manage-projects'],
+  ['/v2/dashboard', 'v2-dashboard'],
   ['/v2/feedback', 'v2-feedback'],
   ['/v2/settings/feedback', 'v2-settings-feedback'],
   ['/v2/settings/banners', 'v2-settings-banners'],

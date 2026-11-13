@@ -116,53 +116,62 @@ export function useCheckIn(): { ask: () => Promise<GateAnswer>; banner: ReactNod
       {saying && <p className="v2-gate-said">{saying}</p>}
 
       {asking && (
-        <div className="v2-scrim" role="dialog" aria-modal="true" aria-label="You are not checked in yet">
-          <div className="v2-dialog">
-            <h2>You&apos;re not checked in yet</h2>
-            <p>
-              Checking in takes one tap and only works on the office Wi-Fi.
-              You can call either way.
-            </p>
-            {where === null ? (
-              <div className="v2-dialog-acts">
-                <button type="button" className="d-btn d-primary" onClick={() => answer('checked_in')}>
-                  <Icon name="check" />Check in now and call
-                </button>
-                <button type="button" className="d-btn" onClick={() => setWhere('')}>
-                  <Icon name="pin" />I&apos;m working outside
-                </button>
-                <button type="button" className="d-btn d-ghost" onClick={() => answer('anyway')}>
-                  Call anyway
-                </button>
+        <>
+          <div className="d-scrim d-show" aria-hidden />
+          <div className="d-dialog d-open d-sm" role="dialog" aria-modal="true" aria-label="You are not checked in yet">
+            <div className="d-dialog-head">
+              <div className="d-grow">
+                <h3>You&apos;re not checked in yet</h3>
+                <p>
+                  Checking in takes one tap and only works on the office Wi-Fi.
+                  You can call either way.
+                </p>
               </div>
-            ) : (
-              <form
-                className="v2-dialog-acts v2-dialog-form"
-                onSubmit={(e) => { e.preventDefault(); if (where.trim()) void answer('outside'); }}
-              >
-                <label className="v2-field v2-field-wide">
-                  <span>Where are you?</span>
-                  <input
-                    className="d-input"
-                    value={where}
-                    autoFocus
-                    placeholder="Emaar sales centre, with a client…"
-                    onChange={(e) => setWhere(e.target.value)}
-                  />
-                </label>
-                <button type="submit" className="d-btn d-primary" disabled={!where.trim()}>
-                  Save and call
-                </button>
-                <button type="button" className="d-btn d-ghost" onClick={() => setWhere(null)}>
-                  Back
-                </button>
-              </form>
-            )}
-            <p className="d-small d-muted">
-              “Call anyway” marks this call <b>not checked in</b>.
-            </p>
+            </div>
+
+            <div className="d-dialog-body">
+              {where === null ? (
+                <div className="d-col d-gap-8">
+                  <button type="button" className="d-btn d-primary d-block" onClick={() => answer('checked_in')}>
+                    <Icon name="check" size={15} />Check in now and call
+                  </button>
+                  <button type="button" className="d-btn d-block" onClick={() => setWhere('')}>
+                    <Icon name="pin" size={15} />I&apos;m working outside
+                  </button>
+                  <button type="button" className="d-btn d-ghost d-block" onClick={() => answer('anyway')}>
+                    Call anyway
+                  </button>
+                </div>
+              ) : (
+                <form
+                  className="d-col d-gap-8"
+                  onSubmit={(e) => { e.preventDefault(); if (where.trim()) void answer('outside'); }}
+                >
+                  <div className="d-field">
+                    <label htmlFor="v2-gate-where">Where are you?</label>
+                    <input
+                      id="v2-gate-where"
+                      className="d-input"
+                      value={where}
+                      autoFocus
+                      placeholder="Emaar sales centre, with a client…"
+                      onChange={(e) => setWhere(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="d-btn d-primary d-block" disabled={!where.trim()}>
+                    Save and call
+                  </button>
+                  <button type="button" className="d-btn d-ghost d-block" onClick={() => setWhere(null)}>
+                    Back
+                  </button>
+                </form>
+              )}
+              <p className="d-small d-muted">
+                “Call anyway” marks this call <b>not checked in</b>.
+              </p>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );

@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar } from '../design/ui.js';
 import type { Role } from '../lib/types.js';
-import { groupsFor, pinnedFor } from './nav.js';
+import { extraScreensFor, groupsFor, pinnedFor } from './nav.js';
 
 /**
  * One search across everything: the palette, and the page behind it.
@@ -38,6 +38,8 @@ type Kind = 'lead' | 'project' | 'screen';
 interface Hit extends SearchHit {
   kind: Kind;
   icon?: IconName;
+  /** Other words somebody might type looking for this screen. */
+  words?: string;
 }
 
 const RECENT_KEY = 'homes.v2.recent-searches';
@@ -55,9 +57,35 @@ function where(to: string): string {
   return to.startsWith('/v2') ? to : `/v2${to}`;
 }
 
+/**
+ * Screens a person can reach that are not in their menu.
+ *
+ * The design's palette offers "Team live" to an owner (`design/web/app.js`)
+ * although the sidebar does not, because it is reached from the dashboard and
+ * from the Activity report. Anything added here must be a screen the role can
+ * actually open, or the palette offers a door that is locked.
+ */
+/*
+ * The list itself lives in `nav.ts`, beside the menu it is the complement of,
+ * so the two cannot drift: a screen added to one file and not the other is
+ * either unreachable or offered to somebody who may not open it. `words` are
+ * the other things a person might type looking for that screen.
+ */
+function offMenu(role: Role): Hit[] {
+  return extraScreensFor(role).map((one) => ({
+    id: `extra:${one.to}:${one.label}`,
+    label: one.label,
+    hint: 'Screen',
+    to: one.to,
+    kind: 'screen' as const,
+    icon: one.icon,
+    words: one.words,
+  }));
+}
+
 /** Everything in this person's own menu, searchable by name. */
 function screensFor(role: Role): Hit[] {
-  const out: Hit[] = [];
+  const out: Hit[] = [...offMenu(role)];
   for (const group of groupsFor(role)) {
     for (const item of group.items) {
       if (item.later) continue;
@@ -91,7 +119,10 @@ function useHits(term: string, role: Role, live: boolean): { hits: Hit[]; lookin
     const words = term.trim().toLowerCase();
     if (!live || words.length < 2) { setFound([]); setLooking(false); return undefined; }
 
-    const hereAndNow = screens.filter((one) => one.label.toLowerCase().includes(words));
+    const hereAndNow = screens.filter(
+      (one) => one.label.toLowerCase().includes(words)
+        || (one.words ?? '').includes(words),
+    );
 
     /* A keystroke is not a question. Waiting a moment turns "ahmed" into one
        request instead of five. */

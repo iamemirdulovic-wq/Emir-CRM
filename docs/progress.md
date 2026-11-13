@@ -94,3 +94,42 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   late.
 - **Not done.** Changing or deleting a task from the row menu.
 - **Failed.** Nothing.
+
+## The full dashboard, and the screens that had no door · 13 Nov
+
+- **Done.** `design/web/dashboard.html` had never been built — 47 design pages
+  and this was the missing one. It is at `/v2/dashboard` now, owner and admin
+  only, fed by one new endpoint (`GET /api/v2/dashboard?period=`) with six
+  tests behind it: totals, the stage strip with Lost kept apart, fourteen days
+  of new leads, projects, sources, the whole team in one table, and the leads
+  going cold with a Move button that sends one agent's open leads back to
+  Incoming.
+- **Not done.** The design's hero is headed "Homes AI · Morning brief" over a
+  written sentence. What the server has is counted facts, so the card says
+  "Counted from your own data" — its own words — and shows them. No machine
+  opinion is dressed up as one.
+- **Failed.** Nothing.
+
+## Follow-ups, and the command palette · 13 Nov
+
+- **Done.** The sidebar's Follow-ups row now opens the Tasks page's second tab,
+  which is where the design puts it (`tasks.html#follow-ups`). Which tab is
+  open lives in the address, so the sidebar can tell which of the two rows
+  pointing at `/v2/tasks` to light — React Router cannot, it matches on the
+  path alone. `EXTRA_SCREENS` in `nav.ts` is the design's palette list: the
+  business card, system health, the install guide, Team live, the full
+  dashboard and sixteen more, none of which is in any menu. Search finds them
+  now, by name or by the words somebody would actually type.
+- **Not done.** Nothing left on this.
+- **Failed.** Nothing.
+
+## Two tests that only fail in company · 13 Nov
+
+- **Done.** Found them: both in `src/workflows/workflows.integration.test.ts`,
+  about the five-minute rule. Added a read-back check in that file's setup so
+  the next full run names the cause instead of failing a hundred lines later.
+- **Not done.** The cause itself. Both tests pass on their own, the whole file
+  passes on its own (32 of 32), and they fail only inside a full-suite run —
+  so it is state leaking between files, not a bug in what they test.
+- **Failed.** Three attempts at the cause, which is the limit agreed. Written
+  down here and moved on.

@@ -346,17 +346,18 @@ function Colleague({ one, onClose }: { one: Person; onClose: () => void }) {
             </div>
           </div>
 
-          {/* Four figures, from the same endpoint the person's own page reads.
-              The design's fifth block — deals month by month — has nothing
-              behind it, so it is left out rather than drawn empty. */}
+          {/* The design's figures, from the same endpoint the person's own page
+              reads. Two things are not here: how many leads a colleague is
+              holding, unless the team endpoint sent it — an agent is not shown
+              that, and this panel is not the way round it — and the design's
+              six-month bar chart, which nothing behind the screen can fill. */}
           {stats && (
-            <div className="d-stats4">
+            <div className={one.openLeads === null ? 'd-stats4 v2-stats-3' : 'd-stats4'}>
               <div><b>{stats.dealsWon ?? 0}</b><span>Deals won</span></div>
               <div><b>{stats.appointments ?? 0}</b><span>Viewings booked</span></div>
-              <div>
-                <b>{one.openLeads ?? stats.leadsWorking ?? 0}</b>
-                <span>Open leads</span>
-              </div>
+              {one.openLeads !== null && (
+                <div><b>{one.openLeads}</b><span>Open leads</span></div>
+              )}
               <div><b>{replyTime(stats.speedToLeadSeconds)}</b><span>Usual reply</span></div>
             </div>
           )}

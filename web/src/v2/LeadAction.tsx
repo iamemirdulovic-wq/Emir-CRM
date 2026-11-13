@@ -3,16 +3,16 @@ import { api } from '../lib/api.js';
 import { Icon } from '../design/index.js';
 
 /**
- * The four buttons that change where a lead stands.
+ * The four things that change where a lead stands.
+ *
+ * Each is a dialog, exactly as `design/web/lead.html` draws it: a follow-up
+ * asks when and how, a meeting asks what kind, when and where, Won asks what
+ * they bought and then asks again, and Lost asks why. The design's own
+ * `dialog` / `field` / `chips` / `seg` classes, over the design's scrim.
  *
  * They all go through `/api/my-leads/:id/action` — the same endpoint the live
  * CRM's lead page uses — so a lead moved here and a lead moved there mean the
  * same thing in every report afterwards.
- *
- * Each one asks for exactly what the business rule needs and nothing else:
- * a follow-up needs a time, a meeting needs a time and a place, Lost needs a
- * reason, and Won asks twice because it is the one nobody wants to press by
- * accident.
  */
 
 export type LeadActionKind = 'follow_up' | 'meeting' | 'won' | 'lost';
@@ -26,55 +26,89 @@ const LOST_REASONS = [
   { key: 'other', label: 'Something else' },
 ];
 
-const SOON = [
-  { minutes: 120, label: 'In 2 hours' },
-  { minutes: 24 * 60, label: 'Tomorrow' },
-  { minutes: 3 * 24 * 60, label: 'In 3 days' },
-  { minutes: 7 * 24 * 60, label: 'Next week' },
-];
+/** The design's four when-chips, and what each one means in real time. */
+const WHEN = [
+  { key: 'hour', label: 'In 1 hour' },
+  { key: 'tonight', label: 'Tonight 19:00' },
+  { key: 'tomorrow', label: 'Tomorrow 11:00' },
+  { key: 'pick', label: 'Pick date & time' },
+] as const;
 
-export function LeadAction({ kind, opportunityId, onDone, onCancel }: {
+type WhenKey = (typeof WHEN)[number]['key'];
+
+const HOW = [
+  { key: 'call', label: 'Call' },
+  { key: 'whatsapp', label: 'WhatsApp' },
+  { key: 'email', label: 'Email' },
+] as const;
+
+/** Meeting kinds, and the place each one usually means. */
+const MEETINGS = [
+  { key: 'office', label: 'Office meeting', where: 'Our office' },
+  { key: 'site_visit', label: 'Site visit', where: 'The project sales centre' },
+  { key: 'show_flat', label: 'Show flat', where: 'The show flat' },
+  { key: 'video', label: 'Video call', where: 'Online' },
+] as const;
+
+export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
   kind: LeadActionKind;
   opportunityId: string;
+  who?: string | null;
   onDone: (said: string) => void;
   onCancel: () => void;
 }) {
-  const [at, setAt] = useState(() => toLocalInput(roundUp(new Date(Date.now() + 2 * 3_600_000))));
-  const [note, setNote] = useState('');
-  const [where, setWhere] = useState('');
+  const [when, setWhen] = useState<WhenKey>('tomorrow');
+  const [at, setAt] = useState(() => toLocalInput(atHour(1, 11)));
+  const [how, setHow] = useState<'call' | 'whatsapp' | 'email'>('call');
+  const [about, setAbout] = useState('');
+  const [meeting, setMeeting] = useState<string>('office');
+  const [where, setWhere] = useState('Our office');
   const [reason, setReason] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [project, setProject] = useState('');
   const [unit, setUnit] = useState('');
   const [sure, setSure] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
 
-  const ready = kind === 'lost' ? reason !== null
-    : kind === 'won' ? sure
-      : at.length > 0;
+  const picked = when === 'pick' ? new Date(at) : whenMeans(when);
+  const timeIsPast = Number.isNaN(picked.getTime()) || picked.getTime() <= Date.now();
+
+  const ready = kind === 'lost' ? reason !== null && (reason !== 'other' || note.trim().length >= 5)
+    : kind === 'won' ? sure && unit.trim() !== ''
+      : kind === 'meeting' ? !timeIsPast && where.trim() !== ''
+        : !timeIsPast && about.trim() !== '';
 
   async function go() {
+    setShown(true);
     if (!ready) return;
     setBusy(true);
     setProblem(null);
     try {
-      const body: Record<string, unknown> = { note: note.trim() || null };
+      const body: Record<string, unknown> = {};
 
       if (kind === 'follow_up') {
         body.action = 'call_back';
-        body.nextStep = { type: 'call', at: new Date(at).toISOString(), note: note.trim() || null };
+        body.note = about.trim() || null;
+        body.nextStep = { type: how, at: picked.toISOString(), note: about.trim() || null };
       } else if (kind === 'meeting') {
+        const label = MEETINGS.find((one) => one.key === meeting)?.label ?? 'Meeting';
         body.action = 'meeting';
-        body.meetingAt = new Date(at).toISOString();
+        body.note = note.trim() || null;
+        body.meetingAt = picked.toISOString();
+        body.meetingKind = label;
         body.meetingWhere = where.trim() || null;
-        body.nextStep = { type: 'meeting', at: new Date(at).toISOString(), note: where.trim() || null };
+        body.nextStep = { type: 'meeting', at: picked.toISOString(), note: `${label} · ${where.trim()}` };
       } else if (kind === 'won') {
         body.action = 'won';
+        body.note = note.trim() || null;
         body.wonProject = project.trim() || null;
         body.wonUnit = unit.trim() || null;
       } else {
         body.action = 'lost';
         body.reason = reason;
+        body.note = note.trim() || null;
       }
 
       const result = await api.post<{ said: string }>(
@@ -87,13 +121,12 @@ export function LeadAction({ kind, opportunityId, onDone, onCancel }: {
        * without the other is how a booked viewing gets missed.
        */
       if (kind === 'meeting') {
-        const starts = new Date(at);
         await api.post('/api/v2/meetings', {
           opportunityId,
           kind: 'meeting',
           title: where.trim() || null,
-          startsAt: starts.toISOString(),
-          endsAt: new Date(starts.getTime() + 3_600_000).toISOString(),
+          startsAt: picked.toISOString(),
+          endsAt: new Date(picked.getTime() + 3_600_000).toISOString(),
           place: where.trim() || null,
         }).catch(() => undefined);
       }
@@ -106,109 +139,265 @@ export function LeadAction({ kind, opportunityId, onDone, onCancel }: {
     }
   }
 
+  const bad = (test: boolean) => (shown && test ? 'd-field d-invalid' : 'd-field');
+
   return (
-    <section className="v2-card v2-action">
-      <div className="v2-action-head">
-        <h2 className="v2-card-t">{TITLE[kind]}</h2>
-        <button type="button" className="d-card-link" onClick={onCancel}>Not now</button>
-      </div>
-
-      {(kind === 'follow_up' || kind === 'meeting') && (
-        <>
-          <div className="v2-chips">
-            {SOON.map((one) => (
-              <button key={one.minutes} type="button" className="v2-chip-opt"
-                onClick={() => setAt(toLocalInput(roundUp(new Date(Date.now() + one.minutes * 60_000))))}>
-                {one.label}
-              </button>
-            ))}
-          </div>
-          <label className="v2-field v2-field-wide">
-            <span>When</span>
-            <input className="d-input" type="datetime-local" value={at}
-              min={toLocalInput(new Date())} onChange={(e) => setAt(e.target.value)} />
-          </label>
-        </>
-      )}
-
-      {kind === 'meeting' && (
-        <label className="v2-field v2-field-wide">
-          <span>Where</span>
-          <input className="d-input" value={where} placeholder="Emaar sales centre, or our office"
-            onChange={(e) => setWhere(e.target.value)} />
-        </label>
-      )}
-
-      {kind === 'won' && (
-        <>
-          <div className="v2-two">
-            <label className="v2-field v2-field-wide">
-              <span>Project</span>
-              <input className="d-input" value={project} onChange={(e) => setProject(e.target.value)} />
-            </label>
-            <label className="v2-field v2-field-wide">
-              <span>Unit</span>
-              <input className="d-input" value={unit} placeholder="1204" onChange={(e) => setUnit(e.target.value)} />
-            </label>
-          </div>
-          <label className="v2-switch">
-            <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
-            <span>Yes — they bought it.</span>
-          </label>
-        </>
-      )}
-
-      {kind === 'lost' && (
-        <>
-          <span className="v2-field-label">Why? *</span>
-          <div className="v2-chips">
-            {LOST_REASONS.map((one) => (
-              <button key={one.key} type="button"
-                className={reason === one.key ? 'v2-chip-opt v2-chip-opt-on' : 'v2-chip-opt'}
-                onClick={() => setReason(one.key)}>{one.label}</button>
-            ))}
-          </div>
-          <p className="d-small d-muted">
-            It moves to Lost with the reason you give. You can reopen it later.
-          </p>
-        </>
-      )}
-
-      {kind !== 'lost' && (
-        <label className="v2-field v2-field-wide">
-          <span>Note</span>
-          <input className="d-input" value={note} placeholder="Anything worth remembering"
-            onChange={(e) => setNote(e.target.value)} />
-        </label>
-      )}
-
-      {problem && <p className="v2-problem">{problem}</p>}
-
-      <button
-        type="button"
-        className={kind === 'lost' ? 'd-btn d-danger d-solid' : 'd-btn d-primary'}
-        disabled={!ready || busy}
-        onClick={go}
+    <>
+      <div className="d-scrim d-show" onClick={onCancel} aria-hidden />
+      <div
+        className={kind === 'won' ? 'd-dialog d-open d-lg' : 'd-dialog d-open'}
+        role="dialog"
+        aria-label={TITLE[kind]}
       >
-        {busy ? 'Saving…' : DO[kind]}
-      </button>
-    </section>
+        <div className="d-dialog-head">
+          <div className="d-grow">
+            <h3>{TITLE[kind]}</h3>
+            <p>{who ?? 'This lead'} · {SUB[kind]}</p>
+          </div>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onCancel}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        <div className="d-dialog-body">
+          {kind === 'meeting' && (
+            <div className="d-field">
+              <span className="d-field-label">Type</span>
+              <div className="d-chips">
+                {MEETINGS.map((one) => (
+                  <button
+                    key={one.key}
+                    type="button"
+                    className={meeting === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                    onClick={() => { setMeeting(one.key); setWhere(one.where); }}
+                  >
+                    {one.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(kind === 'follow_up' || kind === 'meeting') && (
+            <div className={bad(timeIsPast)}>
+              <span className="d-field-label">When <span className="d-t-accent">*</span></span>
+              <div className="d-chips">
+                {WHEN.map((one) => (
+                  <button
+                    key={one.key}
+                    type="button"
+                    className={when === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                    onClick={() => {
+                      setWhen(one.key);
+                      if (one.key !== 'pick') setAt(toLocalInput(whenMeans(one.key)));
+                    }}
+                  >
+                    {one.label}
+                  </button>
+                ))}
+              </div>
+              {when === 'pick' && (
+                <input
+                  className="d-input d-mt-4"
+                  type="datetime-local"
+                  value={at}
+                  min={toLocalInput(new Date())}
+                  aria-label="Date and time"
+                  onChange={(e) => setAt(e.target.value)}
+                />
+              )}
+              <span className="d-error">This time is in the past. Pick a later one.</span>
+            </div>
+          )}
+
+          {kind === 'follow_up' && (
+            <>
+              <div className="d-field">
+                <span className="d-field-label">How</span>
+                <div className="d-seg">
+                  {HOW.map((one) => (
+                    <button
+                      key={one.key}
+                      type="button"
+                      className={how === one.key ? 'd-on' : undefined}
+                      onClick={() => setHow(one.key)}
+                    >
+                      {one.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={bad(about.trim() === '')}>
+                <label htmlFor="fu-about">What about <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  id="fu-about"
+                  value={about}
+                  placeholder="Payment plan, answer from his partner…"
+                  onChange={(e) => setAbout(e.target.value)}
+                />
+                <span className="d-error">Write what the follow-up is about.</span>
+              </div>
+            </>
+          )}
+
+          {kind === 'meeting' && (
+            <>
+              <div className={bad(where.trim() === '')}>
+                <label htmlFor="meet-where">Where <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  id="meet-where"
+                  value={where}
+                  onChange={(e) => setWhere(e.target.value)}
+                />
+                <span className="d-error">Write where you meet.</span>
+              </div>
+              <div className="d-banner">
+                <Icon name="calendar-days" />
+                <span className="d-grow">
+                  The stage becomes Meeting, and it goes in your calendar with a reminder.
+                </span>
+              </div>
+            </>
+          )}
+
+          {kind === 'won' && (
+            <>
+              <div className="d-form-grid">
+                <div className="d-field">
+                  <label htmlFor="won-project">Project</label>
+                  <input
+                    className="d-input"
+                    id="won-project"
+                    value={project}
+                    placeholder="The Archive"
+                    onChange={(e) => setProject(e.target.value)}
+                  />
+                </div>
+                <div className={bad(unit.trim() === '')}>
+                  <label htmlFor="won-unit">Unit <span className="d-req">*</span></label>
+                  <input
+                    className="d-input"
+                    id="won-unit"
+                    value={unit}
+                    placeholder="2BR · unit 1204"
+                    onChange={(e) => setUnit(e.target.value)}
+                  />
+                  <span className="d-error">Write the unit.</span>
+                </div>
+                <div className="d-field d-full">
+                  <label htmlFor="won-note">Anything worth remembering</label>
+                  <input
+                    className="d-input"
+                    id="won-note"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                </div>
+              </div>
+              <label className="d-check">
+                <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
+                Yes — they bought it.
+              </label>
+            </>
+          )}
+
+          {kind === 'lost' && (
+            <>
+              <div className={bad(reason === null)}>
+                <span className="d-field-label">Why? <span className="d-t-accent">*</span></span>
+                <div className="d-chips">
+                  {LOST_REASONS.map((one) => (
+                    <button
+                      key={one.key}
+                      type="button"
+                      className={reason === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                      onClick={() => setReason(one.key)}
+                    >
+                      {one.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="d-error">Choose a reason first.</span>
+              </div>
+              <div className={bad(reason === 'other' && note.trim().length < 5)}>
+                <label htmlFor="lost-note">
+                  Note{' '}
+                  <span className="d-muted">
+                    {reason === 'other' ? '· needed for “Something else”' : '· optional'}
+                  </span>
+                </label>
+                <textarea
+                  className="d-textarea v2-leadact-note"
+                  id="lost-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+                <span className="d-error">With “Something else”, write at least 5 letters.</span>
+              </div>
+            </>
+          )}
+
+          {problem && <div className="d-banner d-red"><span className="d-grow">{problem}</span></div>}
+        </div>
+
+        <div className="d-dialog-foot">
+          {kind === 'won' && (
+            <span className="d-small d-muted d-grow">The stage becomes Won. Owners see the deal at once.</span>
+          )}
+          <button type="button" className="d-btn d-ghost" onClick={onCancel}>Cancel</button>
+          <button
+            type="button"
+            className={kind === 'lost' ? 'd-btn d-danger d-solid' : 'd-btn d-primary'}
+            disabled={busy}
+            onClick={go}
+          >
+            {busy ? 'Saving…' : DO[kind]}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 
 const TITLE: Record<LeadActionKind, string> = {
-  follow_up: 'When will you come back to them?',
-  meeting: 'Book the meeting',
-  won: 'They bought',
-  lost: 'Close this lead',
+  follow_up: 'Plan a follow-up',
+  meeting: 'Book a meeting',
+  won: 'They booked a unit',
+  lost: 'Why is this lead lost?',
+};
+
+const SUB: Record<LeadActionKind, string> = {
+  follow_up: 'it becomes the next step on this lead',
+  meeting: 'the stage becomes Meeting',
+  won: 'fill the deal in',
+  lost: 'choose one reason, and the lead leaves your open list',
 };
 
 const DO: Record<LeadActionKind, string> = {
-  follow_up: 'Set the follow-up',
-  meeting: 'Book it',
-  won: 'Mark it Won',
-  lost: 'Mark it Lost',
+  follow_up: 'Save follow-up',
+  meeting: 'Save meeting',
+  won: 'Save as Won',
+  lost: 'Mark as lost',
 };
+
+/** What each when-chip means, in real time. */
+function whenMeans(key: WhenKey): Date {
+  if (key === 'hour') return roundUp(new Date(Date.now() + 3_600_000));
+  if (key === 'tonight') return atHour(0, 19);
+  if (key === 'tomorrow') return atHour(1, 11);
+  return roundUp(new Date(Date.now() + 3_600_000));
+}
+
+/** `days` from now at `hour` o'clock — rolled forward if that is already past. */
+function atHour(days: number, hour: number): Date {
+  const out = new Date();
+  out.setDate(out.getDate() + days);
+  out.setHours(hour, 0, 0, 0);
+  if (out.getTime() <= Date.now()) out.setDate(out.getDate() + 1);
+  return out;
+}
 
 /** The next whole hour, because nobody plans a call for 14:37. */
 function roundUp(at: Date): Date {
@@ -223,22 +412,4 @@ function toLocalInput(when: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`
     + `T${pad(when.getHours())}:${pad(when.getMinutes())}`;
-}
-
-/** The icon on each of the four buttons. */
-export const ACTION_ICON: Record<LeadActionKind, string> = {
-  follow_up: 'calendar-check',
-  meeting: 'calendar-days',
-  won: 'trophy',
-  lost: 'x',
-};
-
-export function ActionButton({ kind, label, onClick }: {
-  kind: LeadActionKind; label: string; onClick: () => void;
-}) {
-  return (
-    <button type="button" className={`v2-act v2-act-${kind}`} onClick={onClick}>
-      <Icon name={ACTION_ICON[kind] as never} />{label}
-    </button>
-  );
 }

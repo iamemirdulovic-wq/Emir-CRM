@@ -317,34 +317,78 @@ function Said({ children }: { children: ReactNode }) {
  * Paragraphs stay paragraphs and a line that starts with a dash or a bullet
  * becomes a list item, because that is how the model writes and the design
  * draws bullets. Everything is set as text content — the answer is never
- * handed to the browser as markup.
+ * handed to the browser as markup. The one exception is the lead token the
+ * server asks the model for (`server/src/ai/ask.ts`, rule 6), which becomes
+ * a link; that is how an answer gets "a link to the right page".
  */
 function Answer({ body }: { body: string }) {
   const blocks: Array<{ kind: 'p' | 'ul'; lines: string[] }> = [];
+  let blank = false;
   for (const raw of body.split('\n')) {
     const line = raw.trim();
-    if (!line) continue;
+    if (!line) { blank = true; continue; }
     const bullet = /^([-*•]|\d+[.)])\s+/.exec(line);
     const kind = bullet ? 'ul' : 'p';
     const text = bullet ? line.slice(bullet[0].length) : line;
     const last = blocks[blocks.length - 1];
-    if (last && last.kind === kind) last.lines.push(text);
+    /* A blank line ends a paragraph. It does not end a list: a model that
+       double-spaces its bullets still means one list. */
+    const join = last && last.kind === kind && !(blank && kind === 'p');
+    if (join) last.lines.push(text);
     else blocks.push({ kind, lines: [text] });
+    blank = false;
   }
 
-  if (blocks.length === 0) return <p>{body}</p>;
+  if (blocks.length === 0) return <p>{linked(body, 'x')}</p>;
 
   return (
     <>
       {blocks.map((block, i) => (block.kind === 'p'
-        ? <p key={i}>{block.lines.join(' ')}</p>
+        ? <p key={i}>{linked(block.lines.join(' '), `p${i}`)}</p>
         : (
           <ul key={i}>
-            {block.lines.map((line, j) => <li key={j}>{line}</li>)}
+            {block.lines.map((line, j) => <li key={j}>{linked(line, `l${i}-${j}`)}</li>)}
           </ul>
         )))}
     </>
   );
+}
+
+/**
+ * `Sara Al Mansoori [lead:o-1]` becomes the name, then a link to that lead.
+ *
+ * The server tells the model to write the id in square brackets so the CRM
+ * can link to it; without this the agent reads the bracket out loud. The link
+ * is an arrow rather than borrowed words: the model writes the name, the
+ * project and the score in whatever order suits the sentence, and a label
+ * guessed from the words in front of the token was as often the project as
+ * the person.
+ */
+const LEAD = /\[lead:([A-Za-z0-9_-]{1,64})\]/g;
+
+function linked(line: string, key: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let at = 0;
+  let n = 0;
+  for (const found of line.matchAll(LEAD)) {
+    out.push(line.slice(at, found.index));
+    out.push(
+      <Link
+        key={`${key}-${n}`}
+        className="v2-bub-lead"
+        to={`/v2/leads/${found[1]}`}
+        title="Open this lead"
+        aria-label="Open this lead"
+      >
+        <Icon name="arrow-up-right" size={13} />
+      </Link>,
+    );
+    at = (found.index ?? 0) + found[0].length;
+    n += 1;
+  }
+  if (n === 0) return [line];
+  out.push(line.slice(at));
+  return out;
 }
 
 function Can({ yes, children }: { yes?: boolean; children: ReactNode }) {

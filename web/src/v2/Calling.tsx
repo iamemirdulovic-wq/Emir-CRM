@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { Icon } from '../design/index.js';
+import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
+import { spacedE164 } from '../design/phone.js';
 import { useCheckIn } from './check-in.js';
 
 /**
  * Calling: one lead at a time, until the list is done.
  *
- * `docs/v2/pages.md` §13. The rule that shapes the whole screen: **an outcome
- * cannot be set before the agent has pressed Call or WhatsApp.** The CRM has
- * no way of knowing whether a call happened, so the only honest sequence is
- * tap first, then say what happened — and a result recorded without a tap is
- * a figure nobody should trust afterwards.
+ * Built from `design/web/calling.html` — the topline with the progress bar and
+ * the three counts, the dark lead card with the phone number set at fifty
+ * pixels, the six outcome tiles, and today's list down the right-hand side.
+ *
+ * The rule that shapes the whole screen: **an outcome cannot be set before the
+ * agent has pressed Call or WhatsApp.** The CRM has no way of knowing whether
+ * a call happened, so the only honest sequence is tap first, then say what
+ * happened — a result recorded without a tap is a figure nobody should trust
+ * afterwards. The design draws that as `#out.locked`, greyed with an amber
+ * padlock, which is `d-id-out d-locked` here.
  *
  * The second rule: *Next* is locked until the result is saved, or the agent
  * presses *Skip*. A lead walked past without an answer is the thing that
@@ -44,7 +50,9 @@ interface QueueLead {
 
 type Outcome = 'interested' | 'no_answer' | 'busy' | 'call_back' | 'wrong_number' | 'not_interested';
 
-const OUTCOMES: Array<{ key: Outcome; label: string; icon: string }> = [
+/* The design's six tiles, in its order, with its icons. There is no flag
+   glyph in the bundled set, so "wrong number" takes the warning triangle. */
+const OUTCOMES: Array<{ key: Outcome; label: string; icon: IconName }> = [
   { key: 'interested', label: 'Interested', icon: 'star' },
   { key: 'no_answer', label: 'No answer', icon: 'phone' },
   { key: 'busy', label: 'Busy', icon: 'clock' },
@@ -61,6 +69,16 @@ const LOST_REASONS = [
   { key: 'other', label: 'Something else' },
 ];
 
+/** What the save line under the tiles says each outcome will do. */
+const CONSEQUENCE: Record<Outcome, string> = {
+  interested: 'The stage becomes Interested.',
+  no_answer: 'Counted as a try. The lead comes back in two hours.',
+  busy: 'Counted as a try. The lead comes back in an hour.',
+  call_back: 'A follow-up is put in your list for the time you choose.',
+  wrong_number: 'The lead is flagged and leaves your list.',
+  not_interested: 'The lead moves to Lost, with the reason you give.',
+};
+
 /** The six stages, in the words the board uses. */
 const STAGE_LABEL: Record<string, string> = {
   new_lead: 'New', attempted_contact: 'Called', engaged_qualified: 'Interested',
@@ -72,10 +90,15 @@ const AED = (n: number | null): string =>
 
 export function V2Calling() {
   const queue = useAsync<{ items: QueueLead[] }>(() => api.get('/api/v2/queue'), []);
+  /* The gate belongs to the screen, not to one lead: the design puts its
+     amber bar at the very top, above the count and the progress bar. */
+  const gate = useCheckIn();
   const [at, setAt] = useState(0);
-  const [done, setDone] = useState<Set<string>>(new Set());
+  const [done, setDone] = useState<Map<string, string>>(new Map());
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [calls, setCalls] = useState(0);
   const [taps, setTaps] = useState(0);
+  const [ending, setEnding] = useState(false);
 
   const items = queue.data?.items ?? [];
   const lead = items[at];
@@ -83,124 +106,171 @@ export function V2Calling() {
   if (queue.error) return <ErrorNote>{queue.error}</ErrorNote>;
   if (!queue.data) return <Spinner />;
 
-  if (items.length === 0) {
+  if (items.length === 0 || !lead) {
     return (
       <div className="p-calling v2-calling">
-        <div className="v2-empty">
-          <span className="v2-empty-mark"><Icon name="check-check" /></span>
-          <h2>Nothing to call today</h2>
-          <p>Every follow-up you promised is done. Worth a look at your hot leads.</p>
-          <Link className="d-btn d-primary" to="/v2/leads?tab=hot">See my hot leads</Link>
+        <div className="d-card">
+          <div className="d-empty">
+            <span className="d-ic"><Icon name="check-check" size={26} /></span>
+            <b>Nothing to call today</b>
+            <p>Every follow-up you promised is done. Worth a look at your hot leads.</p>
+            <Link className="d-btn d-sm" to="/v2/leads?tab=hot">See my hot leads</Link>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!lead) {
-    return (
-      <div className="p-calling v2-calling">
-        <Summary calls={calls} taps={taps} saved={done.size} left={items.length - done.size} />
-      </div>
-    );
-  }
+  const last = at === items.length - 1;
 
   return (
     <div className="p-calling v2-calling">
-      <Topline
-        at={at}
-        total={items.length}
-        calls={calls}
-        taps={taps}
-        saved={done.size}
-      />
+      {gate.banner}
 
-      <div className="v2-call-grid">
-        <div className="v2-call-main">
+      <div className="d-topline">
+        <span className="d-pos">Lead {at + 1} <span>of {items.length}</span></span>
+        <div
+          className="d-bar d-accent"
+          style={{ '--v': `${Math.round((done.size / items.length) * 100)}%` } as CSSProperties}
+        >
+          <i />
+        </div>
+        <div className="d-counts">
+          <span><b>{calls}</b> calls</span>
+          <span><b>{taps}</b> WhatsApp</span>
+          <span><b>{done.size}</b> results saved</span>
+        </div>
+        {/*
+          * The design puts "+15 points per call" here. There is no such rule:
+          * the one the wall really pays is two points for reaching somebody
+          * (server/src/wall/xp.ts), so that is what the chip says. A made-up
+          * figure on the screen an agent works all morning is worse than a
+          * smaller true one.
+          */}
+        <span className="d-chip d-green">+2 points when you reach someone</span>
+        <button type="button" className="d-btn d-sm" onClick={() => setEnding(true)}>End session</button>
+      </div>
+
+      <div className="d-call-grid">
+        <div>
           <LeadCard
             key={lead.id}
             lead={lead}
+            ask={gate.ask}
+            saved={done.get(lead.id) ?? null}
+            last={last}
+            canGoBack={at > 0}
+            nextName={items[at + 1]?.name ?? null}
             onCalled={() => setCalls((n) => n + 1)}
             onTapped={() => setTaps((n) => n + 1)}
-            onSaved={() => {
-              setDone((was) => new Set(was).add(lead.id));
-              queue.reload();
+            onSaved={(said) => {
+              setDone((was) => new Map(was).set(lead.id, said));
+              setSkipped((was) => {
+                const next = new Set(was);
+                next.delete(lead.id);
+                return next;
+              });
             }}
-            onNext={() => setAt((n) => n + 1)}
+            onUndo={() => setDone((was) => {
+              const next = new Map(was);
+              next.delete(lead.id);
+              return next;
+            })}
+            onNext={() => (last ? setEnding(true) : setAt((n) => n + 1))}
+            onSkip={() => {
+              if (!done.has(lead.id)) setSkipped((was) => new Set(was).add(lead.id));
+              if (last) setEnding(true); else setAt((n) => n + 1);
+            }}
             onPrev={() => setAt((n) => Math.max(0, n - 1))}
-            canGoBack={at > 0}
-            saved={done.has(lead.id)}
           />
         </div>
 
-        <aside className="d-card v2-queue">
+        <aside className="d-card d-q v2-queue">
           <div className="d-card-head v2-queue-head">
             <h3>Today&apos;s list</h3>
             <span className="d-small d-muted">VIP first</span>
           </div>
-          <ol className="v2-queue-list">
+          <div>
             {items.map((row, i) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className={
-                    `v2-qrow${i === at ? ' v2-qrow-on' : ''}${done.has(row.id) ? ' v2-qrow-done' : ''}`
-                  }
-                  onClick={() => setAt(i)}
-                >
-                  <span className="v2-qrow-n">{i + 1}</span>
-                  <span className="v2-qrow-who">
-                    <b>{row.name ?? 'Unnamed lead'}</b>
-                    <span>{row.project ?? 'No project'}</span>
+              <button
+                key={row.id}
+                type="button"
+                className={
+                  `d-qrow${i === at ? ' d-cur' : ''}`
+                  + (done.has(row.id) ? ' d-done' : skipped.has(row.id) ? ' d-skip' : '')
+                }
+                onClick={() => setAt(i)}
+              >
+                <span className="d-n">{i + 1}</span>
+                <span className="d-t">
+                  <b>
+                    {row.name ?? 'Unnamed lead'}
+                    {row.isVip && <span className="d-vip-tag">VIP</span>}
+                  </b>
+                  <span>
+                    {done.get(row.id) ?? (skipped.has(row.id) ? 'Skipped' : whyOf(row))}
                   </span>
-                  {row.isVip && <span className="v2-vip">VIP</span>}
-                  {done.has(row.id) && <Icon name="check" />}
-                </button>
-              </li>
+                </span>
+              </button>
             ))}
-          </ol>
+          </div>
         </aside>
       </div>
+
+      {ending && (
+        <Summary
+          calls={calls}
+          taps={taps}
+          saved={done.size}
+          total={items.length}
+          onKeepCalling={() => setEnding(false)}
+        />
+      )}
     </div>
   );
 }
 
-function Topline({ at, total, calls, taps, saved }: {
-  at: number; total: number; calls: number; taps: number; saved: number;
-}) {
-  return (
-    <div className="v2-topline">
-      <span className="v2-pos">Lead {at + 1} <span>of {total}</span></span>
-      <div className="d-bar d-accent" style={{ '--v': `${Math.round((at / total) * 100)}%` } as React.CSSProperties}><i /></div>
-      <div className="v2-counts">
-        <span><b>{calls}</b> calls</span>
-        <span><b>{taps}</b> WhatsApp</span>
-        <span><b>{saved}</b> results saved</span>
-      </div>
-      <Link className="d-btn d-sm" to="/v2">End session</Link>
-    </div>
-  );
+/** The line under a name in today's list: why this lead is on it. */
+function whyOf(lead: QueueLead): string {
+  if (lead.nextStepNote) return lead.nextStepNote;
+  if (lead.noAnswerCount > 0) {
+    return `No answer ${lead.noAnswerCount} ${lead.noAnswerCount === 1 ? 'time' : 'times'}`;
+  }
+  return lead.project ?? 'No project yet';
 }
 
-function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack, saved }: {
+function LeadCard({
+  lead, ask, saved, last, canGoBack, nextName,
+  onCalled, onTapped, onSaved, onUndo, onNext, onSkip, onPrev,
+}: {
   lead: QueueLead;
+  ask: () => Promise<'checked_in' | 'outside' | 'anyway' | 'cancel'>;
+  saved: string | null;
+  last: boolean;
+  canGoBack: boolean;
+  nextName: string | null;
   onCalled: () => void;
   onTapped: () => void;
-  onSaved: () => void;
+  onSaved: (said: string) => void;
+  onUndo: () => void;
   onNext: () => void;
+  onSkip: () => void;
   onPrev: () => void;
-  canGoBack: boolean;
-  saved: boolean;
 }) {
-  const gate = useCheckIn();
   const [callId, setCallId] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [called, setCalled] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [note, setNote] = useState('');
   const [reason, setReason] = useState<string | null>(null);
-  const [callBack, setCallBack] = useState(() => defaultCallBack());
+  const [day, setDay] = useState(() => tomorrow());
+  const [time, setTime] = useState('11:00');
+  const [alsoWhatsapp, setAlsoWhatsapp] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [said, setSaid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Which field the agent has been told about. The design marks the field
+     itself rather than printing a sentence under the button. */
+  const [shown, setShown] = useState(false);
 
   const origin = originOf(lead.phone);
   const local = origin ? clockIn(origin.timeZone) : null;
@@ -208,12 +278,13 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
 
   /* A new lead is a clean slate: nothing from the last one may carry over. */
   useEffect(() => {
-    setCallId(null); setTouched(false); setOutcome(null); setNote('');
-    setReason(null); setSaid(null); setError(null);
+    setCallId(null); setTouched(false); setCalled(false); setOutcome(null); setNote('');
+    setReason(null); setError(null); setShown(false); setAlsoWhatsapp(false);
+    setDay(tomorrow()); setTime('11:00');
   }, [lead.id]);
 
   const call = useCallback(async () => {
-    const answer = await gate.ask();
+    const answer = await ask();
     if (answer === 'cancel') return;
     try {
       const started = await api.post<{ id: string }>('/api/v2/calls', {
@@ -223,20 +294,27 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
       });
       setCallId(started.id);
       setTouched(true);
+      setCalled(true);
       onCalled();
       if (lead.phone) window.location.href = `tel:${lead.phone}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'That did not work.');
     }
-  }, [gate, lead.id, lead.phone, onCalled]);
+  }, [ask, lead.id, lead.phone, onCalled]);
 
-  const whatsapp = useCallback(async () => {
+  const whatsapp = useCallback(async (text?: string) => {
     try {
-      await api.post('/api/v2/taps', { opportunityId: lead.id, app: 'whatsapp' });
+      await api.post('/api/v2/taps', {
+        opportunityId: lead.id,
+        app: 'whatsapp',
+        ...(text ? { text } : {}),
+      });
       setTouched(true);
       onTapped();
       if (lead.phone) {
-        window.open(`https://wa.me/${lead.phone.replace(/[^\d]/g, '')}`, '_blank', 'noreferrer');
+        const to = lead.phone.replace(/[^\d]/g, '');
+        const query = text ? `?text=${encodeURIComponent(text)}` : '';
+        window.open(`https://wa.me/${to}${query}`, '_blank', 'noreferrer');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'That did not work.');
@@ -245,12 +323,14 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
 
   const needsReason = outcome === 'not_interested';
   const needsWhy = outcome === 'call_back';
+  const whenOk = !needsWhy || (Boolean(day) && new Date(`${day}T${time || '23:59'}`).getTime() > Date.now());
   const ready = outcome !== null
     && (!needsReason || reason !== null)
-    && (!needsWhy || note.trim().length > 0);
+    && (!needsWhy || (note.trim().length >= 3 && whenOk));
 
   async function save() {
-    if (!ready || !outcome) return;
+    if (!outcome) return;
+    if (!ready) { setShown(true); return; }
     setSaving(true);
     setError(null);
     try {
@@ -268,10 +348,20 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
         outcome,
         note: note.trim() || null,
         reason,
-        callBackAt: outcome === 'call_back' ? new Date(callBack).toISOString() : null,
+        callBackAt: outcome === 'call_back' ? new Date(`${day}T${time}`).toISOString() : null,
       });
-      setSaid(result.said);
-      onSaved();
+      onSaved(result.said);
+
+      /* The design's one tick-box: open WhatsApp afterwards with "I tried to
+         call you" already typed. It is still a tap, not a sent message — the
+         agent presses send in WhatsApp. */
+      if (outcome === 'no_answer' && alsoWhatsapp) {
+        const first = (lead.name ?? '').trim().split(/\s+/)[0];
+        await whatsapp(
+          `Hello${first ? ` ${first}` : ''}, I tried to call you`
+          + `${lead.project ? ` about ${lead.project}` : ''}. When is a good time to talk?`,
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'That did not save.');
     } finally {
@@ -279,32 +369,31 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
     }
   }
 
+  const locked = !touched && !saved;
+
   return (
     <>
-      {gate.banner}
-
-      <section className="d-card d-hero v2-call-lead" aria-label="Lead">
-        <div className="v2-call-l">
-          <div className="v2-c-name">
+      <section className="d-card d-hero d-id-lead d-fade-in" aria-label="Lead">
+        <div className="d-l">
+          <div className="d-c-name">
             <span>{lead.name ?? 'Unnamed lead'}</span>
-            {lead.isVip && <span className="v2-vip">VIP</span>}
+            {lead.isVip && <span className="d-vip-tag">VIP</span>}
             <span className="d-hero-chip">{STAGE_LABEL[lead.stage] ?? lead.stage}</span>
           </div>
-          <a className="v2-c-phone" href={lead.phone ? `tel:${lead.phone}` : undefined} dir="ltr">
-            {lead.phone ?? 'No number'}
+          <a className="d-c-phone" href={lead.phone ? `tel:${lead.phone}` : undefined} dir="ltr">
+            {spacedE164(lead.phone) ?? 'No number'}
           </a>
-          <div className="v2-c-meta">
+          <div className="d-c-meta">
             {origin && local && (
               <span>
-                <span className="d-flag">{flagOf(origin.iso2)}</span>
-                <b>{origin.name} {local.time}</b> their time
+                {flagOf(origin.iso2)} <b>{origin.name} {local.time}</b> local time
               </span>
             )}
             {lead.language && <span>Speaks <b>{lead.language}</b></span>}
           </div>
           {(lead.isVip || lead.scoreReason || (advice && !advice.ok)) && (
-            <div className="v2-c-why">
-              <Icon name="zap" />
+            <div className="d-c-why">
+              <Icon name="zap" size={15} />
               <span>
                 {lead.isVip ? 'VIP lead — the owner gave this one personally'
                   : advice && !advice.ok ? advice.line
@@ -313,22 +402,28 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
             </div>
           )}
 
-          <div className="v2-c-btns">
-            <button type="button" className="d-btn d-lg d-on-dark d-primary" onClick={call}>
+          <div className="d-c-btns">
+            <button
+              type="button"
+              className={saved ? 'd-btn d-lg d-on-dark' : 'd-btn d-lg d-on-dark d-primary'}
+              onClick={call}
+            >
               <Icon name="phone" />Call
             </button>
-            <button type="button" className="d-btn d-lg d-on-dark" onClick={whatsapp}>
+            <button type="button" className="d-btn d-lg d-on-dark" onClick={() => void whatsapp()}>
               <Icon name="message-circle" />WhatsApp
             </button>
             <Link className="d-btn d-lg d-on-dark" to={`/v2/leads/${lead.id}`}>Open the lead</Link>
           </div>
-          <span className="v2-logged">
-            Every tap is logged. The message itself is sent by you, in WhatsApp.
+          <span className="d-logged">
+            {touched
+              ? `${called ? 'Call' : 'WhatsApp'} tap logged. The message itself is sent by you, in WhatsApp.`
+              : 'Every tap is logged'}
           </span>
         </div>
 
-        <div className="v2-call-r">
-          <dl className="v2-c-kv">
+        <div className="d-r">
+          <dl className="d-c-kv">
             <dt>Project</dt><dd>{lead.project ?? '—'}</dd>
             <dt>Budget</dt>
             <dd>
@@ -340,134 +435,196 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
             <dt>Tried</dt>
             <dd>{lead.noAnswerCount > 0 ? `${lead.noAnswerCount} times, no answer` : 'Not yet'}</dd>
           </dl>
+          {/* The design writes the agent a script here. Nothing writes one, so
+              the box carries what the agent themselves promised last time. */}
+          <div className="d-say">
+            <b>What you promised</b>
+            <span>{lead.nextStepNote ?? 'Nothing written down for this one.'}</span>
+          </div>
         </div>
       </section>
 
-      <section className={touched ? 'd-card' : 'd-card v2-locked'} aria-label="Result">
+      <section
+        className={`d-card d-id-out${locked ? ' d-locked' : ''}${saved ? ' d-saved' : ''}`}
+        aria-label="Result"
+      >
         <div className="d-card-head">
           <h3>What happened?</h3>
-          {!touched && (
-            <span className="v2-lockmsg"><Icon name="lock" />Press Call or WhatsApp first</span>
-          )}
+          <span className="d-lockmsg"><Icon name="lock" size={14} />Click Call or WhatsApp first</span>
         </div>
 
-        <div className="v2-outs">
+        <div className="d-outs">
           {OUTCOMES.map((one) => (
             <button
               key={one.key}
               type="button"
-              disabled={!touched || saved}
-              className={outcome === one.key ? 'v2-outb v2-outb-on' : 'v2-outb'}
-              onClick={() => { setOutcome(one.key); setReason(null); }}
+              disabled={locked || Boolean(saved)}
+              className={outcome === one.key ? 'd-outb d-on' : 'd-outb'}
+              onClick={() => { setOutcome(one.key); setReason(null); setShown(false); }}
             >
-              <Icon name={one.icon as never} />{one.label}
+              <Icon name={one.icon} size={17} />{one.label}
             </button>
           ))}
         </div>
 
-        {outcome === 'no_answer' && (
-          <p className="v2-sub"><Icon name="refresh-cw" /> This lead comes back in your list in <b>2 hours</b>.</p>
-        )}
-        {outcome === 'busy' && (
-          <p className="v2-sub"><Icon name="refresh-cw" /> This lead comes back in your list in <b>1 hour</b>.</p>
-        )}
-        {outcome === 'interested' && (
-          <p className="v2-sub">
-            The lead moves to <b>Interested</b>. Choose what happens next on the lead page.
-          </p>
-        )}
-        {outcome === 'wrong_number' && (
-          <p className="v2-sub">
-            The lead leaves your list and the owner sees “wrong number” on it.
-          </p>
-        )}
-        {outcome === 'call_back' && (
-          <div className="v2-sub v2-sub-form">
-            <label className="v2-field">
-              <span>When</span>
-              <input
-                className="d-input"
-                type="datetime-local"
-                value={callBack}
-                min={localNow()}
-                onChange={(e) => setCallBack(e.target.value)}
-              />
-            </label>
-            <label className="v2-field v2-field-wide">
-              <span>Why *</span>
-              <input
-                className="d-input"
-                value={note}
-                placeholder="In a meeting, asked for the evening…"
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </label>
-          </div>
-        )}
-        {outcome === 'not_interested' && (
-          <div className="v2-sub">
-            <span className="v2-field-label">Why? *</span>
-            <div className="v2-chips">
-              {LOST_REASONS.map((one) => (
-                <button
-                  key={one.key}
-                  type="button"
-                  className={reason === one.key ? 'v2-chip-opt v2-chip-opt-on' : 'v2-chip-opt'}
-                  onClick={() => setReason(one.key)}
-                >
-                  {one.label}
-                </button>
-              ))}
+        {!saved && outcome === 'interested' && (
+          <div className="d-sub d-on">
+            <div className="d-row">
+              <Icon name="star" size={15} />
+              <span className="d-grow">
+                The lead moves to <b>Interested</b>. Choose what happens next on the lead page.
+              </span>
             </div>
-            <p className="d-small d-muted">The lead moves to Lost, with the reason you give.</p>
+            <NoteField note={note} setNote={setNote} />
           </div>
         )}
 
-        {outcome && outcome !== 'call_back' && (
-          <label className="v2-field v2-field-wide">
-            <span>Note (optional)</span>
-            <input
-              className="d-input"
-              value={note}
-              placeholder="Anything worth remembering"
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
+        {!saved && outcome === 'no_answer' && (
+          <div className="d-sub d-on">
+            <div className="d-row">
+              <Icon name="refresh-cw" size={15} />
+              <span className="d-grow">The lead comes back in your list in <b>2 hours</b>.</span>
+            </div>
+            <label className="d-check">
+              <input
+                type="checkbox"
+                checked={alsoWhatsapp}
+                onChange={(e) => setAlsoWhatsapp(e.target.checked)}
+              />
+              Also open WhatsApp with a short “I tried to call you” message
+            </label>
+            <NoteField note={note} setNote={setNote} />
+          </div>
+        )}
+
+        {!saved && outcome === 'busy' && (
+          <div className="d-sub d-on">
+            <div className="d-row">
+              <Icon name="refresh-cw" size={15} />
+              <span className="d-grow">The lead comes back in your list in <b>1 hour</b>.</span>
+            </div>
+            <NoteField note={note} setNote={setNote} />
+          </div>
+        )}
+
+        {!saved && outcome === 'call_back' && (
+          <div className="d-sub d-on">
+            <div className="d-form-grid v2-dial-when">
+              <div className={shown && !whenOk ? 'd-field d-invalid' : 'd-field'}>
+                <label htmlFor="v2-cb-date">Day</label>
+                <input
+                  id="v2-cb-date"
+                  className="d-input"
+                  type="date"
+                  value={day}
+                  min={today()}
+                  onChange={(e) => { setDay(e.target.value); setShown(false); }}
+                />
+                <span className="d-error">Not in the past.</span>
+              </div>
+              <div className="d-field">
+                <label htmlFor="v2-cb-time">Time</label>
+                <input
+                  id="v2-cb-time"
+                  className="d-input"
+                  type="time"
+                  value={time}
+                  onChange={(e) => { setTime(e.target.value); setShown(false); }}
+                />
+              </div>
+              <div className={shown && note.trim().length < 3 ? 'd-field d-invalid' : 'd-field'}>
+                <label htmlFor="v2-cb-why">Why <span className="d-req">*</span></label>
+                <input
+                  id="v2-cb-why"
+                  className="d-input"
+                  value={note}
+                  placeholder="In a meeting, asked for the evening…"
+                  onChange={(e) => { setNote(e.target.value); setShown(false); }}
+                />
+                <span className="d-error">Write why in a few words.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!saved && outcome === 'wrong_number' && (
+          <div className="d-sub d-on">
+            {/*
+              * The design offers "I have the new number" here. Nothing takes a
+              * replacement number from this screen, so it is left out rather
+              * than drawn as a box that quietly throws the number away.
+              */}
+            <span className="d-small d-muted">
+              The lead leaves your list. The owner sees “wrong number” on it.
+            </span>
+            <NoteField note={note} setNote={setNote} />
+          </div>
+        )}
+
+        {!saved && outcome === 'not_interested' && (
+          <div className="d-sub d-on">
+            <div className={shown && !reason ? 'd-field d-invalid' : 'd-field'}>
+              <span className="d-field-label">Reason <span className="d-t-accent">*</span></span>
+              <div className="d-chips">
+                {LOST_REASONS.map((one) => (
+                  <button
+                    key={one.key}
+                    type="button"
+                    className={reason === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                    onClick={() => { setReason(one.key); setShown(false); }}
+                  >
+                    {one.label}
+                  </button>
+                ))}
+              </div>
+              <span className="d-error">Choose a reason. The lead moves to Lost.</span>
+            </div>
+            <NoteField note={note} setNote={setNote} />
+          </div>
         )}
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        {said && (
-          <p className="v2-saved"><Icon name="check" />{said}</p>
-        )}
-
-        <div className="v2-navrow">
-          <button type="button" className="d-btn" onClick={onPrev} disabled={!canGoBack}>
-            <Icon name="arrow-left" />Previous
+        <div className={outcome && !saved ? 'd-row d-mt-16 d-id-save-row' : 'd-row d-mt-16 d-id-save-row d-hide'}>
+          <span className="d-small d-muted d-grow">{outcome ? CONSEQUENCE[outcome] : ''}</span>
+          <button type="button" className="d-btn d-dark" disabled={saving} onClick={save}>
+            {saving ? 'Saving…' : 'Save result'}
           </button>
-          <span className="d-small d-muted v2-nav-hint">
-            {saved ? 'Saved. On to the next one.'
-              : touched ? 'Save a result before Next, or skip this lead.'
-                : 'Press Call or WhatsApp to start.'}
+        </div>
+
+        <div className="d-saved-box">
+          <Icon name="check" size={16} />
+          <span className="d-grow">
+            {saved ? (saved.startsWith('Saved') ? saved : `Saved · ${saved}`) : ''}
           </span>
-          {!saved && (
-            <button
-              type="button"
-              className="d-btn d-dark"
-              onClick={save}
-              disabled={!ready || saving}
-            >
-              {saving ? 'Saving…' : 'Save result'}
-            </button>
-          )}
-          <button type="button" className="d-btn d-ghost" onClick={onNext}>Skip</button>
+          <button type="button" className="d-btn d-xs" onClick={onUndo}>
+            <Icon name="undo-2" size={13} />Undo
+          </button>
+        </div>
+
+        <div className="d-navrow">
           <button
             type="button"
-            className={saved ? 'd-btn d-primary' : 'd-btn v2-disabled'}
-            onClick={() => saved && onNext()}
-            disabled={!saved}
+            className={canGoBack ? 'd-btn' : 'd-btn d-disabled'}
+            disabled={!canGoBack}
+            onClick={onPrev}
           >
-            Next lead<Icon name="arrow-right" />
+            <Icon name="arrow-left" size={15} />Previous
+          </button>
+          <span className="d-grow d-small d-muted d-center">
+            {saved
+              ? (last ? 'That was the last lead.' : `Next: ${nextName ?? 'the next lead'}`)
+              : touched ? 'Choose what happened, then save.'
+                : 'Save a result before Next, or skip this lead.'}
+          </span>
+          <button type="button" className="d-btn d-ghost" onClick={onSkip}>Skip</button>
+          <button
+            type="button"
+            className={saved ? 'd-btn d-primary' : 'd-btn d-disabled'}
+            disabled={!saved}
+            onClick={onNext}
+          >
+            {last ? 'Finish' : 'Next lead'}<Icon name="arrow-right" size={15} />
           </button>
         </div>
       </section>
@@ -475,42 +632,80 @@ function LeadCard({ lead, onCalled, onTapped, onSaved, onNext, onPrev, canGoBack
   );
 }
 
-function Summary({ calls, taps, saved, left }: {
-  calls: number; taps: number; saved: number; left: number;
-}) {
+/** One line of free text, offered under every outcome the design allows it. */
+function NoteField({ note, setNote }: { note: string; setNote: (value: string) => void }) {
   return (
-    <div className="v2-empty">
-      <span className="v2-empty-mark"><Icon name="trophy" /></span>
-      <h2>That is the list</h2>
-      <div className="v2-sumgrid">
-        <div><b>{calls}</b><span>Calls</span></div>
-        <div><b>{taps}</b><span>WhatsApps</span></div>
-        <div><b>{saved}</b><span>Results saved</span></div>
-      </div>
-      {left > 0 && <p>{left} still have no result. They stay on your list.</p>}
-      <Link className="d-btn d-primary" to="/v2">Back to My Day</Link>
+    <div className="d-field">
+      <label htmlFor="v2-dial-note">Note <span className="d-muted">· optional</span></label>
+      <input
+        id="v2-dial-note"
+        className="d-input"
+        value={note}
+        placeholder="Anything worth remembering"
+        onChange={(e) => setNote(e.target.value)}
+      />
     </div>
   );
 }
 
-/** Tomorrow at 11:00, which is what the design offers and what agents pick. */
-function defaultCallBack(): string {
-  const when = new Date(Date.now() + 86_400_000);
-  when.setHours(11, 0, 0, 0);
-  return toLocalInput(when);
-}
-
-function localNow(): string {
-  return toLocalInput(new Date());
-}
-
 /**
- * A `datetime-local` input wants local wall-clock text, never an ISO string:
- * `toISOString()` is UTC, so in Dubai it would offer a time four hours before
- * the one the agent chose. No past dates anywhere (pages.md, global rules).
+ * The end-of-session dialog.
+ *
+ * The design finishes it with "+N points". Nothing on this screen can know
+ * what the wall awarded — the rules are capped per day and counted server
+ * side — so the banner says what was actually done instead.
  */
-function toLocalInput(when: Date): string {
+function Summary({ calls, taps, saved, total, onKeepCalling }: {
+  calls: number; taps: number; saved: number; total: number; onKeepCalling: () => void;
+}) {
+  const left = total - saved;
+  return (
+    <>
+      <div className="d-scrim d-show" onClick={onKeepCalling} aria-hidden />
+      <div className="d-dialog d-open" role="dialog" aria-label="Session summary">
+        <div className="d-dialog-head">
+          <div className="d-grow">
+            <h3>Good work</h3>
+            <p>{saved} of {total} leads have a result</p>
+          </div>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onKeepCalling}>
+            <Icon name="x" />
+          </button>
+        </div>
+        <div className="d-dialog-body">
+          <div className="d-sumgrid">
+            <div><b>{calls}</b><span>Calls</span></div>
+            <div><b>{taps}</b><span>WhatsApps</span></div>
+            <div><b>{saved}</b><span>Results saved</span></div>
+          </div>
+          <div className="d-banner d-green">
+            <Icon name="trophy" />
+            <span className="d-grow">
+              {left === 0
+                ? 'Today’s list is done. Well done.'
+                : `${left} lead${left === 1 ? '' : 's'} still in today’s list. They stay there.`}
+            </span>
+          </div>
+        </div>
+        <div className="d-dialog-foot">
+          <button type="button" className="d-btn d-ghost" onClick={onKeepCalling}>Keep calling</button>
+          <Link className="d-btn d-primary" to="/v2">Back to My Day</Link>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Local wall-clock dates for the two date inputs — never an ISO string. */
+function today(): string {
+  return dayOf(new Date());
+}
+
+function tomorrow(): string {
+  return dayOf(new Date(Date.now() + 86_400_000));
+}
+
+function dayOf(when: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`
-    + `T${pad(when.getHours())}:${pad(when.getMinutes())}`;
+  return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
 }

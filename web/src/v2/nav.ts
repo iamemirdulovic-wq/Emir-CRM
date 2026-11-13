@@ -190,3 +190,66 @@ export const MESSAGE_ITEMS: NavItem[] = [
   { to: '/v2/email', label: 'Email', icon: 'mail' },
   { to: '/v2/templates', label: 'Templates', icon: 'files' },
 ];
+
+/**
+ * Everything the sidebar does not hold.
+ *
+ * The design's sidebar is deliberately short — nine or ten rows, nothing
+ * behind a "More" entry (S-8). Its answer to "then how do I reach the
+ * business card, or system health, or the install guide?" is the command
+ * palette: `design/web/app.js` builds a `Screens` group out of exactly this
+ * list. Without it those pages exist at an address nobody can type.
+ *
+ * `words` are the other things somebody might type looking for that screen.
+ */
+export interface Screen {
+  to: string;
+  label: string;
+  icon: IconName;
+  words?: string;
+  /** Owner and admin only — a manager cannot open these either. */
+  ownerOnly?: boolean;
+  /** Only an agent needs it. */
+  agentOnly?: boolean;
+}
+
+export const EXTRA_SCREENS: Screen[] = [
+  { to: '/v2/notifications', label: 'Notifications', icon: 'bell', words: 'alerts bell' },
+  { to: '/v2/profile', label: 'My profile', icon: 'user' },
+  { to: '/v2/card', label: 'My business card', icon: 'id-card', words: 'digital card share qr' },
+  { to: '/v2/best', label: 'Best of Homes', icon: 'trophy', words: 'leaderboard points level badges' },
+  { to: '/v2/feedback', label: 'Report a problem', icon: 'message-square', words: 'feedback bug idea' },
+  { to: '/v2/search', label: 'Search', icon: 'search', words: 'find' },
+  { to: '/v2/settings/notifications', label: 'What reaches me', icon: 'bell', words: 'quiet hours sound alerts' },
+  { to: '/v2/settings', label: 'Light or dark', icon: 'moon', words: 'theme appearance language sounds' },
+  { to: '/v2/settings/phone-app', label: 'Phone app · how to install', icon: 'download', words: 'iphone android pwa notifications' },
+  { to: '/v2/attendance', label: 'Days off', icon: 'calendar-days', words: 'leave holiday sick annual' },
+  { to: '/v2/calling', label: 'Start calling', icon: 'phone', words: 'dialler queue', agentOnly: true },
+  { to: '/v2/attendance', label: 'Check in', icon: 'clock', words: 'office outside late attendance', agentOnly: true },
+  { to: '/v2/dashboard', label: 'The full dashboard', icon: 'bar-chart-3', words: 'totals stages sources going cold', ownerOnly: true },
+  { to: '/v2/team-live', label: 'Team live', icon: 'activity', words: 'right now online clicks', ownerOnly: true },
+  { to: '/v2/messaging', label: 'Messaging report', icon: 'message-circle', words: 'whatsapp taps replied', ownerOnly: true },
+  { to: '/v2/projects/manage', label: 'Manage projects', icon: 'building', words: 'add project brochure prices', ownerOnly: true },
+  { to: '/v2/settings/team', label: 'Team and roles', icon: 'users-round', words: 'invite agent deactivate', ownerOnly: true },
+  { to: '/v2/settings/desks', label: 'Desks', icon: 'building', words: 'arabic russian abu dhabi', ownerOnly: true },
+  { to: '/v2/settings/company', label: 'Company', icon: 'building', words: 'trn licence address', ownerOnly: true },
+  { to: '/v2/settings/attendance', label: 'Attendance rules', icon: 'clock', words: 'wifi shift late days off', ownerOnly: true },
+  { to: '/v2/settings/ai', label: "Homes AI's settings", icon: 'sparkles', words: 'gemini budget limit', ownerOnly: true },
+  { to: '/v2/settings/banners', label: 'Home banners', icon: 'megaphone', words: 'my day slides news', ownerOnly: true },
+  { to: '/v2/settings/feedback', label: 'Feedback inbox', icon: 'inbox', words: 'bugs ideas reported', ownerOnly: true },
+  { to: '/v2/settings/health', label: 'System health', icon: 'activity', words: 'keys whatsapp email push setup', ownerOnly: true },
+];
+
+/**
+ * The extras this person can actually open.
+ *
+ * `ownerOnly` means owner and admin, which is not the same as "not an agent":
+ * a manager is neither. Offering a manager the full dashboard and letting the
+ * server answer 403 is a door painted on a wall.
+ */
+export function extraScreensFor(role: Role): Screen[] {
+  const boss = role === 'owner' || role === 'admin';
+  return EXTRA_SCREENS.filter((one) => (
+    (!one.ownerOnly || boss) && (!one.agentOnly || role === 'agent')
+  ));
+}

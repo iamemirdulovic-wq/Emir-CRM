@@ -26,6 +26,10 @@ import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
  *   - Absences on an agent's own month. `/attendance/me` does not say which
  *     days the office was shut, so an unmarked Friday cannot be told apart
  *     from a public holiday. The team grid does know, and marks them.
+ *   - The shared-location map, and the buttons beside each row of the team
+ *     table. Nothing stores a location, and there is no endpoint behind
+ *     "Mark as leave"; the note an agent writes on their way out is what the
+ *     office gets.
  */
 
 interface DayState {
@@ -324,12 +328,13 @@ function Tile({ label, value, note }: { label: string; value: number; note: stri
 }
 
 /**
- * The hero, in the three states this CRM has.
+ * Check in.
  *
- * The design draws a fourth — "Day finished" after checking out — which is
- * not built: there is one tap a day and the first one wins.
+ * The page is reloaded rather than refetched: checking in changes the pill in
+ * the top bar as well as this screen, and the shell reads that once, when it
+ * mounts.
  */
-function Hero({ day, onOutside }: { day: DayState; onOutside: () => void }) {
+function useCheckIn(): { checkIn: () => void; busy: boolean; problem: string | null } {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const toast = useToast();
@@ -347,6 +352,27 @@ function Hero({ day, onOutside }: { day: DayState; onOutside: () => void }) {
       setBusy(false);
     }
   }
+
+  return { checkIn, busy, problem };
+}
+
+function CheckInButton({ enabled }: { enabled: boolean }) {
+  const { checkIn, busy } = useCheckIn();
+  return (
+    <button type="button" className="d-btn" disabled={!enabled || busy} onClick={checkIn}>
+      <Icon name="check" />Check in
+    </button>
+  );
+}
+
+/**
+ * The hero, in the three states this CRM has.
+ *
+ * The design draws a fourth — "Day finished" after checking out — which is
+ * not built: there is one tap a day and the first one wins.
+ */
+function Hero({ day, onOutside }: { day: DayState; onOutside: () => void }) {
+  const { checkIn, busy, problem } = useCheckIn();
 
   if (day.closed) {
     return (
@@ -915,6 +941,9 @@ function TeamLeave({ team, reload }: { team: Team; reload: () => void }) {
   const canAnswer = user?.role === 'owner' || user?.role === 'admin';
   const [refusing, setRefusing] = useState<string | null>(null);
   const [why, setWhy] = useState<string | null>(null);
+  /* The reason is only asked for once somebody presses Refuse. Showing it the
+     moment the box opens reads as a complaint about nothing. */
+  const [needWhy, setNeedWhy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const toast = useToast();
 
@@ -928,6 +957,7 @@ function TeamLeave({ team, reload }: { team: Team; reload: () => void }) {
       toast(status === 'approved' ? 'Approved · the agent is told now' : 'Refused · the agent is told now');
       setRefusing(null);
       setWhy(null);
+      setNeedWhy(false);
       reload();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not work.');
@@ -987,26 +1017,28 @@ function TeamLeave({ team, reload }: { team: Team; reload: () => void }) {
                       key={text}
                       type="button"
                       className={why === text ? 'd-chip-opt d-on' : 'd-chip-opt'}
-                      onClick={() => setWhy(text)}
+                      onClick={() => { setWhy(text); setNeedWhy(false); }}
                     >
                       {text}
                     </button>
                   ))}
                 </div>
-                {why === null && <span className="d-small d-t-red">Choose a reason first.</span>}
+                {needWhy && <span className="d-small d-t-red">Choose a reason first.</span>}
                 <div className="d-row">
                   <button
                     type="button"
                     className="d-btn d-sm d-danger d-solid"
-                    disabled={why === null}
-                    onClick={() => answer(one.id, 'refused', why)}
+                    onClick={() => {
+                      if (why === null) { setNeedWhy(true); return; }
+                      answer(one.id, 'refused', why);
+                    }}
                   >
                     Refuse the request
                   </button>
                   <button
                     type="button"
                     className="d-btn d-sm d-ghost"
-                    onClick={() => { setRefusing(null); setWhy(null); }}
+                    onClick={() => { setRefusing(null); setWhy(null); setNeedWhy(false); }}
                   >
                     Cancel
                   </button>
@@ -1025,7 +1057,11 @@ function TeamLeave({ team, reload }: { team: Team; reload: () => void }) {
                     >
                       <Icon name="check" />Approve
                     </button>
-                    <button type="button" className="d-btn" onClick={() => setRefusing(one.id)}>
+                    <button
+                      type="button"
+                      className="d-btn"
+                      onClick={() => { setRefusing(one.id); setWhy(null); setNeedWhy(false); }}
+                    >
                       Refuse
                     </button>
                   </>
@@ -1111,11 +1147,13 @@ function OwnerMine({ mine, reload, onAsk }: { mine: Mine; reload: () => void; on
               {today.closed ? 'Nothing is expected of anybody today'
                 : today.marked === 'outside' ? (today.note ?? 'Working outside')
                   : today.marked ? 'Checked in on the office Wi-Fi'
-                    : 'You can check in like anybody else'}
+                    : today.startsAt ? `The shift starts at ${today.startsAt}`
+                      : 'Check in when you get in'}
             </span>
           </div>
           {!today.closed && !today.marked && (
             <div className="d-card-foot">
+              <CheckInButton enabled={today.onOfficeNetwork} />
               <button type="button" className="d-btn" onClick={() => setOutside(true)}>
                 <Icon name="pin" />I&apos;m working outside
               </button>

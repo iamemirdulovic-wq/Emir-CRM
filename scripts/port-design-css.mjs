@@ -189,11 +189,21 @@ function port(css, { keepAtRules = true } = {}) {
   return out.join('\n');
 }
 
+/*
+ * Rename every animation the design uses, once each.
+ *
+ * The `(?<!v2-)` is the whole point. Two keyframes named `pulse` and
+ * `pulse-row` meant the long one was renamed first, to `v2-pulse-row`, and
+ * then the short one matched *inside* it — `pulse` sits between two hyphens,
+ * which are word boundaries — and left `v2-v2-pulse-row`. That names no
+ * keyframe, so the row flash on Team live animated nothing, silently, on
+ * every screen that used it.
+ */
 function renameAnimations(css, names) {
   let out = css;
   for (const name of [...names].sort((a, b) => b.length - a.length)) {
     out = out.replace(
-      new RegExp(`(animation:[^;}]*?)\\b${name}\\b`, 'g'),
+      new RegExp(`(animation:[^;}]*?)(?<!v2-)\\b${name}\\b`, 'g'),
       (_whole, head) => `${head}v2-${name}`,
     );
   }

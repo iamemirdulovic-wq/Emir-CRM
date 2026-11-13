@@ -3,20 +3,27 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { Icon } from '../design/index.js';
-import { Spinner, ErrorNote } from '../design/ui.js';
+import { Icon, type IconName } from '../design/index.js';
+import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { TransferLead } from './TransferLead.js';
-import { ActionButton, LeadAction, type LeadActionKind } from './LeadAction.js';
+import { LeadAction, type LeadActionKind } from './LeadAction.js';
 
 /**
  * One lead, and everything you can do to it.
  *
- * `docs/v2/pages.md` §9. The header's shape is the design's most deliberate
- * decision and worth saying out loud: **the phone number is the largest thing
- * on the page**, larger than the person's name. An agent opens this screen to
- * call somebody. The name tells them who is about to answer; the number is
- * what the next three seconds are about.
+ * Built from `design/web/lead.html`: three columns, and each one answers a
+ * different question. The left is *who they are and what you can do right
+ * now*; the middle is *what is owed and what has happened*; the right is
+ * *what they asked for*. The page root carries `p-lead` so that page's own
+ * ported stylesheet applies — without it the grid never happens and the page
+ * falls into one tall column.
+ *
+ * The header's shape is the design's most deliberate decision and worth
+ * saying out loud: **the phone number is the largest thing on the page**,
+ * larger than the person's name. An agent opens this screen to call
+ * somebody. The name tells them who is about to answer; the number is what
+ * the next three seconds are about.
  *
  * Built against the real record — what is not wired yet says so rather than
  * pretending. Four of the brokers who tested the design hit a screen that
@@ -43,6 +50,7 @@ interface Lead {
   preferred_location: string | null;
   budget_min_aed: number | null;
   budget_max_aed: number | null;
+  budget_band?: string | null;
   source: string | null;
   owner_name: string | null;
   next_step_at: string | null;
@@ -51,10 +59,22 @@ interface Lead {
   created_at: string;
 }
 
+interface Task {
+  id: string;
+  type: string | null;
+  title: string | null;
+  due_at: string | null;
+  completed_at: string | null;
+}
+
 interface Detail {
   lead: Lead;
   contact: Record<string, unknown>;
-  activities: Array<{ id: string; type: string; body: string | null; created_at: string }>;
+  activities: Array<{
+    id: string; type: string; title?: string | null; body: string | null;
+    user_name?: string | null; created_at: string;
+  }>;
+  tasks?: Task[];
   tags: string[];
   importedRow?: { sourceLabel: string | null; lineNumber: number; fields: { label: string; value: string }[] } | null;
 }
@@ -64,8 +84,39 @@ const STAGE_LABEL: Record<string, string> = {
   appointment_scheduled: 'Meeting', deal_sent: 'Offer', won: 'Won', lost: 'Lost',
 };
 
-const AED = (n: number | null): string =>
-  n === null ? '—' : `AED ${n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString()}`;
+const STAGE_CHIP: Record<string, string> = {
+  new_lead: 'new', attempted_contact: 'called', engaged_qualified: 'interested',
+  appointment_scheduled: 'meeting', deal_sent: 'offer', won: 'won', lost: 'lost',
+};
+
+/** The dot beside a line of history: its glyph, and how loud it is. */
+function mark(type: string): { icon: IconName; tone: string } {
+  if (/call/.test(type)) return { icon: 'phone', tone: 'd-accent' };
+  if (/whatsapp|message|tap/.test(type)) return { icon: 'message-circle', tone: 'd-green' };
+  if (/email/.test(type)) return { icon: 'mail', tone: 'd-blue' };
+  if (/note/.test(type)) return { icon: 'pencil', tone: '' };
+  if (/stage|moved/.test(type)) return { icon: 'arrow-right', tone: '' };
+  if (/transfer|assign/.test(type)) return { icon: 'repeat', tone: '' };
+  if (/won/.test(type)) return { icon: 'trophy', tone: 'd-green' };
+  if (/lost/.test(type)) return { icon: 'x', tone: 'd-red' };
+  if (/created|added|import/.test(type)) return { icon: 'check', tone: 'd-green' };
+  if (/meeting|viewing/.test(type)) return { icon: 'calendar-days', tone: 'd-accent' };
+  return { icon: 'circle', tone: '' };
+}
+
+/** "Today 15:30" / "Fri 13 Nov 11:00" — how the design writes a moment. */
+function moment(value: string | null): string {
+  if (!value) return '';
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return '';
+  const day = (d: Date) => Math.floor((d.getTime() + 4 * 3_600_000) / 86_400_000);
+  const clock = at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const gap = day(at) - day(new Date());
+  if (gap === 0) return `Today ${clock}`;
+  if (gap === 1) return `Tomorrow ${clock}`;
+  if (gap === -1) return `Yesterday ${clock}`;
+  return `${at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${clock}`;
+}
 
 export function V2Lead() {
   const { id = '' } = useParams();
@@ -80,235 +131,365 @@ export function V2Lead() {
   if (!detail.data) return <Spinner />;
 
   const { lead, activities, tags } = detail.data;
+  const tasks = (detail.data.tasks ?? []).filter((one) => !one.completed_at && one.due_at);
   const phone = lead.phone_e164 ?? '';
   const origin = originOf(phone);
   const local = origin ? clockIn(origin.timeZone) : null;
   const advice = whenToCall(local, origin?.timeZone ?? null);
-  const isOwner = user?.role !== 'agent';
+  const first = firstName(lead.full_name);
+  const closed = lead.status === 'won' || lead.status === 'lost';
+  const budget = lead.budget_min_aed || lead.budget_max_aed
+    ? budgetLabel(lead.budget_min_aed, lead.budget_max_aed, lead.budget_band ?? null)
+    : null;
 
   return (
-    <div className="v2-lead">
-      {/*
-        * The number first and biggest. Everything else on this header is
-        * context for it.
-        */}
-      <header className="v2-lead-head">
-        <div className="v2-lead-id">
-          <a className="v2-lead-phone" href={phone ? `tel:${phone}` : undefined} dir="ltr">
-            {phone || 'No number'}
-          </a>
-          <div className="v2-lead-name">
-            <span dir="auto">{lead.full_name ?? 'Unnamed lead'}</span>
-            {lead.is_vip === 1 && <span className="v2-vip">VIP</span>}
-            {lead.owner_name && <span className="v2-with">with {lead.owner_name}</span>}
-          </div>
+    <div className="v2-leadpage p-lead">
+      <div className="d-lead-grid">
 
-          <div className="v2-lead-chips">
-            <span className={`v2-stage v2-stage-${(STAGE_LABEL[lead.stage_key] ?? 'new').toLowerCase()}`}>
-              {STAGE_LABEL[lead.stage_key] ?? lead.stage_key}
-            </span>
-            {lead.lead_score !== null && (
-              <span className="v2-score" title={lead.score_reason ?? undefined}>
-                Score {lead.lead_score}
+        {/* ── LEFT: who they are, and what you can do right now ────────── */}
+        <aside className="d-lcol">
+          <section className="d-card">
+            <span className="d-sec-label">Phone</span>
+            <a
+              className="d-lead-phone"
+              href={phone ? `tel:${phone}` : undefined}
+              dir="ltr"
+              title={phone ? 'Call' : undefined}
+            >
+              {phone || 'No number'}
+            </a>
+            <div className="d-lead-name" dir="auto">{lead.full_name ?? 'Unnamed lead'}</div>
+
+            <div className="d-row d-gap-6 d-wrap d-mt-8">
+              <span className={`d-chip d-stage-${STAGE_CHIP[lead.stage_key] ?? 'new'}`}>
+                {STAGE_LABEL[lead.stage_key] ?? lead.stage_key}
               </span>
+              {lead.lead_score !== null && (
+                <span className="d-chip d-green" title={lead.score_reason ?? undefined}>
+                  Score {lead.lead_score}
+                </span>
+              )}
+              {lead.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
+              {lead.score_band === 'hot' && <span className="d-chip d-orange">Hot</span>}
+              {tags.map((one) => (
+                <span className="d-chip" key={one}>{one.replace(/^[a-z]+:/, '')}</span>
+              ))}
+            </div>
+
+            {/* Where they are, what time it is there, and whether now is a
+                decent hour to ring. Emir asked for this on 10 Nov after an
+                agent rang Germany at six in the morning. */}
+            <div className="d-facts">
+              <div>
+                {lead.owner_name
+                  ? (
+                    <>
+                      <Avatar name={lead.owner_name} size={20} />
+                      <span>with <b>{lead.owner_name}</b></span>
+                    </>
+                  )
+                  : (
+                    <>
+                      <Icon name="inbox" />
+                      <span>in <b>Incoming</b> · no agent yet</span>
+                    </>
+                  )}
+              </div>
+              {origin && local && (
+                <div>
+                  <span className="v2-leadpage-flag">{flagOf(origin.iso2)}</span>
+                  <span>
+                    {origin.name} · <b>{origin.zoneLabel ? `${origin.zoneLabel} ` : ''}{local.time}</b> now
+                  </span>
+                </div>
+              )}
+              {advice && (
+                <div>
+                  <Icon name="clock" />
+                  <span className={advice.ok ? undefined : 'd-t-amber'}>{advice.line}</span>
+                </div>
+              )}
+              {lead.language && (
+                <div>
+                  <Icon name="message-square" />
+                  <span>Speaks <b>{lead.language}</b></span>
+                </div>
+              )}
+            </div>
+
+            <div className="d-acts">
+              <a
+                className={phone ? 'd-btn d-primary d-lg d-full' : 'd-btn d-primary d-lg d-full d-disabled'}
+                href={phone ? `tel:${phone}` : undefined}
+              >
+                <Icon name="phone" />Call
+              </a>
+              <a
+                className={phone ? 'd-btn' : 'd-btn d-disabled'}
+                href={phone ? `https://wa.me/${phone.replace(/[^\d]/g, '')}` : undefined}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Icon name="message-circle" />WhatsApp
+              </a>
+              <Soon icon="send" label="Telegram" phase="phase 6" />
+              <button type="button" className="d-btn" onClick={() => setDoing('follow_up')}>
+                <Icon name="clock" />Follow-up
+              </button>
+              <button type="button" className="d-btn" onClick={() => setDoing('meeting')}>
+                <Icon name="calendar-days" />Meeting
+              </button>
+              <button
+                type="button"
+                className={closed ? 'd-btn d-won d-disabled' : 'd-btn d-won'}
+                disabled={closed}
+                onClick={() => setDoing('won')}
+              >
+                <Icon name="trophy" />Won
+              </button>
+              <button
+                type="button"
+                className={closed ? 'd-btn d-danger d-disabled' : 'd-btn d-danger'}
+                disabled={closed}
+                onClick={() => setDoing('lost')}
+              >
+                <Icon name="x" />Lost
+              </button>
+            </div>
+
+            {/* Handing it on. The lead stays here until the other person
+                accepts, which is what the form says rather than implying it
+                has gone. */}
+            <button type="button" className="d-tr-link" onClick={() => setHandingOver(true)}>
+              <Icon name="repeat" />
+              <span className="d-grow">
+                {lead.is_vip === 1
+                  ? 'A VIP lead goes back to whoever gave it'
+                  : user?.role === 'agent'
+                    ? 'Transfer this lead to another agent'
+                    : 'Give this lead to another agent'}
+              </span>
+            </button>
+          </section>
+        </aside>
+
+        {/* ── MIDDLE: what is owed, and what has happened ──────────────── */}
+        <div className="d-mid">
+          {said && (
+            <div className="d-banner d-green">
+              <Icon name="check" />
+              <span className="d-grow">{said}</span>
+            </div>
+          )}
+
+          <section className={lead.next_step_at ? 'd-card d-next-card' : 'd-card d-next-card d-none'}>
+            <span className="d-card-icon d-accent v2-leadpage-flagicon"><Icon name="calendar-check" /></span>
+            <div className="d-grow">
+              <span className="d-sec-label">Next step</span>
+              <div className="d-big">{lead.next_step_note || (lead.next_step_at ? 'Follow up' : 'No next step')}</div>
+              <span className="d-small d-muted">
+                {lead.next_step_at
+                  ? moment(lead.next_step_at)
+                  : 'Plan a follow-up or a meeting so the lead does not go cold.'}
+              </span>
+            </div>
+            <button type="button" className="d-btn d-sm d-ghost" onClick={() => setDoing('follow_up')}>
+              {lead.next_step_at ? 'Change' : 'Add one'}
+            </button>
+          </section>
+
+          <section className="d-card v2-leadpage-tabs">
+            <div className="d-tabs" role="tablist">
+              {(['notes', 'timeline', 'info', 'files'] as const).map((one) => (
+                <button
+                  key={one}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === one}
+                  className={tab === one ? 'd-tab d-on' : 'd-tab'}
+                  onClick={() => setTab(one)}
+                >
+                  {one === 'notes' ? 'Notes' : one === 'timeline' ? 'Timeline' : one === 'info' ? 'Info' : 'Files'}
+                  {one === 'timeline' && activities.length > 0 && (
+                    <span className="d-count">{activities.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {tab === 'notes' && (
+              <div className="d-empty">
+                <span className="d-ic"><Icon name="pencil" size={26} /></span>
+                <b>Notes are not built yet</b>
+                <p>Notes, voice notes and reminders arrive in phase 4.</p>
+              </div>
             )}
-            {tags.map((t) => <span className="v2-tag" key={t}>{t.replace(/^[a-z]+:/, '')}</span>)}
-          </div>
+
+            {tab === 'timeline' && (
+              activities.length === 0
+                ? (
+                  <div className="d-empty">
+                    <span className="d-ic"><Icon name="activity" size={26} /></span>
+                    <b>Nothing has happened yet</b>
+                    <p>Calls, messages and stage changes appear here as they happen.</p>
+                  </div>
+                )
+                : (
+                  <div className="d-timeline">
+                    {activities.map((one) => {
+                      const dot = mark(one.type);
+                      return (
+                        <div className="d-tl-item" key={one.id}>
+                          <span className={dot.tone ? `d-tl-dot ${dot.tone}` : 'd-tl-dot'}>
+                            <Icon name={dot.icon} size={14} />
+                          </span>
+                          <div className="d-tl-body">
+                            <b>{sentence(one.title?.trim() || one.type.replace(/[._]/g, ' '))}</b>
+                            {one.body && <p>{one.body}</p>}
+                            <span className="d-tl-time">
+                              {moment(one.created_at)}
+                              {one.user_name ? ` · ${one.user_name}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+            )}
+
+            {tab === 'info' && (
+              <dl className="d-kv">
+                <Row label="Phone" value={lead.phone_e164} />
+                <Row label="Email" value={lead.email} />
+                <Row label="Language" value={lead.language} />
+                <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
+                <Row
+                  label="Added"
+                  value={new Date(lead.created_at).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                />
+                <Row
+                  label="Last spoken to"
+                  value={lead.last_contact_at ? moment(lead.last_contact_at) : 'Never'}
+                />
+              </dl>
+            )}
+
+            {tab === 'files' && (
+              <div className="d-empty">
+                <span className="d-ic"><Icon name="paperclip" size={26} /></span>
+                <b>Files are not built yet</b>
+                <p>Photos, booking forms and ID arrive in phase 4.</p>
+              </div>
+            )}
+          </section>
+
+          {/* Every column of the row this lead came in on, if it came from
+              one. The design has no slot for it, and it belongs where an
+              agent looks: with the rest of the history. */}
+          {detail.data.importedRow && detail.data.importedRow.fields.length > 0 && (
+            <section className="d-card">
+              <div className="d-card-head">
+                <h3>From the sheet</h3>
+                {detail.data.importedRow.sourceLabel && (
+                  <span className="d-chip">{detail.data.importedRow.sourceLabel}</span>
+                )}
+              </div>
+              <dl className="d-kv">
+                {detail.data.importedRow.fields.map((one, i) => (
+                  <Row key={`${i}-${one.label}`} label={one.label} value={one.value} />
+                ))}
+              </dl>
+            </section>
+          )}
+
+          <p className="v2-back-row">
+            <Link to="/v2/leads">← Back to leads</Link>
+          </p>
         </div>
 
-        {/* Where they are, what time it is there, and whether now is a decent
-            hour to ring. The same card as the live CRM's, which Emir asked
-            for on 10 Nov after an agent rang Germany at six in the morning. */}
-        {origin && local && (
-          <div className={advice?.ok ? 'v2-where' : 'v2-where v2-where-warn'}>
-            <div className="v2-where-row">
-              <span className="v2-flag">{flagOf(origin.iso2)}</span>
-              <span>This number is from <b>{origin.name}</b></span>
+        {/* ── RIGHT: what they asked for ───────────────────────────────── */}
+        <div className="d-rcol">
+          <section className="d-card" aria-label={`What ${first} wants`}>
+            <div className="d-card-head v2-leadpage-wants-head">
+              <h3>What {first} wants</h3>
             </div>
-            <div className="v2-where-row">
-              <Icon name="clock-3" />
-              <span><b>{local.time}</b> there{origin.zoneLabel ? ` (${origin.zoneLabel})` : ''} · {local.offset}</span>
-            </div>
-            {advice && <div className="v2-advice">{advice.line}</div>}
-          </div>
-        )}
-      </header>
+            <dl className="d-kv">
+              <Row label="Project" value={lead.project_name} />
+              <Row label="Unit" value={lead.unit_type} />
+              <Row label="Budget" value={budget} />
+              <Row label="Where" value={lead.preferred_location} />
+              <Row label="Language" value={lead.language} />
+            </dl>
+            <dl className="d-kv d-mt-12 v2-leadpage-wants-foot">
+              <Row label="Source" value={lead.source} />
+              <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
+            </dl>
+          </section>
 
-      {/*
-        * The actions. Call, WhatsApp and Telegram work now, because they are
-        * links the phone handles. The rest open sheets that are not built
-        * yet, and say so when pressed rather than doing nothing -- a button
-        * that silently does nothing is the worst of the three options.
-        */}
-      <nav className="v2-acts" aria-label="What to do with this lead">
-        <a className="v2-act v2-act-call" href={phone ? `tel:${phone}` : undefined}>
-          <Icon name="phone" />Call
-        </a>
-        <a
-          className="v2-act v2-act-wa"
-          href={phone ? `https://wa.me/${phone.replace(/[^\d]/g, '')}` : undefined}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Icon name="message-circle" />WhatsApp
-        </a>
-        <Soon icon="send" label="Telegram" phase="phase 6" />
-        <ActionButton kind="follow_up" label="Follow-up" onClick={() => setDoing('follow_up')} />
-        <ActionButton kind="meeting" label="Meeting" onClick={() => setDoing('meeting')} />
-        <ActionButton kind="won" label="Won" onClick={() => setDoing('won')} />
-        <ActionButton kind="lost" label="Lost" onClick={() => setDoing('lost')} />
-      </nav>
+          <section className="d-card" aria-label="Coming up">
+            <div className="d-card-head v2-leadpage-wants-head">
+              <h3>Coming up</h3>
+              <Link className="d-card-link" to="/v2/calendar">
+                Calendar <Icon name="arrow-right" size={14} />
+              </Link>
+            </div>
+            {tasks.length === 0
+              ? <p className="d-small d-muted">Nothing planned yet.</p>
+              : tasks.map((one) => {
+                const when = one.due_at ? new Date(one.due_at) : null;
+                return (
+                  <div className="d-up" key={one.id}>
+                    <span className="d-d">
+                      {when ? when.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }) : '—'}
+                      <b>
+                        {when
+                          ? when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+                          : ''}
+                      </b>
+                    </span>
+                    <div className="d-grow">
+                      <b className="d-bold">{one.title ?? 'Task'}</b>
+                      <div className="d-small d-muted">{(one.type ?? 'task').replace(/_/g, ' ')}</div>
+                    </div>
+                  </div>
+                );
+              })}
+          </section>
+        </div>
+      </div>
 
       {doing && (
         <LeadAction
           kind={doing}
           opportunityId={lead.id}
+          who={lead.full_name}
           onCancel={() => setDoing(null)}
           onDone={(told) => { setDoing(null); setSaid(told); detail.reload(); }}
         />
       )}
 
-      {/* Handing it on. The lead stays here until the other person accepts,
-          which is what the screen says rather than implying it has gone. */}
-      {said && <p className="v2-said">{said}</p>}
-
-      {handingOver ? (
+      {handingOver && (
         <TransferLead
           opportunityId={lead.id}
+          who={lead.full_name}
+          isVip={lead.is_vip === 1}
           onCancel={() => setHandingOver(false)}
           onDone={(told) => { setHandingOver(false); setSaid(told); detail.reload(); }}
         />
-      ) : (
-        <p className="v2-transfer-row">
-          <button
-            type="button"
-            className="v2-act v2-act-wide"
-            onClick={() => setHandingOver(true)}
-          >
-            <Icon name="repeat" />
-            {lead.is_vip === 1
-              ? 'A VIP lead goes back to whoever gave it, not sideways'
-              : 'Give this lead to somebody else'}
-          </button>
-        </p>
       )}
-
-      <div className="v2-lead-cols">
-        <section className="v2-card">
-          <h2 className="v2-card-t">What {firstName(lead.full_name)} wants</h2>
-          <dl className="v2-kv">
-            <Row label="Project" value={lead.project_name} />
-            <Row label="Unit" value={lead.unit_type} />
-            <Row
-              label="Budget"
-              value={lead.budget_min_aed || lead.budget_max_aed
-                ? `${AED(lead.budget_min_aed)} – ${AED(lead.budget_max_aed)}`
-                : null}
-            />
-            <Row label="Where" value={lead.preferred_location} />
-            <Row label="Language" value={lead.language} />
-            <Row label="Came from" value={lead.source} />
-          </dl>
-          <p className="v2-note-small">
-            Editing a line writes it on the timeline. That arrives in phase 4.
-          </p>
-        </section>
-
-        <section className="v2-card">
-          <div className="v2-card-tabs" role="tablist">
-            {(['timeline', 'notes', 'info', 'files'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                className={tab === t ? 'v2-ctab v2-ctab-on' : 'v2-ctab'}
-                onClick={() => setTab(t)}
-              >
-                {t === 'timeline' ? 'Timeline' : t === 'notes' ? 'Notes' : t === 'info' ? 'Info' : 'Files'}
-              </button>
-            ))}
-          </div>
-
-          {tab === 'timeline' && (
-            activities.length === 0
-              ? <p className="v2-none">Nothing has happened to this lead yet.</p>
-              : (
-                <ol className="v2-time">
-                  {activities.map((a) => (
-                    <li key={a.id}>
-                      <span className="v2-time-when">
-                        {new Date(a.created_at).toLocaleString('en-GB', {
-                          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-                        })}
-                      </span>
-                      <span className="v2-time-what">
-                        <b>{a.type.replace(/[._]/g, ' ')}</b>
-                        {a.body ? ` · ${a.body}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              )
-          )}
-
-          {tab === 'notes' && <p className="v2-none">Notes, voice notes and reminders arrive in phase 4.</p>}
-
-          {tab === 'info' && (
-            <dl className="v2-kv">
-              <Row label="Phone" value={lead.phone_e164} />
-              <Row label="Email" value={lead.email} />
-              <Row label="Lead" value={`#${lead.id.slice(0, 8)}`} />
-              <Row
-                label="Added"
-                value={new Date(lead.created_at).toLocaleDateString('en-GB', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                })}
-              />
-              <Row
-                label="Last spoken to"
-                value={lead.last_contact_at
-                  ? new Date(lead.last_contact_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                  : 'Never'}
-              />
-            </dl>
-          )}
-
-          {tab === 'files' && <p className="v2-none">Photos, booking forms and ID arrive in phase 4.</p>}
-        </section>
-      </div>
-
-      {/* Every column of the sheet this lead came in on, if it came from one.
-          Built 10 Nov, kept here because it is where an agent looks. */}
-      {detail.data.importedRow && detail.data.importedRow.fields.length > 0 && (
-        <section className="v2-card">
-          <h2 className="v2-card-t">
-            From the sheet
-            {detail.data.importedRow.sourceLabel && (
-              <span className="v2-from">{detail.data.importedRow.sourceLabel}</span>
-            )}
-          </h2>
-          <dl className="v2-kv">
-            {detail.data.importedRow.fields.map((f, i) => (
-              <Row key={`${i}-${f.label}`} label={f.label} value={f.value} />
-            ))}
-          </dl>
-        </section>
-      )}
-
-      <p className="v2-back-row">
-        <Link to="/v2/leads">← Back to leads</Link>
-      </p>
     </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <>
+    <div className="d-kv-row">
       <dt>{label}</dt>
       <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
-    </>
+    </div>
   );
 }
 
@@ -319,19 +500,24 @@ function Row({ label, value }: { label: string; value: string | null | undefined
  * design now, and it refuses out loud rather than doing nothing, because a
  * control that silently ignores a press is the thing every tester hated most.
  */
-function Soon({ icon, label, phase, wide }: { icon: string; label: string; phase: string; wide?: boolean }) {
+function Soon({ icon, label, phase }: { icon: IconName; label: string; phase: string }) {
   const [said, setSaid] = useState(false);
   return (
     <button
       type="button"
-      className={wide ? 'v2-act v2-act-wide v2-act-soon' : 'v2-act v2-act-soon'}
+      className="d-btn"
       onClick={() => setSaid(true)}
       title={`Not built yet — ${phase}`}
     >
-      <Icon name={icon as never} />
-      {said ? `Not built yet — ${phase}` : label}
+      <Icon name={icon} />
+      {said ? `Not yet — ${phase}` : label}
     </button>
   );
+}
+
+/** `call.logged` arrives as "call logged"; a line of history starts big. */
+function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function firstName(full: string | null): string {
