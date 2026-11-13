@@ -171,3 +171,20 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   with no TypeScript errors. The web suite is 500 tests across 28 files.
 - **Not done.** Nothing.
 - **Failed.** Nothing.
+
+## 13 Nov — the phone, step 2 and step 3 started
+
+- **Done:** the phone shell, tested — bottom bar with the four screens that
+  hide it, every dialog a bottom sheet with a handle and swipe-to-close, the
+  rise-in, a header each screen can name and give one action, 44px tap
+  targets, the check-in gate moved onto the dial button so it covers every
+  screen instead of one. 32 browser checks and 34 unit tests. Then the More
+  screen rebuilt from `Menu.dc.html` (three across, the design's three
+  blocks, 1,658px instead of 2,256px) and the sign-in page given the two
+  things both design files have and it had neither.
+- **Not done:** the 57 screens in groups A–D. Four builds are running in
+  parallel, one group each, none of them allowed to touch a shared file.
+  The proof pictures and the computer-layout check come after they land.
+- **Failed:** nothing. The computer-layout baseline is recorded (102
+  screens) from the commit before any phone work, so "768px and wider did
+  not change" can be shown rather than claimed.
