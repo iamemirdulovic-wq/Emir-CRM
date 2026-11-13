@@ -1132,6 +1132,44 @@ const importState = {
   startedAt: 0,
 };
 
+/* ── the office's rules ─────────────────────────────────────────────────── */
+const rulesState = {
+  takeBack: { enabled: true, vipMinutes: 30, importHours: 24 },
+  rules: {
+    warnBeforeBack: true, markGoingCold: true, askWhatHappened: true,
+    followupDue: true, meetingSoon: true, howDidItGo: true, flagNoShows: true,
+    checkInReminder: true, markLate: false, tellOwnersAbsent: true,
+  } as Record<string, boolean>,
+};
+
+const RULE_GROUPS = [
+  { key: 'leads', title: 'Leads', rules: [
+    { key: 'warnBeforeBack', title: 'Warn the agent before a lead goes back', note: '10 minutes before a VIP lead, an hour before an imported one' },
+    { key: 'markGoingCold', title: 'Mark leads as “going cold”', note: 'No call, no message and no plan for 7 days' },
+    { key: 'askWhatHappened', title: 'Ask “What happened?” after WhatsApp or Telegram', note: 'The agent answers. Open ones show on My Day.' },
+  ] },
+  { key: 'followups', title: 'Follow-ups and meetings', rules: [
+    { key: 'followupDue', title: 'Remind the agent when a follow-up is due', note: 'At the planned time, and again after an hour' },
+    { key: 'meetingSoon', title: 'Remind 2 hours before a meeting', note: 'The agent only. The client message is ready; the agent presses send.' },
+    { key: 'howDidItGo', title: 'Ask “How did it go?” after each meeting', note: 'Answered before 21:00. Owners see who did not answer.' },
+    { key: 'flagNoShows', title: 'Red flag after 2 no-shows', note: 'A cancelled meeting is not a no-show' },
+  ] },
+  { key: 'attendance', title: 'Attendance', rules: [
+    { key: 'checkInReminder', title: 'Remind people to check in', note: 'At the start of the shift, on working days, only if they have not' },
+    { key: 'markLate', title: 'Mark somebody late', note: 'After the grace minutes. The agent can write a reason.' },
+    { key: 'tellOwnersAbsent', title: 'Tell owners about an absent agent', note: 'An hour into the shift, with no check-in and no leave' },
+  ] },
+];
+
+function previewRules() {
+  return {
+    ...rulesState,
+    groups: RULE_GROUPS,
+    vipChoices: [15, 30, 60, 120],
+    importChoices: [4, 24, 48, 72],
+  };
+}
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -1691,6 +1729,27 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/v2\/leave\/([^/]+)\/cancel$/, handler: () => ({ cancelled: true }) },
 
   /* The numbers on the menu, in one answer, as the real endpoint gives them. */
+  /* ── the office's rules ───────────────────────────────────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/rules$/, handler: () => previewRules() },
+  { method: 'PATCH', pattern: /^\/api\/v2\/rules$/, handler: ({ body }) => {
+    const patch = (body ?? {}) as { takeBack?: Record<string, unknown>; rules?: Record<string, boolean> };
+    if (patch.takeBack) Object.assign(rulesState.takeBack, patch.takeBack);
+    if (patch.rules) Object.assign(rulesState.rules, patch.rules);
+    return previewRules();
+  } },
+  { method: 'GET', pattern: /^\/api\/v2\/rules\/taken-back$/, handler: () => ({
+    items: rulesState.takeBack.enabled ? [
+      {
+        id: 'o-1', name: 'Omar Khan', project: 'Shahrukhz', isVip: true,
+        returnedAt: new Date(Date.now() - 70 * 60_000).toISOString(), agentName: 'Bassam',
+      },
+      {
+        id: 'o-2', name: 'Lina Rahimi', project: 'Damac Islands', isVip: false,
+        returnedAt: new Date(Date.now() - 112 * 60_000).toISOString(), agentName: 'Shan',
+      },
+    ] : [],
+  }) },
+
   /* ── import ───────────────────────────────────────────────────────────── */
   { method: 'POST', pattern: /^\/api\/imports$/, handler: () => {
     Object.assign(importState, {

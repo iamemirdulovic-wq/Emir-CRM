@@ -1462,3 +1462,12 @@
   .v2 .d-done-top { flex-wrap:wrap; }
   .v2 .v2-done-h { font-size:21px; }
 }
+
+/* ── Automations ─────────────────────────────────────────────────────────
+ *
+ * The take-back hero's layout comes from `design/web/automations.html`. These
+ * are the bits its demo script sets inline.
+ */
+.v2 .v2-take-ic { width:44px; height:44px; border-radius:14px; }
+/* The switch in the hero carries its own word, on a dark background. */
+.v2 .v2-take-switch { display:flex; align-items:center; gap:8px; color:#fff; font-weight:600; }

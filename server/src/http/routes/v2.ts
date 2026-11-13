@@ -33,6 +33,9 @@ import { monthSpend, usd } from '../../ai/usage.js';
 import { pushReadiness } from '../../services/integration-status.js';
 import { setupChecklist } from '../../services/setup-checklist.js';
 import {
+  officeRules, saveOfficeRules, saveSchema as rulesSchema,
+} from '../../v2/office-rules.js';
+import {
   createSheet, deleteDraft, getSheet, listSheets, markAccepted, markShared,
   patchSchema, sheetSchema, SHEET_TABS, updateSheet, type SheetTab,
 } from '../../v2/offers.js';
@@ -663,6 +666,64 @@ v2Router.get(
         openLeads: r.openLeads === null ? null : Number(r.openLeads),
       })),
       canSeeNumbers: isOwner,
+    });
+  }),
+);
+
+/* ── what the CRM does on its own ──────────────────────────────────────── */
+
+/**
+ * The office's rules.
+ *
+ * Everyone may read them — an agent whose lead went back deserves to know the
+ * rule that took it — and only an owner or admin may move a switch.
+ */
+v2Router.get(
+  '/rules',
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await officeRules());
+  }),
+);
+
+v2Router.patch(
+  '/rules',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await saveOfficeRules(actorFrom(req), rulesSchema.parse(req.body)));
+  }),
+);
+
+/**
+ * The leads that went back today.
+ *
+ * The take-back rule's own receipts. A rule with a number beside it is a rule
+ * somebody can judge; a switch on its own is a leap of faith.
+ */
+v2Router.get(
+  '/rules/taken-back',
+  requireRole('owner', 'admin', 'manager'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const rows = await query<{
+      id: string; name: string; project: string | null; isVip: number;
+      returnedAt: string; agentName: string | null;
+    }>(
+      `SELECT o.id,
+              c.full_name    AS name,
+              o.project_name AS project,
+              o.is_vip       AS isVip,
+              o.returned_at  AS returnedAt,
+              u.name         AS agentName
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+         LEFT JOIN users u ON u.id = o.owner_user_id
+        WHERE o.returned_at IS NOT NULL
+          AND o.returned_at >= DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
+        ORDER BY o.returned_at DESC
+        LIMIT 20`,
+      [],
+    );
+    res.json({
+      items: rows.map((row) => ({ ...row, isVip: Number(row.isVip) === 1 })),
     });
   }),
 );

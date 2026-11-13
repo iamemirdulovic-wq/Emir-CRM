@@ -64,6 +64,21 @@ export type SettingName =
   | 'AI_CAN_VOICE'
   | 'AI_CAN_BRIEF'
   | 'AI_CAN_CHAT'
+  /* The office's own rules — see `v2/office-rules.ts`. The take-back clock
+     first, because it is the one rule that takes a lead off an agent. */
+  | 'TAKEBACK_ENABLED'
+  | 'TAKEBACK_VIP_MINUTES'
+  | 'TAKEBACK_IMPORT_HOURS'
+  | 'AUTO_WARN_BEFORE_BACK'
+  | 'AUTO_MARK_GOING_COLD'
+  | 'AUTO_ASK_WHAT_HAPPENED'
+  | 'AUTO_FOLLOWUP_REMINDER'
+  | 'AUTO_MEETING_REMINDER'
+  | 'AUTO_ASK_HOW_IT_WENT'
+  | 'AUTO_FLAG_NO_SHOWS'
+  | 'AUTO_CHECKIN_REMINDER'
+  | 'AUTO_MARK_LATE'
+  | 'AUTO_TELL_OWNERS_ABSENT'
   /* The company as it introduces itself to a client — see config/company.ts.
      These used to be constants in the source; they reach every WhatsApp
      footer, every email signature, the business card and every offer. */
