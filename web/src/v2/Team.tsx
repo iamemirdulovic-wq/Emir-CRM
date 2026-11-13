@@ -53,6 +53,13 @@ function useIsPhone(): boolean {
  * desk"), the deals-and-meetings pair on each card, and the six-month bar
  * chart in the panel. The filter pills use what people actually cover
  * instead, and the panel's four figures come from the profile endpoint.
+ *
+ * The middle one is worth naming precisely, because the phone design puts it
+ * in bold on every card — "7 deals this month · 14 meetings". `/api/v2/team`
+ * sends no such pair, and `profileStats` counts deals for all time and
+ * meetings over a year, one request per person. Two monthly counts on the
+ * team query would finish the card; until then the line is left out rather
+ * than filled with a number that means something else.
  */
 
 interface Person {
@@ -183,12 +190,21 @@ export function V2Team() {
         </span>
       </div>
 
-      {/* The design's second tab is "Best of Homes", a leaderboard that is not
-          part of this build. The Team wall is the screen beside this one in
-          the menu, so it takes the place. */}
+      {/*
+        * `design/web/team.html` pairs this screen with **Best of Homes**, and
+        * `/v2/best` already draws the same two tabs the other way round. The
+        * second one here said "Team wall", from when the leaderboard was not
+        * built: the pair disagreed, and from this screen the tab row could
+        * not reach the screen it is a pair with. The wall is in More, on the
+        * profile menu and at the foot of a colleague's sheet.
+        *
+        * `TeamDirectory.dc.html` draws no tab row at all — it goes from the
+        * header to the search box. The computer design is the newer of the
+        * two and wins; it is written down in `docs/v2/phone-questions-c.md`.
+        */}
       <div className="d-tabs d-top-tabs">
         <span className="d-tab d-on">Meet the team</span>
-        <Link to="/v2/wall" className="d-tab">Team wall</Link>
+        <Link to="/v2/best" className="d-tab">Best of Homes</Link>
       </div>
 
       <div className="d-filters">

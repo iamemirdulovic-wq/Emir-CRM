@@ -209,3 +209,28 @@ this is what the comparison added.*
 - `web/src/v2/settings/Team.tsx` uses `.d-gap-12`, which is in no stylesheet,
   so `design-classes.test.ts` fails on it. It was `Calling.tsx` last time;
   same class, different screen. Not my file either time.
+
+## 7. Two more on Meet the team · asked for after the second pass
+
+- **The "Meet the team / Best of Homes" tab row.** `TeamDirectory.dc.html`
+  draws no tabs at all — header, then the search box.
+  `design/web/team.html` **does** draw them, so the computer design wins and
+  the tabs stay at phone width. Writing it down as the rule asks.
+  While checking it I found the pair was broken: this screen's second tab
+  said *Team wall* — a leftover from when the leaderboard was not built —
+  while `/v2/best` draws *Meet the team · Best of Homes*. So the two screens
+  that share a tab row disagreed, and from the team you could not reach the
+  screen it is paired with. The second tab is now **Best of Homes**, as the
+  computer design has it. The team wall is still in More, on the Profile
+  menu, and at the foot of a colleague's sheet. **This changes the computer
+  too** — one label and where it goes, towards what `team.html` draws.
+- **"7 deals this month · 14 meetings"**, the bold third line on every person
+  in the phone design. **Not built, not invented.** `/api/v2/team` sends
+  name, role, languages, what somebody covers, where they are today and — for
+  owners only — their open leads. There is no deals or meetings figure on it.
+  The nearest thing is `profileStats`, which counts **won deals for all time**
+  and **meetings over the last 365 days**, and is one request per person, so
+  it cannot fill a list of ten. **A server job:** two monthly counts added to
+  the team query — deals won this month, and `activities` of type
+  `meeting_booked` this month — and the line appears. Say the word and I will
+  write it.
