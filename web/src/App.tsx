@@ -79,6 +79,7 @@ import { V2VipGiven } from './v2/VipGiven.js';
 import { V2PersonalInfo } from './v2/PersonalInfo.js';
 import { V2SettingsSecurity } from './v2/settings/Security.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
+import { OwnerOnly } from './v2/OwnerOnly.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
 function Protected({ children }: { children: ReactNode }) {
@@ -158,22 +159,22 @@ export function App() {
           {/* The owner's record of the VIP leads they handed out, from
               `design/screens/OwnerAssign.dc.html` — a screen, not the assign
               dialog it was read as. */}
-          <Route path="/v2/vip" element={<V2VipGiven />} />
+          <Route path="/v2/vip" element={<OwnerOnly><V2VipGiven /></OwnerOnly>} />
           <Route path="/v2/pipeline" element={<V2Pipeline />} />
           <Route path="/v2/calling" element={<V2Calling />} />
           <Route path="/v2/transfers" element={<V2Transfers />} />
-          <Route path="/v2/import" element={<V2Import />} />
+          <Route path="/v2/import" element={<OwnerOnly><V2Import /></OwnerOnly>} />
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
           <Route path="/v2/projects" element={<V2Projects />} />
           {/* Before `:id`, or "manage" is read as a project's id. */}
-          <Route path="/v2/projects/manage" element={<V2ManageProjects />} />
+          <Route path="/v2/projects/manage" element={<OwnerOnly><V2ManageProjects /></OwnerOnly>} />
           <Route path="/v2/projects/:id" element={<V2Project />} />
           <Route path="/v2/offers" element={<V2Offers />} />
           {/* The agent's own business card, from `digital-card.html`. */}
           <Route path="/v2/card" element={<V2Card />} />
           {/* The messaging funnel, beside Activity in `messaging-report.html`. */}
-          <Route path="/v2/messaging" element={<V2Messaging />} />
+          <Route path="/v2/messaging" element={<OwnerOnly><V2Messaging /></OwnerOnly>} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
           <Route path="/v2/wall" element={<V2Wall />} />
@@ -185,11 +186,11 @@ export function App() {
           <Route path="/v2/notifications" element={<V2Notifications />} />
           <Route path="/v2/search" element={<V2Find />} />
           <Route path="/v2/attendance" element={<V2Attendance />} />
-          <Route path="/v2/activity" element={<V2Activity />} />
-          <Route path="/v2/dashboard" element={<V2Dashboard />} />
+          <Route path="/v2/activity" element={<OwnerOnly><V2Activity /></OwnerOnly>} />
+          <Route path="/v2/dashboard" element={<OwnerOnly><V2Dashboard /></OwnerOnly>} />
           {/* Beside Activity in the design's own segmented control. Owner and
               admin only — the screen refuses, and so does its endpoint. */}
-          <Route path="/v2/team-live" element={<V2Live />} />
+          <Route path="/v2/team-live" element={<OwnerOnly><V2Live /></OwnerOnly>} />
           <Route path="/v2/ai" element={<V2Ai />} />
           {/* Settings, as `design/web/settings.html` lays it out: one shell
               with the section list, a panel per page behind it. The office
@@ -198,20 +199,20 @@ export function App() {
           <Route path="/v2/settings" element={<V2SettingsGeneral />} />
           <Route path="/v2/settings/notifications" element={<V2SettingsNotifications />} />
           <Route path="/v2/settings/phone-app" element={<V2SettingsPhoneApp />} />
-          <Route path="/v2/settings/team" element={<V2SettingsTeam />} />
-          <Route path="/v2/settings/attendance" element={<V2SettingsAttendance />} />
-          <Route path="/v2/settings/automations" element={<V2Automations />} />
-          <Route path="/v2/settings/company" element={<V2SettingsCompany />} />
-          <Route path="/v2/settings/ai" element={<V2SettingsAi />} />
-          <Route path="/v2/settings/desks" element={<V2SettingsDesks />} />
-          <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
-          <Route path="/v2/settings/feedback" element={<V2FeedbackInbox />} />
-          <Route path="/v2/settings/banners" element={<V2SettingsBanners />} />
+          <Route path="/v2/settings/team" element={<OwnerOnly><V2SettingsTeam /></OwnerOnly>} />
+          <Route path="/v2/settings/attendance" element={<OwnerOnly><V2SettingsAttendance /></OwnerOnly>} />
+          <Route path="/v2/settings/automations" element={<OwnerOnly><V2Automations /></OwnerOnly>} />
+          <Route path="/v2/settings/company" element={<OwnerOnly><V2SettingsCompany /></OwnerOnly>} />
+          <Route path="/v2/settings/ai" element={<OwnerOnly><V2SettingsAi /></OwnerOnly>} />
+          <Route path="/v2/settings/desks" element={<OwnerOnly><V2SettingsDesks /></OwnerOnly>} />
+          <Route path="/v2/settings/health" element={<OwnerOnly><V2SettingsHealth /></OwnerOnly>} />
+          <Route path="/v2/settings/feedback" element={<OwnerOnly><V2FeedbackInbox /></OwnerOnly>} />
+          <Route path="/v2/settings/banners" element={<OwnerOnly><V2SettingsBanners /></OwnerOnly>} />
           <Route path="/v2/settings/security" element={<V2SettingsSecurity />} />
           <Route path="/v2/feedback" element={<V2Feedback />} />
           {/* The old address kept working, since it is in the nav of every
               screen already shipped. */}
-          <Route path="/v2/automations" element={<V2Automations />} />
+          <Route path="/v2/automations" element={<OwnerOnly><V2Automations /></OwnerOnly>} />
           <Route path="/v2/profile" element={<V2Person />} />
           {/* Where the settings list's "My profile · Photo, BRN, card" row
               points. It pointed nowhere until now. */}

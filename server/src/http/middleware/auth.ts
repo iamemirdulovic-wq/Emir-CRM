@@ -49,23 +49,32 @@ export function requirePermission(permission: Permission) {
   };
 }
 
+/** What an agent is told when they reach something that is not theirs. */
+export const ONLY_FOR_OWNERS = 'Only for owners and admin.';
+
 export function requireRole(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) return next(unauthorized());
-    if (!roles.includes(req.user.role)) return next(forbidden(`This action requires one of: ${roles.join(', ')}`));
+    /*
+     * The message a person reads, not the list of role names the code holds.
+     * "This action requires one of: owner, admin" was shown to agents on
+     * screen, which tells them nothing they can act on and reads like a
+     * fault in the CRM.
+     */
+    if (!roles.includes(req.user.role)) return next(forbidden(ONLY_FOR_OWNERS));
     next();
   };
 }
 
 export const requireManager = (req: Request, _res: Response, next: NextFunction): void => {
   if (!req.user) return next(unauthorized());
-  if (!isManagerOrAbove(req.user.role)) return next(forbidden('Manager access required'));
+  if (!isManagerOrAbove(req.user.role)) return next(forbidden(ONLY_FOR_OWNERS));
   next();
 };
 
 export const requireAdmin = (req: Request, _res: Response, next: NextFunction): void => {
   if (!req.user) return next(unauthorized());
-  if (!isAdminOrAbove(req.user.role)) return next(forbidden('Administrator access required'));
+  if (!isAdminOrAbove(req.user.role)) return next(forbidden(ONLY_FOR_OWNERS));
   next();
 };
 
