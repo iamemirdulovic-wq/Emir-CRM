@@ -125,14 +125,16 @@ export function V2Attendance() {
 
   const tabs = seesTeam
     ? [
-      { key: 'team', label: 'Team today', count: 0 },
-      { key: 'leave', label: 'Leave requests', count: waiting.length },
-      { key: 'mine', label: 'My attendance', count: 0 },
+      /* Red, because somebody is waiting on this person for an answer. The
+         agent's own pending request is not urgent, so theirs stays grey. */
+      { key: 'team', label: 'Team today', count: 0, urgent: true },
+      { key: 'leave', label: 'Leave requests', count: waiting.length, urgent: true },
+      { key: 'mine', label: 'My attendance', count: 0, urgent: true },
     ]
     : [
-      { key: 'today', label: 'Today', count: 0 },
-      { key: 'month', label: 'Month', count: 0 },
-      { key: 'leave', label: 'Leave', count: myWaiting.length },
+      { key: 'today', label: 'Today', count: 0, urgent: false },
+      { key: 'month', label: 'Month', count: 0, urgent: false },
+      { key: 'leave', label: 'Leave', count: myWaiting.length, urgent: false },
     ];
 
   return (
@@ -148,7 +150,9 @@ export function V2Attendance() {
             onClick={() => setTab(one.key)}
           >
             {one.label}
-            {one.count > 0 && <span className="d-count d-red">{one.count}</span>}
+            {one.count > 0 && (
+              <span className={one.urgent ? 'd-count d-red' : 'd-count'}>{one.count}</span>
+            )}
           </button>
         ))}
         {seesTeam && (
@@ -202,7 +206,7 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
   const taken = Object.values(mine.taken).reduce((sum, n) => sum + n, 0);
   const asked = mine.leave.filter((one) => one.status === 'pending').length;
 
-  const detail = marks.get(picked) ?? 'none';
+  const detail = markOn(marks, picked);
 
   return (
     <>
@@ -216,7 +220,7 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
           </div>
           <div className="d-wk7">
             {week.map((date, i) => {
-              const mark = marks.get(date) ?? 'none';
+              const mark = markOn(marks, date);
               return (
                 <button
                   key={date}
@@ -483,7 +487,7 @@ function AgentMonth({ mine }: { mine: Mine }) {
     const count: Record<string, number> = { ok: 0, late: 0, out: 0, leave: 0, none: 0 };
     for (const date of cells) {
       if (!date || date > dubaiToday()) continue;
-      const mark = marks.get(date) ?? 'none';
+      const mark = markOn(marks, date);
       if (mark === 'asked') count.leave = (count.leave ?? 0) + 1;
       else if (count[mark] !== undefined) count[mark] = (count[mark] ?? 0) + 1;
     }
@@ -491,7 +495,7 @@ function AgentMonth({ mine }: { mine: Mine }) {
   }, [cells, marks]);
 
   const worked = (totals.ok ?? 0) + (totals.late ?? 0) + (totals.out ?? 0);
-  const detail = marks.get(picked) ?? 'none';
+  const detail = markOn(marks, picked);
 
   return (
     <div className="d-bento">
@@ -519,7 +523,7 @@ function AgentMonth({ mine }: { mine: Mine }) {
           ))}
           {cells.map((date, i) => {
             if (!date) return <div className="d-md d-blank" key={`blank-${i}`} />;
-            const mark = marks.get(date) ?? (date > dubaiToday() ? 'future' : 'none');
+            const mark = markOn(marks, date);
             return (
               <button
                 key={date}
@@ -744,6 +748,10 @@ function TeamToday({ team }: { team: Team }) {
     return out;
   }, [team.leave, today]);
 
+  /* Problems first, as the design orders them: the absent, then the late,
+     then whoever is out, then whoever is away, then everybody who is in. An
+     owner opens this screen to find the person who has not turned up. */
+  const ORDER: Mark[] = ['abs', 'late', 'out', 'leave', 'ok'];
   const rows = team.people.map((person) => {
     const day = person.days.find((d) => d.date === today);
     const mark: Mark = onLeave.has(person.userId) ? 'leave'
@@ -751,7 +759,8 @@ function TeamToday({ team }: { team: Team }) {
         : day?.kind === 'office' ? (day.late ? 'late' : 'ok')
           : 'abs';
     return { person, day, mark };
-  });
+  }).sort((a, b) => ORDER.indexOf(a.mark) - ORDER.indexOf(b.mark)
+    || a.person.name.localeCompare(b.person.name));
 
   const counts = Object.fromEntries(
     COUNTERS.map((one) => [one.key, rows.filter((r) => r.mark === one.key).length]),
@@ -1122,7 +1131,7 @@ function OwnerMine({ mine, reload, onAsk }: { mine: Mine; reload: () => void; on
           </div>
           <div className="d-week">
             {week.map((date, i) => {
-              const one = marks.get(date) ?? (date > dubaiToday() ? 'future' : 'none');
+              const one = markOn(marks, date);
               return (
                 <div
                   className={date === dubaiToday() ? 'd-wd d-today' : 'd-wd'}
@@ -1465,6 +1474,11 @@ function placeOf(mark: Mark, note: string | null): string {
   if (mark === 'leave') return 'Approved days off';
   if (mark === 'out') return 'Outside, no place written down';
   return 'Office Wi-Fi';
+}
+
+/** A day nobody has reached yet is "still to come", not "nobody turned up". */
+function markOn(marks: Map<string, Mark>, date: string): Mark {
+  return marks.get(date) ?? (date > dubaiToday() ? 'future' : 'none');
 }
 
 function lineFor(date: string, mark: Mark, mine: Mine): string {

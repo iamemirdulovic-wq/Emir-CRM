@@ -14,9 +14,9 @@ import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
  * already serves, so a post written on either is seen on both and the
  * leaderboard cannot say two different things in two places.
  *
- * The design's three kinds of post are the three the server already stores:
- * a `post` is somebody talking, a pinned one is owner news and sits on top,
- * and a `deal`/`badge` is written by the CRM itself when something is won.
+ * The design's three kinds of post are three the server already stores: a
+ * `post` is somebody talking, a pinned one is owner news and sits on top, and
+ * a `deal_won` or `badge` is written by the CRM itself when something is won.
  */
 
 interface Post {

@@ -53,6 +53,9 @@ import { V2Find } from './v2/Find.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
 import { V2Offers } from './v2/Offers.js';
+import { V2ManageProjects } from './v2/ManageProjects.js';
+import { V2Card } from './v2/Card.js';
+import { V2Messaging } from './v2/Messaging.js';
 import { V2Inbox } from './v2/Inbox.js';
 import { V2Email } from './v2/Email.js';
 import { V2Templates } from './v2/Templates.js';
@@ -63,6 +66,7 @@ import { V2SettingsCompany } from './v2/settings/Company.js';
 import { V2SettingsAttendance } from './v2/settings/Attendance.js';
 import { V2SettingsAi } from './v2/settings/Ai.js';
 import { V2SettingsHealth } from './v2/settings/Health.js';
+import { V2SettingsDesks } from './v2/settings/Desks.js';
 import { V2SettingsTeam } from './v2/settings/Team.js';
 import { V2SettingsPhoneApp } from './v2/settings/PhoneApp.js';
 import { V2FeedbackInbox } from './v2/settings/FeedbackInbox.js';
@@ -148,8 +152,14 @@ export function App() {
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
           <Route path="/v2/projects" element={<V2Projects />} />
+          {/* Before `:id`, or "manage" is read as a project's id. */}
+          <Route path="/v2/projects/manage" element={<V2ManageProjects />} />
           <Route path="/v2/projects/:id" element={<V2Project />} />
           <Route path="/v2/offers" element={<V2Offers />} />
+          {/* The agent's own business card, from `digital-card.html`. */}
+          <Route path="/v2/card" element={<V2Card />} />
+          {/* The messaging funnel, beside Activity in `messaging-report.html`. */}
+          <Route path="/v2/messaging" element={<V2Messaging />} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
           <Route path="/v2/wall" element={<V2Wall />} />
@@ -175,6 +185,7 @@ export function App() {
           <Route path="/v2/settings/automations" element={<V2Automations />} />
           <Route path="/v2/settings/company" element={<V2SettingsCompany />} />
           <Route path="/v2/settings/ai" element={<V2SettingsAi />} />
+          <Route path="/v2/settings/desks" element={<V2SettingsDesks />} />
           <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
           <Route path="/v2/settings/feedback" element={<V2FeedbackInbox />} />
           <Route path="/v2/settings/banners" element={<V2SettingsBanners />} />

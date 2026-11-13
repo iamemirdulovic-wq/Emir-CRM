@@ -166,9 +166,16 @@ export function V2Projects() {
         )}
 
         {canManage && (
-          <Link className="d-btn d-sm" to="/projects">
-            <Icon name="pencil" />Manage projects
-          </Link>
+          <>
+            <Link className="d-btn d-sm" to="/v2/settings/banners">
+              <Icon name="image-up" />Home banners
+            </Link>
+            {/* The owner's view of the same library: what agents can see,
+                the brochure, and the lead count per project. */}
+            <Link className="d-btn d-sm" to="/v2/projects/manage">
+              <Icon name="pencil" />Manage projects
+            </Link>
+          </>
         )}
       </div>
 

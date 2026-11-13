@@ -413,8 +413,10 @@ export function V2Find() {
                           </span>
                         )}
                       <span className="d-grow">
-                        <b>{hit.label}</b>
-                        {hit.hint && hit.kind !== 'screen' && <span className="d-sub">{hit.hint}</span>}
+                        <b><Lit text={hit.label} q={term.trim()} /></b>
+                        {hit.hint && hit.kind !== 'screen' && (
+                          <span className="d-sub"><Lit text={hit.hint} q={term.trim()} /></span>
+                        )}
                       </span>
                       <span className="d-sr-type">{group}</span>
                       <Icon name="chevron-right" />
@@ -462,5 +464,24 @@ export function V2Find() {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * The matched word, lit up.
+ *
+ * The design marks the part somebody typed, which is how a row of six Ahmeds
+ * tells you which one it matched on — the name or the project under it.
+ * First occurrence only, as the design does it.
+ */
+function Lit({ text, q }: { text: string; q: string }) {
+  const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark>{text.slice(at, at + q.length)}</mark>
+      {text.slice(at + q.length)}
+    </>
   );
 }

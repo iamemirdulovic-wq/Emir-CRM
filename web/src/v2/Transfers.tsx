@@ -67,7 +67,7 @@ const STAGE: Record<string, { word: string; chip: string }> = {
   lost: { word: 'Lost', chip: 'd-stage-lost' },
 };
 
-/** The rules, in the design's own words. Shown to both roles, worded for each. */
+/** The rules, in the design's own words — a different set for each role. */
 const AGENT_RULES: Array<{ icon: IconName; text: ReactNode }> = [
   { icon: 'user', text: <>Only <b>your own</b> leads. One open request per lead.</> },
   { icon: 'clock', text: <>No answer by <b>18:00</b> ends the request. The lead stays with you.</> },
@@ -255,10 +255,10 @@ function AgentView({ lists, busy, act }: { lists: Lists; busy: string | null; ac
             <div className="d-card-head d-mb-8"><h3>Open right now</h3></div>
             <div className="d-row d-gap-24">
               <div className="d-stat">
-                <b className="d-num">{lists.iSent.length}</b><span className="d-label">You sent</span>
+                <b className="d-num">{iSent.length}</b><span className="d-label">You sent</span>
               </div>
               <div className="d-stat">
-                <b className="d-num">{lists.forMe.length}</b><span className="d-label">Waiting on you</span>
+                <b className="d-num">{forMe.length}</b><span className="d-label">Waiting on you</span>
               </div>
             </div>
           </section>

@@ -75,6 +75,10 @@ const ROUTES = [
      of thing that only breaks at one width. */
   ['/v2/offers', 'v2-offers'],
   ['/v2/import', 'v2-import'],
+  /* Homes AI is a two-column grid and Activity holds two tables that cannot
+     shrink; both are exactly what this pass is for. */
+  ['/v2/ai', 'v2-ai'],
+  ['/v2/activity', 'v2-activity'],
   /* The three message screens. The inbox is the only three-column layout in
      v2, so it is the one most likely to scroll sideways on a phone. */
   ['/v2/inbox', 'v2-inbox'],

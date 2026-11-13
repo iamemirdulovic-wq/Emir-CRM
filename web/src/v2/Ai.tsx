@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -71,12 +71,29 @@ export function V2Ai() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [before, setBefore] = useState<string[]>(() => readAsked());
   const bottom = useRef<HTMLDivElement>(null);
+  const [params] = useSearchParams();
 
   const tip = useAsync<DoNow>(() => api.get('/api/activity/do-now'), []);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [thread.length, busy]);
+
+  /*
+   * `/v2/ai?q=…` asks the question on arrival, as the design does.
+   *
+   * The ref is what stops React's double-mount in development asking it
+   * twice, which would be two rows in `ai_usage` and two charges for one
+   * question.
+   */
+  const asked = useRef(false);
+  const fromLink = params.get('q');
+  useEffect(() => {
+    if (!fromLink || asked.current) return;
+    asked.current = true;
+    void ask(fromLink);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromLink]);
 
   async function ask(question: string) {
     const text = question.trim();

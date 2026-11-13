@@ -34,6 +34,8 @@ const MINE: Section[] = [
 const OFFICE: Section[] = [
   { to: '/v2/settings/team', icon: 'users', label: 'Team and roles', ownerOnly: true },
   { to: '/v2/settings/attendance', icon: 'pin', label: 'Attendance rules', ownerOnly: true },
+  /* Beside Attendance rules, where `design/web/desks.html` puts it. */
+  { to: '/v2/settings/desks', icon: 'layout-grid', label: 'Desks', ownerOnly: true },
   { to: '/v2/settings/automations', icon: 'zap', label: 'Automations', ownerOnly: true },
   { to: '/v2/settings/company', icon: 'building', label: 'Company', ownerOnly: true },
   { to: '/v2/settings/banners', icon: 'megaphone', label: 'Home banners', ownerOnly: true },

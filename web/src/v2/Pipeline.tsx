@@ -171,8 +171,10 @@ export function V2Pipeline() {
         </span>
 
         <span className="d-result-count">
+          {/* Counted by the server either way, not by adding up the cards on
+              screen — each column only sends its first page of them. */}
           {filtered
-            ? `${columns.reduce((n, one) => n + one.cards.length, 0) + (lost?.cards.length ?? 0)} found`
+            ? `${everything.toLocaleString('en-GB')} found`
             : `${open.toLocaleString('en-GB')} open lead${open === 1 ? '' : 's'}${
               seesEveryone && !agent ? ' · every agent' : ''}`}
         </span>
@@ -259,8 +261,10 @@ function LeadCard({ card, showAgent }: { card: Card; showAgent: boolean }) {
       <span className="d-t-sub">{describe(card)}</span>
 
       <div className="d-ft">
+        {/* The design hangs the agent's name off the avatar as a tooltip; an
+            avatar is two letters and nobody learns ten of them. */}
         {showAgent && card.owner_name && (
-          <Avatar name={card.owner_name} size={20} className="v2-kb-who" />
+          <span title={card.owner_name}><Avatar name={card.owner_name} size={20} /></span>
         )}
         <span className={next.urgent ? 'd-nx d-red' : 'd-nx'}>{next.text}</span>
         {card.phone_e164 && (

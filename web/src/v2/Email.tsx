@@ -90,8 +90,8 @@ export function V2Email() {
         <div className="d-banner d-amber v2-em-note">
           <Icon name="alert-triangle" />
           <span className="d-grow">
-            <b>Email is not switched on yet.</b>{' '}
-            {readiness.data.problems[0] ?? 'Nothing can be delivered until it is set up.'}
+            <b>Email is off.</b>{' '}
+            {readiness.data.problems.join(' · ') || 'Nothing can be delivered until it is set up.'}
           </span>
           {(user?.role === 'owner' || user?.role === 'admin') && (
             <Link className="d-btn d-sm" to="/v2/settings/health">Check the setup</Link>
@@ -149,10 +149,10 @@ export function V2Email() {
                 </span>
                 <span className="d-sj d-truncate">{one.subject}</span>
                 <span className="d-row d-gap-6">
-                  <span className="d-grow">
-                    <span className="d-sub d-truncate">
-                      {one.preview_text ?? firstLine(one.body)}
-                    </span>
+                  {/* `d-row` is a flex box, so the preview actually ellipsises.
+                      As a bare inline span it ran on under the chip. */}
+                  <span className="d-sub d-truncate d-grow">
+                    {one.preview_text ?? firstLine(one.body)}
                   </span>
                   {one.enabled === 1
                     ? <span className="d-chip">{CATEGORY_LABEL[one.category] ?? one.category}</span>
@@ -216,7 +216,9 @@ export function V2Email() {
                 <div className={phone ? 'd-em-mail d-ph' : 'd-em-mail'}>
                   <div className="d-em-top">
                     <span className="d-em-logo"><Icon name="building" /></span>
-                    <b>homes<span>.</span>me</b>
+                    {/* The brand on the client's email is whatever Settings
+                        says it is, not a name baked into the page. */}
+                    <b>{brand(company.data)}</b>
                     <span className="d-grow" />
                     <span className="d-em-vip">
                       {(CATEGORY_LABEL[chosen.category] ?? chosen.category).toUpperCase()}
@@ -295,6 +297,14 @@ function Filled({ text, known }: { text: string; known: Set<string> }) {
       })}
     </>
   );
+}
+
+/** The trading name, split so the dot takes the accent colour the design gives it. */
+function brand(data: CompanyResponse | null) {
+  const name = data?.company?.tradingName?.trim() || 'homes.me';
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return <>{name}</>;
+  return <>{name.slice(0, dot)}<span>.</span>{name.slice(dot + 1)}</>;
 }
 
 function firstLine(body: string): string {

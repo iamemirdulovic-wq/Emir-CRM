@@ -4063,13 +4063,14 @@ function buildActivities(lead: (typeof LEADS)[number], thread: { messages: Array
 /**
  * The WhatsApp template library the real `/api/templates/library` returns.
  *
- * `wa_templates.components` holds the text in the real database, and this is
- * where the Templates screen reads it from when a template has never been
- * synced. The preview had an empty library, so every card drew with no words
- * in it. Bodies and examples are the ones in
- * `server/src/messaging/templates/library.ts`, shortened to the four the
- * preview has rows for plus the two it does not, so the "not submitted yet"
- * state can be seen too.
+ * `wa_templates.components` holds the text in the real database, and the
+ * Templates screen falls back to this definition when a template has never
+ * been synced. The preview served an empty library, so every card drew with
+ * no words in it.
+ *
+ * The bodies, examples and buttons are copied from
+ * `server/src/messaging/templates/library.ts`. A preview that paraphrases
+ * them teaches the wrong wording, and the wording is the thing Meta approves.
  */
 const WA_TEMPLATE_LIBRARY = [
   {
@@ -4078,12 +4079,12 @@ const WA_TEMPLATE_LIBRARY = [
       { type: 'HEADER', format: 'DOCUMENT' },
       {
         type: 'BODY',
-        text: 'Hello {{1}}, thank you for your interest in {{2}}. My name is {{3}} from {{4}} and I will '
-          + 'be looking after your enquiry personally. I have attached the project brochure above. '
+        text: 'Hello {{1}}, thank you for your interest in {{2}}. My name is {{3}} from {{4}} and I will be '
+          + 'looking after your enquiry personally. I have attached the project brochure above. '
           + 'How would you like to continue?',
         example: { body_text: [['Sara', 'Emaar Beachfront', 'Layla Hassan', 'Emigeo Homes']] },
       },
-      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
       {
         type: 'BUTTONS',
         buttons: [
@@ -4105,7 +4106,7 @@ const WA_TEMPLATE_LIBRARY = [
           + 'لقد أرفقت كتيب المشروع أعلاه. كيف تحب أن نكمل؟',
         example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'ليلى حسن', 'Emigeo Homes']] },
       },
-      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · أرسل STOP للإلغاء' },
+      { type: 'FOOTER', text: 'Emigeo Homes — دبي' },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4114,11 +4115,11 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'Hi {{1}}, this is {{2}} following up on your enquiry about {{3}}. I have availability '
-          + 'today to walk you through the floor plans and payment options. Shall I call you?',
+        text: 'Hi {{1}}, this is {{2}} following up on your enquiry about {{3}}. I have availability today '
+          + 'to walk you through the floor plans and payment options. Shall I call you?',
         example: { body_text: [['Sara', 'Layla Hassan', 'Emaar Beachfront']] },
       },
-      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
       {
         type: 'BUTTONS',
         buttons: [
@@ -4134,10 +4135,11 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'مرحباً {{1}}، معك {{2}} للمتابعة بخصوص استفسارك عن {{3}}. لدي وقت متاح اليوم لأشرح لك '
-          + 'المخططات وخطط السداد. هل أتصل بك؟',
+        text: 'مرحباً {{1}}، معك {{2}} للمتابعة بخصوص استفسارك عن {{3}}. لدي وقت متاح اليوم '
+          + 'لأشرح لك المخططات وخطط السداد. هل أتصل بك؟',
         example: { body_text: [['سارة', 'ليلى حسن', 'إعمار بيتشفرونت']] },
       },
+      { type: 'FOOTER', text: 'Emigeo Homes — دبي' },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4147,11 +4149,18 @@ const WA_TEMPLATE_LIBRARY = [
       { type: 'HEADER', format: 'IMAGE' },
       {
         type: 'BODY',
-        text: 'Hi {{1}}, {{2}} starts from {{3}} and the current release is selling quickly. '
-          + 'I can hold a unit for you while you decide. Would you like the full price list?',
-        example: { body_text: [['Sara', 'Emaar Beachfront', 'AED 2,100,000']] },
+        text: 'Hi {{1}}, units at {{2}} start from AED {{3}} with a developer payment plan. I can hold a '
+          + 'unit for you while you review the details. Would you like the full price list?',
+        example: { body_text: [['Sara', 'Emaar Beachfront', '1,850,000']] },
       },
-      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Send price list' },
+          { type: 'QUICK_REPLY', text: 'Book a viewing' },
+        ],
+      },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4161,10 +4170,11 @@ const WA_TEMPLATE_LIBRARY = [
       { type: 'HEADER', format: 'IMAGE' },
       {
         type: 'BODY',
-        text: 'مرحباً {{1}}، مشروع {{2}} يبدأ من {{3}} والمرحلة الحالية تُبَاع بسرعة. '
-          + 'يمكنني حجز وحدة لك حتى تقرر. هل ترغب في قائمة الأسعار الكاملة؟',
-        example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'AED 2,100,000']] },
+        text: 'مرحباً {{1}}، تبدأ أسعار الوحدات في {{2}} من {{3}} درهم مع خطة سداد من المطور. '
+          + 'يمكنني حجز وحدة لك ريثما تطّلع على التفاصيل. هل ترغب بقائمة الأسعار الكاملة؟',
+        example: { body_text: [['سارة', 'إعمار بيتشفرونت', '1,850,000']] },
       },
+      { type: 'FOOTER', text: 'Emigeo Homes — دبي' },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4173,16 +4183,17 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'Hi {{1}}, I have not heard back about {{2}}, so I will stop chasing. '
-          + 'Tell me which of these suits you and I will do the rest.',
+        text: 'Hi {{1}}, I do not want to keep messaging if the timing is not right. '
+          + 'Are you still considering {{2}}, or should I close your file for now?',
         example: { body_text: [['Sara', 'Emaar Beachfront']] },
       },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
       {
         type: 'BUTTONS',
         buttons: [
           { type: 'QUICK_REPLY', text: 'Still interested' },
           { type: 'QUICK_REPLY', text: 'Not now' },
-          { type: 'QUICK_REPLY', text: 'Stop' },
+          { type: 'QUICK_REPLY', text: 'Stop messages' },
         ],
       },
     ],
@@ -4193,10 +4204,11 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'مرحباً {{1}}، لم يصلني ردك بخصوص {{2}}، لذلك سأتوقف عن المتابعة. '
-          + 'اختر ما يناسبك وسأتولى الباقي.',
+        text: 'مرحباً {{1}}، لا أرغب بإزعاجك إذا لم يكن الوقت مناسباً. '
+          + 'هل ما زلت مهتماً بمشروع {{2}}، أم أغلق ملفك حالياً؟',
         example: { body_text: [['سارة', 'إعمار بيتشفرونت']] },
       },
+      { type: 'FOOTER', text: 'Emigeo Homes — دبي' },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4205,9 +4217,17 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'Hello {{1}}, your viewing at {{2}} is booked for {{3}}. The sales centre address and '
-          + 'a map are below. Reply here if anything changes.',
-        example: { body_text: [['Sara', 'Emaar Beachfront', 'Thursday 12 November, 16:30']] },
+        text: 'Hi {{1}}, your viewing for {{2}} is confirmed on {{3}} at {{4}}. '
+          + 'Your agent {{5}} will meet you there. Reply here if anything changes.',
+        example: { body_text: [['Sara', 'Emaar Beachfront', 'Tuesday 14 April', '4:00 PM', 'Layla Hassan']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Confirm' },
+          { type: 'QUICK_REPLY', text: 'Reschedule' },
+        ],
       },
     ],
     validation: { valid: true, issues: [] },
@@ -4217,9 +4237,16 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'Hello {{1}}, a short reminder that we meet at {{2}} today at {{3}}. '
-          + 'I will be waiting at the sales centre entrance.',
-        example: { body_text: [['Sara', 'Emaar Beachfront', '16:30']] },
+        text: 'Reminder for {{1}}: your {{2}} viewing is tomorrow at {{3}}. Your agent {{4}} is expecting you.',
+        example: { body_text: [['Sara', 'Emaar Beachfront', '4:00 PM', 'Layla Hassan']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'See you there' },
+          { type: 'QUICK_REPLY', text: 'Reschedule' },
+        ],
       },
     ],
     validation: { valid: true, issues: [] },
@@ -4229,10 +4256,10 @@ const WA_TEMPLATE_LIBRARY = [
     components: [
       {
         type: 'BODY',
-        text: 'New lead: {{1}} asked about {{2}} and is waiting for your call. '
-          + 'Their budget is {{3}}. Open the CRM to take it.',
-        example: { body_text: [['Sara Al Mansoori', 'Emaar Beachfront', 'AED 2,000,000']] },
+        text: 'New lead for {{1}}: {{2}} asking about {{3}} from {{4}}. Open the CRM and respond within 5 minutes.',
+        example: { body_text: [['Layla Hassan', 'Sara A.', 'Emaar Beachfront', 'Meta Lead Ads']] },
       },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
     ],
     validation: { valid: true, issues: [] },
   },
@@ -4242,11 +4269,19 @@ const WA_TEMPLATE_LIBRARY = [
       { type: 'HEADER', format: 'IMAGE' },
       {
         type: 'BODY',
-        text: 'Hello {{1}}, {{2}} by {{3}} opens for booking this week and you asked to be told '
-          + 'about new launches. Shall I send you the first price list?',
-        example: { body_text: [['Sara', 'Valia', 'Emaar']] },
+        text: 'Hi {{1}}, a new launch by {{2}} in {{3}} opens for registration this week, starting from '
+          + 'AED {{4}}. Early registrations get first pick of units. Would you like the details?',
+        example: { body_text: [['Sara', 'Emaar', 'Dubai Creek Harbour', '1,600,000']] },
       },
-      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      { type: 'FOOTER', text: 'Emigeo Homes — Dubai' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Send details' },
+          { type: 'QUICK_REPLY', text: 'Not interested' },
+          { type: 'QUICK_REPLY', text: 'Stop messages' },
+        ],
+      },
     ],
     validation: { valid: true, issues: [] },
   },

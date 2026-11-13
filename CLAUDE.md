@@ -844,6 +844,42 @@ of it is wired up — there is no CRM | Books switcher, and `web/src/styles/book
 exists but is deliberately **not imported**. Do not treat it as half-finished;
 treat it as not started.
 
+## The v2 build
+
+**There are two builds in this repository.** The one running at crm.homes.me,
+and `v2`, which is a rebuild of every screen from the design package in
+`design/`. They share the server; the v2 screens live under `web/src/v2/` and
+are routed at `/v2/*`. Nothing in v2 is live — see the branch note above.
+
+**Build a v2 screen from its design file, never from the written spec.** This
+was got wrong once, at length: ten screens were built from `docs/v2/pages.md`
+and the API endpoints and came out in the right colours with invented
+layouts. Emir stopped the build over it on 12 November. The method now:
+
+1. Read the page in `design/web/*.html` — its `<body>` and its `<style>`.
+2. Add it to `PAGES` in `scripts/port-design-css.mjs` if it is not there, and
+   run the script. It generates `web/src/styles/v2-ui.css` (all of the
+   design's `ui.css`, every class prefixed `d-`, scoped under `.v2`) and
+   `v2-home.css` (each page's own `<style>`, scoped to a `p-*` class).
+   **Never edit either file by hand.**
+3. Build the markup to match: design class `foo` becomes `d-foo`, and the page
+   root carries the `p-*` class.
+
+Three things about that port that have each already cost a day:
+
+- **The design styles icons by element name.** It writes `<i data-icon="x">`;
+  we render a Lucide `<svg>`. The port emits every `i` selector a second time
+  for `svg`. Before that fix, the icon inside every input sat outside the box
+  and pushed the text out of view, and the open nav section's icon never
+  turned orange — on every screen, with a green test suite.
+- **A `d-` class that is in no stylesheet styles nothing**, and looks right in
+  the code. `design-classes.test.ts` checks every one. If it fails, use the
+  name the design really uses or add your own rule to `v2-shell.css` with a
+  `v2-` prefix.
+- **`design/web/` is the computer design.** Its grids are fixed desktop widths
+  and there is no phone version of most pages. The phone layout is yours to
+  write, in `v2-shell.css`, and `npm run polish` is what catches it missing.
+
 ## Things that will trip you up
 
 - **The preview build uses `HashRouter`, production uses `BrowserRouter`.** In

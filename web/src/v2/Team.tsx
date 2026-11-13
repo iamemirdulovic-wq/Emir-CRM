@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, NavLink, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -136,13 +136,19 @@ export function V2Team() {
 
   return (
     <div className="v2-team p-team">
-      <p className="v2-page-head">
-        {everyone.length} {everyone.length === 1 ? 'person' : 'people'} · {inOffice} in the office now
-      </p>
+      <div className="v2-page-head">
+        <span className="v2-page-sub">
+          {everyone.length} {everyone.length === 1 ? 'person' : 'people'}
+          {' · '}{inOffice} in the office now
+        </span>
+      </div>
 
+      {/* The design's second tab is "Best of Homes", a leaderboard that is not
+          part of this build. The Team wall is the screen beside this one in
+          the menu, so it takes the place. */}
       <div className="d-tabs d-top-tabs">
-        <NavLink end to="/v2/team" className="d-tab d-on">Meet the team</NavLink>
-        <NavLink to="/v2/wall" className="d-tab">Team wall</NavLink>
+        <span className="d-tab d-on">Meet the team</span>
+        <Link to="/v2/wall" className="d-tab">Team wall</Link>
       </div>
 
       <div className="d-filters">

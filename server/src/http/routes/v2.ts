@@ -989,7 +989,7 @@ v2Router.get(
   '/projects/manage',
   requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
-    const [projects, leads] = await Promise.all([
+    const [projects, leads, brochures] = await Promise.all([
       listLibrary({ includeArchived: true }),
       query<{ project_name: string; leads: number }>(
         `SELECT project_name, COUNT(*) AS leads
@@ -998,16 +998,34 @@ v2Router.get(
           GROUP BY project_name`,
         [],
       ),
+      /* The brochure the agents send. Either kind counts: an English one is
+         what the table means by "has a brochure", and an Arabic-only project
+         still has something to send. */
+      query<{ project_id: string; id: string; filename: string; byte_size: number }>(
+        `SELECT project_id, id, filename, byte_size FROM project_documents
+          WHERE kind IN ('brochure_en', 'brochure_ar')
+          ORDER BY created_at DESC`,
+        [],
+      ),
     ]);
 
     /* Matched on the name, case-folded: the lead's project was typed or came
        off a form, and "The Archive" and "the archive" are one project. */
     const counted = new Map(leads.map((row) => [row.project_name.trim().toLowerCase(), Number(row.leads)]));
+    const brochure = new Map<string, { id: string; filename: string; byteSize: number }>();
+    for (const row of brochures) {
+      if (!brochure.has(row.project_id)) {
+        brochure.set(row.project_id, {
+          id: row.id, filename: row.filename, byteSize: Number(row.byte_size),
+        });
+      }
+    }
 
     res.json({
       items: projects.map((one) => ({
         ...one,
         leads: counted.get(one.name.trim().toLowerCase()) ?? 0,
+        brochure: brochure.get(one.id) ?? null,
       })),
     });
   }),

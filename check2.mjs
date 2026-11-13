@@ -27,7 +27,8 @@ for (const [size, width, height, scale] of [['wide', 1440, 1000, 2], ['phone', 3
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(String(e)));
-    await page.goto(`http://127.0.0.1:5182/#${route}`, { waitUntil: 'networkidle' });
+    const [path, q] = route.split('?');
+    await page.goto(`http://127.0.0.1:5182/${q ? `?${q}` : ''}#${path}${q && q.includes('q=') ? `?${q}` : ''}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
     const over = await page.evaluate(() => {
       const vw = window.innerWidth;

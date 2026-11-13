@@ -189,6 +189,9 @@ export function V2Activity() {
                         <b className={today ? undefined : 'd-muted'}>
                           {today ? hours(today.minutes) : '–'}
                         </b>
+                        {/* Amber at under half the team's average, which is
+                            the one gap worth a question rather than a number
+                            worth staring at. */}
                         <div
                           className={today && today.minutes < average / 2 ? 'd-bar d-amber' : 'd-bar'}
                           style={{ '--v': `${Math.round(((today?.minutes ?? 0) / busiest) * 100)}%` } as CSSProperties}
@@ -566,9 +569,13 @@ function Review({ row, userId, onClose, onHide, onSignedOut }: {
             </span>
           </div>
 
-          <button type="button" className="d-btn d-block" onClick={onHide}>
-            <Icon name="check" size={15} />It was them
-          </button>
+          {/* Only for a flagged sign-in: there is nothing to clear from the
+              list when the row came from the Sign-ins table. */}
+          {row.level !== 'none' && (
+            <button type="button" className="d-btn d-block" onClick={onHide}>
+              <Icon name="check" size={15} />It was them
+            </button>
+          )}
 
           {userId && (
             <>
@@ -637,8 +644,12 @@ function workedToday(rows: SessionRow[]): Map<string, Worked> {
     out.set(row.name, {
       minutes: (was?.minutes ?? 0) + Math.max(0, row.activeMinutes),
       firstAt: was && new Date(was.firstAt).getTime() < at ? was.firstAt : row.signedInAt,
-      /* Rows arrive newest first, so the first one seen is the newest. */
-      lastAt: was?.lastAt ?? ended,
+      /* Rows arrive newest first, so the one already in hand is the newer.
+         Keep its sign-out even when that is null — null means the newest
+         session is still open, and falling through to an older session's
+         sign-out would report somebody as having left hours ago while they
+         are sitting in the CRM. */
+      lastAt: was ? was.lastAt : ended,
       device: was?.device ?? row.device,
       newDevice: (was?.newDevice ?? false) || row.flags.some((flag) => flag.key === 'new_device'),
     });

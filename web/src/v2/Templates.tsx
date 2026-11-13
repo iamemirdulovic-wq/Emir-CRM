@@ -185,9 +185,18 @@ export function V2Templates() {
                 <span className="d-chip">{one.language.toUpperCase()}</span>
               </span>
               <span className="d-tp-body" dir={one.language === 'ar' ? 'rtl' : 'ltr'}>
-                {one.body
-                  ? <Marked text={one.body} />
-                  : <span className="d-muted">No text yet — it arrives with the next check.</span>}
+                {/* The four-line clamp lives on this inner span, not on the
+                    bubble. `.d-tp` is a flex column, so the bubble is a flex
+                    item and the browser blockifies it — which throws away
+                    `display:-webkit-box` and with it the clamp's effect on
+                    layout, leaving half a fifth line showing under the
+                    ellipsis. Inside the bubble it is an ordinary block and
+                    the clamp works. */}
+                <span className="v2-tp-clamp">
+                  {one.body
+                    ? <Marked text={one.body} example={one.example} />
+                    : <span className="d-muted">No text yet — it arrives with the next check.</span>}
+                </span>
               </span>
               <span className="d-row d-gap-6">
                 <StatusChip status={one.status} />
@@ -202,8 +211,9 @@ export function V2Templates() {
       {live.data && cards.length > 0 && (
         <p className="d-small d-muted d-mt-16">
           {approved} approved · {cards.length - approved} waiting or blocked at WhatsApp.
-          Words in brackets are filled from the lead. Only an approved template can go out
-          more than 24 hours after a client last wrote.
+          The highlighted words are filled in from the lead — these are the examples
+          WhatsApp was given. Only an approved template can go out more than 24 hours
+          after a client last wrote.
         </p>
       )}
 
@@ -325,16 +335,24 @@ function Kv({ term, value }: { term: string; value: string | null }) {
   );
 }
 
-/** `{{1}}` drawn as a blank, the way the design highlights a variable. */
-function Marked({ text }: { text: string }) {
+/**
+ * The template as it will read, with the blanks marked.
+ *
+ * Meta numbers its variables — `{{1}}`, `{{2}}` — which tells an agent
+ * nothing. The example WhatsApp was given with the template does, so the card
+ * shows that word highlighted instead of the digit. The raw text with the
+ * numbers in it is on the panel, where it belongs.
+ */
+function Marked({ text, example }: { text: string; example: string[] }) {
   const parts = text.split(/(\{\{\d+\}\})/);
   return (
     <>
-      {parts.map((part, i) => (
-        /^\{\{\d+\}\}$/.test(part)
-          ? <mark key={i}>{part.replace(/[{}]/g, '')}</mark>
-          : <Fragment key={i}>{part}</Fragment>
-      ))}
+      {parts.map((part, i) => {
+        const match = /^\{\{(\d+)\}\}$/.exec(part);
+        if (!match) return <Fragment key={i}>{part}</Fragment>;
+        const index = Number(match[1]);
+        return <mark key={i}>{example[index - 1] ?? index}</mark>;
+      })}
     </>
   );
 }

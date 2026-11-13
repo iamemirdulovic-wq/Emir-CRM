@@ -265,6 +265,8 @@ function titleFor(pathname: string, role: string): string {
     calling: 'Calling',
     projects: 'Projects',
     offers: 'Sales offers',
+    card: 'My business card',
+    messaging: 'Messaging',
     team: 'Team',
     wall: 'Team wall',
     best: 'Best of Homes',

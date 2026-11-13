@@ -192,6 +192,12 @@ export function V2Notifications() {
   const list = useAsync<{ items: Notification[]; unread: number }>(
     () => api.get('/api/notifications'), [],
   );
+  /* The three lines the design puts in the side card. They are this person's
+     own settings, read from the screen that owns them rather than restated
+     here, so the two cannot drift apart. */
+  const prefs = useAsync<{ quiet: string | null; vipIgnoresQuiet: boolean; sounds: boolean }>(
+    () => api.get('/api/v2/notify'), [],
+  );
   const [group, setGroup] = useState('All');
   const [onlyNew, setOnlyNew] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -354,6 +360,26 @@ export function V2Notifications() {
             <p className="d-muted d-small">
               Switch each alert on or off. A VIP lead always comes through.
             </p>
+            {prefs.data && (
+              <dl className="d-kv d-mt-8">
+                <div className="d-kv-row">
+                  <dt>Quiet hours</dt>
+                  <dd>{prefs.data.quiet ? prefs.data.quiet.replace('-', ' – ') : 'Off'}</dd>
+                </div>
+                <div className="d-kv-row">
+                  <dt>VIP leads</dt>
+                  <dd>
+                    {prefs.data.vipIgnoresQuiet
+                      ? 'Ring also in quiet hours'
+                      : 'Wait until quiet hours end'}
+                  </dd>
+                </div>
+                <div className="d-kv-row">
+                  <dt>Sound</dt>
+                  <dd>{prefs.data.sounds ? 'On' : 'Off'}</dd>
+                </div>
+              </dl>
+            )}
             <div className="d-card-foot">
               <Link className="d-btn d-block" to="/v2/settings/notifications">
                 <Icon name="settings" />Choose what reaches you

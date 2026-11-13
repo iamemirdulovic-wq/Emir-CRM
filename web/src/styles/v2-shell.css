@@ -1681,12 +1681,17 @@
   .v2 .p-bell .d-nrow .d-ic { grid-row:1 / span 2; }
   .v2 .p-bell .d-nrow .d-bd { grid-column:2; }
   .v2 .p-bell .d-nrow .d-bd b { white-space:normal; }
-  .v2 .p-bell .d-nrow .d-age { grid-column:3; grid-row:1; width:auto; }
+  .v2 .p-bell .d-nrow .d-age { grid-column:3; grid-row:1; width:auto; padding-right:14px; }
   .v2 .p-bell .d-nrow .d-mark { display:inline-flex; grid-column:2; grid-row:3; justify-self:start; }
   .v2 .p-bell .d-nrow .d-btn.d-sm { grid-column:3; grid-row:2 / span 2; align-self:center; }
-  .v2 .p-bell .d-nrow .d-udot { position:absolute; right:4px; bottom:10px; }
+  /* The dot sits beside the age rather than beside the button: down there it
+     reads as part of "Open" rather than as "this one is new". */
+  .v2 .p-bell .d-nrow .d-udot { position:absolute; top:16px; right:2px; }
+  /* "2 new notifications" and a button do not share 390px, so the button
+     takes its own line under them. */
   .v2 .p-bell .d-n-head { flex-wrap:wrap; }
   .v2 .p-bell .d-n-head .d-num-hero { font-size:40px; }
+  .v2 .p-bell .d-n-head .d-btn { flex:1 1 100%; justify-content:center; }
   .v2 .p-bell .d-n-tabs { flex-wrap:wrap; }
   .v2 .p-bell .d-n-tabs .d-tabs { max-width:100%; overflow-x:auto; scrollbar-width:none; }
   .v2 .p-bell .d-n-tabs .d-tabs::-webkit-scrollbar { display:none; }
@@ -1779,6 +1784,13 @@
  * Nothing here narrows a column. Everything stacks.
  */
 @media (max-width: 900px) {
+  /* Three or four top tabs plus a "Rules" link is 475px of strip. It scrolls
+     rather than pushing the whole page sideways. */
+  .v2 .d-top-tabs{ overflow-x:auto; scrollbar-width:none; }
+  .v2 .d-top-tabs::-webkit-scrollbar{ display:none; }
+  .v2 .d-top-tabs .d-tab{ flex:none; margin-right:14px; }
+  .v2 .d-top-tabs .d-grow{ display:none; }
+
   /* The filter row: the search box takes the whole line, the pills scroll. */
   .v2 .d-filters .d-input-icon{ width:100%; }
   .v2 .v2-team-pills{ overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
@@ -1955,7 +1967,7 @@
     height:auto; min-height:0;
   }
   .v2 .p-inbox .v2-ib-list,
-  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 230px); min-height:360px; }
+  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 170px); min-height:360px; }
   .v2 .p-inbox .v2-ib-side{ overflow:visible; }
   /* A 26px segment is under the thumb size the polish run insists on. */
   .v2 .p-inbox .d-seg.d-sm>button{ min-height:30px; }
@@ -1978,7 +1990,7 @@
 @media (max-width: 560px) {
   .v2 .p-templates .d-tp-grid{ grid-template-columns:minmax(0,1fr); }
   .v2 .p-inbox .v2-ib-list,
-  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 260px); }
+  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 200px); }
 }
 
 /* ── The settings pages built last ───────────────────────────────────────
@@ -2044,4 +2056,14 @@
   .v2 .v2-tm-table td:nth-child(2),
   .v2 .v2-tm-table td:nth-child(4),
   .v2 .v2-tm-table td:nth-child(5) { font-size:12px; }
+}
+
+/* `design/web/templates.html` sets the card body's height twice — `96px`,
+   then `auto` with `min-height:98px` — and leaves `-webkit-line-clamp:4` on
+   it. The clamp puts the ellipsis after the fourth line while the box stays
+   five lines tall, so half a fifth line shows under it on every long
+   template. Four lines, exactly, and the cards still line up. */
+.v2 .p-templates .d-tp-body{ min-height:calc(20px + 4 * 1.5 * 13px); height:auto; }
+.v2 .p-templates .v2-tp-clamp{
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden;
 }
