@@ -91,7 +91,7 @@ describe('nothing in the phone stylesheet escapes the phone', () => {
   });
 
   it('turns dialogs and panels into sheets, with a handle', () => {
-    expect(css).toMatch(/\.v2-phone \.d-dialog[\s\S]{0,400}bottom: 0/);
+    expect(css).toMatch(/\.v2\.v2-phone \.d-dialog[\s\S]{0,400}bottom: 0/);
     expect(css).toMatch(/border-radius: 28px 28px 0 0/);
     /* §1.5: a 44 x 5px grab handle as the first child. */
     expect(css).toMatch(/width: 44px; height: 5px/);
@@ -102,7 +102,30 @@ describe('nothing in the phone stylesheet escapes the phone', () => {
        clear of the floating bar. Nothing else does." And with no bar it is
        wasted screen, so it is tied to the class the shell sets. */
     expect(css).toMatch(/padding-bottom: calc\(108px/);
-    expect(css).toMatch(/\.v2-phone:not\(\.v2-has-bar\) \.v2-page/);
+    expect(css).toMatch(/\.v2\.v2-phone:not\(\.v2-has-bar\) \.v2-page/);
+  });
+
+  it('writes every rule with enough weight to beat a page style', () => {
+    /*
+     * The ported page styles are `.v2 .p-calendar .d-cal-layout` — three
+     * classes. A phone rule written `.v2-phone .d-cal-layout` is two, so it
+     * loses, and the calendar grid computes to 26 pixels wide at 390px with
+     * nothing in the code looking wrong. The audit found exactly that on the
+     * calendar. So every selector here carries `.v2.v2-phone`, which ties at
+     * three and wins on source order because this file loads last.
+     */
+    const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const weak = [];
+    for (const line of body.split('\n')) {
+      const sel = line.trim();
+      if (!sel.startsWith('.')) continue;
+      for (const one of sel.replace(/[,{].*$/, '').split(',')) {
+        const part = one.trim();
+        if (part.length === 0) continue;
+        if (!part.startsWith('.v2.v2-phone')) weak.push(part);
+      }
+    }
+    expect(weak, `these would lose to a page style:\n${weak.join('\n')}`).toEqual([]);
   });
 
   it('gives a thumb 44px', () => {

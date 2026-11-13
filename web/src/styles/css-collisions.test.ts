@@ -37,7 +37,17 @@ const VISIBLE = ['display', 'margin', 'padding', 'font-size', 'color', 'position
  * `class="pill due"` on purpose. Anything new has to be added here
  * deliberately, which is the point.
  */
-const ALLOWED = new Set(['pill']);
+const ALLOWED = new Set([
+  'pill',
+  /*
+   * `.v2-phone` is both: a component in `v2-shell.css` that lays the shell out
+   * for a narrow screen, and a modifier in `v2-phone.css` written `.v2.v2-phone`
+   * on purpose. The composition is the point — a phone rule needs three classes
+   * to beat `.v2 .p-calendar .d-cal-layout`, and two of them are these. See the
+   * head of `v2-phone.css`.
+   */
+  'v2-phone',
+]);
 
 /**
  * The layout properties that decide what a component *is*. Two files setting

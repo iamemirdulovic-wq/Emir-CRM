@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, originOf } from '../lib/dialling.js';
 
@@ -154,6 +155,8 @@ function wanted(row: Row): string {
 }
 
 export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
+  /* §1.4: this screen's one round action in the shell's header. */
+  usePhoneHead({ action: { icon: 'plus', label: 'Add lead', to: '/v2/leads/new' } });
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   /* Follow-ups is this screen opened on what is late. The tab is then not the

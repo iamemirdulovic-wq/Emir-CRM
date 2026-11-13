@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The calendar.
@@ -90,6 +91,8 @@ const DAY_TO = 22;
 const HOUR_PX = 46;
 
 export function V2Calendar() {
+  /* §1.4: this screen's one round action in the shell's header. */
+  usePhoneHead({ action: { icon: 'plus', label: 'Add event', to: '/v2/calendar?new=1' } });
   const { user } = useAuth();
   const canSeeTeam = user?.role !== 'agent';
 

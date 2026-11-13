@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { Icon } from '../design/index.js';
+import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ToastHost } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
 import {
@@ -11,7 +11,8 @@ import {
 import { Bell } from './Bell.js';
 import { Find } from './Find.js';
 import {
-  barIsHiddenAt, FullAttentionProvider, usePhoneSheets, useRiseIn,
+  barIsHiddenAt, FullAttentionProvider, PhoneHeadProvider, usePhoneHeadSlot,
+  usePhoneSheets, useRiseIn,
 } from './phone.js';
 
 /**
@@ -308,6 +309,9 @@ function titleFor(pathname: string, role: string): string {
     settings: 'Settings',
     profile: 'My profile',
     more: 'More',
+    feedback: 'Report a problem',
+    dashboard: 'The full dashboard',
+    'team-live': 'Team live',
   };
   return named[rest] ?? 'homes.me';
 }
@@ -362,6 +366,7 @@ export function V2Shell() {
   return (
     <ToastHost>
       <Counts.Provider value={counts}>
+        <PhoneHeadProvider>
         <FullAttentionProvider>
           {(oneJob) => (
             <div
@@ -386,6 +391,7 @@ export function V2Shell() {
             </div>
           )}
         </FullAttentionProvider>
+        </PhoneHeadProvider>
       </Counts.Provider>
     </ToastHost>
   );
@@ -420,6 +426,7 @@ function PhoneTop() {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const head = usePhoneHeadSlot();
   const atHome = pathname === '/v2';
   /* The five the bottom bar goes to are roots: there is nothing behind them
      to go back to, and the design draws no back button on any of them. */
@@ -445,15 +452,39 @@ function PhoneTop() {
         <span className="v2-pgrow" />
         <Find compact />
         <Bell />
-        {!atHome && (
-          <Link to="/v2/leads/new" className="v2-padd" aria-label="Add lead">
-            <Icon name="plus" />
-          </Link>
+        {/*
+          * §1.4: "an optional single round action button sits on the right".
+          * One, and the screen's own — not an Add lead on a business card.
+          * A screen declares it with `usePhoneHead`.
+          */}
+        {head.action && (
+          head.action.to
+            ? (
+              <Link to={head.action.to} className="v2-padd" aria-label={head.action.label}>
+                <Icon name={head.action.icon as IconName} />
+              </Link>
+            )
+            : (
+              <button
+                type="button"
+                className="v2-padd"
+                aria-label={head.action.label}
+                onClick={head.action.onClick}
+              >
+                <Icon name={head.action.icon as IconName} />
+              </button>
+            )
         )}
       </div>
       {/* §1.4 pattern B: the title is its own line under the buttons, at
-          30px, not a label squeezed between them. */}
-      {!atHome && <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>}
+          30px, not a label squeezed between them, and under it the live
+          count the design puts there rather than in a strip of its own. */}
+      {!atHome && (
+        <>
+          <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>
+          {head.sub && <p className="v2-psub">{head.sub}</p>}
+        </>
+      )}
     </header>
   );
 }
@@ -471,9 +502,13 @@ function PhoneTop() {
  * as many tools per screen of thumb-travel.
  */
 export function V2More() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const role = user?.role ?? 'agent';
   const counts = useContext(Counts);
+  const navigate = useNavigate();
+  const leave = () => {
+    void signOut().then(() => navigate('/login', { replace: true }));
+  };
 
   const blocks = [
     ...groupsFor(role).map((group, i) => ({
@@ -532,6 +567,17 @@ export function V2More() {
         </span>
         <Icon name="chevron-right" />
       </Link>
+
+      {/* The design's last control on this screen, and the only way out of
+          the app on a phone — there is no sidebar to hold it. */}
+      {/*
+        * `/logout` is not a route — the one in Settings has been a dead link.
+        * Signing out is a call, then back to the sign-in page.
+        */}
+      <button type="button" className="v2-me-row v2-signout" onClick={leave}>
+        <Icon name="log-out" />
+        <span className="d-grow"><b>Sign out</b></span>
+      </button>
     </div>
   );
 }

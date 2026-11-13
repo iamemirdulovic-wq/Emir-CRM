@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react';
 
@@ -67,6 +67,57 @@ export function FullAttentionProvider(
       {children(hidden)}
     </FullAttention.Provider>
   );
+}
+
+
+/* ── what a screen puts in its own header ───────────────────────────────── */
+
+export interface PhoneHead {
+  /** The live count under the title — "62 open · 12 to call today". */
+  sub?: string;
+  /**
+   * The one round action on the right. §1.4: "an optional single round action
+   * button sits on the right". One, not three, and not the same one on every
+   * screen — the design puts `+ Add lead` on My Leads, `+ Add event` on the
+   * calendar, `Manage projects` on the project library, and nothing at all on
+   * a business card or a feedback form.
+   */
+  action?: { icon: string; label: string; to?: string; onClick?: () => void };
+}
+
+const HeadSlot = createContext<{
+  head: PhoneHead;
+  set: (head: PhoneHead) => void;
+}>({ head: {}, set: () => {} });
+
+/**
+ * A screen declares its own header, and it is cleared when the screen leaves.
+ *
+ * Without this every screen got the same three buttons, including an "Add
+ * lead" on a colleague's profile and on the feedback form — which is how the
+ * audit found it. The design gives each screen one action of its own, or none.
+ */
+export function usePhoneHead(head: PhoneHead): void {
+  const { set } = useContext(HeadSlot);
+  const { sub, action } = head;
+  const key = `${sub ?? ''}|${action?.label ?? ''}|${action?.to ?? ''}`;
+  useEffect(() => {
+    set(head);
+    return () => set({});
+    /* The head is rebuilt every render; its contents are what matter. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [set, key]);
+}
+
+export function usePhoneHeadSlot(): PhoneHead {
+  return useContext(HeadSlot).head;
+}
+
+export function PhoneHeadProvider({ children }: { children: ReactNode }) {
+  const [head, setHead] = useState<PhoneHead>({});
+  const set = useCallback((next: PhoneHead) => setHead(next), []);
+  const value = useMemo(() => ({ head, set }), [head, set]);
+  return <HeadSlot.Provider value={value}>{children}</HeadSlot.Provider>;
 }
 
 /* ── Bottom sheets ───────────────────────────────────────────────────────── */

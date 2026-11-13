@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import { useAsync } from '../../lib/hooks.js';
 import { useAuth } from '../../lib/auth.js';
@@ -413,7 +413,11 @@ function OfficeShortcuts() {
 /* ── who is signed in ─────────────────────────────────────────────────── */
 
 function AccountRow() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const leave = () => {
+    void signOut().then(() => navigate('/login', { replace: true }));
+  };
   return (
     <section className="d-card v2-set-account">
       <Avatar name={user?.name ?? null} size={48} src={user?.photoUrl ?? undefined} />
@@ -422,7 +426,10 @@ function AccountRow() {
         <div className="d-small d-muted">{user?.email} · signed in on this computer</div>
       </div>
       <Link className="d-btn" to="/v2/me"><Icon name="lock" />Security</Link>
-      <Link className="d-btn d-danger" to="/logout"><Icon name="log-out" />Sign out</Link>
+      {/* `/logout` is not a route; this was a link to nowhere. */}
+      <button type="button" className="d-btn d-danger" onClick={leave}>
+        <Icon name="log-out" />Sign out
+      </button>
     </section>
   );
 }
