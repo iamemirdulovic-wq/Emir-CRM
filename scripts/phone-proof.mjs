@@ -55,10 +55,10 @@ export const SCREENS = [
   ['attendance', 'Attendance', '/v2/attendance', 'agent'],
   ['team-attendance', 'TeamAttendance', '/v2/attendance', 'owner'],
   ['work-outside', 'WorkOutside', '/v2/attendance', 'agent', { click: /working outside/i }],
-  ['leave-request', 'LeaveRequest', '/v2/attendance', 'agent', { click: /days off|ask for leave/i }],
+  ['leave-request', 'LeaveRequest', '/v2/attendance', 'agent', { click: /ask for days off/i }],
   ['leave-approvals', 'LeaveApprovals', '/v2/attendance', 'owner', { click: /leave/i }],
   ['transfers', 'Transfers', '/v2/transfers', 'agent'],
-  ['transfer-lead', 'TransferLead', '/v2/leads/o-1', 'agent', { click: /transfer/i }],
+  ['transfer-lead', 'TransferLead', '/v2/leads/o-1', 'agent', { click: 'button.d-tr-link' }],
   ['search', 'Search', '/v2/search', 'agent'],
   ['notifications', 'Notifications', '/v2/notifications', 'agent'],
 
