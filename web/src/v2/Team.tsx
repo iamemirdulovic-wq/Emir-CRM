@@ -1,10 +1,35 @@
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
-import { Icon } from '../design/index.js';
+import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
+
+/**
+ * Narrow enough to be a phone, asked in JavaScript rather than in CSS.
+ *
+ * The phone's `Profile` is a different screen from the computer's — a hub of
+ * nine menu rows, where the computer page has a sidebar instead — so the rows
+ * are markup that only a phone should get. A phone stylesheet cannot hide
+ * something on a computer: every rule in it lives inside
+ * `@media (max-width: 767px)` by rule, so the decision has to be made here.
+ *
+ * 768 is the line the owner drew, and it is the same number `Shell.tsx` uses.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width:767px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width:767px)');
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 /**
  * The team, and one person's page.
@@ -117,10 +142,23 @@ export function V2Team() {
     });
   }, [working, find, only]);
 
+  const inOfficeNow = everyone.filter((one) => presence(one).kind === 'office').length;
+  /*
+   * `TeamDirectory.dc.html`: "Meet the team", with the live count on the
+   * 13px sub-line and no action in the right slot. The build's own header
+   * drew the same count inside the page; it belongs up here.
+   */
+  usePhoneHead({
+    title: 'Meet the team',
+    sub: team.data
+      ? `${everyone.length} ${everyone.length === 1 ? 'person' : 'people'} · ${inOfficeNow} in the office now`
+      : undefined,
+  });
+
   if (team.error) return <ErrorNote>{team.error}</ErrorNote>;
   if (!team.data) return <Spinner />;
 
-  const inOffice = everyone.filter((one) => presence(one).kind === 'office').length;
+  const inOffice = inOfficeNow;
   const open = everyone.find((one) => one.id === openId) ?? null;
   const owner = user?.role === 'owner' || user?.role === 'admin';
 
@@ -258,6 +296,12 @@ export function V2Team() {
         </>
       )}
 
+      {/* The rule the design prints at the foot of the screen, because it is
+          the first thing a new agent wants to know about a directory. */}
+      <p className="d-small d-muted v2-c-rule">
+        You see results and profiles of colleagues, never their leads.
+      </p>
+
       {open && <Colleague one={open} onClose={() => setOpenId(null)} />}
     </div>
   );
@@ -321,8 +365,10 @@ function Colleague({ one, onClose }: { one: Person; onClose: () => void }) {
               <span className="d-grow" />
               <span className="d-t-mono d-muted">{one.phone ?? ''}</span>
             </div>
+            {/* The design's words. "No check-in is asked" is the half an
+                agent actually worries about, and it was missing. */}
             <p className="d-small d-muted d-mt-8">
-              A call or message to a colleague is private. Nothing is logged.
+              Opens your own phone or WhatsApp. Nothing is logged and no check-in is asked.
             </p>
           </div>
 
@@ -433,10 +479,28 @@ interface Profile {
 export function V2Person() {
   const { id = '' } = useParams();
   const { user } = useAuth();
+  const isPhone = useIsPhone();
   const mine = !id || id === user?.id;
   const got = useAsync<Profile>(
     () => api.get(mine ? '/api/profiles/me' : `/api/profiles/${id}`), [id, mine],
   );
+
+  /*
+   * Two different screens from one component, and the design draws them that
+   * way too: `Profile.dc.html` is a hub with the settings gear in the header,
+   * `Colleague.dc.html` is a results page titled with the person's name.
+   */
+  usePhoneHead({
+    title: mine ? 'Profile' : (got.data?.profile.name ?? undefined),
+    sub: got.data
+      ? (mine
+        ? `${got.data.profile.name ?? user?.name ?? ''} · ${got.data.profile.job_title ?? 'Property Consultant'}`
+        : got.data.profile.job_title ?? 'Property Consultant')
+      : undefined,
+    action: mine
+      ? { icon: 'settings', label: 'Settings', to: '/v2/settings' }
+      : undefined,
+  });
 
   if (got.error) return <ErrorNote>{got.error}</ErrorNote>;
   if (!got.data) return <Spinner />;
@@ -517,6 +581,48 @@ export function V2Person() {
         </Link>
       </div>
 
+      {/*
+        * A colleague's page had no way to reach them: the sheet carries Phone
+        * and WhatsApp, the page showed the number as a read-only line. It is
+        * the whole reason an agent opens a colleague.
+        */}
+      {!mine && (profile.public_phone || profile.whatsapp) && (
+        <section className="d-card">
+          <div className="d-btn-row">
+            {profile.public_phone && (
+              <a className="d-btn d-primary" href={`tel:${profile.public_phone}`}>
+                <Icon name="phone" />Phone
+              </a>
+            )}
+            {profile.whatsapp && (
+              <a
+                className="d-btn"
+                href={`https://wa.me/${profile.whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Icon name="message-circle" />WhatsApp
+              </a>
+            )}
+          </div>
+          <p className="d-small d-muted d-mt-8">
+            Opens your own phone or WhatsApp. Nothing is logged and no check-in is asked.
+          </p>
+        </section>
+      )}
+
+      {/* `Profile.dc.html`'s two menu cards — the phone's answer to the
+          sidebar a computer has. Phone only: the computer page keeps its own
+          shape, which is what the owner was promised. */}
+      {isPhone && mine && (
+        <ProfileMenu
+          slug={profile.slug}
+          badgesEarned={earned.length}
+          badgesOf={badges.length}
+        />
+      )}
+
+
       {profile.bio && (
         <section className="d-card">
           <div className="d-card-head"><h3>About</h3></div>
@@ -564,11 +670,112 @@ export function V2Person() {
         </section>
       )}
 
-      {got.data.editable && mine && (
-        <p className="v2-back-row"><Link to="/profile">Edit my profile</Link></p>
+      {/* `/v2/me` is the v2 editor. This pointed at `/profile`, the v1 one,
+          which drops the person out of v2 halfway through a journey. */}
+      {got.data.editable && mine && !isPhone && (
+        <p className="v2-back-row"><Link to="/v2/me">Edit my personal information</Link></p>
       )}
+      {/* The design's last control on the screen, under everything else. */}
+      {isPhone && mine && <SignOut />}
       {!mine && <p className="v2-back-row"><Link to="/v2/team">← The team</Link></p>}
     </div>
+  );
+}
+
+/**
+ * The nine rows `Profile.dc.html` puts under the stats, in its two groups,
+ * and the Log out button under them.
+ *
+ * Every sub-line is a real fact or a plain description. The design's own
+ * "opened 38 times" on the card row is not here: nothing counts how often a
+ * public card is opened, and `Card.tsx` already says so on the card screen.
+ * The attendance row's "6 of 7 working days" is the same — the month figure
+ * is on the attendance screen itself, not in this answer.
+ */
+function ProfileMenu({
+  slug, badgesEarned, badgesOf,
+}: { slug: string | null; badgesEarned: number; badgesOf: number }) {
+  const mine: Array<{ to: string; icon: IconName; title: string; note: string }> = [
+    {
+      to: '/v2/me', icon: 'user', title: 'Personal information',
+      note: 'Photo, BRN, languages, what I sell',
+    },
+    {
+      to: '/v2/card', icon: 'id-card', title: 'My digital card',
+      note: slug ? `homes.me/card/${slug}` : 'Your link and your printed card',
+    },
+    {
+      to: '/v2/best', icon: 'trophy', title: 'Badges & level',
+      note: `${badgesEarned} of ${badgesOf} badges`,
+    },
+    {
+      to: '/v2/attendance', icon: 'pin', title: 'My attendance',
+      note: 'Check in, working outside, leave',
+    },
+  ];
+
+  const rest: Array<{ to: string; icon: IconName; title: string; note: string }> = [
+    {
+      to: '/v2/settings/notifications', icon: 'bell', title: 'Notifications',
+      note: 'Phone alerts, sounds, quiet hours',
+    },
+    {
+      to: '/v2/settings/security', icon: 'lock', title: 'Security',
+      note: 'Password, signed-in devices',
+    },
+    {
+      to: '/v2/ai', icon: 'sparkles', title: 'Homes AI',
+      note: 'Ask anything about your leads',
+    },
+    {
+      to: '/v2/feedback', icon: 'pencil', title: 'Report a bug or suggest',
+      note: 'Goes straight to the owners',
+    },
+  ];
+
+  const row = (one: { to: string; icon: IconName; title: string; note: string }) => (
+    <Link className="d-shortcut" to={one.to} key={one.to}>
+      <Icon name={one.icon} />
+      <span className="d-grow">
+        {one.title}
+        <small>{one.note}</small>
+      </span>
+      <Icon name="chevron-right" />
+    </Link>
+  );
+
+  return (
+    <>
+      <section className="d-card v2-c-menu">{mine.map(row)}</section>
+      <section className="d-card v2-c-menu">
+        {/* The design's Language row is a read-only pill, not a link: there
+            is one language today and Arabic comes later. */}
+        <span className="d-shortcut v2-c-menu-flat">
+          <Icon name="globe" />
+          <span className="d-grow">
+            Language
+            <small>English</small>
+          </span>
+          <span className="d-chip">EN</span>
+        </span>
+        {rest.map(row)}
+      </section>
+    </>
+  );
+}
+
+/** The way out of the app, which on a phone exists nowhere else. */
+function SignOut() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      className="d-btn d-danger v2-c-signout"
+      onClick={() => { void signOut().then(() => navigate('/login', { replace: true })); }}
+    >
+      <Icon name="log-out" />Log out{user?.name ? ` · ${user.name.split(' ')[0]}` : ''}
+    </button>
   );
 }
 

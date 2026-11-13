@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Homes AI, from `design/web/homes-ai.html`.
@@ -48,12 +49,21 @@ const TRY_OWNER = [
   'Which leads are going cold?',
 ];
 
+/*
+ * The last two are the two cases `AskAI.dc.html` puts chips on and the build
+ * had neither: write me a message in the client's language, and read a
+ * payment plan out of the project library. They are what the brief says Emir
+ * AI is for. The prototype names a lead and a project in them because it is a
+ * demo; these ask the same questions without inventing either.
+ */
 const TRY_AGENT = [
   'Who should I call first?',
   'Which of my leads have no next step?',
   'What is my day today?',
   'Which of my leads are going cold?',
   'Which project do my leads ask about most?',
+  'Write a WhatsApp message for my next follow-up, in the language they speak',
+  'What is the payment plan of the project my leads ask about most?',
 ];
 
 /** Where this person's own past questions are kept. Their device, not ours. */
@@ -130,6 +140,18 @@ export function V2Ai() {
 
   const suggestions = seesEveryone ? TRY_OWNER : TRY_AGENT;
   const urgent = tip.data?.cards[0] ?? null;
+
+  /*
+   * `AskAI.dc.html`: "Homes AI" over "Asks your leads, calendar and
+   * projects". The privacy line stays inside the page, under the composer,
+   * where the design puts it.
+   */
+  usePhoneHead({
+    title: 'Homes AI',
+    sub: seesEveryone
+      ? 'Asks the team’s leads, attendance and today’s numbers'
+      : 'Asks your leads, calendar and projects',
+  });
 
   return (
     /* The page class scopes the ported stylesheet, and every design element
@@ -228,8 +250,11 @@ export function V2Ai() {
                 value={asking}
                 onChange={(e) => { setAsking(e.target.value); setEmpty(false); }}
               />
-              <button type="submit" className="d-btn d-primary" disabled={busy}>
-                <Icon name="arrow-up-right" size={15} />Ask
+              {/* The word is hidden at 390px, where the button was eating
+                  the field: the arrow and the aria-label say enough. */}
+              <button type="submit" className="d-btn d-primary" disabled={busy} aria-label="Ask">
+                <Icon name="arrow-up-right" size={15} />
+                <span className="v2-c-ask-word">Ask</span>
               </button>
             </div>
             <div className="d-row d-between">

@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The project library, and one project.
@@ -96,6 +97,20 @@ export function V2Projects() {
   const wall = useAsync<{ items: WallPost[] }>(() => api.get('/api/wall'), []);
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
+
+  /*
+   * `LiveProjects.dc.html`: the title is "Live projects", the sub-line is
+   * "What we are selling right now", and the one round action on the right is
+   * the owner's `Manage projects` — never Add lead, which is what the shared
+   * header used to put here.
+   */
+  usePhoneHead({
+    title: 'Live projects',
+    sub: 'What we are selling right now',
+    action: canManage
+      ? { icon: 'pencil', label: 'Manage projects', to: '/v2/projects/manage' }
+      : undefined,
+  });
   const items = list.data?.items ?? [];
   /*
    * The design's banner is a note from the owner. The wall already holds one
@@ -382,6 +397,28 @@ export function V2Project() {
     [name],
   );
 
+  const canEdit = user?.role === 'owner' || user?.role === 'admin';
+  /*
+   * `ProjectDetail.dc.html` is a context header: the record, not a page name.
+   * The title is the project and the sub-line is developer · community, which
+   * the design lays over the cover photo. The phone header is a strip above
+   * the page, so they go in it rather than being drawn a second time.
+   *
+   * The sub is derived from the same answer as the title on purpose: the
+   * shell only re-reads the header when the sub or the action changes, so a
+   * title that arrives with the data needs a sub that arrives with it too.
+   */
+  usePhoneHead({
+    title: name || undefined,
+    sub: got.data
+      ? [str(project?.developer_name) ?? str(project?.developer), str(project?.community),
+        emirateWord(str(project?.emirate))].filter(Boolean).join(' · ') || 'In the project library'
+      : undefined,
+    action: canEdit && got.data
+      ? { icon: 'pencil', label: 'Edit project', to: `/projects/${id}` }
+      : undefined,
+  });
+
   if (got.error) return <ErrorNote>{got.error}</ErrorNote>;
   if (!got.data || !project) return <Spinner />;
 
@@ -404,7 +441,7 @@ export function V2Project() {
       <div className="v2-proj-top">
         <Link className="d-btn d-sm" to="/v2/projects"><Icon name="arrow-left" />Projects</Link>
         <span className="d-grow" />
-        {(user?.role === 'owner' || user?.role === 'admin') && (
+        {canEdit && (
           <Link className="d-btn d-sm" to={`/projects/${id}`}>
             <Icon name="pencil" />Edit project
           </Link>

@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The team wall, and Best of Homes beside it.
@@ -146,13 +147,26 @@ export function V2Wall() {
       setWriting('');
       setTab('all');
       feed.reload();
-      toast(canPin && asNews ? 'Posted as owner news · it stays on top' : 'Posted on the team wall');
+      toast(canPin && asNews
+        ? 'Posted as owner news · it stays on top'
+        : 'Posted · the team gets one notification');
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not post.');
     } finally {
       setBusy(false);
     }
   }
+
+  /*
+   * `TeamWall.dc.html`: "Team wall" over "Wins and news · 13 people". The
+   * count is the team's, which the sidebar answer already carries.
+   */
+  usePhoneHead({
+    title: 'Team wall',
+    sub: side.data
+      ? `Wins and news · ${side.data.leaderboard.length} ${side.data.leaderboard.length === 1 ? 'person' : 'people'}`
+      : undefined,
+  });
 
   async function react(id: string, emoji: string) {
     try {
@@ -178,7 +192,7 @@ export function V2Wall() {
                   className="d-textarea"
                   value={writing}
                   aria-label="Say something to the team"
-                  placeholder="Share news, a win or a question with the team"
+                  placeholder="Share a win or a tip with the team"
                   onChange={(e) => { setWriting(e.target.value); setProblem(null); }}
                 />
                 {problem && <span className="d-error">{problem}</span>}
@@ -199,7 +213,7 @@ export function V2Wall() {
                 {writing.length} / {LIMIT}
               </span>
               <button type="button" className="d-btn d-primary" disabled={busy} onClick={post}>
-                <Icon name="megaphone" />{busy ? 'Posting…' : 'Post'}
+                <Icon name="megaphone" />{busy ? 'Posting…' : 'Post to the team'}
               </button>
             </div>
           </section>
@@ -459,6 +473,21 @@ export function V2Best() {
     () => api.get('/api/profiles/me'), [],
   );
 
+  /*
+   * `Leaderboard.dc.html` titles this "Best of Homes" and dates it "Week 46 ·
+   * ends Sunday 23:59". The server counts points over thirty days, not over a
+   * week, so the sub-line says what the numbers really are. The week is
+   * written up in `docs/v2/phone-questions-c.md`.
+   *
+   * The design's round "Show on office TV" action is not here: there is no TV
+   * mode anywhere in this build, and an action that does nothing is worse
+   * than none.
+   */
+  usePhoneHead({
+    title: 'Best of Homes',
+    sub: side.data ? 'Points over the last 30 days · live' : undefined,
+  });
+
   if (side.error) return <ErrorNote>{side.error}</ErrorNote>;
   if (!side.data) return <Spinner />;
 
@@ -509,6 +538,15 @@ export function V2Best() {
           </div>
           {podium.length === 0 && (
             <p className="d-small">Nobody has earned a point in the last thirty days.</p>
+          )}
+          {/*
+            * The design's nudge under the podium — "6 calls or 1 meeting puts
+            * you in first place" — which is the sentence that makes a
+            * leaderboard do any work. The two numbers are the real gap
+            * divided by the real point values in `POINT_RULES`, not a guess.
+            */}
+          {nudge(board[0]?.points ?? 0, me.points, mySeat) && (
+            <p className="d-quote v2-c-nudge">{nudge(board[0]?.points ?? 0, me.points, mySeat)}</p>
           )}
         </section>
 
@@ -655,6 +693,26 @@ function badgeIcon(name: string): IconName {
     'sticky-note': 'sticky-note', target: 'target', trophy: 'trophy', zap: 'zap',
   };
   return known[name] ?? 'star';
+}
+
+/**
+ * What it would take to get to the top, in things an agent does.
+ *
+ * Both numbers come out of `POINT_RULES`, which is what the points screen
+ * itself shows: speaking to a lead is +2, booking a viewing is +10. Nothing
+ * here is estimated — if the gap cannot be worked out the line is left out.
+ */
+function nudge(topPoints: number, myPoints: number, seat: number): string | null {
+  if (seat === 0) return 'You are in first place. Keep it.';
+  if (seat < 0) return null;
+  const gap = topPoints - myPoints;
+  if (gap <= 0) return null;
+  const perCall = POINT_RULES.find((one) => one.label === 'Actually spoke to a lead')?.points ?? 2;
+  const perViewing = POINT_RULES.find((one) => one.label === 'Booked a viewing')?.points ?? 10;
+  const calls = Math.ceil(gap / perCall);
+  const viewings = Math.ceil(gap / perViewing);
+  return `${calls} call${calls === 1 ? '' : 's'} or ${viewings} booked `
+    + `viewing${viewings === 1 ? '' : 's'} puts you in first place.`;
 }
 
 function seatWord(seat: number, isAgent: boolean): string {

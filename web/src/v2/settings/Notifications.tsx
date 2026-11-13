@@ -40,6 +40,7 @@ export function V2SettingsNotifications() {
 
   useEffect(() => { if (got.data) setDraft(got.data); }, [got.data]);
 
+
   async function change(patch: Record<string, unknown>, say?: string) {
     if (!draft) return;
     const before = draft;
@@ -78,6 +79,15 @@ export function V2SettingsNotifications() {
   return (
     <SettingsShell>
       <div className="d-set-body">
+        {/* `SettingsTitle` hands the title and the note to the phone
+            header itself and the settings stylesheet hides this copy under
+            768px, so there is one title on screen, not two.
+
+            `SettingsNotifications.dc.html` words the sub-line by role —
+            "Owner alerts · this phone" for an owner — and
+            `design/web/settings.html` gives everybody this one. The computer
+            design is the newer of the two and wins; it is written down in
+            `docs/v2/phone-questions-c.md`. */}
         <SettingsTitle
           title="My notifications"
           note="Choose what reaches you. Each alert opens the exact page when you tap it."
@@ -231,9 +241,11 @@ export function V2SettingsNotifications() {
           </SettingsRow>
         </section>
 
+        {/* The design prints this under the quiet-hours choice, because it
+            is the question somebody asks the moment they switch them on. */}
         <p className="d-small d-muted">
-          The owner chooses the office rules in Automations. Here you only choose what you want
-          to hear about.
+          VIP leads still ring in quiet hours if you allow it above. The owner chooses the
+          office rules in Automations; here you only choose what you want to hear about.
         </p>
       </div>
     </SettingsShell>

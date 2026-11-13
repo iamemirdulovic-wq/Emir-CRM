@@ -10,6 +10,7 @@ import {
   type CardDetails, type CardOptions, type CardSize,
 } from '../card/artboard.js';
 import { downloadImage, downloadMockup, downloadPdf } from '../card/export.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * My business card, in three steps.
@@ -202,6 +203,17 @@ export function V2Card() {
       toast(err instanceof Error ? err.message : 'That did not save.');
     }
   }
+
+  /*
+   * `DigitalCard.dc.html`: "My digital card" over "Your link and your printed
+   * card". The shared header used to call this screen "My business …" — the
+   * name from the address, truncated at 390px — and put an Add lead button
+   * beside it, which the design never does on this screen.
+   */
+  usePhoneHead({
+    title: 'My digital card',
+    sub: `Step ${step} of 3 · your link and your printed card`,
+  });
 
   if (me.error) return <div className="p-card"><ErrorNote>{me.error}</ErrorNote></div>;
   if (!me.data) return <div className="p-card"><Spinner /></div>;

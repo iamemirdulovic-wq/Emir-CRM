@@ -8,6 +8,7 @@ import { Avatar, useToast } from '../../design/ui.js';
 import { useAppearance, useGlassReduced, type Appearance } from '../../design/theme.js';
 import { SettingsRow, SettingsShell, SettingsTitle } from './Shell.js';
 import type { Notify } from './notify.js';
+import { usePhoneHead } from '../phone.js';
 
 /**
  * Settings → General.
@@ -36,9 +37,40 @@ const VOLUMES: Array<{ value: number; label: string }> = [
   { value: 0.3, label: 'Loud' },
 ];
 
+/**
+ * Narrow enough to be a phone, asked in JavaScript rather than in CSS.
+ *
+ * The phone's Settings is not this panel in a narrower column: `Settings.dc.html`
+ * is a list of sections in three labelled groups, and tapping one opens that
+ * section on its own. So it is different markup, and a phone stylesheet
+ * cannot decide that — every rule in one lives inside
+ * `@media (max-width: 767px)` by rule, so there is no way to hide something
+ * on a computer from there. 768 is the line the owner drew.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width:767px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width:767px)');
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
 export function V2SettingsGeneral() {
   const { user } = useAuth();
+  const isPhone = useIsPhone();
   const inOffice = user?.role === 'owner' || user?.role === 'admin';
+
+  usePhoneHead({
+    title: 'Settings',
+    sub: user ? `${user.name} · ${roleWord(user.role)}` : undefined,
+  });
+
+  if (isPhone) return <PhoneSettings inOffice={inOffice} />;
 
   return (
     <SettingsShell>
@@ -50,6 +82,226 @@ export function V2SettingsGeneral() {
         <AccountRow />
       </div>
     </SettingsShell>
+  );
+}
+
+function roleWord(role: string): string {
+  const named: Record<string, string> = {
+    owner: 'Owner', admin: 'Admin', manager: 'Manager',
+    agent: 'Property Consultant', accountant: 'Accountant', automation: 'Automation',
+  };
+  return named[role] ?? role;
+}
+
+/* ── Settings on a phone ───────────────────────────────────────────────── */
+
+/**
+ * `Settings.dc.html` — three labelled groups of rows, one tap each.
+ *
+ * The computer's shape is a 216px section nav beside one panel. At 390px that
+ * leaves 142px for the panel, which is why the shell hides the nav; but then
+ * eleven of the fourteen sections are only reachable through a sideways
+ * scroll with nothing to say it scrolls. The design's answer is this list,
+ * and an agent sees exactly the first group of it.
+ *
+ * The three rows the phone design puts here that `design/web/settings.html`
+ * does not — Live projects, WhatsApp templates, Report a bug or suggest — are
+ * kept, because the computer design gives the last of them no home at all and
+ * the audit flagged exactly that. Written down in
+ * `docs/v2/phone-questions-c.md`.
+ */
+function PhoneSettings({ inOffice }: { inOffice: boolean }) {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { appearance, resolved, setAppearance } = useAppearance();
+  const [glassReduced, setGlassReduced] = useGlassReduced();
+  const toast = useToast();
+
+  /* The one line in this file that must keep working: `/logout` is not a
+     route, so a link to it was no way out of the app at all on a phone. */
+  const leave = () => {
+    void signOut().then(() => navigate('/login', { replace: true }));
+  };
+
+  const you: Row[] = [
+    { to: '/v2/me', icon: 'user', title: 'My profile', note: 'Photo, BRN, languages, card' },
+    {
+      to: '/v2/settings/notifications', icon: 'bell', title: 'Notifications',
+      note: 'Push, email, quiet hours',
+    },
+    {
+      to: '/v2/settings/security', icon: 'lock', title: 'Security',
+      note: 'Password and signed-in devices',
+    },
+    { to: '/v2/settings/phone-app', icon: 'download', title: 'Phone app', note: 'Add to Home Screen' },
+  ];
+
+  const office: Row[] = [
+    {
+      to: '/v2/settings/team', icon: 'users', title: 'Team & roles',
+      note: 'Invite, reset a password, deactivate',
+    },
+    {
+      to: '/v2/settings/attendance', icon: 'wifi', title: 'Attendance & office Wi-Fi',
+      note: 'Shift, Wi-Fi, outside work rules',
+    },
+    { to: '/v2/settings/desks', icon: 'layout-grid', title: 'Desks', note: 'Groups that share a batch of leads' },
+    {
+      to: '/v2/projects/manage', icon: 'building', title: 'Live projects',
+      note: 'Which projects we sell now',
+    },
+    {
+      to: '/v2/settings/banners', icon: 'megaphone', title: 'Home banners',
+      note: 'Slides at the top of My Day',
+    },
+  ];
+
+  const system: Row[] = [
+    {
+      to: '/v2/settings/company', icon: 'building-2', title: 'Company details',
+      note: 'Name, ORN, TRN, logo, address',
+    },
+    {
+      to: '/v2/templates', icon: 'message-circle', title: 'WhatsApp templates',
+      note: 'Ready messages, and what Meta has approved',
+    },
+    {
+      to: '/v2/settings/ai', icon: 'sparkles', title: 'Homes AI',
+      note: 'Key, budget, what AI knows about us',
+    },
+    {
+      to: '/v2/settings/automations', icon: 'zap', title: 'Automations',
+      note: 'Lead assign, take-back rule, chasing',
+    },
+    {
+      to: '/v2/settings/health', icon: 'shield', title: 'System health',
+      note: 'Push, email, background jobs',
+    },
+    {
+      to: '/v2/settings/feedback', icon: 'inbox', title: 'Feedback inbox',
+      note: 'Bugs and ideas from the team',
+    },
+  ];
+
+  return (
+    <div className="d-set p-settings">
+      <div className="d-set-body">
+        <section className="d-card v2-c-menu">
+          <h2 className="d-label v2-c-group">You</h2>
+          {you.map(settingRow)}
+
+          {/* Appearance and Language are pickers in place, not links: the
+              design settles both without leaving the screen. */}
+          <div className="v2-c-pick">
+            <div className="d-txt">
+              <b>Appearance</b>
+              <span>
+                {appearance === 'system' ? `Follow the phone · ${resolved} now`
+                  : appearance === 'dark' ? 'Dark' : 'Light'}
+              </span>
+            </div>
+            <div className="d-seg" role="group" aria-label="Appearance">
+              {THEMES.map((one) => (
+                <button
+                  key={one.value}
+                  type="button"
+                  aria-pressed={appearance === one.value}
+                  className={appearance === one.value ? 'd-on' : undefined}
+                  onClick={() => {
+                    setAppearance(one.value);
+                    toast(one.value === 'system' ? 'Theme follows this phone' : `${one.title} theme is on`);
+                  }}
+                >
+                  {one.title}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="v2-c-pick">
+            <div className="d-txt">
+              <b>Language</b>
+              <span>English · العربية comes later</span>
+            </div>
+            <span className="d-chip">EN</span>
+          </div>
+
+          <div className="v2-c-pick">
+            <div className="d-txt">
+              <b>Reduce the glass effect</b>
+              <span>Turn on if the CRM feels slow on this phone</span>
+            </div>
+            <label className="d-switch">
+              <input
+                type="checkbox"
+                checked={glassReduced}
+                aria-label="Reduce the glass effect"
+                onChange={(e) => {
+                  setGlassReduced(e.target.checked);
+                  toast(e.target.checked ? 'Glass effect reduced' : 'Glass effect is back on');
+                }}
+              />
+              <span className="d-track" />
+            </label>
+          </div>
+        </section>
+
+        {/* Sounds are the person's, not this device's, so they are the same
+            control the computer panel has rather than a second copy. Its
+            Language and Date-and-time rows stay behind: Language is already
+            a row in the group above, where the design puts it, and the
+            clock facts are not controls. */}
+        <SoundsAndLanguage soundsOnly />
+
+        {inOffice && (
+          <>
+            <section className="d-card v2-c-menu">
+              <h2 className="d-label v2-c-group">Team &amp; office · owner, admin</h2>
+              {office.map(settingRow)}
+            </section>
+            <section className="d-card v2-c-menu">
+              <h2 className="d-label v2-c-group">Company &amp; system</h2>
+              {system.map(settingRow)}
+            </section>
+          </>
+        )}
+
+        <section className="d-card v2-c-menu">
+          {settingRow({
+            to: '/v2/feedback', icon: 'pencil', title: 'Report a bug or suggest',
+            note: 'Send it to the owners',
+          })}
+        </section>
+
+        <button type="button" className="d-btn d-danger v2-c-signout" onClick={leave}>
+          <Icon name="log-out" />Sign out{user?.name ? ` · ${user.name.split(' ')[0]}` : ''}
+        </button>
+
+        <p className="d-small d-muted v2-c-version">
+          homes.me CRM · web version for phone and desktop
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface Row {
+  to: string;
+  icon: IconName;
+  title: string;
+  note: string;
+}
+
+function settingRow(one: Row) {
+  return (
+    <Link className="d-shortcut" to={one.to} key={one.to}>
+      <Icon name={one.icon} />
+      <span className="d-grow">
+        {one.title}
+        <small>{one.note}</small>
+      </span>
+      <Icon name="chevron-right" />
+    </Link>
   );
 }
 
@@ -152,7 +404,7 @@ function playBeep(volume: number) {
   }
 }
 
-function SoundsAndLanguage() {
+function SoundsAndLanguage({ soundsOnly }: { soundsOnly?: boolean } = {}) {
   const got = useAsync<Notify>(() => api.get('/api/v2/notify'), []);
   const [draft, setDraft] = useState<Notify | null>(null);
   const toast = useToast();
@@ -278,6 +530,7 @@ function SoundsAndLanguage() {
         </div>
       </SettingsRow>
 
+      {!soundsOnly && (
       <SettingsRow
         label="Language"
         note="For menus and buttons. Lead notes stay as you wrote them."
@@ -305,9 +558,11 @@ function SoundsAndLanguage() {
           </button>
         </div>
       </SettingsRow>
+      )}
 
       {/* Facts rather than controls: these are the same for the whole office
           and there is nothing here for one person to change. */}
+      {!soundsOnly && (
       <SettingsRow label="Date and time" note="The same for the whole office.">
         <div className="d-row d-wrap d-gap-8">
           <span className="d-chip d-lg"><Icon name="clock" />24-hour clock · {clockNow()}</span>
@@ -315,6 +570,7 @@ function SoundsAndLanguage() {
           <span className="d-chip d-lg"><Icon name="calendar-days" />Week starts on Monday</span>
         </div>
       </SettingsRow>
+      )}
     </section>
   );
 }
@@ -425,7 +681,8 @@ function AccountRow() {
         <b className="d-bold">{user?.name}</b>
         <div className="d-small d-muted">{user?.email} · signed in on this computer</div>
       </div>
-      <Link className="d-btn" to="/v2/me"><Icon name="lock" />Security</Link>
+      {/* `/v2/me` is the personal-information screen; security is its own. */}
+      <Link className="d-btn" to="/v2/settings/security"><Icon name="lock" />Security</Link>
       {/* `/logout` is not a route; this was a link to nowhere. */}
       <button type="button" className="d-btn d-danger" onClick={leave}>
         <Icon name="log-out" />Sign out

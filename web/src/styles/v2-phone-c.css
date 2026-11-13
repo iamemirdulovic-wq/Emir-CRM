@@ -26,4 +26,366 @@
  */
 
 @media (max-width: 767px) {
+  /* ── a list is cards, not a table ──────────────────────────────────────
+     §5.4. Three tables in this group — the projects an owner manages, the
+     leads on one project, and the Best of Homes ranking. Each `tr` becomes a
+     card and each `td` a line of it; the header row has nowhere to go and
+     the cells say what they are without it. */
+  .v2.v2-phone .p-manage-projects .d-table,
+  .v2.v2-phone .p-manage-projects .d-table tbody,
+  .v2.v2-phone .p-manage-projects .d-table tr,
+  .v2.v2-phone .p-manage-projects .d-table td,
+  .v2.v2-phone .p-project .d-id-leads,
+  .v2.v2-phone .p-project .d-id-leads tbody,
+  .v2.v2-phone .p-project .d-id-leads tr,
+  .v2.v2-phone .p-project .d-id-leads td,
+  .v2.v2-phone .p-best .d-id-rank,
+  .v2.v2-phone .p-best .d-id-rank tbody,
+  .v2.v2-phone .p-best .d-id-rank tr,
+  .v2.v2-phone .p-best .d-id-rank td {
+    display: block;
+    width: auto;
+    max-width: none;
+    height: auto;
+    text-align: left;
+  }
+  .v2.v2-phone .p-manage-projects .d-table thead,
+  .v2.v2-phone .p-project .d-id-leads thead,
+  .v2.v2-phone .p-best .d-id-rank thead { display: none; }
+
+  .v2.v2-phone .p-manage-projects .d-table tr,
+  .v2.v2-phone .p-project .d-id-leads tr {
+    padding: 12px 2px;
+    border-top: 1px solid var(--line);
+  }
+  /* A lead row the way the design writes it: name and stage on one line,
+     then the number, then why it is on the list, with the call button
+     beside them. */
+  .v2.v2-phone .p-project .d-id-leads tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
+  }
+  .v2.v2-phone .p-project .d-id-leads td:nth-child(1) { grid-area: 1 / 1; }
+  .v2.v2-phone .p-project .d-id-leads td:nth-child(3) { grid-area: 1 / 2; }
+  .v2.v2-phone .p-project .d-id-leads td:nth-child(2) { grid-area: 2 / 1; }
+  .v2.v2-phone .p-project .d-id-leads td:nth-child(4) { grid-area: 3 / 1; }
+  .v2.v2-phone .p-project .d-id-leads td:nth-child(5) { grid-area: 2 / 2 / span 2; }
+  .v2.v2-phone .p-manage-projects .d-table tr:first-child,
+  .v2.v2-phone .p-project .d-id-leads tr:first-child { border-top: 0; }
+  .v2.v2-phone .p-manage-projects .d-table td,
+  .v2.v2-phone .p-project .d-id-leads td { padding: 3px 0; border: 0; }
+  /* The one that must not become a line of its own: a row of buttons. */
+  .v2.v2-phone .p-manage-projects .d-table td.d-act { padding-top: 8px; }
+  .v2.v2-phone .p-manage-projects .d-row-actions,
+  .v2.v2-phone .p-project .d-row-actions { display: flex; gap: 8px; }
+  .v2.v2-phone .p-manage-projects .d-seg.d-sm { width: 100%; }
+  .v2.v2-phone .p-manage-projects .d-seg.d-sm > button { flex: 1; font-size: 12px; }
+
+  .v2.v2-phone .p-best .d-id-rank tr {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  /* The bar after the points is the fourth cell and there is no room for it
+     beside a name at 390px; the number is the fact. */
+  .v2.v2-phone .p-best .d-id-rank td:last-child { display: none; }
+
+  /* ── Live projects ─────────────────────────────────────────────────────
+     The design draws four full-width cards. The computer design's chips and
+     search stay — they are the newer design — but they stack, and the two
+     owner buttons go because the header now carries `Manage projects`. */
+  .v2.v2-phone .p-projects .d-pgrid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .v2.v2-phone .p-projects .d-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+  .v2.v2-phone .p-projects .d-filters .d-input-icon { width: auto; }
+  .v2.v2-phone .p-projects .d-seg {
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+  .v2.v2-phone .p-projects .d-seg::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-projects .d-seg > button { flex: none; white-space: nowrap; }
+  .v2.v2-phone .p-projects .v2-proj-acts { display: none; }
+  .v2.v2-phone .p-projects .d-owner-msg { flex-direction: column; align-items: flex-start; }
+
+  /* ── one project ───────────────────────────────────────────────────────
+     The send card moves under the project instead of beside it, the facts
+     go two across instead of four, and the strip that repeats the back
+     button goes — the header already has one. */
+  .v2.v2-phone .p-project .d-lay,
+  .v2.v2-phone .p-project .d-bento { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-project .d-facts { grid-template-columns: 1fr 1fr; padding: 14px 6px 10px; }
+  .v2.v2-phone .p-project .d-facts div:nth-child(odd) { border-left: 0; }
+  .v2.v2-phone .p-project .d-facts b { font-size: 20px; }
+  .v2.v2-phone .p-project .d-what { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-project .v2-proj-top { display: none; }
+  .v2.v2-phone .p-project .d-send-btns { display: flex; flex-direction: column; align-items: stretch; }
+
+  /* ── Manage live projects ──────────────────────────────────────────────
+     Three count cards across 390px is 110px each, which fits; the page head
+     wraps so the three buttons are not pushed off the side. */
+  .v2.v2-phone .p-manage-projects .d-tiles { gap: 8px; }
+  .v2.v2-phone .p-manage-projects .d-tiles .d-card { padding: 12px 10px; }
+  .v2.v2-phone .p-manage-projects .d-tiles .d-num { font-size: 24px; }
+  .v2.v2-phone .p-manage-projects .v2-page-head { flex-wrap: wrap; }
+  .v2.v2-phone .p-manage-projects .v2-page-head .d-btn { flex: 1 1 auto; }
+
+  /* ── Meet the team ─────────────────────────────────────────────────────
+     The design is a vertical list of people, one row each, not a grid of
+     cards. One column turns the build's cards into exactly that. */
+  /* The screen's own sub-line went into the header with `usePhoneHead`, so
+     the one the page drew would be the same sentence twice. */
+  .v2.v2-phone .p-team .v2-page-head { display: none; }
+
+  .v2.v2-phone .p-team .d-tgrid,
+  .v2.v2-phone .p-team .d-ogrid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .v2.v2-phone .p-team .d-tcard {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 2px;
+    align-items: center;
+    text-align: left;
+  }
+  .v2.v2-phone .p-team .d-tcard > * { grid-column: 2; justify-self: start; }
+  .v2.v2-phone .p-team .d-tcard > .v2-face {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    align-self: center;
+  }
+  /* The badge would otherwise take the first row and push the name down. */
+  .v2.v2-phone .p-team .d-tcard .d-you { position: absolute; top: 12px; right: 12px; }
+  .v2.v2-phone .p-team .d-tcard h3 { margin: 0; }
+  .v2.v2-phone .p-team .d-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .v2.v2-phone .p-team .d-filters .d-input-icon { width: auto; }
+  .v2.v2-phone .p-team .v2-team-pills {
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .v2.v2-phone .p-team .v2-team-pills::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-team .v2-team-pills .d-tab { flex: none; white-space: nowrap; }
+  .v2.v2-phone .p-team .d-stats4 { grid-template-columns: 1fr 1fr; }
+  .v2.v2-phone .p-team .v2-c-rule { margin-top: 4px; }
+
+  /* The colleague sheet. `.d-panel-body` scrolls inside the panel while the
+     panel itself scrolls as a sheet, and the two together cut the stat tiles
+     in half under the footer. One scroller: the sheet. */
+  .v2.v2-phone .p-team .d-panel-body { overflow: visible; flex: 0 0 auto; }
+  .v2.v2-phone .p-team .d-panel-foot {
+    position: static;
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+
+  /* ── Profile and a colleague's page ────────────────────────────────────
+     The hero is a row of three blocks separated by a rule, which at 390px is
+     three columns of 110px. It becomes a stack, and the border moves to the
+     top of each block. */
+  .v2.v2-phone .p-profile .d-pf-hero { flex-direction: column; gap: 20px; padding: 20px 18px; }
+  .v2.v2-phone .p-profile .d-pf-id { gap: 14px; }
+  .v2.v2-phone .p-profile .d-pf-id h1 { font-size: 23px; }
+  .v2.v2-phone .p-profile .d-pf-perf {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding-left: 0;
+    padding-top: 18px;
+    border-left: 0;
+    border-top: 1px solid var(--hero-line);
+  }
+  .v2.v2-phone .p-profile .d-pf-stats { justify-content: space-between; gap: 10px; }
+  /* The design draws neither screen with a shortcut row: a profile has its
+     nine menu rows instead, and a colleague has the two contact buttons. */
+  .v2.v2-phone .p-profile .d-pf-links { display: none; }
+  .v2.v2-phone .p-profile .d-pf-done { flex-direction: column; align-items: stretch; gap: 8px; }
+  /* A heading with a long note beside it truncated to "Langua…" at 390px:
+     `.d-card-head h3` is `flex:1` with `white-space:nowrap`, so the note
+     wins the row and the title is the thing that gets cut. */
+  .v2.v2-phone .p-profile .d-card-head,
+  .v2.v2-phone .p-project .d-card-head,
+  .v2.v2-phone .p-best .d-card-head,
+  .v2.v2-phone .p-settings .d-card-head { flex-wrap: wrap; row-gap: 2px; }
+  .v2.v2-phone .p-profile .d-card-head h3,
+  .v2.v2-phone .p-project .d-card-head h3,
+  .v2.v2-phone .p-best .d-card-head h3,
+  .v2.v2-phone .p-settings .d-card-head h3 {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* ── the nine menu rows, and Settings' three groups ────────────────────
+     `Profile.dc.html` and `Settings.dc.html` are the same shape: a white
+     card of rows, each a title over a quieter sub-line, with a chevron. */
+  .v2.v2-phone .v2-c-menu { padding: 6px 8px; }
+  .v2.v2-phone .v2-c-menu .d-shortcut {
+    background: none;
+    border-radius: 14px;
+    padding: 12px 10px;
+    min-height: 56px;
+    font-weight: 600;
+  }
+  .v2.v2-phone .v2-c-menu .d-shortcut + .d-shortcut,
+  .v2.v2-phone .v2-c-menu .v2-c-pick + .d-shortcut,
+  .v2.v2-phone .v2-c-menu .d-shortcut + .v2-c-pick,
+  .v2.v2-phone .v2-c-menu .v2-c-pick + .v2-c-pick { border-top: 1px solid var(--line); }
+  .v2.v2-phone .v2-c-menu .d-shortcut .d-grow { white-space: normal; overflow: visible; }
+  .v2.v2-phone .v2-c-menu .d-shortcut small {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 450;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+  .v2.v2-phone .v2-c-menu .d-shortcut > svg:first-child { color: var(--ink-2); flex: none; }
+  .v2.v2-phone .v2-c-menu .v2-c-group {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 8px 10px 4px;
+    margin: 0;
+  }
+  .v2.v2-phone .v2-c-menu .v2-c-menu-flat { cursor: default; }
+  .v2.v2-phone .v2-c-pick {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 10px;
+    min-height: 56px;
+  }
+  .v2.v2-phone .v2-c-pick .d-txt { flex: 1 1 140px; min-width: 0; }
+  .v2.v2-phone .v2-c-pick .d-txt b { display: block; font-size: 14.5px; font-weight: 600; }
+  .v2.v2-phone .v2-c-pick .d-txt span { display: block; font-size: 12.5px; color: var(--ink-3); }
+  .v2.v2-phone .v2-c-pick .d-seg { flex: 1 1 100%; }
+  .v2.v2-phone .v2-c-pick .d-seg > button { flex: 1; }
+  .v2.v2-phone .v2-c-signout { width: 100%; min-height: 50px; justify-content: center; }
+  .v2.v2-phone .v2-c-version { text-align: center; padding: 4px 0 2px; }
+
+  /* Settings itself: the panel is the whole width, and the label column of
+     every row stacks above its controls instead of taking 230px of 390. */
+  .v2.v2-phone .p-settings .d-set-row,
+  .v2.v2-phone .p-profile .d-set-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 0;
+  }
+  .v2.v2-phone .p-settings .d-office-grid { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-settings .d-th-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  /* The design puts a plain Save button at the foot of the form. A sticky
+     bar at 390px covers whatever field is under it, which is how the job
+     title went missing behind one. */
+  .v2.v2-phone .p-settings .d-set-savebar,
+  .v2.v2-phone .p-profile .d-set-savebar {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .v2.v2-phone .p-profile .d-set-savebar .d-btn { flex: 1 1 100%; min-height: 48px; }
+
+  /* ── my personal information ───────────────────────────────────────────
+     The chip picker is the only thing on this screen that is not one column,
+     and it wraps on its own. */
+  .v2.v2-phone .v2-c-pi .d-chips { gap: 6px; }
+  .v2.v2-phone .v2-c-pi .d-chip-opt { min-height: 40px; }
+
+  /* ── the team wall and Best of Homes ───────────────────────────────── */
+  .v2.v2-phone .p-wall .d-lay { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-wall .d-postbox-foot { flex-wrap: wrap; }
+  .v2.v2-phone .p-best .d-bento,
+  .v2.v2-phone .p-best .d-row1 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .v2.v2-phone .p-best .d-podium { gap: 6px; }
+  .v2.v2-phone .p-best .d-pod .d-pts { font-size: 20px; }
+  .v2.v2-phone .p-best .d-pod.d-first .d-pts { font-size: 26px; }
+  .v2.v2-phone .p-best .d-pod b.d-nm { font-size: 13.5px; }
+  .v2.v2-phone .p-best .d-pod .d-sm { font-size: 11px; }
+  .v2.v2-phone .p-best .d-quote { font-size: 20px; }
+  .v2.v2-phone .p-best .v2-c-nudge { font-size: 15px; font-weight: 600; margin-top: 10px; }
+  .v2.v2-phone .p-best .d-card-foot { flex-wrap: wrap; }
+  .v2.v2-phone .p-best .d-card-foot .d-btn { flex: 1 1 auto; }
+  .v2.v2-phone .p-best .d-top-tabs .d-tab { margin-right: 14px; }
+
+  /* ── my digital card ───────────────────────────────────────────────────
+     The card itself is a fixed 420px artboard, which is wider than the
+     screen. It is the one element in this group that would scroll sideways,
+     and the layout is 1fr + 470px beside it. */
+  .v2.v2-phone .p-card .d-dc { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .v2.v2-phone .p-card .d-dc-right { position: static; }
+  .v2.v2-phone .p-card .d-bc { --w: min(420px, calc(100vw - 76px)); }
+  .v2.v2-phone .p-card .d-pv { padding: 14px; }
+  .v2.v2-phone .p-card .d-id-steps { overflow-x: auto; scrollbar-width: none; }
+  .v2.v2-phone .p-card .d-id-steps::-webkit-scrollbar { display: none; }
+  /* Three steps and two rules between them have to fit 390px minus the
+     card's own padding, or "Download" is cut off at the edge. */
+  .v2.v2-phone .p-card .d-id-steps .d-step { white-space: nowrap; font-size: 12.5px; gap: 7px; }
+  .v2.v2-phone .p-card .d-id-steps .d-step .d-n { width: 24px; height: 24px; font-size: 11.5px; }
+  .v2.v2-phone .p-card .d-stepper .d-line { margin: 0 7px; min-width: 10px; }
+
+  /* ── report a bug or suggest ───────────────────────────────────────────
+     Four type tiles across becomes one column: at 390px two across wraps
+     "Something is broken" onto three lines and leaves the third tile alone
+     on its own row. */
+  .v2.v2-phone .p-feedback .d-fb-types { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-feedback .d-seg { width: 100%; }
+  .v2.v2-phone .p-feedback .d-seg > button { flex: 1; }
+  .v2.v2-phone .p-feedback .v2-fb-foot { flex-wrap: wrap; gap: 10px; }
+  .v2.v2-phone .p-feedback .v2-fb-foot .d-btn { width: 100%; min-height: 48px; }
+
+  /* ── Homes AI ──────────────────────────────────────────────────────────
+     §1.4: "AskAI keeps the bottom bar but adds a fixed composer pinned at
+     bottom:92px, just above the bar", and the scroller reserves 170px for
+     it. The build had the composer inline as the last row of the card, so
+     the one control the screen exists for scrolled away the moment there was
+     a conversation. */
+  .v2.v2-phone .p-homes-ai .d-ai { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-homes-ai .d-ai-chat { height: auto; min-height: 0; }
+  .v2.v2-phone .p-homes-ai .d-ai-msgs {
+    overflow: visible;
+    padding: 16px 14px 4px;
+    max-height: none;
+  }
+  .v2.v2-phone .p-homes-ai .d-ai-try { padding: 8px 14px 12px; }
+  /* A chip is one line and 34px tall on a computer. Two of these questions
+     are a sentence, and at 390px a one-line chip pushed the page 160px wider
+     than the screen. */
+  .v2.v2-phone .p-homes-ai .d-ai-try .d-chip-opt {
+    height: auto;
+    min-height: 40px;
+    padding: 9px 14px;
+    white-space: normal;
+    text-align: left;
+    line-height: 1.3;
+    max-width: 100%;
+  }
+  .v2.v2-phone .p-homes-ai .d-ai-form {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: calc(92px + var(--safe-b, 0px));
+    z-index: 30;
+    padding: 10px 12px;
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: 0 14px 34px -10px rgba(16, 24, 20, .3), 0 0 0 1px var(--line);
+  }
+  /* The composer sits over the page, so the page has to end above it. */
+  .v2.v2-phone .p-homes-ai { padding-bottom: 74px; }
+  .v2.v2-phone .p-homes-ai .d-ai-input { padding-left: 12px; }
+  /* At 390px the button's label was eating the field. The arrow and the
+     aria-label say the same thing. */
+  .v2.v2-phone .p-homes-ai .v2-c-ask-word { display: none; }
+  .v2.v2-phone .p-homes-ai .d-ai-input .d-btn { min-width: 44px; padding: 0 12px; }
 }

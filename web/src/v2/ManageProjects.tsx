@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Which projects the agents can see.
@@ -81,6 +82,20 @@ export function V2ManageProjects() {
   const [armed, setArmed] = useState<string | null>(null);
   const toast = useToast();
 
+  /*
+   * `ManageProjects.dc.html`: the title is "Manage live projects", the
+   * sub-line is "Owner · what the team sells now", and the round action on
+   * the right is `+ Add a project` — which opens the same panel the wide
+   * button does rather than a second screen.
+   */
+  usePhoneHead({
+    title: 'Manage live projects',
+    sub: canManage ? 'Owner · what the team sells now' : 'Owners and admin only',
+    action: canManage
+      ? { icon: 'plus', label: 'Add a project', onClick: () => setEditing('new') }
+      : undefined,
+  });
+
   const rows = got.data?.items ?? [];
   const counts = {
     selling_now: rows.filter((one) => whoSees(one) === 'selling_now').length,
@@ -138,9 +153,30 @@ export function V2ManageProjects() {
   }
 
   if (!canManage) {
+    /*
+     * The design's own block, word for word, and with a way out of it: an
+     * agent who reaches this address should not be left on a red line with
+     * nowhere to go. The server refuses the endpoint as well — this is only
+     * what the person sees.
+     */
     return (
       <div className="p-manage-projects">
-        <ErrorNote>Projects are managed by the owner. You can see them under Projects.</ErrorNote>
+        <div className="d-card">
+          <div className="d-empty">
+            <span className="d-ic"><Icon name="lock" /></span>
+            <b>Only for owners and admin</b>
+            <p>
+              You are signed in as an agent. This page is not in your menu and you cannot
+              open it. The projects you sell are under Projects.
+            </p>
+            <div className="d-btn-row">
+              <Link className="d-btn d-primary d-sm" to="/v2">Go to My Day</Link>
+              <Link className="d-btn d-sm" to="/v2/projects">
+                <Icon name="building" />Projects
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -148,8 +184,11 @@ export function V2ManageProjects() {
   return (
     <div className="p-manage-projects">
       <div className="v2-page-head">
+        {/* The design's sentence in full. The build had the first half only,
+            so the one status that hides a project went unexplained. */}
         <span className="v2-page-sub">
-          Agents see only projects that are “Selling now” or “Launching soon”.
+          Agents see <b>Selling now</b> and <b>Launching soon</b> on their Projects
+          page. <b>Hidden</b> is only for owners.
         </span>
         <span className="d-grow" />
         <Link className="d-btn" to="/v2/projects"><Icon name="eye" />See as an agent</Link>
