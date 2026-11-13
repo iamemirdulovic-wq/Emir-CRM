@@ -49,9 +49,18 @@ function dubaiDate(at: Date, withYear: boolean): string {
   return `${show({ weekday: 'long' })}, ${rest}`;
 }
 
-/** "15 Oct", for the ends of a window. */
-function dubaiShort(at: Date): string {
-  return civil(at).toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+/**
+ * "15 Oct", for the ends of a window.
+ *
+ * Takes a date that is **already civil** — Dubai wall-clock held in UTC
+ * fields — and so formats in UTC. Calling `civil()` again here is the mistake
+ * this comment exists to stop: it adds another four hours, and a window that
+ * began at nine in the evening Dubai time then reported itself as starting a
+ * day later. The build said "16 Oct – 13 Nov" for a thirty-day window while
+ * the unit test, run at lunchtime, said 15 Oct and passed.
+ */
+function shortCivil(day: Date): string {
+  return day.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
 }
 
 /* ── the fourteen ────────────────────────────────────────────────────────── */
@@ -97,8 +106,9 @@ export function wallSub(): string {
  * two ends worked out from the Dubai clock. `docs/v2/questions-subs.md`.
  */
 export function bestSub(days: number, at: Date): string {
-  const from = addDays(civil(at), -(days - 1));
-  return `Points over the last ${days} days · ${dubaiShort(from)} – ${dubaiShort(at)}`;
+  const today = civil(at);
+  const from = addDays(today, -(days - 1));
+  return `Points over the last ${days} days · ${shortCivil(from)} – ${shortCivil(today)}`;
 }
 
 /**

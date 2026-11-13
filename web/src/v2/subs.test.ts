@@ -252,6 +252,28 @@ describe('Best of Homes gives the window it really ranks', () => {
     expect(bestSub(7, AT)).toBe('Points over the last 7 days · 7 Nov – 13 Nov');
   });
 
+  /*
+   * Both ends are the same Dubai day arithmetic, applied once.
+   *
+   * This is here because it was wrong: the far end was converted to Dubai a
+   * second time after the days had been subtracted, which added four hours
+   * and rolled it onto the next date for anything after eight in the evening
+   * UTC. The build read "16 Oct – 13 Nov" for a thirty-day window while the
+   * test above, sitting at lunchtime, read 15 Oct and passed.
+   */
+  it('counts back from the Dubai day at any hour of it', () => {
+    const lunchtime = bestSub(30, new Date('2026-11-13T10:00:00Z'));
+    const lateEvening = bestSub(30, new Date('2026-11-13T19:30:00Z')); // 23:30 in Dubai
+    expect(lateEvening).toBe(lunchtime);
+    expect(lateEvening).toContain('15 Oct – 13 Nov');
+  });
+
+  it('crosses midnight in Dubai, not in UTC', () => {
+    /* 21:00 UTC is 01:00 the next day here, so both ends move on by one. */
+    expect(bestSub(30, new Date('2026-11-13T21:00:00Z')))
+      .toBe('Points over the last 30 days · 16 Oct – 14 Nov');
+  });
+
   it('carries neither the design’s week number nor its deadline', () => {
     const built = bestSub(30, AT);
     const design = designSub('best-of-homes');
