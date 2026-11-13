@@ -2,7 +2,13 @@
 
 Condensed from `design/web/research/sage.md` (the Sage feature map, which itself derives
 from the 12 Nov 2026 master prompt, 59 phone screens and the old `s_web.py`).
-This file is the build reference: a developer should not need to reopen sage.md.
+**This file is not the build reference, and it must not be used as one.** Ten
+screens were built from it and came out in the right colours with invented
+layouts; the owner stopped the build over it on 12 Nov. A screen is built from
+its page in `design/web/*.html` — see "The v2 build" in `CLAUDE.md` for the
+method. What this file is good for is the list of what a page must contain,
+who may see it, and which endpoint feeds it. Where it and the design file
+disagree about layout, the design file wins.
 
 Conventions used below:
 - Roles: **O** = Owner, **Ad** = Admin (same as Owner but cannot remove owners), **Ag** = Agent.
