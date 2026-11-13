@@ -186,9 +186,13 @@ export function V2SettingsDesks() {
   return (
     <SettingsShell page="p-desks">
       <div className="d-set-body">
+        {/* `Desks.dc.html` draws the one button as the round `+` in the
+            header, not as a bar across the page. On a phone it goes there;
+            the computer keeps the button it has always had. */}
         <SettingsTitle
           title="Desks"
           note="Groups of agents. Each desk has a limit of open leads per agent."
+          action={{ icon: 'plus', label: 'Add a desk', onClick: () => setEditing('new') }}
         >
           <button type="button" className="d-btn d-primary" onClick={() => setEditing('new')}>
             <Icon name="plus" />Add a desk

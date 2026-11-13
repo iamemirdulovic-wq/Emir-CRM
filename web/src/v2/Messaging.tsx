@@ -140,8 +140,13 @@ export function V2Messaging() {
   return (
     <div className="p-messaging">
       <div className="d-filters">
+        {/* All three of the owner's reports, in the order
+            `design/web/messaging-report.html` puts them. Live was missing
+            here, so this was the one of the three you could not leave
+            without going back twice. */}
         <div className="d-seg">
           <Link to="/v2/activity">Activity</Link>
+          <Link to="/v2/team-live">Live</Link>
           <Link to="/v2/messaging" className="d-on">Messaging</Link>
         </div>
         <span className="d-grow" />

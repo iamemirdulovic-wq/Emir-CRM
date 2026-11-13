@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -7,6 +7,26 @@ import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
+
+/**
+ * Under this, `design/screens/Incoming.dc.html` rather than the computer
+ * page. `Shell.tsx` keeps its own copy of this hook and this group may not
+ * edit it, so the lines are repeated rather than shared.
+ */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 /**
  * Incoming: the leads nobody is working on.
@@ -84,7 +104,9 @@ function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
 
   const normal = free.filter((lead) => !lead.isVip).length;
   const vip = free.length - normal;
-  usePhoneHead({ sub: 'Free leads · first agent to take it gets it' });
+  const isPhone = useIsPhone();
+  /* `Incoming.dc.html` draws the compact header on this screen. */
+  usePhoneHead({ sub: 'Free leads · first agent to take it gets it', compact: true });
 
   async function take(lead: FreeLead) {
     setTaking(lead.id);
@@ -120,8 +142,21 @@ function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
           <div className="d-sumline">
             <b className="d-num">{normal}</b>
             <span className="d-label">
-              {normal === 1 ? 'free lead to take' : 'free leads to take'}
-              {normal > 0 ? ' · the first agent who takes a lead gets it' : ' · you took them all'}
+              {/* The prototype's own sentence. "The first agent who takes a
+                  lead gets it" is already in the header's sub on a phone, so
+                  saying it twice is what the design does not do. */}
+              {isPhone
+                ? (normal === 0
+                  ? 'free leads. You took them all.'
+                  : normal === 1
+                    ? 'free lead. Take it only if you can call it now.'
+                    : 'free leads. Take one only if you can call it now.')
+                : (
+                  <>
+                    {normal === 1 ? 'free lead to take' : 'free leads to take'}
+                    {normal > 0 ? ' · the first agent who takes a lead gets it' : ' · you took them all'}
+                  </>
+                )}
               {vip > 0 && ` · ${vip} VIP ${vip === 1 ? 'lead waits' : 'leads wait'} for an owner`}
             </span>
           </div>
@@ -188,7 +223,7 @@ function OwnerView({ data, reload }: {
   const [giving, setGiving] = useState<FreeLead | null>(null);
   const { user } = useAuth();
   const me = user?.name ?? 'You';
-  usePhoneHead({ sub: 'Owner view · give each lead a home' });
+  usePhoneHead({ sub: 'Owner view · give each lead a home', compact: true });
 
   const normal = useMemo(() => data.free.filter((lead) => !lead.isVip), [data.free]);
   /* The people a lead can actually go to: everyone not marked unavailable,

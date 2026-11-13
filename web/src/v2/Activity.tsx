@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -153,6 +154,18 @@ export function V2Activity() {
 
   return (
     <div className="p-activity">
+      {/* The owner's three reports, as `design/web/team-activity.html` puts
+          them in its top bar. Team live and the messaging report both had
+          this row and this one did not, so Activity was the only one of the
+          three with no way out of it. */}
+      <div className="d-filters">
+        <div className="d-seg">
+          <Link to="/v2/activity" className="d-on">Activity</Link>
+          <Link to="/v2/team-live">Live</Link>
+          <Link to="/v2/messaging">Messaging</Link>
+        </div>
+      </div>
+
       <div className="d-tabs" role="tablist">
         <Tabs tab={tab} onPick={setTab} signins={rows.length} unusual={unusual.length} />
       </div>

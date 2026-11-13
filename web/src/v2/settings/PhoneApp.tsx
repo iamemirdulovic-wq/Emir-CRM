@@ -89,8 +89,23 @@ const ANDROID = [
   },
 ];
 
+/**
+ * The address to type, written out.
+ *
+ * `InstallGuide.dc.html` prints it in step 1 and draws it in a browser bar;
+ * the build said "the same address you use here" and never wrote it down,
+ * which is no use at all to somebody standing with a second phone in their
+ * hand. It is read from the browser rather than stored anywhere: the address
+ * this page is open at is, by definition, the address that works.
+ */
+function addressHere(): string {
+  if (typeof window === 'undefined') return 'the same address you use here';
+  return window.location.host || 'the same address you use here';
+}
+
 export function V2SettingsPhoneApp() {
   const [phone, setPhone] = useState<'iphone' | 'android'>('iphone');
+  const here = addressHere();
   const toast = useToast();
 
   /* Whether this browser can be asked at all. On a desktop the answer is
@@ -112,8 +127,8 @@ export function V2SettingsPhoneApp() {
           <div className="d-grow">
             <h2>Open the CRM on your phone</h2>
             <p className="d-muted d-mt-4">
-              Type the same address you use here into your phone&apos;s browser, then follow the
-              steps below.
+              Type <b className="d-ink-2">{here}</b> into your phone&apos;s browser, then follow
+              the steps below.
             </p>
             <div className="d-seg d-mt-16" role="group" aria-label="Which phone">
               <button type="button" className={phone === 'iphone' ? 'd-on' : undefined} onClick={() => setPhone('iphone')}>

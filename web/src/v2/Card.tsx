@@ -211,6 +211,7 @@ export function V2Card() {
    * beside it, which the design never does on this screen.
    */
   usePhoneHead({
+    compact: true,
     title: 'My digital card',
     sub: `Step ${step} of 3 · your link and your printed card`,
   });
@@ -617,7 +618,11 @@ export function V2Card() {
             </div>
           </div>
 
-          <section className="d-card">
+          {/* `DigitalCard.dc.html` opens with this: the link, the switch
+              and the copy button, before the printed card. On a phone it is
+              ordered to the top; on a computer it stays in the right-hand
+              column where the design puts it. */}
+          <section className="d-card v2-c-share">
             <div className="d-switch-row v2-flat">
               <span className="d-card-icon"><Icon name="link" /></span>
               <div className="d-txt">

@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth.js';
 import { Icon } from '../../design/index.js';
 import { ErrorNote, useToast } from '../../design/ui.js';
 import { SettingsShell, SettingsTitle } from './Shell.js';
+import { usePhoneHead } from '../phone.js';
 
 /**
  * Sign-in and security — `design/screens/Security.dc.html`, and the
@@ -31,6 +32,12 @@ import { SettingsShell, SettingsTitle } from './Shell.js';
  *    CLAUDE.md's LOGIN section is email and password only, "no OTP". So the
  *    block states that rather than offering a switch.
  */
+
+/** The centred phone title, set after `SettingsTitle` has set the words. */
+function PhoneTitleShape({ title, sub }: { title: string; sub: string }) {
+  usePhoneHead({ compact: true, title, sub });
+  return null;
+}
 
 export function V2SettingsSecurity() {
   const { user, signOut } = useAuth();
@@ -79,6 +86,11 @@ export function V2SettingsSecurity() {
           title="Security"
           note="Password and signed-in devices"
         />
+        {/* `Security.dc.html` draws §1.4 pattern A — the 17px title centred
+            between the back button and nothing. `SettingsTitle` owns the
+            words; this sets the shape, and it has to be a later sibling of
+            it, because effects run in tree order. */}
+        <PhoneTitleShape title="Security" sub="Password and signed-in devices" />
 
         <section className="d-card">
           <div className="d-card-head"><h3>Change password</h3></div>

@@ -190,11 +190,12 @@ export function V2Calendar() {
    * nothing at all; it opens the sheet now.
    */
   usePhoneHead({
-    sub: chosen.length === 0
-      ? `Nothing planned ${picked === dayKey(new Date()) ? 'today' : `on ${nice(picked)}`}`
-      : `${chosen.length} plan${chosen.length === 1 ? '' : 's'} ${
-        picked === dayKey(new Date()) ? 'today' : `on ${nice(picked)}`}`
-      + (waiting.length > 0 ? ` · ${waiting.length} waiting for a result` : ''),
+    /* `Calendar.dc.html` writes the whole date of the day being looked at —
+       "Wed, 11 November 2026" — not how many plans are on it. The count is
+       on the "Today's plan" card underneath, where the design puts it. */
+    sub: new Date(picked).toLocaleDateString('en-GB', {
+      weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+    }).replace(/^(\w+) /, '$1, '),
     /* The handler is stable on purpose: `usePhoneHead` keys on the label and
        the sub, so a closure that changed every time `picked` did would be
        remembered from the render before. The sheet reads the day itself. */
@@ -314,6 +315,26 @@ export function V2Calendar() {
                 onOpen={setOpen}
                 dayView={view === 'day'}
               />
+            )}
+
+            {/*
+              * The key to the dots, under the grid.
+              *
+              * `Calendar.dc.html` puts it there, and on a phone it is the
+              * opposite of optional: a 51px-wide cell holds a number and
+              * five coloured dots and nothing else, so the key is the only
+              * thing that says what a dot means. The computer design keeps
+              * it up in the top bar beside the month, which is where the
+              * markup above has it; that copy is hidden at this width.
+              */}
+            {phone && view === 'month' && (
+              <div className="d-legend v2-b-callegend">
+                {LEGEND.map((one) => (
+                  <span key={one.kind}>
+                    <span className={`d-dot ${one.dot}`} />{one.label}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
 

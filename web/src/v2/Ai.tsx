@@ -147,6 +147,7 @@ export function V2Ai() {
    * where the design puts it.
    */
   usePhoneHead({
+    compact: true,
     title: 'Homes AI',
     sub: seesEveryone
       ? 'Asks the team’s leads, attendance and today’s numbers'

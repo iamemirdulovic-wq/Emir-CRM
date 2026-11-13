@@ -2,9 +2,32 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
-import { Icon } from '../design/index.js';
+import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, originOf, whenToCall } from '../lib/dialling.js';
+import { iosNeedsInstall, pushState, enablePush, type PushState } from '../lib/push.js';
+
+/**
+ * Under this, the phone layout — `design/screens/Main.dc.html` and
+ * `OwnerHome.dc.html` rather than the two computer pages.
+ *
+ * `Shell.tsx` keeps its own copy of this number and this hook and this group
+ * may not edit it, so the six lines are repeated rather than shared.
+ */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 /**
  * Home: My Day for an agent, the company's day for an owner.
@@ -122,6 +145,7 @@ function greet(now: string): string {
 
 function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
   const [saying, setSaying] = useState<string | null>(null);
+  const isPhone = useIsPhone();
   const toCall = home.counts.today ?? 0;
   const checkedIn = home.attendance.marked !== null;
 
@@ -158,6 +182,11 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
         {greet(home.now)}, {home.me.firstName}
         <span>{home.now}</span>
       </h1>
+
+      {/* `Main.dc.html` puts the banner carousel directly under the greeting,
+          above everything the day holds. The computer page keeps it at the
+          foot of the column, so only the phone moves it. */}
+      {isPhone && home.banners.length > 0 && <Banners banners={home.banners} phone />}
 
       {/* What Homes AI would say, when it can say it from real figures. */}
       <AiLine home={home} />
@@ -275,6 +304,12 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
           )}
         </section>
 
+        {/* `Main.dc.html` draws this between the VIP card and Next up, and
+            the computer page has it too. It is the phone that needs it: a
+            lead handed over with thirty minutes on it is missed unless the
+            phone buzzes. */}
+        {isPhone && <NotifyCard />}
+
         {/* Next plan. The promise with the nearest time on it. */}
         <section className="d-card d-c-4" aria-label="Next plan">
           <div className="d-card-head v2-head-tight">
@@ -319,6 +354,16 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
         <Tile to="/v2/leads?tab=hot" label="Hot leads" n={home.counts.hot ?? 0} note="ready to buy" />
         <Tile to="/v2/calendar" label="Meetings today" n={home.today.meetings} note="in the calendar" />
       </div>
+
+      {/* `Main.dc.html` keeps "Start calling · N ready" on the screen whatever
+          else is on it. The hero only carries that button in its "ready"
+          state, so a morning that opens on a VIP lead or on the check-in card
+          had no way into the call list at all. */}
+      {isPhone && state !== 'ready' && toCall > 0 && (
+        <Link className="v2-a-start" to="/v2/calling">
+          <Icon name="phone" />Start calling · {toCall} ready
+        </Link>
+      )}
 
       <div className="d-bento">
         {/* The call list: the same rows the dialler will walk, in the same order. */}
@@ -422,8 +467,102 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
       {/* My leads by stage. The widths are the real proportions. */}
       <ByStage byStage={home.byStage} total={home.counts.all ?? 0} />
 
-      {home.banners.length > 0 && <Banners banners={home.banners} />}
+      {!isPhone && home.banners.length > 0 && <Banners banners={home.banners} />}
     </div>
+  );
+}
+
+/**
+ * "Turn on notifications" — `Main.dc.html`, and `my-day.html` has it too.
+ *
+ * Both designs draw this card and neither half of the build had it, so the
+ * permission was never asked for on the one device where it matters. The
+ * wording is the prototype's own. It shows itself only when there is
+ * something to ask for: never once notifications are on, never when nobody
+ * has set the Firebase keys, and never again after "not now".
+ */
+function NotifyCard() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [gone, setGone] = useState(() => {
+    try { return localStorage.getItem('emir-notify-ask') === 'no'; } catch { return false; }
+  });
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void pushState().then((got) => { if (alive) setState(got); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+
+  if (gone || state === null || state === 'on') return null;
+  /* An iPhone in Safari has no switch to press and a browser that has been
+     refused cannot be asked again: both are told what to do instead. */
+  const canAsk = state === 'off' || state === 'not-configured';
+  const install = state === 'unsupported' ? iosNeedsInstall() : true;
+
+  async function turnOn() {
+    setBusy(true);
+    try {
+      const got = await enablePush();
+      if (got === 'not-configured') {
+        /*
+         * Nobody has set the Firebase keys yet, so nothing can be delivered
+         * to a closed app — but the browser can still be asked, exactly as
+         * the install guide asks it for a computer, and the answer is worth
+         * having before the keys arrive. It says plainly what is missing
+         * rather than claiming the lock screen now works.
+         */
+        const answer = await Notification.requestPermission();
+        setSaid(answer === 'granted'
+          ? 'This phone will show alerts. Leads on the lock screen need one more switch from the office.'
+          : 'Your phone said no. Turn them on in its own settings.');
+        return;
+      }
+      setState(got);
+      setSaid(got === 'on'
+        ? 'Notifications are on.'
+        : got === 'blocked'
+          ? 'Your phone refused. Turn them on in its own settings.'
+          : 'That did not work.');
+    } catch {
+      setSaid('That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="d-card d-c-12 v2-a-notify" aria-label="Turn on notifications">
+      <span className="v2-a-notify-ic"><Icon name="bell-ring" /></span>
+      <div className="d-grow">
+        <b>Turn on notifications</b>
+        <p>
+          New leads, meetings and follow-ups on your lock screen, like WhatsApp.
+          Tap one and it opens the right page.
+        </p>
+        {said && <p className="v2-a-notify-said">{said}</p>}
+        <div className="v2-a-notify-btns">
+          {canAsk && (
+            <button type="button" className="d-btn d-primary d-sm" disabled={busy} onClick={() => void turnOn()}>
+              {busy ? 'Asking…' : 'Turn on'}
+            </button>
+          )}
+          {install && <Link className="d-btn d-sm" to="/v2/settings/phone-app">How to install</Link>}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="v2-a-notify-x"
+        aria-label="Not now"
+        onClick={() => {
+          try { localStorage.setItem('emir-notify-ask', 'no'); } catch { /* private mode */ }
+          setGone(true);
+        }}
+      >
+        <Icon name="x" />
+      </button>
+    </section>
   );
 }
 
@@ -709,7 +848,7 @@ function ByStage({ byStage, total }: { byStage: Array<{ stage: string; n: number
   );
 }
 
-function Banners({ banners }: { banners: AgentHome['banners'] }) {
+function Banners({ banners, phone }: { banners: AgentHome['banners']; phone?: boolean }) {
   const [at_, setAt] = useState(0);
   useEffect(() => {
     if (banners.length < 2) return undefined;
@@ -722,6 +861,42 @@ function Banners({ banners }: { banners: AgentHome['banners'] }) {
 
   const slide = banners[at_ % banners.length];
   if (!slide) return null;
+
+  /*
+   * On a phone the card loses its "From the office" heading and the dots go
+   * under the slide, which is how `Main.dc.html` draws the carousel: the
+   * chip inside the slide already says where the message came from, and the
+   * heading cost a line of a 844px screen.
+   */
+  if (phone) {
+    return (
+      <section className="v2-a-banner" aria-label="From the office">
+        <div className="v2-a-banner-slide">
+          <span className="v2-a-banner-tag">FROM THE OFFICE</span>
+          <b>{slide.title}</b>
+          {slide.body && <p>{slide.body}</p>}
+          {slide.linkUrl && (
+            <a className="d-btn d-sm" href={slide.linkUrl} target="_blank" rel="noreferrer">
+              Open <Icon name="arrow-right" />
+            </a>
+          )}
+        </div>
+        {banners.length > 1 && (
+          <div className="v2-a-banner-dots">
+            {banners.map((banner, i) => (
+              <button
+                type="button"
+                key={banner.id}
+                className={i === at_ ? 'v2-a-banner-dot v2-a-banner-dot-on' : 'v2-a-banner-dot'}
+                aria-label={`Banner ${i + 1}`}
+                onClick={() => setAt(i)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="d-card v2-banners" aria-label="From the office">
@@ -794,8 +969,25 @@ function AiLine({ home }: { home: AgentHome }) {
 
 /* ── the owner's day ───────────────────────────────────────────────────── */
 
+/**
+ * One icon per kind of thing waiting on the owner.
+ *
+ * The same six the dashboard's brief uses, because they are the same six
+ * rows: a lead late in one place and late in the other should not wear two
+ * different faces.
+ */
+const NEEDS_ICON: Record<string, IconName> = {
+  vip_late: 'alert-triangle',
+  waiting: 'inbox',
+  transfer: 'repeat',
+  leave: 'calendar-days',
+  absent: 'user-x',
+  bug: 'alert-circle',
+};
+
 function OwnerDay({ home }: { home: OwnerHome }) {
   const n = home.todayNumbers;
+  const isPhone = useIsPhone();
   return (
     <div className="v2-home p-owner-home">
       <h1 className="v2-hi">
@@ -803,11 +995,33 @@ function OwnerDay({ home }: { home: OwnerHome }) {
         <span>{home.now}</span>
       </h1>
 
-      <div className="v2-owner-acts">
-        <Link className="d-btn d-primary" to="/v2/leads/new"><Icon name="plus" />Add a lead and give it</Link>
-        <Link className="d-btn" to="/v2/import"><Icon name="upload" />Import Excel</Link>
-        <Link className="d-btn" to="/v2/incoming"><Icon name="inbox" />Incoming · {home.freeLeads}</Link>
-      </div>
+      {/* `OwnerHome.dc.html` gives the first action a card of its own, with
+          the line that says what it does, and puts the other two in a row
+          under it. Three equal buttons is the computer layout. */}
+      {isPhone ? (
+        <>
+          <Link className="v2-a-bigact" to="/v2/leads/new">
+            <span className="v2-a-bigact-ic"><Icon name="plus" /></span>
+            <span className="d-grow">
+              <b>Add a lead and give it</b>
+              <span>Type it once, pick the agent, mark it VIP</span>
+            </span>
+            <Icon name="chevron-right" />
+          </Link>
+          <div className="v2-a-acts2">
+            <Link className="v2-a-act2" to="/v2/import"><Icon name="upload" />Import Excel</Link>
+            <Link className="v2-a-act2" to="/v2/incoming">
+              <Icon name="inbox" />Incoming · {home.freeLeads}
+            </Link>
+          </div>
+        </>
+      ) : (
+        <div className="v2-owner-acts">
+          <Link className="d-btn d-primary" to="/v2/leads/new"><Icon name="plus" />Add a lead and give it</Link>
+          <Link className="d-btn" to="/v2/import"><Icon name="upload" />Import Excel</Link>
+          <Link className="d-btn" to="/v2/incoming"><Icon name="inbox" />Incoming · {home.freeLeads}</Link>
+        </div>
+      )}
 
       <div className="d-bento">
         <section className="d-card d-c-7" aria-label="Needs you now">
@@ -820,7 +1034,10 @@ function OwnerDay({ home }: { home: OwnerHome }) {
               </p>
             )
             : home.needsYou.map((row) => (
+              /* `OwnerHome.dc.html` gives every row an icon of its own: five
+                 identical lines of text is a list nobody reads down. */
               <div className="d-srow" key={row.kind}>
+                <span className="d-card-icon v2-a-need-ic"><Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} /></span>
                 <div className="d-grow">
                   <b>{row.n} {row.text}</b>
                 </div>
@@ -851,6 +1068,9 @@ function OwnerDay({ home }: { home: OwnerHome }) {
         </section>
       </div>
 
+      {/* `OwnerHome.dc.html` names this block before it starts counting. */}
+      {isPhone && <p className="v2-a-sectionlabel">TODAY IN NUMBERS</p>}
+
       <div className="d-bento">
         <Tile to="/v2/leads?tab=new" label="New leads today" n={n.newLeads ?? 0} note="came in today" />
         {/* `owner-home.html` sends this one to Team live, which is where the
@@ -877,6 +1097,35 @@ function OwnerDay({ home }: { home: OwnerHome }) {
           <h3>Team right now</h3>
           <Link className="d-card-link" to="/v2/team">Team <Icon name="arrow-right" /></Link>
         </div>
+        {/*
+          * Five columns at 390px put "Calls today" and "Last seen" off the
+          * right-hand edge with nothing to say they were there. The phone
+          * reads each person as a row instead, which is how every other list
+          * in the phone design works.
+          */}
+        {isPhone ? (
+          <>
+            <div className="v2-a-live-head">
+              <span className="v2-a-live-name">Agent</span>
+              <span>Open</span><span>Calls</span><span>Seen</span>
+            </div>
+            {home.teamRightNow.map((row) => (
+              <div className="v2-a-live-row" key={row.id}>
+                <Avatar name={row.name} src={row.photoUrl ?? undefined} size={30} />
+                <span className="v2-a-live-name">
+                  {row.name}
+                  <em>
+                    {row.marked === 'office' ? 'In office'
+                      : row.marked === 'outside' ? 'Outside' : 'Not marked'}
+                  </em>
+                </span>
+                <span>{row.openLeads}</span>
+                <span>{row.callsToday}</span>
+                <span>{row.lastSeenAt ? at(row.lastSeenAt) : '—'}</span>
+              </div>
+            ))}
+          </>
+        ) : (
         <table className="v2-table">
           <thead>
             <tr><th>Who</th><th>Today</th><th>Open leads</th><th>Calls today</th><th>Last seen</th></tr>
@@ -902,9 +1151,10 @@ function OwnerDay({ home }: { home: OwnerHome }) {
             ))}
           </tbody>
         </table>
+        )}
       </section>
 
-      {home.banners.length > 0 && <Banners banners={home.banners} />}
+      {home.banners.length > 0 && <Banners banners={home.banners} phone={isPhone} />}
     </div>
   );
 }

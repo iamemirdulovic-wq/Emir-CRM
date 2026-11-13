@@ -144,9 +144,12 @@ export function V2Pipeline() {
   const openNow = (board.data?.columns ?? [])
     .filter((one) => one.stageKey !== 'lost' && one.stageKey !== 'won')
     .reduce((sum, one) => sum + one.total, 0);
+  /* `Pipeline.dc.html` draws the compact header: a small centred title and
+     the count under it, so the stage strip starts near the top. */
   usePhoneHead({
     title: 'Pipeline',
     sub: `${openNow.toLocaleString('en-GB')} open leads by stage · Won is counted apart`,
+    compact: true,
   });
 
   if (board.error) return <ErrorNote>{board.error}</ErrorNote>;

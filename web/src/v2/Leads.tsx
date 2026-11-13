@@ -223,7 +223,16 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const [params, setParams] = useSearchParams();
   /* Follow-ups is this screen opened on what is late. The tab is then not the
      reader's to change, so the URL does not decide it. */
-  const tab = (fixedTab ?? (params.get('tab') as TabKey) ?? 'today') as TabKey;
+  /*
+   * `AllLeads.dc.html` is what an owner's Leads opens on — the prototype's
+   * own router sends an owner's `Leads.dc.html` link to `AllLeads.dc.html`,
+   * and the phone design draws no Today tab for them. The computer page
+   * still opens on Today, so only the phone changes; see
+   * `docs/v2/phone-questions-a.md` §4, which is still open.
+   */
+  const owns = user ? user.role !== 'agent' : false;
+  const firstTab: TabKey = isPhone && owns ? 'all' : 'today';
+  const tab = (fixedTab ?? (params.get('tab') as TabKey) ?? firstTab) as TabKey;
   const [search, setSearch] = useState('');
   /* Rows fetched by "Show more", tied to the query they belong to: a different
      tab or filter is a different list, and the old pages must not be shown
@@ -259,6 +268,8 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
      All rather than a tab of its own. */
   const wide = tab === 'all' || tab === 'hot';
   const isAgent = user?.role === 'agent';
+  /* The whole book, not one person's share of it. */
+  const book = wide && !isAgent;
 
   const qs = useMemo(() => {
     const next = new URLSearchParams();
@@ -360,12 +371,17 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * counts endpoint sends one number per tab and no open-lead total, so this
    * says what it really knows. See `docs/v2/phone-questions-a.md`.
    */
-  const headSub = wide
+  const headSub = book
     ? `Owner · ${(counts.data?.all ?? 0).toLocaleString()} leads · every agent`
     : `${(counts.data?.all ?? 0).toLocaleString()} leads · ${todayCount} to call today`;
   usePhoneHead({
-    title: wide ? 'All leads' : 'My leads',
+    /* An agent who arrives on the Hot chip is still looking at their own
+       leads: only somebody who holds everybody's sees "All leads". */
+    title: book ? 'All leads' : 'My leads',
     sub: headSub,
+    /* `AllLeads.dc.html` is the compact header — a small centred title with
+       the agent chips right under it; `Leads.dc.html` is the 30px one. */
+    compact: book,
     action: { icon: 'plus', label: 'Add lead', to: '/v2/leads/new' },
   });
 

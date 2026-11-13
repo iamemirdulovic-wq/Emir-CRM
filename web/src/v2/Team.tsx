@@ -100,6 +100,7 @@ function Face({ one, size }: { one: Person; size?: number }) {
 
 export function V2Team() {
   const { user } = useAuth();
+  const isPhone = useIsPhone();
   const team = useAsync<{ items: Person[]; canSeeNumbers: boolean }>(
     () => api.get('/api/v2/team'), [],
   );
@@ -149,6 +150,7 @@ export function V2Team() {
    * drew the same count inside the page; it belongs up here.
    */
   usePhoneHead({
+    compact: true,
     title: 'Meet the team',
     sub: team.data
       ? `${everyone.length} ${everyone.length === 1 ? 'person' : 'people'} · ${inOfficeNow} in the office now`
@@ -248,6 +250,11 @@ export function V2Team() {
                     <div><b>{one.openLeads}</b><span>open leads</span></div>
                   </div>
                 )}
+                {/* `TeamDirectory.dc.html` draws a chevron on every row,
+                    because on a phone the card is a link to the person and
+                    nothing else on it says so. The computer's card is a tile
+                    in a grid and has none. */}
+                {isPhone && <Icon name="chevron-right" className="v2-c-go" />}
               </button>
             );
           })}
@@ -461,7 +468,8 @@ function replyTime(seconds: number | null | undefined): string {
 interface Profile {
   profile: {
     user_id: string; name?: string; headline: string | null; bio: string | null;
-    languages: unknown; specialities: unknown; public_phone: string | null;
+    languages: unknown; specialities: unknown;
+    public_phone: string | null; phone_e164: string | null;
     public_email: string | null; whatsapp: string | null; instagram: string | null;
     linkedin: string | null; job_title: string | null; brn: string | null;
     photo_url: string | null; cover_key: string | null; slug: string | null;
@@ -491,6 +499,7 @@ export function V2Person() {
    * `Colleague.dc.html` is a results page titled with the person's name.
    */
   usePhoneHead({
+    compact: true,
     title: mine ? 'Profile' : (got.data?.profile.name ?? undefined),
     sub: got.data
       ? (mine
@@ -511,6 +520,14 @@ export function V2Person() {
   const specialities = asList(profile.specialities);
   const badges = got.data.badges ?? [];
   const earned = badges.filter((badge) => badge.earned);
+  /*
+   * `Colleague.dc.html` draws Phone and WhatsApp side by side, and the Phone
+   * button went missing whenever somebody had not set a separate public
+   * number. `loadProfile` sends `u.phone_e164` too, and the business card
+   * already prefers the public number over the sign-in one; this does the
+   * same, so a colleague can always be rung.
+   */
+  const callNumber = profile.public_phone?.trim() || profile.phone_e164?.trim() || '';
 
   /*
    * The design's hero shows "Performance this month · 86%" against a monthly
@@ -586,11 +603,11 @@ export function V2Person() {
         * and WhatsApp, the page showed the number as a read-only line. It is
         * the whole reason an agent opens a colleague.
         */}
-      {!mine && (profile.public_phone || profile.whatsapp) && (
+      {!mine && (callNumber || profile.whatsapp) && (
         <section className="d-card">
           <div className="d-btn-row">
-            {profile.public_phone && (
-              <a className="d-btn d-primary" href={`tel:${profile.public_phone}`}>
+            {callNumber && (
+              <a className="d-btn d-primary" href={`tel:${callNumber}`}>
                 <Icon name="phone" />Phone
               </a>
             )}

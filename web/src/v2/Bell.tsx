@@ -24,6 +24,30 @@ import { usePhoneHead } from './phone.js';
  * of.
  */
 
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
+
+/**
+ * Whether this is a phone, in the component and not only in CSS.
+ *
+ * `Notifications.dc.html` makes the whole row one link — icon, title with the
+ * time on its right, the text, then the verb line. The computer's row is a
+ * div with a "Mark read" button and an "Open →" button in it, and at 390px
+ * the second of those wrapped onto a line of its own.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
 interface Notification {
   id: string;
   type: string;
@@ -202,6 +226,7 @@ export function V2Notifications() {
   const [group, setGroup] = useState('All');
   const [onlyNew, setOnlyNew] = useState(false);
   const [busy, setBusy] = useState(false);
+  const phone = useIsPhone();
 
   const items = list.data?.items ?? [];
   const unread = items.filter((one) => !one.read_at).length;
@@ -211,7 +236,14 @@ export function V2Notifications() {
    * title; the build opened with a hero count card saying the same thing
    * twice the size.
    */
-  usePhoneHead({ sub: unread === 0 ? 'All read' : `${unread} new` });
+  usePhoneHead({
+    compact: true,
+    title: 'Notifications',
+    sub: unread === 0 ? 'All read' : `${unread} new`,
+    /* `Notifications.dc.html` puts "Mark all read" in the header row beside
+       the title, not in a count card below it. */
+    ...(unread > 0 ? { action: { icon: 'check-check', label: 'Mark all read', onClick: markAll } } : {}),
+  });
 
   /* Only the categories that have something in them, plus All. Five empty
      tabs is five taps that do nothing. */
@@ -312,6 +344,29 @@ export function V2Notifications() {
                 <div className="d-grp">{day}</div>
                 {rows.map((row) => {
                   const kind = kindOf(row.type);
+                  if (phone) {
+                    /* The design's row: one link, the time on the title's
+                       right, and the unread dot at the end. Opening it marks
+                       it read, which is why there is no second button. */
+                    return (
+                      <Link
+                        key={row.id}
+                        className={row.read_at ? 'v2-b-nrow' : 'v2-b-nrow v2-b-nnew'}
+                        to={where(row.link)}
+                        onClick={() => markOne(row.id)}
+                      >
+                        <span className={`d-ic ${kind.tone}`}><Icon name={kind.icon} /></span>
+                        <span className="v2-b-nbd">
+                          <span className="v2-b-ntop">
+                            <b>{row.title}</b>
+                            <span className="v2-b-nage">{ago(row.created_at)}</span>
+                          </span>
+                          {row.body && <span className="v2-b-ntext">{row.body}</span>}
+                        </span>
+                        {!row.read_at && <span className="d-udot" aria-label="New" />}
+                      </Link>
+                    );
+                  }
                   return (
                     <div key={row.id} className={row.read_at ? 'd-nrow' : 'd-nrow d-unread'}>
                       <span className={`d-ic ${kind.tone}`}><Icon name={kind.icon} /></span>

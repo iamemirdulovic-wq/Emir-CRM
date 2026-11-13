@@ -85,12 +85,18 @@ interface Team {
   leave: Leave[];
 }
 
+/*
+ * The five the server takes (`LEAVE_KINDS` in `server/src/v2/leave.ts`).
+ * `LeaveRequest.dc.html` offers six — Annual, Sick, Personal, Half day, Work
+ * from home, Other — and three of those have nowhere to be stored. The last
+ * one is the design's word, which "Something else" was not.
+ */
 const KINDS = [
   { value: 'annual', label: 'Annual' },
   { value: 'sick', label: 'Sick' },
   { value: 'unpaid', label: 'Unpaid' },
   { value: 'emergency', label: 'Emergency' },
-  { value: 'other', label: 'Something else' },
+  { value: 'other', label: 'Other' },
 ];
 
 /** A refusal must carry a reason, so the owner picks one of these. */
@@ -131,6 +137,12 @@ export function V2Attendance() {
    */
   const today = mine.data?.today;
   usePhoneHead({
+    /* `TeamAttendance.dc.html` calls the owner's screen "Team attendance",
+       and `Attendance.dc.html` calls the agent's "Attendance". One address,
+       two screens, two names. Both draw the §1.4 pattern-A header: a 17px
+       title centred over its sub, because the screen below wants the room. */
+    compact: true,
+    title: seesTeam ? 'Team attendance' : 'Attendance',
     sub: seesTeam
       ? `Owner · today, ${new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`
       : !today?.enabled ? 'Check-in is switched off'
@@ -282,7 +294,9 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
         </section>
       </div>
 
-      <div className="d-bento">
+      {/* `Attendance.dc.html` ends its month with a row of small counts, not
+          a column of full-width cards; two to a row is what fits at 390px. */}
+      <div className="d-bento v2-b-tiles">
         <Tile label="In the office" value={office} note={`of ${mine.days.length} days marked`} />
         <Tile label="Late" value={late} note={late === 0 ? 'none in sixty days' : 'in sixty days'} />
         <Tile label="Working outside" value={away} note="in sixty days" />
@@ -1230,9 +1244,11 @@ function OwnerMine({ mine, reload, onAsk }: { mine: Mine; reload: () => void; on
 
 /* ── the two side panels ───────────────────────────────────────────────── */
 
+/* The six `WorkOutside.dc.html` offers, in its order and its words. The note
+   the server keeps is one free line, so these are the design's exactly. */
 const WHY_OUTSIDE = [
-  'Viewing with a client', 'Site visit', 'Meeting at the developer',
-  'Event or expo', 'Bank or papers', 'Something else',
+  'Viewing with client', 'Developer sales centre', 'Client meeting',
+  'Event / roadshow', 'Bank / paperwork', 'Other',
 ];
 
 function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
@@ -1301,6 +1317,19 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <span className="d-error">Choose why you are outside.</span>
           </div>
 
+          {/* The design asks who before where: "With who?" is a row of
+              leads, then "Where exactly" is the free line under it. */}
+          <div className="d-field">
+            <label htmlFor="v2-out-who">With who?</label>
+            <input
+              id="v2-out-who"
+              className="d-input"
+              value={withWho}
+              placeholder="Omar K."
+              onChange={(e) => setWithWho(e.target.value)}
+            />
+          </div>
+
           <div className={touched && missing.where ? 'd-field d-invalid' : 'd-field'}>
             <label htmlFor="v2-out-where">Where exactly</label>
             <input
@@ -1311,17 +1340,6 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               onChange={(e) => setWhere(e.target.value)}
             />
             <span className="d-error">Write where exactly you are.</span>
-          </div>
-
-          <div className="d-field">
-            <label htmlFor="v2-out-who">With who</label>
-            <input
-              id="v2-out-who"
-              className="d-input"
-              value={withWho}
-              placeholder="Omar K."
-              onChange={(e) => setWithWho(e.target.value)}
-            />
           </div>
 
           <div className="d-field">
@@ -1400,9 +1418,12 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
   return (
     <>
       <div className="v2-panel-back" onClick={onClose} aria-hidden />
-      <aside className="d-panel d-open" aria-label="Ask for days off">
+      <aside className="d-panel d-open" aria-label="Request leave">
         <div className="d-panel-head">
-          <h2>Ask for days off</h2>
+          {/* `LeaveRequest.dc.html` calls it "Request leave", over "Emir or
+              George approves it" — the owner's name is theirs, so this says
+              what it does rather than who. */}
+          <h2>Request leave</h2>
           <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
             <Icon name="x" />
           </button>
@@ -1489,7 +1510,7 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
           <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
           <span className="d-grow" />
           <button type="button" className="d-btn d-primary" disabled={busy} onClick={send}>
-            {busy ? 'Sending…' : 'Send the request'}
+            {busy ? 'Sending…' : 'Send request'}
           </button>
         </div>
       </aside>

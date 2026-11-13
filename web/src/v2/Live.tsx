@@ -250,6 +250,24 @@ function HourSpark({ values, label }: { values: number[]; label: string }) {
   );
 }
 
+/**
+ * Whether this is a phone, in markup rather than in a stylesheet. The tiles
+ * across the top carry a different comparison word at 390px, and a
+ * stylesheet cannot change what a word says.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width:767px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width:767px)');
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
 /** The coloured ring on an avatar, by where somebody is today. */
 function Face({ name, photoUrl, where }: { name: string; photoUrl: string | null; where: string }) {
   const ring = where === 'office' ? 'v2-face-office'
@@ -284,6 +302,7 @@ export function V2Live() {
    * subtitle says that rather than the prototype's ten seconds.
    */
   usePhoneHead({ title: 'Team live', sub: 'Owner · counted again every 30 seconds' });
+  const isPhone = useIsPhone();
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin';
 
@@ -515,7 +534,11 @@ export function V2Live() {
             <div className="d-stat">
               <div className="d-stat-row">
                 <b className="d-num-hero">{data.totals.calls}</b>
-                <span className={`d-delta ${calls.dir}`}>{calls.word}</span>
+                {/* "+12% vs yesterday" is two lines in a 99px tile, which
+                    pushes "Call clicks" a line below the other two labels.
+                    The design has no comparison on these tiles at all, so
+                    the short form is the closer of the two. */}
+                <span className={`d-delta ${calls.dir}`}>{isPhone ? calls.brief : calls.word}</span>
               </div>
               <span className="d-label">Call clicks</span>
             </div>

@@ -140,6 +140,18 @@
      WhatsApp · 5 meetings booked). The build stacked them full width, one
      per screen-height, so an owner could not see the three together — which
      is the only reason to put them side by side. */
+  /* The design opens with the three numbers and the hourly chart, and puts
+     "Right now" under them. The build had "Right now" first, so the three
+     figures an owner comes to this screen for were a screen and a half
+     down. `.d-bento` is a grid, so the two cards swap with `order` and the
+     computer's two columns are untouched. */
+  .v2.v2-phone .p-team-live .d-bento.d-row1 > .d-c-7 { order: -1; }
+  /* `.d-row1` is `grid-template-rows:372px` for the computer's two columns.
+     In one column that height lands on whichever card is first, and the
+     clicks card is taller than 372px — so its own heading was drawn across
+     the numbers underneath it. Both rows take the height they need. */
+  .v2.v2-phone .p-team-live .d-bento.d-row1 { grid-template-rows: auto; }
+
   .v2.v2-phone .p-team-live .d-trio {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -163,7 +175,13 @@
     align-self: flex-start;
   }
   .v2.v2-phone .p-team-live .d-trio .d-label { font-size: 11.5px; }
-  .v2.v2-phone .p-team-live .d-id-hours { margin-top: 18px; }
+  /* The chart's dashed "now" marker hangs a pill 40px above the bars, and
+     the three figures sit right over it, so the word "WhatsApp clicks" had
+     an orange "now" printed through it. The gap goes up and the pill comes
+     down until they clear each other. */
+  .v2.v2-phone .p-team-live .d-id-hours { margin-top: 34px; }
+  .v2.v2-phone .p-team-live .d-bars-now { top: -10px; }
+  .v2.v2-phone .p-team-live .d-bars-now span { top: -17px; }
   .v2.v2-phone .p-team-live .d-legend { gap: 6px 10px; font-size: 11.5px; }
   .v2.v2-phone .p-team-live .d-id-agents td { height: auto; }
   /* Clicks by hour, on a card instead of in a column: the full width. */
@@ -242,13 +260,39 @@
   .v2.v2-phone .p-import .d-drop { padding: 26px 16px; }
   .v2.v2-phone .p-import .d-drop .d-ic { width: 52px; height: 52px; }
   .v2.v2-phone .p-import .d-rules li { font-size: 13px; }
-  /* Six steps with their names is 719px of strip. The names of the steps
-     you are not on go; the circles and the current one stay, which is what
-     the design draws. */
-  .v2.v2-phone .p-import .d-imp .d-stepper { padding: 12px 14px; gap: 0; }
-  .v2.v2-phone .p-import .v2-d-steplabel { display: none; }
-  .v2.v2-phone .p-import .d-step.d-on .v2-d-steplabel { display: inline; }
-  .v2.v2-phone .p-import .d-stepper .d-line { margin: 0 6px; min-width: 8px; }
+  /* Six steps, each with its name — Upload · Columns · Check · Give ·
+     Confirm · Done — which is what `Import.dc.html` draws. In a row they are
+     719px of strip, so the name goes *under* its circle instead of beside
+     it, six equal columns across, and the joining lines go: at 65px a column
+     there is nothing left to join with. Hiding five of the six names (which
+     is what this did before) leaves a wizard that cannot say how far it has
+     to go. */
+  .v2.v2-phone .p-import .d-imp .d-stepper {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    padding: 12px 6px 10px;
+    align-items: start;
+  }
+  .v2.v2-phone .p-import .d-imp .v2-step-wrap {
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+  }
+  .v2.v2-phone .p-import .d-imp .d-step {
+    flex-direction: column;
+    gap: 5px;
+    padding: 0;
+    min-width: 0;
+    text-align: center;
+  }
+  .v2.v2-phone .p-import .v2-d-steplabel {
+    display: block;
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+  .v2.v2-phone .p-import .d-stepper .d-line { display: none; }
   /* The summary arithmetic — 240 = 208 + 18 + 14 — reads as one line of
      prose on a phone rather than seven columns of four pixels. */
   .v2.v2-phone .p-import .d-sum3 {
@@ -279,6 +323,11 @@
      left the report ~60px and wrapped "The call button does nothing on the
      lead page" to one word a line for eighteen lines. The pills take their
      own row; the report gets the width. */
+  /* The four chips the design draws — New · Planned · Fixed · All — fit a
+     390px screen with 10px of padding and not with 14. "Stopping somebody"
+     is the fifth and scrolls, which is the right one to lose. */
+  .v2.v2-phone .p-feedback-inbox .d-tabs.d-pills .d-tab { padding: 0 10px; }
+
   .v2.v2-phone .p-feedback-inbox .v2-fb-row > .d-row {
     flex-wrap: wrap;
     row-gap: 8px;
@@ -339,9 +388,33 @@
   .v2.v2-phone .p-health .d-hl-top h2 { font-size: 19px; }
   .v2.v2-phone .p-health .d-hl-top > .d-grow { flex: 1 1 60%; min-width: 0; }
   .v2.v2-phone .p-health .d-hl-top > .d-btn { flex: 1 1 100%; justify-content: center; }
-  .v2.v2-phone .p-health .d-hl-row { flex-wrap: wrap; row-gap: 8px; }
-  .v2.v2-phone .p-health .d-hl-name { width: auto; flex: 1 1 60%; }
+  /* Icon, name and what it means on the left; the state on the right — the
+     shape `Health.dc.html` draws, six rows you read down the right-hand
+     edge. Wrapping put every pill on a line of its own, which doubled the
+     card's height and lost the column you were reading. A row that is not
+     set up carries a button as well as a pill, and those two take the
+     second line together. */
+  .v2.v2-phone .p-health .d-hl-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    align-items: flex-start;
+  }
+  .v2.v2-phone .p-health .d-hl-name {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+  }
   .v2.v2-phone .p-health .d-hl-name span { white-space: normal; }
+  .v2.v2-phone .p-health .d-hl-row > .d-grow { display: none; }
+  .v2.v2-phone .p-health .d-hl-row > .d-chip { flex: none; margin-left: auto; order: 1; }
+  /* "Set it up" comes before the pill in the markup. On its own line under
+     the row, it leaves the name the width it needs — otherwise a button and
+     a pill together squeezed "Office check-in" to ninety pixels. */
+  .v2.v2-phone .p-health .d-hl-row > .d-btn {
+    order: 2;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
   /*
    * `.d-mini-list` is only defined under `.p-import`, so on this screen and
    * on Team it styles nothing and the rows render as "ConnectedYes". That is
@@ -422,12 +495,21 @@
   .v2.v2-phone .p-banners .v2-hb-prev h2 { font-size: 20px; }
 
   /* ── /v2/settings/company — Company.dc.html ────────────────────────────
-     One field per line, and the "where it shows" preview under the form
-     rather than beside it. */
+     The "where it shows" preview under the form rather than beside it. */
   .v2.v2-phone .p-company .d-co-grid,
-  .v2.v2-phone .p-company .d-form-grid,
   .v2.v2-phone .p-company .d-set-row { grid-template-columns: minmax(0, 1fr); }
   .v2.v2-phone .p-company .d-co-side { position: static; }
+  /* The short fields stay in pairs — ORN beside TRN, the phone beside the
+     email — which is how `Company.dc.html` draws them. `v2-shell.css` puts
+     every form grid into one column under 900px, and one field a line made
+     this form eleven screen-heights of mostly white. The long ones already
+     carry `.d-full` and still take the width. */
+  .v2.v2-phone .p-company .d-form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .v2.v2-phone .p-company .d-form-grid > .d-field { min-width: 0; }
+  .v2.v2-phone .p-company .d-form-grid .d-input { min-width: 0; width: 100%; }
 
   /* ── /v2/settings/ai — AISettings.dc.html ──────────────────────────────*/
   .v2.v2-phone .p-ai-settings .d-ai-top { grid-template-columns: minmax(0, 1fr); }
@@ -440,6 +522,21 @@
   /* ── /v2/automations — Automations.dc.html ─────────────────────────────*/
   .v2.v2-phone .p-automations .d-tb-grid { grid-template-columns: minmax(0, 1fr); }
   .v2.v2-phone .p-automations .d-take { padding: 18px; }
+  /* The four times on one row, as the design draws them: 15 min · 30 min ·
+     1 hour · 2 hours. Left to wrap they came out three and one, which reads
+     as though the fourth were a different kind of thing. */
+  .v2.v2-phone .p-automations .d-take .d-chips {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .v2.v2-phone .p-automations .d-take .d-chips .d-chip-opt {
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 11.5px;
+    justify-content: center;
+    text-align: center;
+  }
 
   /* ── /v2/settings/desks — Desks.dc.html ────────────────────────────────*/
   .v2.v2-phone .p-desks .d-desk-grid { grid-template-columns: minmax(0, 1fr); }
@@ -448,6 +545,28 @@
   /* ── /v2/settings/attendance — SettingsAttendance.dc.html ──────────────*/
   .v2.v2-phone .p-set-attendance .d-days { flex-wrap: wrap; }
   .v2.v2-phone .p-set-attendance .d-set-row { grid-template-columns: minmax(0, 1fr); }
+  /* Starts and Ends beside each other, the way the design draws the shift —
+     one time field per screen-width turned a card you read at a glance into
+     three scrolls. The design puts "Late after" on the same line as a third;
+     at 390px that is 95px a field and a time input clips its own AM/PM, so
+     it takes the second line instead. */
+  .v2.v2-phone .p-set-attendance .v2-set-time {
+    /* No grow: with it, "Late after" alone on the second line stretched to
+       the full width and pushed the word "minutes" off the card. */
+    flex: 0 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  .v2.v2-phone .p-set-attendance .d-shift-vis { flex: 1 1 100%; }
+  /* The time field itself takes the whole half-width. Not the number box
+     inside "Late after": that one shares its line with the word "minutes",
+     and at 100% it pushed it off the card. */
+  .v2.v2-phone .p-set-attendance .v2-set-time > .d-input { width: 100%; min-width: 0; }
+  .v2.v2-phone .p-set-attendance .v2-set-time .d-row > .d-input {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+  }
+  .v2.v2-phone .p-set-attendance .v2-set-time .v2-set-unit { flex: none; }
 
   /* ── the owner's three reports share a sub-tab row ─────────────────────
      Activity | Live | Messaging. It is the one thing on these screens that
@@ -459,5 +578,9 @@
   .v2.v2-phone .p-activity .d-filters > .d-seg,
   .v2.v2-phone .p-messaging .d-filters > .d-seg { display: flex; flex: 1 1 100%; }
   .v2.v2-phone .p-team-live .d-filters > .d-seg > a,
+  .v2.v2-phone .p-activity .d-filters > .d-seg > a,
   .v2.v2-phone .p-messaging .d-filters > .d-seg > a { flex: 1; justify-content: center; }
+  /* Team activity has the row as well now, and its own search-and-chips
+     filter bar sits under the tabs; only the top one is the segment. */
+  .v2.v2-phone .p-activity > .d-filters { margin-bottom: 4px; }
 }

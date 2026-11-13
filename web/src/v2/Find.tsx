@@ -360,7 +360,13 @@ export function V2Find() {
 
   /* §1.4. `Search.dc.html` echoes the term back — "3 found for “mar”" — so
      it is clear the list is an answer to what was typed, not a stale one. */
+  /* `Search.dc.html` draws no title at all: the field is the first thing on
+     the screen, with a "Close" beside it. The shell always draws a header,
+     so this is the smallest one it has — a 17px centred title over the
+     count, which leaves the field near the top where the design has it. */
   usePhoneHead({
+    compact: true,
+    title: 'Search',
     sub: typed
       ? `${shown.length} found for “${term.trim()}”`
       : 'Leads, projects and screens',

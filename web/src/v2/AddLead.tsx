@@ -181,7 +181,13 @@ export function V2AddLead() {
 
   /* §1.4: the shell draws the header, so without this it reads "My leads"
      over a form for adding one — the audit found two titles on this screen. */
-  usePhoneHead({ title: 'Add a lead', sub: 'Name, phone and lead source are needed' });
+  /* `AddLead.dc.html` draws the compact header, so the form starts in the
+     first screenful rather than under a 30px title. */
+  usePhoneHead({
+    title: 'Add a lead',
+    sub: 'Name, phone and lead source are needed',
+    compact: true,
+  });
 
   const phone = useMemo(() => readPhone(phoneRaw, country), [phoneRaw, country]);
   const whatsapp = useMemo(() => readPhone(whatsappRaw, country), [whatsappRaw, country]);
@@ -337,7 +343,11 @@ export function V2AddLead() {
                   readOnly={frozen}
                   className="d-input d-lg"
                   value={name}
-                  autoFocus
+                  /* Not on a phone. `AddLead.dc.html` opens on the whole
+                     form; focusing the first field throws the keyboard over
+                     half of it before the agent has read a word, and the
+                     accent focus ring reads as an error on an empty field. */
+                  autoFocus={!isPhone}
                   placeholder="Name and family name"
                   onChange={(e) => setName(e.target.value)}
                 />

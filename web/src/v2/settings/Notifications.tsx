@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/auth.js';
 import { Icon } from '../../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../../design/ui.js';
 import { SettingsRow, SettingsShell, SettingsSwitch, SettingsTitle } from './Shell.js';
+import { usePhoneHead } from '../phone.js';
 import type { Notify, NotifyGroup } from './notify.js';
 
 /**
@@ -24,6 +25,16 @@ import type { Notify, NotifyGroup } from './notify.js';
  * that is right: thirty switches behind one button is thirty switches
  * somebody leaves half-set.
  */
+
+/**
+ * The centred phone title the design draws, set after `SettingsTitle` has
+ * set the words. See where it is rendered for why it is a component and not
+ * a hook call.
+ */
+function PhoneTitleShape({ title, sub }: { title: string; sub: string }) {
+  usePhoneHead({ compact: true, title, sub });
+  return null;
+}
 
 const QUIET_CHOICES: Array<{ value: string | null; label: string }> = [
   { value: null, label: 'Off' },
@@ -77,7 +88,9 @@ export function V2SettingsNotifications() {
   const mine = draft.groups.filter(forMe);
 
   return (
-    <SettingsShell>
+    /* The extra class is this screen's own, so a phone rule for a row of
+       switches lands here and not on every other settings panel. */
+    <SettingsShell page="p-settings v2-c-ntf">
       <div className="d-set-body">
         {/* `SettingsTitle` hands the title and the note to the phone
             header itself and the settings stylesheet hides this copy under
@@ -91,6 +104,17 @@ export function V2SettingsNotifications() {
         <SettingsTitle
           title="My notifications"
           note="Choose what reaches you. Each alert opens the exact page when you tap it."
+        />
+        {/* `SettingsNotifications.dc.html` draws §1.4 pattern A: a 17px
+            title centred between the back button and nothing, not the 30px
+            one on its own line. `SettingsTitle` owns the words and is group
+            D's file; this sets the shape, and it is a *later sibling* of it
+            on purpose — effects run in tree order, so a hook up in this
+            component would be overwritten the moment the switches arrive
+            and `SettingsTitle` first mounts. */}
+        <PhoneTitleShape
+          title="My notifications"
+          sub="Choose what reaches you. Each alert opens the exact page when you tap it."
         />
 
         <section className="d-card v2-ntf-top">

@@ -84,6 +84,7 @@ export function V2Feedback() {
    * read "homes.me" — the screen had no name at all.
    */
   usePhoneHead({
+    compact: true,
     title: 'Help us improve',
     sub: 'Report a bug or suggest a feature',
   });

@@ -530,3 +530,284 @@
   .v2.v2-phone .p-owner-home .d-tile:has(.d-chip.d-red) .d-num,
   .v2.v2-phone .p-my-day .d-tile:has(.d-chip.d-red) .d-num { color: var(--red-ink); }
 }
+
+@media (max-width: 767px) {
+  /* ── My Day and the owner's home: the date comes first ─────────────────
+     `Main.dc.html` and `OwnerHome.dc.html` both write the day above the
+     greeting — "Wednesday, 11 November" and then "Good afternoon, Rocky".
+     The computer pages put the date beside the greeting, so only the phone
+     turns the line over, and the markup is untouched. */
+  .v2.v2-phone .v2-hi {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  /* ── the banner carousel, at the top of My Day ─────────────────────────
+     A slide, then the dots under it. `.d-card`'s heading is dropped on the
+     phone: the chip inside the slide already says where it came from. */
+  .v2.v2-phone .v2-a-banner { display: flex; flex-direction: column; gap: 10px; }
+  .v2.v2-phone .v2-a-banner-slide {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    padding: 16px;
+    border-radius: 22px;
+    background: var(--hero); color: var(--hero-ink);
+  }
+  .v2.v2-phone .v2-a-banner-tag {
+    font-size: 11px; font-weight: 800; letter-spacing: .04em;
+    padding: 4px 9px; border-radius: 9px;
+    background: var(--accent); color: var(--on-accent);
+  }
+  .v2.v2-phone .v2-a-banner-slide b { font-size: 19px; font-weight: 800; line-height: 1.2; }
+  .v2.v2-phone .v2-a-banner-slide p {
+    margin: 0; font-size: 13px; color: var(--hero-ink-2); line-height: 1.4;
+  }
+  .v2.v2-phone .v2-a-banner-slide .d-btn { margin-top: 6px; }
+  .v2.v2-phone .v2-a-banner-dots {
+    display: flex; gap: 6px; justify-content: center; align-items: center;
+    min-height: 20px;
+  }
+  .v2.v2-phone .v2-a-banner-dot {
+    width: 8px; height: 8px; padding: 0;
+    border: 0; border-radius: 4px;
+    background: var(--line-2);
+    transition: width .3s;
+  }
+  .v2.v2-phone .v2-a-banner-dot-on { width: 22px; background: var(--accent); }
+
+  /* ── "Turn on notifications" ───────────────────────────────────────────
+     Both designs draw it; it asks once and never comes back. */
+  .v2.v2-phone .v2-a-notify {
+    display: flex; flex-direction: row; gap: 12px; align-items: flex-start;
+  }
+  .v2.v2-phone .v2-a-notify-ic {
+    width: 44px; height: 44px; flex: none;
+    border-radius: 14px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-a-notify b { display: block; font-size: 16px; font-weight: 800; }
+  .v2.v2-phone .v2-a-notify p {
+    margin: 4px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.4;
+  }
+  .v2.v2-phone .v2-a-notify-said { color: var(--accent-ink); font-weight: 600; }
+  .v2.v2-phone .v2-a-notify-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .v2.v2-phone .v2-a-notify-x {
+    width: 32px; height: 32px; flex: none;
+    border: 0; border-radius: 10px;
+    display: grid; place-items: center;
+    background: transparent; color: var(--ink-3);
+  }
+
+  /* ── the owner's three openings ────────────────────────────────────────
+     One card with the line that says what it does, then a row of two. */
+  .v2.v2-phone .v2-a-bigact {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-radius: 22px;
+    background: var(--hero); color: var(--hero-ink);
+    text-decoration: none;
+  }
+  .v2.v2-phone .v2-a-bigact-ic {
+    width: 44px; height: 44px; flex: none;
+    border-radius: 16px; display: grid; place-items: center;
+    background: var(--accent); color: var(--on-accent);
+  }
+  .v2.v2-phone .v2-a-bigact .d-grow { min-width: 0; }
+  .v2.v2-phone .v2-a-bigact b { display: block; font-size: 16px; font-weight: 800; }
+  .v2.v2-phone .v2-a-bigact b + span {
+    display: block; font-size: 12px; color: var(--hero-ink-2); margin-top: 2px;
+  }
+  .v2.v2-phone .v2-a-acts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .v2.v2-phone .v2-a-act2 {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 56px; padding: 0 10px;
+    border-radius: 18px;
+    background: var(--surface); color: var(--ink);
+    box-shadow: var(--shadow-1);
+    font-size: 13px; font-weight: 700; text-decoration: none;
+    white-space: nowrap;
+  }
+  .v2.v2-phone .v2-a-act2 .lucide { width: 17px; height: 17px; flex: none; }
+
+  /* ── "Needs you now" ───────────────────────────────────────────────────
+     `v2-shell.css` wraps every `.d-srow` on a small screen, which dropped
+     each row's verb onto a line of its own and made the card twice as tall.
+     The design keeps the verb on the right of its row. */
+  /* `.d-srow` is only given a layout under `.p-my-day` in the generated
+     page CSS, so on the owner's home it was a plain block and every row
+     came out as three stacked lines. */
+  .v2.v2-phone .p-owner-home .d-srow {
+    display: flex; align-items: center; flex-wrap: nowrap;
+    gap: 10px; min-height: 52px; padding: 7px 0;
+  }
+  .v2.v2-phone .p-owner-home .d-srow + .d-srow { border-top: 1px solid var(--line); }
+  .v2.v2-phone .p-owner-home .d-srow .d-grow { min-width: 0; }
+  .v2.v2-phone .p-owner-home .d-srow .d-grow b {
+    display: block; font-size: 14px; font-weight: 700; line-height: 1.3;
+  }
+  .v2.v2-phone .p-owner-home .d-srow .d-btn { flex: none; }
+  .v2.v2-phone .v2-a-need-ic {
+    width: 34px; height: 34px; flex: none;
+    border-radius: 11px; display: grid; place-items: center;
+    background: var(--surface-2); color: var(--ink-2);
+  }
+  .v2.v2-phone .v2-a-need-ic .lucide { width: 16px; height: 16px; }
+
+  .v2.v2-phone .v2-a-sectionlabel {
+    margin: 2px 0 -6px;
+    font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    color: var(--ink-3);
+  }
+
+  /* ── the owner's "Team today" tiles ────────────────────────────────────
+     Four across, as the design draws them. */
+  .v2.v2-phone .p-owner-home .d-mini-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .v2.v2-phone .p-owner-home .d-mini-stats a { padding: 10px 8px; font-size: 11px; }
+  .v2.v2-phone .p-owner-home .d-mini-stats b { font-size: 21px; }
+
+  /* ── "Team right now", as rows ─────────────────────────────────────────
+     The table's last two columns sat off the right edge. */
+  .v2.v2-phone .v2-a-live-head,
+  .v2.v2-phone .v2-a-live-row {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 38px 38px 48px;
+    align-items: center;
+    gap: 8px;
+  }
+  .v2.v2-phone .v2-a-live-head {
+    grid-template-columns: minmax(0, 1fr) 38px 38px 48px;
+    padding: 6px 0 6px 38px;
+    font-size: 10px; font-weight: 700; letter-spacing: .02em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-a-live-head > span,
+  .v2.v2-phone .v2-a-live-row > span { text-align: right; font-weight: 700; font-size: 13px; }
+  .v2.v2-phone .v2-a-live-head > .v2-a-live-name,
+  .v2.v2-phone .v2-a-live-row > .v2-a-live-name {
+    text-align: left; font-weight: 600; font-size: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-a-live-row > .v2-a-live-name em {
+    display: block; font-style: normal;
+    font-size: 11px; font-weight: 600; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-a-live-row {
+    min-height: 50px; padding: 6px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  /* ── the brief's decision rows, here and on the dashboard ──────────────
+     `.d-arow` is 44px tall with a one-line title, so "1 lead transfers need
+     your approval" was cut mid-word with no ellipsis to say so. */
+  .v2.v2-phone .d-arow { height: auto; min-height: 52px; padding: 8px 0; }
+  .v2.v2-phone .d-arow-txt b { white-space: normal; overflow: visible; }
+  .v2.v2-phone .d-arow-txt span.d-s { white-space: normal; overflow: visible; }
+  .v2.v2-phone .d-arow .d-btn { min-width: 0; flex: none; }
+}
+
+@media (max-width: 767px) {
+  /* ── the lead page's buttons ───────────────────────────────────────────
+     `Lead.dc.html` draws seven in two rows — Call · WhatsApp · Telegram,
+     then Follow-up · Meeting · Won · Lost — each with its icon above its
+     word. The computer page's two columns made four rows of it, and the
+     page's first screenful ended on "Lost". */
+  .v2.v2-phone .p-lead .d-acts { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .v2.v2-phone .p-lead .d-acts > * { grid-column: span 4; }
+  .v2.v2-phone .p-lead .d-acts > :nth-child(n+4) { grid-column: span 3; }
+  .v2.v2-phone .p-lead .d-acts .d-btn {
+    flex-direction: column;
+    gap: 4px;
+    height: auto;
+    min-height: 58px;
+    padding: 8px 4px;
+    font-size: 12px;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .v2.v2-phone .p-lead .d-acts .d-btn .lucide { width: 18px; height: 18px; }
+
+  /* ── Incoming ──────────────────────────────────────────────────────────
+     `Incoming.dc.html`: how long it has waited is a pill at the top right,
+     not a 26px number in a column of its own, and the reason sits in a note
+     box with the taking button full width under it. */
+  .v2.v2-phone .p-incoming .d-sumline {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    align-items: center;
+  }
+  .v2.v2-phone .p-incoming .d-sumline {
+    flex-wrap: nowrap;
+  }
+  .v2.v2-phone .p-incoming .d-sumline b.d-num { font-size: 34px; flex: none; color: var(--accent-ink); }
+  .v2.v2-phone .p-incoming .d-sumline .d-label {
+    flex: 1; min-width: 0; font-size: 14px; line-height: 1.35;
+  }
+
+  .v2.v2-phone .p-incoming .d-wrow {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 12px;
+    padding: 14px 16px;
+  }
+  .v2.v2-phone .p-incoming .d-wrow .d-who .d-sub { white-space: normal; }
+  .v2.v2-phone .p-incoming .d-wrow .d-who .d-why {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    align-items: flex-start;
+  }
+  .v2.v2-phone .p-incoming .d-wait {
+    grid-column: 3; grid-row: 1;
+    width: auto; flex: none;
+    display: flex; flex-direction: row-reverse; align-items: baseline; gap: 4px;
+    padding: 5px 9px; border-radius: 10px;
+    background: var(--amber-soft); color: var(--amber-ink);
+  }
+  .v2.v2-phone .p-incoming .d-wait b {
+    display: inline; font-size: 12px; font-weight: 800; letter-spacing: 0; color: inherit;
+  }
+  .v2.v2-phone .p-incoming .d-wait span { font-size: 12px; font-weight: 700; color: inherit; }
+  .v2.v2-phone .p-incoming .d-wait.d-old { background: var(--red-soft); color: var(--red-ink); }
+  .v2.v2-phone .p-incoming .d-wait.d-old b { color: inherit; }
+  /* Take this lead · Give to an agent · "Only an owner gives it". */
+  .v2.v2-phone .p-incoming .d-wrow > .d-btn,
+  .v2.v2-phone .p-incoming .d-wrow > .d-chip {
+    grid-column: 1 / -1;
+    width: 100%; min-height: 48px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+
+  /* ── VIP leads I gave ──────────────────────────────────────────────────
+     `OwnerAssign.dc.html` puts the line of detail in a note box, the same
+     box Incoming uses, so the two owner screens read the same way. */
+  .v2.v2-phone .v2-a-vipline {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--surface-2);
+  }
+
+  /* ── the dashboard's first screen ──────────────────────────────────────
+     `OwnerDashboard.dc.html` opens on the totals — "All leads in the CRM" —
+     and keeps the written brief below them. The computer page leads with
+     the brief, so the two are swapped on the phone only, by order rather
+     than by moving the markup. */
+  .v2.v2-phone .p-dashboard .d-row1 > [aria-label="Totals"] { order: -1; }
+
+  /* The Homes AI line is one sentence worth reading and it was cut at
+     "already past t…". It wraps on a phone, as the design's tip card does. */
+  .v2.v2-phone .p-my-day .d-ai-line { align-items: flex-start; padding: 8px; }
+  .v2.v2-phone .p-my-day .d-ai-line p {
+    white-space: normal; overflow: visible; line-height: 1.35; padding-top: 6px;
+  }
+
+  /* The result line is a whole sentence — "50 shown of 100 · most overdue
+     first" — and one line of it cut at "most overdue …" says nothing. */
+  .v2.v2-phone .v2-a-count { white-space: normal; overflow: visible; }
+  .v2.v2-phone .v2-a-count-row { align-items: flex-start; }
+}

@@ -255,6 +255,10 @@ export function V2Tasks() {
           {/* The week, as seven cards. Each says how much is left on it,
               which is what makes it worth looking at rather than a date. */}
           <div className="d-week">
+            {/* `Tasks.dc.html` puts one arrow at each end of the five days.
+                On the computer both sit in one stacked `.d-nav` column on
+                the left, which is `tasks.html`'s own shape, so the split is
+                a phone one. */}
             <div className="d-nav">
               <button
                 type="button"
@@ -264,14 +268,16 @@ export function V2Tasks() {
               >
                 <Icon name="chevron-left" />
               </button>
-              <button
-                type="button"
-                className="d-btn d-icon d-sm"
-                aria-label="The week after"
-                onClick={() => setWeekAt((was) => new Date(was.getTime() + 7 * 86_400_000))}
-              >
-                <Icon name="chevron-right" />
-              </button>
+              {!phone && (
+                <button
+                  type="button"
+                  className="d-btn d-icon d-sm"
+                  aria-label="The week after"
+                  onClick={() => setWeekAt((was) => new Date(was.getTime() + 7 * 86_400_000))}
+                >
+                  <Icon name="chevron-right" />
+                </button>
+              )}
             </div>
             {/* `Tasks.dc.html` draws **five** days — Mon to Fri of the week
                 being looked at — with an arrow either side. Seven cards at
@@ -292,14 +298,35 @@ export function V2Tasks() {
                   ].filter(Boolean).join(' ')}
                   onClick={() => setDay(key)}
                 >
-                  <span className="d-dn">{date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+                  <span className="d-dn">
+                    {key === dayKey(new Date())
+                      ? 'Today'
+                      : date.toLocaleDateString('en-GB', { weekday: 'short' })}
+                  </span>
                   <span className="d-dd">{date.getDate()}</span>
+                  {/* The words are `tasks.html`'s own, which is the newer of
+                      the two designs: "N left", else "All done", else "Day
+                      off" on Saturday and Sunday, else "No tasks". */}
                   <span className={left > 0 ? 'd-lf d-has' : 'd-lf'}>
-                    {all.length === 0 ? 'Nothing' : left === 0 ? 'All done' : `${left} left`}
+                    {left > 0 ? `${left} left`
+                      : all.length > 0 ? 'All done'
+                        : date.getDay() === 0 || date.getDay() === 6 ? 'Day off' : 'No tasks'}
                   </span>
                 </button>
               );
             })}
+            {phone && (
+              <div className="d-nav v2-b-wknext">
+                <button
+                  type="button"
+                  className="d-btn d-icon d-sm"
+                  aria-label="The week after"
+                  onClick={() => setWeekAt((was) => new Date(was.getTime() + 7 * 86_400_000))}
+                >
+                  <Icon name="chevron-right" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="d-lay">
@@ -337,7 +364,67 @@ export function V2Tasks() {
                 </div>
               )}
 
-              {showing.map((task) => (
+              {phone && showing.map((task) => {
+                /*
+                 * The row `Tasks.dc.html` draws, which is not the computer's
+                 * row made narrower: a checkbox, then the kind as a small
+                 * coloured line, the title under it and the time and lead
+                 * under that, then the ⋯. The computer's row puts the time
+                 * and a channel chip before the title and an Open button
+                 * after it — six boxes on a 322px line, which wrapped the
+                 * ⋯ onto a line of its own.
+                 */
+                const late = !task.completed_at && new Date(task.due_at).getTime() < Date.now();
+                const kind = late
+                  ? 'Overdue'
+                  : TYPES.find((one) => one.value === task.type)?.label ?? 'Other';
+                const meta = [
+                  clock(new Date(task.due_at)),
+                  task.full_name ?? 'No lead',
+                  task.project_name,
+                  scope === 'team' ? task.assignee_name : null,
+                ].filter(Boolean).join(' · ');
+                const body = (
+                  <>
+                    <span className={late ? 'v2-b-tkind v2-b-tlate' : 'v2-b-tkind'}>{kind}</span>
+                    <b>{task.title}</b>
+                    <span className="v2-b-tmeta">{meta}</span>
+                  </>
+                );
+                return (
+                  <div
+                    className={task.completed_at ? 'v2-b-trow v2-b-tdone' : 'v2-b-trow'}
+                    key={task.id}
+                  >
+                    <label className="d-check">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(task.completed_at)}
+                        disabled={busy === task.id}
+                        aria-label={task.completed_at ? `Reopen ${task.title}` : `Finish ${task.title}`}
+                        onChange={() => void finish(task)}
+                      />
+                    </label>
+                    {task.opportunity_id
+                      ? (
+                        <Link className="v2-b-tbody" to={`/v2/leads/${task.opportunity_id}`}>
+                          {body}
+                        </Link>
+                      )
+                      : <span className="v2-b-tbody">{body}</span>}
+                    <button
+                      type="button"
+                      className="d-btn d-xs d-icon d-ghost v2-b-more"
+                      aria-label={`More for ${task.title}`}
+                      onClick={() => setMenu(task)}
+                    >
+                      <Icon name="more-horizontal" />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {!phone && showing.map((task) => (
                 <div className={task.completed_at ? 'd-trow d-done' : 'd-trow'} key={task.id}>
                   <label className="d-check">
                     <input

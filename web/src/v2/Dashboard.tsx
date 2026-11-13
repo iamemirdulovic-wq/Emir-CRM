@@ -237,7 +237,18 @@ export function V2Dashboard() {
    * this payload, so this says what the page is instead of hard-coding a
    * brand into a screen — `docs/v2/phone-questions-a.md`.
    */
-  usePhoneHead({ title: 'Dashboard', sub: 'Every agent · lead totals are always now' });
+  /*
+   * `OwnerDashboard.dc.html` draws the compact header — a 17px centred title
+   * between the back button and one round action, which on this screen goes
+   * to Team live — because the screen under it is a long column of cards
+   * that wants the height.
+   */
+  usePhoneHead({
+    title: 'Dashboard',
+    sub: 'Every agent · lead totals are always now',
+    compact: true,
+    action: { icon: 'monitor', label: 'Team live', to: '/v2/team-live' },
+  });
 
   if (!canSee) {
     return (

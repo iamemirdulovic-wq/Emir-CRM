@@ -66,6 +66,7 @@ export function V2SettingsGeneral() {
   const inOffice = user?.role === 'owner' || user?.role === 'admin';
 
   usePhoneHead({
+    compact: true,
     title: 'Settings',
     sub: user ? `${user.name} · ${roleWord(user.role)}` : undefined,
   });

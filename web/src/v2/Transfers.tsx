@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -90,8 +90,12 @@ export function V2Transfers() {
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
 
-  /* §1.4, and `Transfers.dc.html`'s own two sub-lines — one per role. */
+  /* §1.4, and `Transfers.dc.html`'s own title and two sub-lines — one per
+     role. The design centres a 17px "Lead transfers" between the back
+     button and nothing, because the list below wants the height. */
   usePhoneHead({
+    compact: true,
+    title: 'Lead transfers',
     sub: owner ? 'Owner · approve and see every transfer' : 'Leads you give and leads you get',
   });
 
@@ -502,14 +506,45 @@ function Who({ one, who }: { one: Transfer; who: 'from' | 'both' }) {
 
 /** When the request dies, and how long that leaves. */
 function Deadline({ one }: { one: Transfer }) {
+  const phone = useIsPhone();
   if (!one.expiresAt) return null;
   const left = Date.parse(one.expiresAt) - Date.now();
+  /*
+   * `Transfers.dc.html` puts this on the card's top right as one amber pill
+   * reading "Answer by 18:00". The computer's version is a 22px clock over a
+   * caption, which on a phone was the biggest thing in the card — bigger
+   * than the lead's name, which is what the card is about.
+   */
+  if (phone) {
+    return (
+      <div className="d-deadline v2-b-by">
+        {left > 0 ? `Answer by ${clock(one.expiresAt)}` : 'Time is up'}
+      </div>
+    );
+  }
   return (
     <div className="d-deadline">
       <b>{clock(one.expiresAt)}</b>
       <span>Answer by{left > 0 ? ` · ${howLong(left)} left` : ' · time is up'}</span>
     </div>
   );
+}
+
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
+
+/** Whether this is a phone, in the component and not only in CSS. */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
 }
 
 function StatusChip({ status, owner }: { status: string; owner?: boolean }) {

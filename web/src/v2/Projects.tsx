@@ -105,6 +105,10 @@ export function V2Projects() {
    * header used to put here.
    */
   usePhoneHead({
+    /* `LiveProjects.dc.html` draws §1.4 pattern A: a 17px title centred
+       between the back button and the screen's one action. Every screen in
+       this group is drawn that way. */
+    compact: true,
     title: 'Live projects',
     sub: 'What we are selling right now',
     action: canManage
@@ -409,6 +413,10 @@ export function V2Project() {
    * title that arrives with the data needs a sub that arrives with it too.
    */
   usePhoneHead({
+    /* `ProjectDetail.dc.html` has no page title at all — the project's name
+       is on the hero photo. A 17px centred one says where you are without
+       printing the same name twice at 30px. */
+    compact: true,
     title: name || undefined,
     sub: got.data
       ? [str(project?.developer_name) ?? str(project?.developer), str(project?.community),
@@ -526,7 +534,11 @@ export function V2Project() {
             </section>
           </div>
 
-          <div>
+          {/* `ProjectDetail.dc.html` puts "Send to a client" above the lead
+              list, because sending the brochure is what the agent opened the
+              project for. On a computer the send card is the right-hand
+              column and the order does not arise. */}
+          <div className="v2-c-proj-leads">
             <div className="v2-sec-title">
               <h2>{seesTeam ? 'Leads in this project' : 'Your leads in this project'}</h2>
               <Link className="d-card-link" to={`/v2/leads?project=${encodeURIComponent(name)}`}>

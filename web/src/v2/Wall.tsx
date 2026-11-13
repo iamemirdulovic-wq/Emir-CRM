@@ -162,6 +162,7 @@ export function V2Wall() {
    * count is the team's, which the sidebar answer already carries.
    */
   usePhoneHead({
+    compact: true,
     title: 'Team wall',
     sub: side.data
       ? `Wins and news · ${side.data.leaderboard.length} ${side.data.leaderboard.length === 1 ? 'person' : 'people'}`
@@ -484,6 +485,7 @@ export function V2Best() {
    * than none.
    */
   usePhoneHead({
+    compact: true,
     title: 'Best of Homes',
     sub: side.data ? 'Points over the last 30 days · live' : undefined,
   });

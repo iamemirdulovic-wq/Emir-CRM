@@ -82,6 +82,7 @@ export function V2PersonalInfo() {
   const pick = useRef<HTMLInputElement>(null);
 
   usePhoneHead({
+    compact: true,
     title: 'Personal information',
     sub: 'Shown on your digital card',
   });

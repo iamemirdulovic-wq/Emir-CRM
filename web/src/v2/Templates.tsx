@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -6,6 +6,23 @@ import { Icon } from '../design/index.js';
 import { ErrorNote, Spinner, useToast } from '../design/ui.js';
 import { formatDateTime } from '../lib/format.js';
 import { usePhoneHead } from './phone.js';
+
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
+
+/** Whether this is a phone, in the component and not only in CSS. */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 /**
  * WhatsApp templates.
@@ -96,6 +113,7 @@ export function V2Templates() {
 
   const [category, setCategory] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const phone = useIsPhone();
   const [syncing, setSyncing] = useState(false);
 
   const live = useAsync<{ items: TemplateRow[]; blocked: number }>(() => api.get('/api/templates'), []);
@@ -116,10 +134,13 @@ export function V2Templates() {
   const approved = cards.filter((one) => one.status === 'APPROVED').length;
   const open = cards.find((one) => one.id === openId) ?? null;
 
-  /* §1.4, and the count `Templates.dc.html` puts on its one card header:
-     "16 TEMPLATES", with how many of them Meta will actually accept. */
+  /* §1.4. `Templates.dc.html` centres "WhatsApp templates" over "Messages
+     agents send in one tap", and puts the count on the list's own header
+     ("16 TEMPLATES") rather than under the title. */
   usePhoneHead({
-    sub: `${cards.length} template${cards.length === 1 ? '' : 's'} · ${approved} approved`,
+    compact: true,
+    title: 'WhatsApp templates',
+    sub: 'Messages agents send in one tap',
   });
 
   async function sync() {
@@ -171,6 +192,23 @@ export function V2Templates() {
 
       {live.error && <ErrorNote>{live.error}</ErrorNote>}
       {!live.data && !live.error && <Spinner />}
+
+      {/* `Templates.dc.html` opens with this, in a green box, because it is
+          the one rule an agent has to hold in their head when they pick a
+          template. The computer design says it at the foot instead, which is
+          where the build already has it — on a phone nobody scrolls to it. */}
+      {phone && live.data && cards.length > 0 && (
+        <p className="v2-tp-rule">
+          Templates with a <b>green</b> tag are approved by Meta and can be sent any
+          time. Others work only inside 24 h after the client writes to you.
+        </p>
+      )}
+
+      {phone && shown.length > 0 && (
+        <div className="v2-tp-count">
+          {shown.length} template{shown.length === 1 ? '' : 's'}
+        </div>
+      )}
 
       {live.data && cards.length === 0 && (
         <div className="d-empty">

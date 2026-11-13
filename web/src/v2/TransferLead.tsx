@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
@@ -93,7 +94,10 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
       <aside className="d-panel d-open" aria-label="Transfer a lead">
         <div className="d-panel-head">
           <div className="d-grow">
-            <h2>Transfer a lead</h2>
+            {/* `TransferLead.dc.html`'s own title, with the lead's name
+                under it. The computer panel titles itself "Transfer {name}";
+                either way the name is on the panel. */}
+            <h2>Transfer this lead</h2>
             <p className="d-small d-muted">{who ?? 'This lead'}</p>
           </div>
           <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onCancel}>
@@ -106,7 +110,9 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
             <div className="d-banner d-red">
               <Icon name="crown" />
               <span className="d-grow">
-                <b>A VIP lead goes back to the owner.</b> Only the owner gives it to another agent.
+                <b>A VIP lead cannot be transferred.</b> The owner gave this lead to you. If you
+                cannot take it, send it back from My Day — “I can’t take it” — and the owner
+                chooses the next agent.
               </span>
             </div>
           )}
@@ -120,7 +126,12 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
             * blocked state instead of the form for exactly that reason.
             */}
           {isVip && (
-            <button type="button" className="d-btn d-full" onClick={onCancel}>Close</button>
+            <>
+              {/* The prototype's way out of this state, which the build left
+                  as a dead end: the thing to do next is on My Day. */}
+              <Link className="d-btn d-primary d-full" to="/v2" onClick={onCancel}>Go to My Day</Link>
+              <button type="button" className="d-btn d-full" onClick={onCancel}>Close</button>
+            </>
           )}
 
           {!isVip && languagesIn(all).length > 1 && (

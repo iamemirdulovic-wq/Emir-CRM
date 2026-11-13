@@ -118,10 +118,12 @@ export function V2VipGiven() {
     [canSee],
   );
 
+  /* `OwnerAssign.dc.html`: the compact header, and the "Add a lead and give
+     it as VIP" card does the adding further down the screen. */
   usePhoneHead({
     title: 'VIP leads I gave',
     sub: 'Owner · who took them and how they are getting on',
-    action: { icon: 'plus', label: 'Add a lead and give it', to: '/v2/leads/new' },
+    compact: true,
   });
 
   async function give(row: Row, toUserId: string, said: string) {

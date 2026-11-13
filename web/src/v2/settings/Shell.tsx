@@ -110,13 +110,24 @@ export function SettingsShell({
  *
  * A panel that passes an action keeps its row (the action is the only thing
  * left in it) — `v2-d-title-act` is what the stylesheet tells them apart by.
+ *
+ * `action` is the other way round: `Desks.dc.html` and `SettingsTeam.dc.html`
+ * both draw their one button as the round `+` in the phone header, not as a
+ * bar across the top of the page. A panel that gives one hands it to the
+ * shell's header and its own row goes away completely, so the button is in
+ * one place rather than two.
  */
 export function SettingsTitle({
-  title, note, children,
-}: { title: string; note: string; children?: ReactNode }) {
-  usePhoneHead({ title, sub: note });
+  title, note, action, children,
+}: {
+  title: string;
+  note: string;
+  action?: { icon: string; label: string; to?: string; onClick?: () => void };
+  children?: ReactNode;
+}) {
+  usePhoneHead({ title, sub: note, action });
   return (
-    <div className={children ? 'd-set-title v2-d-title-act' : 'd-set-title'}>
+    <div className={children && !action ? 'd-set-title v2-d-title-act' : 'd-set-title'}>
       <div className="d-grow">
         <h1>{title}</h1>
         <p>{note}</p>

@@ -89,6 +89,9 @@ export function V2ManageProjects() {
    * button does rather than a second screen.
    */
   usePhoneHead({
+    /* `ManageProjects.dc.html`: centred title, back on the left, the round
+       add button on the right. */
+    compact: true,
     title: 'Manage live projects',
     sub: canManage ? 'Owner · what the team sells now' : 'Owners and admin only',
     action: canManage

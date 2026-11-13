@@ -60,6 +60,7 @@ export function V2SettingsTeam() {
   const canEdit = user?.role === 'owner' || user?.role === 'admin';
 
   const [tab, setTab] = useState<'people' | 'alerts' | 'roles'>('people');
+  const [inviting, setInviting] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -108,10 +109,23 @@ export function V2SettingsTeam() {
   return (
     <SettingsShell page="p-set-team">
       <div className="d-set-body">
+        {/* Both designs put "Invite a person" here — the round `+` in the
+            phone header, a button beside the heading on the computer — and
+            the build had neither, so the only way to add somebody was to ask
+            a developer. `POST /api/users` is what it calls. */}
         <SettingsTitle
           title="Team and roles"
           note="Who can sign in, what they can do, and who gets alerts."
-        />
+          action={canEdit
+            ? { icon: 'plus', label: 'Invite a person', onClick: () => setInviting(true) }
+            : undefined}
+        >
+          {canEdit && (
+            <button type="button" className="d-btn d-primary" onClick={() => setInviting(true)}>
+              <Icon name="plus" />Invite a person
+            </button>
+          )}
+        </SettingsTitle>
 
         <div className="d-tm-stats">
           <div className="d-card">
@@ -328,7 +342,182 @@ export function V2SettingsTeam() {
           )}
         </section>
       </div>
+
+      {inviting && (
+        <Invite
+          onClose={() => setInviting(false)}
+          onDone={() => people.reload()}
+        />
+      )}
     </SettingsShell>
+  );
+}
+
+/* ── invite a person ───────────────────────────────────────────────────── */
+
+/**
+ * Name, work email, Agent or Admin — the three fields both designs ask for.
+ *
+ * One honest difference from the design, which says "They get an email with
+ * a link to set a password": `POST /api/users` does not send anything. It
+ * returns a one-time password, once, for the person who made the account to
+ * hand over, and the new account must change it at the first sign-in. So the
+ * dialog says that instead of promising an email that never arrives.
+ */
+function Invite({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'agent' | 'admin'>('agent');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [made, setMade] = useState<{ email: string; temporaryPassword: string } | null>(null);
+  const toast = useToast();
+
+  const ready = name.trim().length >= 3 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
+  async function send() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const got = await api.post<{ id: string; email: string; temporaryPassword: string }>(
+        '/api/users',
+        { name: name.trim(), email: email.trim(), role },
+      );
+      setMade({ email: got.email, temporaryPassword: got.temporaryPassword });
+      onDone();
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="d-scrim d-show" onClick={onClose} aria-hidden />
+      <div className="d-dialog d-open" role="dialog" aria-label="Invite a person">
+        <div className="d-dialog-head">
+          <div className="d-grow">
+            <h3>{made ? 'Account made' : 'Invite a person'}</h3>
+            <p>
+              {made
+                ? 'Give them this password. They change it the first time they sign in.'
+                : 'They get a one-time password to sign in with, which you hand over.'}
+            </p>
+          </div>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        <div className="d-dialog-body">
+          {made ? (
+            <div className="d-col d-gap-16">
+              <div className="d-field">
+                <label>Work email</label>
+                <input className="d-input" readOnly value={made.email} aria-label="Work email" />
+              </div>
+              <div className="d-field">
+                <label>One-time password</label>
+                <input
+                  className="d-input"
+                  readOnly
+                  value={made.temporaryPassword}
+                  aria-label="One-time password"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <span className="d-hint">
+                  Shown once. Nothing emails it, so copy it before you close this.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="d-col d-gap-16">
+              <div className="d-field">
+                <label>Full name <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  value={name}
+                  aria-label="Full name"
+                  placeholder="Maria Lopez"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="d-field">
+                <label>Work email <span className="d-req">*</span></label>
+                <div className="d-input-icon">
+                  <Icon name="mail" />
+                  <input
+                    className="d-input"
+                    type="email"
+                    value={email}
+                    aria-label="Work email"
+                    placeholder="name@homes.me"
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="d-field">
+                <span className="d-field-label">Role</span>
+                <div className="d-seg d-block">
+                  <button
+                    type="button"
+                    className={role === 'agent' ? 'd-on' : undefined}
+                    onClick={() => setRole('agent')}
+                  >
+                    Agent
+                  </button>
+                  <button
+                    type="button"
+                    className={role === 'admin' ? 'd-on' : undefined}
+                    onClick={() => setRole('admin')}
+                  >
+                    Admin
+                  </button>
+                </div>
+                <span className="d-hint">
+                  {role === 'agent'
+                    ? 'An agent sees only their own leads and the free leads in Incoming.'
+                    : 'An admin sees everything and can change nearly anything, but cannot touch an owner.'}
+                </span>
+              </div>
+              {problem && <ErrorNote>{problem}</ErrorNote>}
+            </div>
+          )}
+        </div>
+
+        <div className="d-dialog-foot">
+          {made ? (
+            <>
+              <span className="d-grow" />
+              <button
+                type="button"
+                className="d-btn"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(made.temporaryPassword);
+                  toast('Password copied');
+                }}
+              >
+                Copy the password
+              </button>
+              <button type="button" className="d-btn d-primary" onClick={onClose}>Done</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
+              <button
+                type="button"
+                className="d-btn d-primary"
+                disabled={!ready || busy}
+                onClick={() => void send()}
+              >
+                {busy ? 'Making the account…' : 'Make the account'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
