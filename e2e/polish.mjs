@@ -66,7 +66,10 @@ const ROUTES = [
   ['/v2/transfers', 'v2-transfers'], ['/v2/calendar', 'v2-calendar'],
   ['/v2/tasks', 'v2-tasks'], ['/v2/attendance', 'v2-attendance'],
   ['/v2/team', 'v2-team'], ['/v2/profile', 'v2-profile'],
-  ['/v2/projects', 'v2-projects'], ['/v2/more', 'v2-more'],
+  ['/v2/projects', 'v2-projects'], ['/v2/projects/p-1', 'v2-project'],
+  ['/v2/wall', 'v2-wall'], ['/v2/best', 'v2-best'],
+  ['/v2/notifications', 'v2-notifications'], ['/v2/search?q=em', 'v2-search'],
+  ['/v2/more', 'v2-more'],
   /* Settings, one route per panel: they share a shell but each lays its
      own page out, and the Company page's two columns are exactly the kind
      of thing that only breaks at one width. */

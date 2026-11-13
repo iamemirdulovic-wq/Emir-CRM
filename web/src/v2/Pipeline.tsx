@@ -99,16 +99,17 @@ export function V2Pipeline() {
    * already chosen — with no way back. So the names only ever accumulate.
    */
   const [seen, setSeen] = useState<string[]>([]);
+  const loaded = board.data;
   useEffect(() => {
-    if (!board.data) return;
+    if (!loaded) return;
     setSeen((was) => {
       const names = new Set(was);
-      for (const column of board.data.columns) {
+      for (const column of loaded.columns) {
         for (const card of column.cards) if (card.project_name) names.add(card.project_name);
       }
       return names.size === was.length ? was : [...names].sort((a, b) => a.localeCompare(b));
     });
-  }, [board.data]);
+  }, [loaded]);
 
   if (board.error) return <ErrorNote>{board.error}</ErrorNote>;
   if (!board.data) return <Spinner />;

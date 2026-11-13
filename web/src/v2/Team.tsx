@@ -87,14 +87,6 @@ export function V2Team() {
   /* The design filters by desk. There are no desks in this database, so the
      pills are built from what people say they cover — the nearest true thing,
      and the same words the cards and the panel already show. */
-  const covers = useMemo(() => {
-    const seen = new Map<string, number>();
-    for (const one of everyone) {
-      for (const what of one.specialities) seen.set(what, (seen.get(what) ?? 0) + 1);
-    }
-    return [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4);
-  }, [everyone]);
-
   const working = useMemo(
     () => everyone.filter((one) => one.role === 'agent' || one.role === 'manager'),
     [everyone],
@@ -103,6 +95,16 @@ export function V2Team() {
     () => everyone.filter((one) => one.role === 'owner' || one.role === 'admin'),
     [everyone],
   );
+
+  /* Counted over the people the grid actually shows, so a pill that says 6
+     never filters down to 4. */
+  const covers = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const one of working) {
+      for (const what of one.specialities) seen.set(what, (seen.get(what) ?? 0) + 1);
+    }
+    return [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4);
+  }, [working]);
 
   const shown = useMemo(() => {
     const term = find.trim().toLowerCase();
@@ -124,7 +126,11 @@ export function V2Team() {
 
   const pills: Array<{ key: string; label: string; count: number }> = [
     { key: 'all', label: 'All', count: working.length },
-    { key: 'office', label: 'In office now', count: inOffice },
+    {
+      key: 'office',
+      label: 'In office now',
+      count: working.filter((one) => presence(one).kind === 'office').length,
+    },
     ...covers.map(([what, n]) => ({ key: what, label: what, count: n })),
   ];
 

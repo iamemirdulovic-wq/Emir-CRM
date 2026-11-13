@@ -190,7 +190,9 @@ export function V2SettingsTeam() {
                       className={filter === role ? 'd-on' : undefined}
                       onClick={() => setFilter(role)}
                     >
-                      {role === 'agent' ? 'Agents' : role === 'owner' ? 'Owners' : role}
+                      {role === 'agent' ? 'Agents'
+                        : role === 'manager' ? 'Managers'
+                          : role === 'admin' ? 'Admin' : 'Owners'}
                     </button>
                   ))}
                 </div>

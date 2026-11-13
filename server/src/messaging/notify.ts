@@ -32,7 +32,10 @@ export type NotificationType =
   | 'vip_refused'
   /* A colleague said thank you on the Team Wall. */
   | 'kudos'
-  | 'badge_earned';
+  | 'badge_earned'
+  /* A manager pressed Remind on the messaging report: one notification
+     carrying every "What happened?" the agent has left unanswered. */
+  | 'tap_reminder';
 
 export interface NotifyInput {
   userId: string;

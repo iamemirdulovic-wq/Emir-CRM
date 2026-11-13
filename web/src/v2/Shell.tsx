@@ -5,7 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { Avatar } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
-import { groupsFor, pinnedFor, PHONE_BAR, LATER_ITEMS, type NavItem } from './nav.js';
+import { groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem } from './nav.js';
 import { Bell } from './Bell.js';
 import { Find } from './Find.js';
 
@@ -169,8 +169,8 @@ function Sidebar({ folded, onToggle }: { folded: boolean; onToggle: () => void }
         ))}
 
         <div className="v2-group">
-          {folded ? <div className="v2-group-line" /> : <div className="v2-group-label">LATER</div>}
-          {LATER_ITEMS.map((item) => <Row key={item.to} item={item} folded={folded} />)}
+          {folded ? <div className="v2-group-line" /> : <div className="v2-group-label">MESSAGES</div>}
+          {MESSAGE_ITEMS.map((item) => <Row key={item.to} item={item} folded={folded} />)}
         </div>
       </div>
 
@@ -267,8 +267,14 @@ function titleFor(pathname: string, role: string): string {
     offers: 'Sales offers',
     team: 'Team',
     wall: 'Team wall',
+    best: 'Best of Homes',
+    notifications: 'Notifications',
+    search: 'Search',
     attendance: 'Attendance',
     activity: 'Activity',
+    inbox: 'Inbox',
+    email: 'Email',
+    templates: 'Templates',
     ai: 'Homes AI',
     automations: 'Automations',
     settings: 'Settings',
@@ -397,13 +403,13 @@ export function V2More() {
       </section>
 
       <section className="v2-more-group">
-        <h2>LATER</h2>
-        {LATER_ITEMS.map((item) => (
-          <span key={item.to} className="v2-more-row v2-more-later">
+        <h2>MESSAGES</h2>
+        {MESSAGE_ITEMS.map((item) => (
+          <NavLink key={item.to} to={item.to} className="v2-more-row">
             <Icon name={item.icon} />
             <span className="v2-more-label">{item.label}</span>
-            <span className="v2-later">later</span>
-          </span>
+            <Icon name="chevron-right" />
+          </NavLink>
         ))}
       </section>
     </div>

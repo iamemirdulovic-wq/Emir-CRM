@@ -167,15 +167,19 @@ export const PHONE_BAR: NavItem[] = [
 ];
 
 /**
- * Built, working, and not part of this build.
+ * Messages: everything that reaches a client in writing.
  *
- * v3 contradicts itself here: §1 says show Inbox, Email and Templates greyed
- * as "later"; §4 says nothing the live CRM can do may be lost. Both hold — the
- * menu shows them greyed exactly as drawn, and the old routes keep working for
- * anyone who opens one. See `docs/v2/decisions.md` §6.3.
+ * v3 drew these three greyed as "later" (§1) while insisting nothing the live
+ * CRM can do may be lost (§4). They are built now, so the greying is gone and
+ * each one leads to its v2 screen. The group keeps its own heading because the
+ * three belong together: a chat, the email behind it, and the templates the
+ * chat may use once Meta's 24-hour window has closed.
+ *
+ * The v1 addresses (`/inbox`, `/email-campaigns`) still answer, as
+ * `docs/v2/decisions.md` §6.3 requires.
  */
-export const LATER_ITEMS: NavItem[] = [
-  { to: '/inbox', label: 'Inbox', icon: 'message-circle', later: true },
-  { to: '/email-campaigns', label: 'Email', icon: 'mail', later: true },
-  { to: '/v2/templates', label: 'Templates', icon: 'files', later: true },
+export const MESSAGE_ITEMS: NavItem[] = [
+  { to: '/v2/inbox', label: 'Inbox', icon: 'message-circle' },
+  { to: '/v2/email', label: 'Email', icon: 'mail' },
+  { to: '/v2/templates', label: 'Templates', icon: 'files' },
 ];

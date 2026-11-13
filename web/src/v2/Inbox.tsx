@@ -1,0 +1,734 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api, qs } from '../lib/api.js';
+import { useAsync, useDebounced } from '../lib/hooks.js';
+import { useAuth } from '../lib/auth.js';
+import { connectRealtime } from '../lib/realtime.js';
+import { formatTime } from '../lib/format.js';
+import { Icon, type IconName } from '../design/index.js';
+import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
+import type {
+  Contact360, Conversation, Message, StageKey, TemplateRow, ThreadResponse,
+} from '../lib/types.js';
+
+/**
+ * The shared inbox.
+ *
+ * Ported from `design/web/inbox.html`: a list of chats, the thread, and the
+ * lead beside it. Three columns on a computer; on a phone one at a time, the
+ * list and then the thread, which is what every messaging app does and the
+ * only thing that fits.
+ *
+ * Two of the design's choices had to change because the CRM does not do what
+ * the drawing assumed:
+ *
+ *  - The channel filter is All · WhatsApp · Email. The design drew Telegram,
+ *    and the CRM has no Telegram channel — `messages.channel` is whatsapp,
+ *    email, sms or note. Drawing a filter that can never match anything is
+ *    worse than not drawing it.
+ *  - The design's three "ready messages" quote a payment plan ("60% during
+ *    construction, 40% on handover"). Nothing here may invent a payment plan
+ *    (master prompt, HARD RULES), so the openings come from the server, which
+ *    builds them from the project the lead actually asked about and puts no
+ *    figure in them at all.
+ *
+ * The composer obeys Meta's 24-hour rule, which is the one thing on this
+ * screen that can get the company's WhatsApp number banned: while the window
+ * is open the agent types freely, and once it has closed the only thing that
+ * can go out is a template Meta has approved. The server refuses anything
+ * else; this screen refuses to ask.
+ */
+
+type Scope = 'mine' | 'unassigned' | 'all';
+type Channel = 'any' | 'whatsapp' | 'email';
+type Mode = 'whatsapp' | 'email' | 'note';
+
+const STAGE_LABEL: Record<string, string> = {
+  new_lead: 'New',
+  attempted_contact: 'Called',
+  engaged_qualified: 'Interested',
+  appointment_scheduled: 'Meeting',
+  deal_sent: 'Offer',
+  won: 'Won',
+  lost: 'Lost',
+};
+
+const STAGE_CLASS: Record<string, string> = {
+  new_lead: 'new', attempted_contact: 'called', engaged_qualified: 'interested',
+  appointment_scheduled: 'meeting', deal_sent: 'offer', won: 'won', lost: 'lost',
+};
+
+/** Below this the three columns become one at a time. Matches v2-shell.css. */
+const NARROW = 900;
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${NARROW}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${NARROW}px)`);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
+export function V2Inbox() {
+  const { user } = useAuth();
+  const narrow = useNarrow();
+  const seesEveryone = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
+
+  const [scope, setScope] = useState<Scope>('mine');
+  const [scopeChosen, setScopeChosen] = useState(false);
+  const [channel, setChannel] = useState<Channel>('any');
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const search = useDebounced(typed);
+
+  /* An owner owns almost no conversations, so "Mine" shows them an empty
+     screen that looks broken. Start them on everything, agents on their own,
+     and never argue with a choice the person has made themselves. */
+  useEffect(() => {
+    if (scopeChosen || !user) return;
+    if (seesEveryone) setScope('all');
+    setScopeChosen(true);
+  }, [user, seesEveryone, scopeChosen]);
+
+  const list = useAsync<{ items: Conversation[]; total: number }>(
+    () => api.get(`/api/inbox/conversations${qs({
+      filter: scope,
+      channel: channel === 'any' ? undefined : channel,
+      unread: unreadOnly ? '1' : undefined,
+      search,
+      pageSize: 60,
+    })}`),
+    [scope, channel, unreadOnly, search, version],
+  );
+
+  /* The master prompt asks for a websocket with a 4-second poll behind it.
+     This is that one connection, shared by both panes. */
+  useEffect(() => {
+    const live = connectRealtime(() => setVersion((n) => n + 1));
+    return () => live.close();
+  }, []);
+
+  const items = list.data?.items ?? [];
+  const unreadCount = items.filter((one) => one.unread_count > 0).length;
+
+  /* On a computer the thread is always on screen, so open the first chat
+     rather than leaving two thirds of the page blank. On a phone opening one
+     replaces the list, so it waits to be asked. */
+  useEffect(() => {
+    if (narrow || openId || items.length === 0) return;
+    setOpenId(items[0]!.id);
+  }, [narrow, openId, items]);
+
+  const open = items.find((one) => one.id === openId) ?? null;
+  const showList = !narrow || !open;
+  const showThread = !narrow || Boolean(open);
+  const filtered = Boolean(search.trim()) || channel !== 'any' || unreadOnly;
+
+  return (
+    <div className="v2-inbox p-inbox">
+      <div className="d-ib">
+        {showList && (
+          <section className="d-card d-pad-0 v2-ib-list">
+            <div className="d-ib-pad">
+              <div className="d-input-icon">
+                <Icon name="search" />
+                <input
+                  className="d-input d-sm"
+                  value={typed}
+                  aria-label="Search chats"
+                  placeholder="Search chats"
+                  onChange={(e) => setTyped(e.target.value)}
+                />
+              </div>
+
+              <div className="d-seg d-sm d-block d-mt-8" role="tablist" aria-label="Whose chats">
+                {([
+                  ['mine', 'Mine'],
+                  ['unassigned', 'Free'],
+                  ...(seesEveryone ? [['all', 'Everyone'] as const] : []),
+                ] as Array<[Scope, string]>).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={scope === value}
+                    className={scope === value ? 'd-on' : undefined}
+                    onClick={() => { setScopeChosen(true); setScope(value); }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="d-chips d-mt-8">
+                {([['any', 'All'], ['whatsapp', 'WhatsApp'], ['email', 'Email']] as Array<[Channel, string]>)
+                  .map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={channel === value}
+                      className={channel === value ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                      onClick={() => setChannel(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  aria-pressed={unreadOnly}
+                  className={unreadOnly ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                  onClick={() => setUnreadOnly(!unreadOnly)}
+                >
+                  Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
+                </button>
+              </div>
+            </div>
+
+            <div className="d-ib-scroll">
+              {list.error && <ErrorNote>{list.error}</ErrorNote>}
+              {list.loading && items.length === 0 && <Spinner />}
+              {!list.loading && items.length === 0 && (
+                <div className="d-empty">
+                  <span className="d-ic"><Icon name="message-circle" /></span>
+                  <b>No chats here</b>
+                  <p>{filtered ? 'Try another filter.' : 'A chat appears as soon as a lead writes in.'}</p>
+                </div>
+              )}
+              {items.map((one) => (
+                <ChatRow
+                  key={one.id}
+                  chat={one}
+                  on={one.id === openId}
+                  onOpen={() => setOpenId(one.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {showThread && open && (
+          <Thread
+            key={open.id}
+            chat={open}
+            narrow={narrow}
+            onBack={() => setOpenId(null)}
+            onChanged={() => setVersion((n) => n + 1)}
+          />
+        )}
+
+        {showThread && !open && (
+          <section className="d-card v2-ib-chat">
+            <div className="d-empty">
+              <span className="d-ic"><Icon name="message-circle" /></span>
+              <b>Pick a chat</b>
+              <p>Every WhatsApp, email and note for one person sits in one thread.</p>
+            </div>
+          </section>
+        )}
+
+        {showThread && open && <LeadSide contactId={open.contact_id} />}
+      </div>
+    </div>
+  );
+}
+
+/* ── the list ──────────────────────────────────────────────────────────── */
+
+function ChatRow({ chat, on, onOpen }: { chat: Conversation; on: boolean; onOpen: () => void }) {
+  /* A send that failed — no WhatsApp key, a template not approved — used to
+     preview here as "You: Hello Fatima…", so a chat nobody had answered
+     looked answered. The server sends the last message's status for exactly
+     this line; say plainly that it did not go. */
+  const failed = chat.last_direction === 'outbound' && chat.last_status === 'failed';
+  const preview = chat.last_body
+    ? (chat.last_direction === 'outbound' ? `You: ${chat.last_body}` : chat.last_body)
+    : 'No messages yet';
+
+  return (
+    <button type="button" className={on ? 'd-cv d-on' : 'd-cv'} onClick={onOpen}>
+      <Avatar name={chat.full_name} />
+      <span className="d-grow">
+        <span className="d-row d-gap-6">
+          <b className="d-truncate">{chat.full_name ?? chat.phone_e164 ?? 'Unknown'}</b>
+          <ChannelMark channel={chat.last_channel} />
+          <span className="d-grow" />
+          <span className="d-tiny d-muted">{whenShort(chat.last_message_at)}</span>
+        </span>
+        <span className="d-row d-gap-6">
+          <span className="d-grow">
+            <span className={failed ? 'd-sub d-truncate v2-ib-failed' : 'd-sub d-truncate'}>
+              {failed ? 'Not sent — needs you' : preview}
+            </span>
+          </span>
+          {chat.unread_count > 0 && <span className="d-badge d-accent">{chat.unread_count}</span>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** The little green square in the design, one per channel. */
+function ChannelMark({ channel }: { channel: string | null }) {
+  if (channel === 'email') {
+    return <span className="d-ch v2-ch-mail" title="Email"><Icon name="mail" /></span>;
+  }
+  if (channel === 'note') {
+    return <span className="d-ch v2-ch-note" title="Internal note"><Icon name="sticky-note" /></span>;
+  }
+  return <span className="d-ch d-wa" title="WhatsApp"><Icon name="message-circle" /></span>;
+}
+
+/* ── the thread ────────────────────────────────────────────────────────── */
+
+function Thread({
+  chat, narrow, onBack, onChanged,
+}: { chat: Conversation; narrow: boolean; onBack: () => void; onChanged: () => void }) {
+  const toast = useToast();
+  const scroller = useRef<HTMLDivElement | null>(null);
+
+  const thread = useAsync<ThreadResponse>(
+    () => api.get(`/api/inbox/conversations/${chat.id}`),
+    [chat.id, chat.last_message_at, chat.unread_count],
+  );
+  const templates = useAsync<{ items: TemplateRow[] }>(() => api.get('/api/templates'), []);
+
+  const [mode, setMode] = useState<Mode>('whatsapp');
+  const [draft, setDraft] = useState('');
+  const [subject, setSubject] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const conversation = thread.data?.conversation ?? null;
+  const windowOpen = conversation?.whatsappWindowOpen ?? false;
+  const templateOnly = mode === 'whatsapp' && !windowOpen;
+
+  useEffect(() => {
+    const box = scroller.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [thread.data?.messages.length]);
+
+  /* Opening a chat is reading it. */
+  useEffect(() => {
+    if (!conversation || conversation.unread_count === 0) return;
+    void api.post(`/api/inbox/conversations/${chat.id}/read`).then(onChanged).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.id, conversation?.unread_count]);
+
+  /* The collision guard: a 90-second soft lock so two agents do not answer
+     the same client in the same minute. */
+  const announceTyping = useCallback(() => {
+    void api.post(`/api/inbox/conversations/${chat.id}/typing`).catch(() => undefined);
+  }, [chat.id]);
+
+  const approved = useMemo(
+    () => (templates.data?.items ?? []).filter((one) => one.status === 'APPROVED'),
+    [templates.data],
+  );
+
+  const timeline = useMemo(() => buildTimeline(thread.data), [thread.data]);
+
+  async function send() {
+    const url = `/api/inbox/conversations/${chat.id}/send`;
+    setSending(true);
+    try {
+      if (mode === 'note') {
+        await api.post(url, { channel: 'note', text: draft.trim() });
+      } else if (mode === 'email') {
+        await api.post(url, { channel: 'email', subject: subject.trim(), text: draft.trim() });
+      } else if (templateOnly) {
+        await api.post(url, {
+          channel: 'whatsapp',
+          kind: 'template',
+          templateName,
+          templateLanguage: approved.find((one) => one.name === templateName)?.language ?? 'en',
+          /* The template's own blanks, one per line, in order. */
+          bodyParams: draft.split('\n').map((part) => part.trim()).filter(Boolean),
+        });
+      } else {
+        await api.post(url, { channel: 'whatsapp', kind: 'text', text: draft.trim() });
+      }
+      setDraft('');
+      setSubject('');
+      thread.reload();
+      onChanged();
+    } catch (err) {
+      /* The server answers 409 when nothing went out — no key, no consent, on
+         the do-not-contact list. Say which, rather than pretending it sent. */
+      toast(err instanceof Error ? err.message : 'That did not send.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const canSend = !sending && (
+    mode === 'note' ? draft.trim().length > 0
+      : mode === 'email' ? subject.trim().length > 0 && draft.trim().length > 0
+        : templateOnly ? templateName.length > 0
+          : draft.trim().length > 0);
+
+  return (
+    <section className="d-card d-pad-0 v2-ib-chat">
+      <div className="d-ib-head">
+        {narrow && (
+          <button
+            type="button"
+            className="d-btn d-icon d-sm d-ghost"
+            aria-label="Back to the chats"
+            onClick={onBack}
+          >
+            <Icon name="arrow-left" />
+          </button>
+        )}
+        <Avatar name={chat.full_name} />
+        <div className="d-grow">
+          <b className="d-bold d-truncate">{chat.full_name ?? 'Unknown'}</b>
+          <div className="d-small d-muted d-truncate">
+            {chat.phone_e164 ?? chat.email ?? '—'}
+            {chat.assignee_name ? ` · ${chat.assignee_name}` : ' · nobody yet'}
+          </div>
+        </div>
+        <WindowChip conversation={conversation} />
+      </div>
+
+      <div className="d-ib-msgs" ref={scroller}>
+        {thread.error && <ErrorNote>{thread.error}</ErrorNote>}
+        {!thread.data && !thread.error && <Spinner />}
+        {thread.data && timeline.length === 0 && (
+          <span className="d-bb-sys">Nothing has been said yet.</span>
+        )}
+        {timeline.map((entry) => (
+          entry.kind === 'day' ? <span className="d-bb-day" key={entry.key}>{entry.text}</span>
+            : entry.kind === 'event' ? <span className="d-bb-sys" key={entry.key}>{entry.text}</span>
+              : <Bubble key={entry.key} message={entry.message} who={chat.full_name} />
+        ))}
+      </div>
+
+      {conversation?.replyLock && (
+        <p className="d-ib-foot v2-ib-lock">
+          <Icon name="pencil" />
+          Somebody else is replying to this chat.
+        </p>
+      )}
+
+      {/* One thread, three channels — the composer says which one is about to
+          be used, because WhatsApp and email reach the client and a note
+          does not. */}
+      <div className="d-ib-compose v2-ib-modes">
+        {([['whatsapp', 'WhatsApp'], ['email', 'Email'], ['note', 'Note']] as Array<[Mode, string]>)
+          .map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              className={mode === value ? 'd-chip-opt d-on' : 'd-chip-opt'}
+              onClick={() => setMode(value)}
+            >
+              {label}
+            </button>
+          ))}
+      </div>
+
+      {templateOnly && (
+        <div className="d-ib-compose v2-ib-tpl">
+          <span className="d-chip d-amber d-pip">Window closed</span>
+          <select
+            className="d-select d-sm d-grow"
+            value={templateName}
+            aria-label="Approved template"
+            onChange={(e) => setTemplateName(e.target.value)}
+          >
+            <option value="">Choose an approved template…</option>
+            {approved.map((one) => (
+              <option key={one.id} value={one.name}>{one.name} · {one.language}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {mode === 'email' && (
+        <div className="d-ib-compose">
+          <input
+            className="d-input d-sm"
+            value={subject}
+            aria-label="Subject"
+            placeholder="Subject"
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+      )}
+
+      <div className="d-ib-compose">
+        <input
+          className="d-input"
+          value={draft}
+          aria-label="Message"
+          disabled={sending}
+          placeholder={
+            templateOnly
+              ? 'The blanks in the template, one per line'
+              : mode === 'note'
+                ? 'A note for your team. The client never sees it.'
+                : 'Write a message…'
+          }
+          onFocus={announceTyping}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && canSend) void send(); }}
+        />
+        <button
+          type="button"
+          className="d-btn d-primary"
+          disabled={!canSend}
+          onClick={() => void send()}
+        >
+          <Icon name="send" />{sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+
+      <div className="d-ib-foot d-lt-note">
+        {templateOnly
+          ? approved.length === 0
+            ? 'No template is approved yet, so nothing can go out on WhatsApp until one is. '
+              + 'Ask the owner to check Templates.'
+            : 'More than 24 hours since this client last wrote, so WhatsApp only accepts a '
+              + 'template Meta has approved. Free typing comes back the moment they reply.'
+          : mode === 'note'
+            ? 'A note stays inside the CRM.'
+            : 'Nothing goes out until you press Send.'}
+      </div>
+    </section>
+  );
+}
+
+function WindowChip({ conversation }: { conversation: ThreadResponse['conversation'] | null }) {
+  if (!conversation) return null;
+  if (!conversation.whatsappWindowOpen) {
+    return (
+      <span className="d-chip d-amber d-pip" title="Meta only accepts approved templates now">
+        Templates only
+      </span>
+    );
+  }
+  const closes = conversation.whatsappWindowExpiresAt;
+  const left = closes ? Math.round((new Date(closes).getTime() - Date.now()) / 3_600_000) : null;
+  return (
+    <span className="d-chip d-green d-pip" title="You can type freely for now">
+      Open{left !== null && left > 0 ? ` · ${left} h left` : ''}
+    </span>
+  );
+}
+
+function Bubble({ message, who }: { message: Message; who: string | null }) {
+  const outbound = message.direction === 'outbound';
+  const failed = message.status === 'failed';
+  const classes = ['d-bb'];
+  if (outbound) classes.push('d-me');
+  if (message.channel === 'note') classes.push('v2-bb-note');
+  if (failed) classes.push('v2-bb-failed');
+
+  return (
+    <div className={classes.join(' ')}>
+      <span className="d-tiny d-muted v2-bb-by">
+        {message.channel === 'note'
+          ? `Note · ${message.user_name ?? 'team'}`
+          : message.is_automated === 1
+            ? 'Sent automatically'
+            : message.user_name ?? (outbound ? 'You' : who ?? '')}
+        {message.template_name ? ` · ${message.template_name}` : ''}
+        {message.channel === 'email' ? ' · email' : ''}
+      </span>
+      {message.subject && <b className="v2-bb-subject">{message.subject}</b>}
+      <span className="v2-bb-text">{message.body ?? '—'}</span>
+      {failed && (
+        <span className="v2-bb-why">
+          Not sent{message.error_message ? ` — ${message.error_message}` : ''}
+        </span>
+      )}
+      <small>
+        {formatTime(message.created_at)}
+        {outbound && !failed && <Ticks status={message.status} />}
+      </small>
+    </div>
+  );
+}
+
+/** Delivery ticks, as WhatsApp draws them. */
+function Ticks({ status }: { status: Message['status'] }) {
+  const mark: Record<string, IconName> = {
+    queued: 'clock', sent: 'check', delivered: 'check-check', read: 'check-check',
+  };
+  const icon = mark[status];
+  if (!icon) return null;
+  return (
+    <span className={status === 'read' ? 'v2-tick v2-tick-read' : 'v2-tick'} title={status}>
+      <Icon name={icon} size={13} />
+    </span>
+  );
+}
+
+/* ── the lead, beside the thread ───────────────────────────────────────── */
+
+function LeadSide({ contactId }: { contactId: string }) {
+  const toast = useToast();
+  const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${contactId}`), [contactId]);
+  const openings = useAsync<{ phone: string; openings: Array<{ key: string; label: string; text: string }> }>(
+    () => api.get(`/api/email/whatsapp-openings/${contactId}`),
+    [contactId],
+  );
+
+  const contact = detail.data?.contact ?? null;
+  const lead = detail.data?.opportunities?.[0] ?? null;
+  const task = detail.data?.tasks?.find((one) => !one.completed_at) ?? null;
+  const stage = (lead?.stage_key ?? null) as StageKey | null;
+
+  return (
+    <aside className="d-card d-ib-side v2-ib-side" aria-label="The lead">
+      <h4>Lead</h4>
+
+      {detail.error && <ErrorNote>{detail.error}</ErrorNote>}
+      {!detail.data && !detail.error && <Spinner />}
+
+      {contact && (
+        <>
+          <div>
+            <div className="d-phone-big v2-ib-phone">{contact.phone_e164 ?? '—'}</div>
+            <div className="d-row d-gap-8 d-mt-8 d-wrap">
+              {stage && (
+                <span className={`v2-stage v2-stage-${STAGE_CLASS[stage] ?? 'new'}`}>
+                  {STAGE_LABEL[stage] ?? stage}
+                </span>
+              )}
+              <span className="d-small d-muted">Score {contact.lead_score}</span>
+              {contact.dnc === 1 && <span className="d-chip d-red d-pip">Do not contact</span>}
+            </div>
+          </div>
+
+          <dl className="d-kv">
+            <Kv term="Wants" value={wants(lead)} />
+            <Kv term="Agent" value={contact.owner_name} />
+            <Kv term="Next step" value={task ? `${task.title} · ${formatTime(task.due_at)}` : null} />
+            <Kv term="Language" value={contact.language} />
+          </dl>
+
+          {contact.ai_summary && <p className="d-small d-muted">{contact.ai_summary}</p>}
+
+          {/* The design calls these "ready messages". They are written by the
+              server from the project this lead asked about, so no price,
+              plan or handover date can creep into one. */}
+          <h4 className="d-mt-8">Ready messages</h4>
+          <div className="d-col d-gap-6">
+            {(openings.data?.openings ?? []).map((one) => (
+              <button
+                key={one.key}
+                type="button"
+                className="d-btn d-sm d-block"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(one.text);
+                  toast('Copied. Paste it in the box and press Send.');
+                }}
+              >
+                {one.label}
+              </button>
+            ))}
+            {lead && (
+              <Link className="d-btn d-sm d-block d-ghost" to={`/v2/leads/${String(lead.id)}`}>
+                Open the lead
+              </Link>
+            )}
+            <Link className="d-btn d-sm d-block d-ghost" to="/v2/templates">All templates</Link>
+          </div>
+        </>
+      )}
+    </aside>
+  );
+}
+
+function Kv({ term, value }: { term: string; value: string | null | undefined }) {
+  return (
+    <div className="d-kv-row">
+      <dt>{term}</dt>
+      <dd>{value ?? <span className="d-muted">—</span>}</dd>
+    </div>
+  );
+}
+
+/* ── small things ──────────────────────────────────────────────────────── */
+
+type Entry =
+  | { kind: 'day'; key: string; text: string }
+  | { kind: 'event'; key: string; text: string }
+  | { kind: 'message'; key: string; message: Message };
+
+/**
+ * Messages and system events in one timeline, with a day marker.
+ *
+ * The master prompt asks for one thread per contact mixing WhatsApp, email,
+ * notes and system events, so the events are not a second list beside the
+ * messages — they are in the same column, in the order things happened.
+ */
+function buildTimeline(thread: ThreadResponse | null): Entry[] {
+  if (!thread) return [];
+
+  const rows: Array<{ at: number; entry: Entry }> = [];
+  for (const message of thread.messages) {
+    rows.push({
+      at: new Date(message.created_at).getTime(),
+      entry: { kind: 'message', key: `m-${message.id}`, message },
+    });
+  }
+  for (const event of thread.events) {
+    rows.push({
+      at: new Date(event.created_at).getTime(),
+      entry: { kind: 'event', key: `e-${event.id}`, text: event.title },
+    });
+  }
+  rows.sort((a, b) => a.at - b.at);
+
+  const out: Entry[] = [];
+  let day = '';
+  for (const row of rows) {
+    const label = dayLabel(row.at);
+    if (label !== day) {
+      day = label;
+      out.push({ kind: 'day', key: `d-${label}-${row.at}`, text: label });
+    }
+    out.push(row.entry);
+  }
+  return out;
+}
+
+/** Dubai's day, so a message at 01:00 is not filed under yesterday. */
+function dayLabel(at: number): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dubai', weekday: 'short', day: 'numeric', month: 'short',
+  }).format(new Date(at));
+}
+
+function whenShort(at: string | null): string {
+  if (!at) return '';
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return '';
+  const sameDay = dayLabel(date.getTime()) === dayLabel(Date.now());
+  if (sameDay) return formatTime(date);
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dubai', day: 'numeric', month: 'short',
+  }).format(date);
+}
+
+/** What the lead asked for, from their own enquiry. Never a guess. */
+function wants(lead: Record<string, unknown> | null): string | null {
+  if (!lead) return null;
+  const budget = Number(lead.budget_max_aed ?? 0);
+  const parts = [
+    lead.project_name,
+    lead.unit_type,
+    budget > 0 ? `AED ${budget.toLocaleString('en-GB')}` : lead.budget_band,
+  ].filter((part): part is string => typeof part === 'string' && part.length > 0);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}

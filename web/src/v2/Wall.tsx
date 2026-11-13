@@ -24,7 +24,6 @@ interface Post {
   author_id: string | null;
   author_name: string | null;
   author_photo_url: string | null;
-  author_title?: string | null;
   kind: string;
   body: string | null;
   media: unknown;
@@ -68,6 +67,27 @@ const REACTIONS: Array<{ emoji: string; label: string }> = [
 
 const LIMIT = 500;
 
+/**
+ * What earns a point.
+ *
+ * The design's card invents four rules; these are the eight the server
+ * actually awards on, copied from `XP_RULES` in `server/src/wall/xp.ts` with
+ * its own wording. There is no endpoint for the table, so it is written here
+ * — and if that table changes, this list has to change with it, because a
+ * leaderboard that explains itself wrongly is worse than one that says
+ * nothing.
+ */
+const POINT_RULES = [
+  { label: 'Closed a deal', points: 100 },
+  { label: 'The client turned up to a viewing', points: 15 },
+  { label: 'Booked a viewing', points: 10 },
+  { label: 'Sent a sales offer', points: 8 },
+  { label: 'Ended the day with a next step on every lead', points: 5 },
+  { label: 'A colleague said thank you', points: 5 },
+  { label: 'Answered a new lead inside five minutes', points: 3 },
+  { label: 'Actually spoke to a lead', points: 2 },
+];
+
 const TABS = [
   { key: 'all', label: 'All' },
   { key: 'news', label: 'Owner news' },
@@ -76,7 +96,7 @@ const TABS = [
 
 /** Which of the design's three shapes a stored post is drawn as. */
 function shapeOf(post: Post): 'news' | 'win' | 'post' {
-  if (post.kind === 'deal' || post.kind === 'badge') return 'win';
+  if (post.kind === 'deal_won' || post.kind === 'badge') return 'win';
   if (post.pinned_at) return 'news';
   return 'post';
 }
@@ -91,6 +111,7 @@ export function V2Wall() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [tab, setTab] = useState<string>('all');
+  const [asNews, setAsNews] = useState(true);
 
   const canPin = user?.role === 'owner' || user?.role === 'admin';
 
@@ -133,8 +154,6 @@ export function V2Wall() {
     }
   }
 
-  const [asNews, setAsNews] = useState(true);
-
   async function react(id: string, emoji: string) {
     try {
       await api.post(`/api/wall/${id}/react`, { emoji });
@@ -148,7 +167,7 @@ export function V2Wall() {
   if (!feed.data) return <Spinner />;
 
   return (
-    <div className="v2-wall p-wall">
+    <div className="v2-wall-page p-wall">
       <div className="d-lay">
         <div className="d-feed">
           <section className="d-card">
@@ -304,7 +323,7 @@ function PostCard({
             {post.author_name ?? 'homes.me'}
             {mine && <span className="d-chip">You</span>}
           </b>
-          <span>{[post.author_title, when(post.created_at)].filter(Boolean).join(' · ')}</span>
+          <span>{when(post.created_at)}</span>
         </div>
         {post.pinned_at && (
           <span className="d-chip d-orange"><Icon name="pin" />Pinned</span>
@@ -387,7 +406,7 @@ export function V2Best() {
   ].filter((one) => one.who);
 
   return (
-    <div className="v2-best p-best">
+    <div className="v2-best-page p-best">
       <div className="d-tabs d-top-tabs">
         <Link className="d-tab" to="/v2/team">Meet the team</Link>
         <Link className="d-tab d-on" to="/v2/best">Best of Homes</Link>
@@ -540,16 +559,13 @@ export function V2Best() {
 
           <section className="d-card">
             <div className="d-card-head d-mb-8"><h3>How you get points</h3></div>
-            {/*
-              These four lines are the rules the server actually awards on.
-              They are read from `server/src/profiles/xp.ts`, not made up here,
-              and if that table changes this one has to change with it.
-            */}
             <dl className="d-kv">
-              <div className="d-kv-row"><dt>A call with a result</dt><dd><b>+15</b></dd></div>
-              <div className="d-kv-row"><dt>A new lead you add</dt><dd><b>+10</b></dd></div>
-              <div className="d-kv-row"><dt>A booked unit (Won)</dt><dd><b>+300</b></dd></div>
-              <div className="d-kv-row"><dt>Feedback about the CRM</dt><dd><b>+15</b></dd></div>
+              {POINT_RULES.map((one) => (
+                <div className="d-kv-row" key={one.label}>
+                  <dt>{one.label}</dt>
+                  <dd><b>+{one.points}</b></dd>
+                </div>
+              ))}
             </dl>
           </section>
         </div>
@@ -563,10 +579,9 @@ export function V2Best() {
 /** A badge's icon, which comes from the server as a name this app may not have. */
 function badgeIcon(name: string): IconName {
   const known: Record<string, IconName> = {
-    trophy: 'trophy', crown: 'crown', zap: 'zap', flame: 'flame',
-    'calendar-check': 'calendar-check', target: 'target', 'map-pin': 'map-pin',
-    'check-check': 'check-check', 'sticky-note': 'sticky-note', star: 'star',
-    'badge-check': 'badge-check', 'message-square-heart': 'message-square-heart',
+    'badge-check': 'badge-check', 'calendar-check': 'calendar-check',
+    'check-check': 'check-check', crown: 'crown', flame: 'flame', 'map-pin': 'map-pin',
+    'sticky-note': 'sticky-note', target: 'target', trophy: 'trophy', zap: 'zap',
   };
   return known[name] ?? 'star';
 }

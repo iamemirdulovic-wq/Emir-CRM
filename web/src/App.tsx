@@ -46,11 +46,16 @@ import { V2Tasks } from './v2/Tasks.js';
 import { V2Calendar } from './v2/Calendar.js';
 import { V2Transfers } from './v2/Transfers.js';
 import { V2Team, V2Person } from './v2/Team.js';
-import { V2Projects } from './v2/Projects.js';
-import { V2Wall } from './v2/Wall.js';
+import { V2Projects, V2Project } from './v2/Projects.js';
+import { V2Wall, V2Best } from './v2/Wall.js';
+import { V2Notifications } from './v2/Bell.js';
+import { V2Find } from './v2/Find.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
 import { V2Offers } from './v2/Offers.js';
+import { V2Inbox } from './v2/Inbox.js';
+import { V2Email } from './v2/Email.js';
+import { V2Templates } from './v2/Templates.js';
 import { V2Import } from './v2/Import.js';
 import { V2SettingsGeneral } from './v2/settings/General.js';
 import { V2SettingsNotifications } from './v2/settings/Notifications.js';
@@ -143,10 +148,18 @@ export function App() {
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
           <Route path="/v2/projects" element={<V2Projects />} />
+          <Route path="/v2/projects/:id" element={<V2Project />} />
           <Route path="/v2/offers" element={<V2Offers />} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
           <Route path="/v2/wall" element={<V2Wall />} />
+          {/* Best of Homes sits beside the Team page in `best-of-homes.html`,
+              and is reached from the wall's own ranking card. */}
+          <Route path="/v2/best" element={<V2Best />} />
+          {/* The bell's panel and the palette both have a whole page behind
+              them in the design, and both link to it. */}
+          <Route path="/v2/notifications" element={<V2Notifications />} />
+          <Route path="/v2/search" element={<V2Find />} />
           <Route path="/v2/attendance" element={<V2Attendance />} />
           <Route path="/v2/activity" element={<V2Activity />} />
           <Route path="/v2/ai" element={<V2Ai />} />
@@ -171,7 +184,11 @@ export function App() {
           <Route path="/v2/automations" element={<V2Automations />} />
           <Route path="/v2/profile" element={<V2Person />} />
           <Route path="/v2/more" element={<V2More />} />
-          <Route path="/v2/templates" element={<Placeholder title="Templates" phase="later" />} />
+          {/* Messages: the shared inbox, the client emails and the WhatsApp
+              templates. They were drawn as a later phase and are built now. */}
+          <Route path="/v2/inbox" element={<V2Inbox />} />
+          <Route path="/v2/email" element={<V2Email />} />
+          <Route path="/v2/templates" element={<V2Templates />} />
         </Route>
 
         {/* One shell around every signed-in screen, as the design has it. */}

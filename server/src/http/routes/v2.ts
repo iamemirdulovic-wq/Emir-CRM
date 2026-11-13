@@ -54,6 +54,10 @@ import {
   answerTransfer, approveTransfer, askToTransfer, cancelTransfer, listTransfers,
   TRANSFER_REASONS, whoCouldTakeIt,
 } from '../../v2/transfers.js';
+import { messagingReport, openQuestions, PERIODS, type Period } from '../../v2/messaging.js';
+import { createDesk, deleteDesk, listDesks, updateDesk } from '../../v2/desks.js';
+import { notify } from '../../messaging/notify.js';
+import { listLibrary } from '../../services/project-library.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -852,6 +856,159 @@ v2Router.get(
     );
     res.json({
       items: rows.map((row) => ({ ...row, isVip: Number(row.isVip) === 1 })),
+    });
+  }),
+);
+
+/* ── desks ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Desks: `design/web/desks.html`.
+ *
+ * Owner and admin only, every one of them, because a desk is how the office
+ * is arranged and the limit on it is a management number. The nav hides the
+ * page from everybody else; these are what actually refuse.
+ */
+const deskSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  /* The design offers 40, 50, 60 and 80. The column takes any number and the
+     screen may later let one be typed, so the range is generous and null is
+     "no limit set". */
+  maxOpenLeads: z.number().int().min(1).max(500).nullable(),
+  memberIds: z.array(z.string().max(36)).max(200),
+});
+
+v2Router.get(
+  '/desks',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await listDesks());
+  }),
+);
+
+v2Router.post(
+  '/desks',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = deskSchema.parse(req.body);
+    res.status(201).json(await createDesk(actorFrom(req), body));
+  }),
+);
+
+v2Router.patch(
+  '/desks/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = deskSchema.partial().parse(req.body);
+    await updateDesk(actorFrom(req), String(req.params.id), body);
+    res.json({ ok: true });
+  }),
+);
+
+v2Router.delete(
+  '/desks/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    await deleteDesk(actorFrom(req), String(req.params.id));
+    res.json({ ok: true });
+  }),
+);
+
+/* ── from tap to reply ─────────────────────────────────────────────────── */
+
+/**
+ * The messaging report.
+ *
+ * `design/web/messaging-report.html`. Scoped inside the service by the
+ * session's role, so a manager sees their team and nobody can ask for
+ * somebody else's figures by changing a parameter.
+ */
+v2Router.get(
+  '/messaging',
+  requireRole('owner', 'admin', 'manager'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const asked = String(req.query.period ?? 'today');
+    const period = (PERIODS as readonly string[]).includes(asked) ? (asked as Period) : 'today';
+    res.json(await messagingReport(currentUser(req), period));
+  }),
+);
+
+/**
+ * "Remind" — one notification with the agent's open questions in it.
+ *
+ * One, not one per tap: six separate pushes about six leads is how somebody
+ * turns notifications off. The agent must be somebody this manager can
+ * already see, which is the same rule the report itself is scoped by.
+ */
+v2Router.post(
+  '/messaging/remind',
+  requireRole('owner', 'admin', 'manager'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({ userId: z.string().max(36) }).parse(req.body);
+    const visible = await visibleUserIds(currentUser(req));
+    if (visible !== null && !visible.includes(body.userId)) {
+      throw forbidden('That person is not on your team.');
+    }
+
+    const open = await openQuestions(body.userId);
+    if (open === 0) throw badRequest('There is nothing left to answer.');
+
+    await notify({
+      userId: body.userId,
+      type: 'tap_reminder',
+      title: open === 1 ? 'One message needs an answer' : `${open} messages need an answer`,
+      body: 'Tell us what happened after you opened WhatsApp or Telegram.',
+      link: '/v2',
+    });
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'messaging.reminded',
+      entityType: 'user',
+      entityId: body.userId,
+      after: { openQuestions: open },
+    });
+    res.json({ reminded: open });
+  }),
+);
+
+/* ── which projects the agents can see ─────────────────────────────────── */
+
+/**
+ * The owner's view of the library.
+ *
+ * `design/web/manage-projects.html`. The library list already holds everything
+ * the table shows except the lead count, which lives on `opportunities` and is
+ * matched by project name — that column is a string on purpose, so a deleted
+ * project never orphans a lead.
+ *
+ * Archived projects are included here and nowhere else: archiving is what the
+ * design calls "Hidden", and `/api/library` leaves them out for everybody,
+ * which is what makes the label true.
+ */
+v2Router.get(
+  '/projects/manage',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const [projects, leads] = await Promise.all([
+      listLibrary({ includeArchived: true }),
+      query<{ project_name: string; leads: number }>(
+        `SELECT project_name, COUNT(*) AS leads
+           FROM opportunities
+          WHERE project_name IS NOT NULL AND project_name <> '' AND deleted_at IS NULL
+          GROUP BY project_name`,
+        [],
+      ),
+    ]);
+
+    /* Matched on the name, case-folded: the lead's project was typed or came
+       off a form, and "The Archive" and "the archive" are one project. */
+    const counted = new Map(leads.map((row) => [row.project_name.trim().toLowerCase(), Number(row.leads)]));
+
+    res.json({
+      items: projects.map((one) => ({
+        ...one,
+        leads: counted.get(one.name.trim().toLowerCase()) ?? 0,
+      })),
     });
   }),
 );

@@ -19,6 +19,7 @@ import {
   previewArrivals,
   previewSeries,
 } from './data.js';
+import { SETTINGS_ROUTES } from './mock-settings.js';
 
 /**
  * Serves the CRM's API from memory so the UI can be demonstrated without a
@@ -628,6 +629,16 @@ const WALL_POSTS: PreviewWallPost[] = [
     reactions: [{ emoji: '👏', count: 9, mine: true }],
     comments: [], commentCount: 0,
   },
+  /* Owner news: a pinned post by a person. The wall draws it on top, and the
+     project library reads it for the note across the top of that screen. */
+  {
+    id: 'wp-6', author_id: OWNER.id, author_name: OWNER.name,
+    author_photo_url: '/preview/face-1.svg', kind: 'post',
+    body: 'This week we push Emaar Beachfront.\nSobha Hartland II launches soon: write down every client who asks, the first units go fast.',
+    poll: null, show_value: 0, pinned_at: ago(60 * 5), created_at: ago(60 * 5),
+    reactions: [{ emoji: '👏', count: 8, mine: false }, { emoji: '🔥', count: 5, mine: true }],
+    comments: [], commentCount: 0,
+  },
 ];
 
 /*
@@ -1171,6 +1182,9 @@ function previewRules() {
 }
 
 const ROUTES: Route[] = [
+  /* The settings pages' answers live in their own file; see the note there. */
+  ...SETTINGS_ROUTES,
+
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
     if (!session.signedIn) throw { status: 401, code: 'unauthorized', message: 'Authentication required' };
@@ -1193,16 +1207,32 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^\/api\/pipeline\/board$/, handler: ({ query }) => {
     const search = (query.get('search') ?? '').toLowerCase();
     const owner = query.get('ownerUserId') ?? '';
+    const project = query.get('projectName') ?? '';
     const visible = LEADS.filter((lead) => {
       if (owner && lead.owner !== owner) return false;
+      if (project && lead.project !== project) return false;
       if (!search) return true;
       return [lead.name, lead.phone, lead.email, lead.project].some((v) => (v ?? '').toLowerCase().includes(search));
     });
     return {
       pipelineKey: 'offplan_sales',
       columns: STAGES.map((stage) => {
-        const cards = visible.filter((l) => l.stage === stage.key).map(card);
-        return { stageKey: stage.key, stageName: stage.name, position: stage.position, total: cards.length, cards };
+        const here = visible.filter((l) => l.stage === stage.key);
+        /*
+         * A column with two cards in it never shows the five-card limit or
+         * the "+N more" link under it, so the demo could not catch either
+         * being broken. The same nine leads are cycled into a believable
+         * column, exactly as `myLeadRows` cycles them into the lead list.
+         */
+        const deep = here.length === 0 ? [] : Array.from(
+          { length: Math.min(8, here.length * 4) },
+          (_unused, i) => ({ ...here[i % here.length]!, id: i < here.length ? here[i % here.length]!.id : `${here[i % here.length]!.id}-d${i}` }),
+        );
+        const cards = deep.map(card);
+        /* The real endpoint counts every lead in the stage and sends only the
+           first page of cards, so the total is deliberately the larger. */
+        const total = cards.length === 0 ? 0 : cards.length * 3 + stage.position;
+        return { stageKey: stage.key, stageName: stage.name, position: stage.position, total, cards };
       }),
       scope: null,
     };
@@ -1514,7 +1544,10 @@ const ROUTES: Route[] = [
       name: project.name,
       developer: project.developer,
       developer_id: null,
-      emirate: project.emirate === 'abu_dhabi' ? 'Abu Dhabi' : 'Dubai',
+      /* The enum the column stores, not the words a screen prints: the
+         filter chips send `emirate=dubai` and matched nothing while this
+         answered "Dubai". */
+      emirate: project.emirate,
       community: project.area,
       property_type: 'Apartment',
       sale_status: (['selling_now', 'selling_now', 'coming_soon', 'sold_out'][i % 4]) as string,
@@ -2162,7 +2195,11 @@ const ROUTES: Route[] = [
 
   { method: 'GET', pattern: /^\/api\/my-leads$/, handler: ({ query }) => {
     const tab = query.get('tab') ?? 'today';
+    /* The real endpoint narrows by project name, which is how a project page
+       asks for the leads that belong to it. */
+    const project = query.get('project');
     const matching = myLeadRows().filter((row) => {
+      if (project && row.project_name !== project) return false;
       if (tab === 'new') return row.stage_key === 'new_lead';
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
@@ -2413,44 +2450,70 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^\/api\/activity\/team$/, handler: () => ({
     liveWithinMs: 120000,
     items: [
-      { userId: USERS[1]?.id ?? 'u2', name: 'Layla Hassan', role: 'agent', availability: 'available',
-        device: 'iPhone · Safari', where: 'Dubai, United Arab Emirates', doing: '/leads',
+      { userId: USERS[1]!.id, name: USERS[1]!.name, role: 'agent', availability: 'available',
+        device: 'iPhone \u00b7 Safari', where: 'Dubai, United Arab Emirates', doing: '/leads',
         live: true, lastSeen: 'Just now', lastSeenAt: new Date().toISOString() },
-      { userId: USERS[2]?.id ?? 'u3', name: 'Omar Haddad', role: 'agent', availability: 'busy',
-        device: 'Windows · Chrome', where: 'Dubai, United Arab Emirates', doing: '/inbox',
+      { userId: USERS[0]!.id, name: USERS[0]!.name, role: 'owner', availability: 'available',
+        device: 'Mac \u00b7 Safari', where: 'Dubai, United Arab Emirates', doing: '/v2',
         live: true, lastSeen: 'Just now', lastSeenAt: new Date().toISOString() },
-      { userId: USERS[3]?.id ?? 'u4', name: 'Raj Mehta', role: 'agent', availability: 'off',
-        device: 'Android · Chrome', where: 'Abu Dhabi, United Arab Emirates', doing: null,
-        live: false, lastSeen: '2 h ago', lastSeenAt: ago(120) },
+      { userId: USERS[2]!.id, name: USERS[2]!.name, role: 'agent', availability: 'busy',
+        device: 'Windows \u00b7 Chrome', where: 'Dubai, United Arab Emirates', doing: '/inbox',
+        live: false, lastSeen: '3 h ago', lastSeenAt: ago(200) },
+      { userId: USERS[3]!.id, name: USERS[3]!.name, role: 'agent', availability: 'off',
+        device: 'Windows \u00b7 Edge', where: 'Manila, Philippines', doing: null,
+        live: true, lastSeen: 'Just now', lastSeenAt: new Date().toISOString() },
     ],
   }) },
+  /*
+   * The sign-in log.
+   *
+   * Every row names somebody in USERS, because the real query joins
+   * `session_log` to `users` — a name here that belongs to nobody is a state
+   * the real endpoint cannot produce, and it hid the fact that the time-in-CRM
+   * table matches a session to a person by name.
+   */
   { method: 'GET', pattern: /^\/api\/activity\/sessions$/, handler: ({ query }) => {
+    const who = (i: number) => USERS[i]!.name;
     const all = [
       {
-        id: 's1', name: 'Raj Mehta', device: 'Windows · Edge', where: 'Manila, Philippines',
+        id: 's1', name: who(3), device: 'Windows \u00b7 Edge', where: 'Manila, Philippines',
         level: 'alarm',
         flags: [
-          { key: 'new_country', level: 'alarm', message: 'Raj Mehta signed in from Philippines, which they have never done before.' },
-          { key: 'impossible_travel', level: 'alarm', message: 'Raj Mehta was in United Arab Emirates and then in Philippines less than an hour later. That is not a journey anyone makes, so the password may be in use by somebody else.' },
+          { key: 'new_country', level: 'alarm', message: `${who(3)} signed in from Philippines, which they have never done before.` },
+          { key: 'impossible_travel', level: 'alarm', message: `${who(3)} was in United Arab Emirates and then in Philippines less than an hour later. That is not a journey anyone makes, so the password may be in use by somebody else.` },
         ],
         signedInAt: ago(45), signedOutAt: null, activeMinutes: 12,
       },
       {
-        id: 's2', name: 'Layla Hassan', device: 'iPhone · Safari', where: 'Dubai, United Arab Emirates',
+        id: 's2', name: who(1), device: 'iPhone \u00b7 Safari', where: 'Dubai, United Arab Emirates',
         level: 'none', flags: [], signedInAt: ago(180), signedOutAt: null, activeMinutes: 164,
       },
       {
-        id: 's3', name: 'Omar Haddad', device: 'Windows · Chrome', where: 'Dubai, United Arab Emirates',
+        id: 's3', name: who(2), device: 'Windows \u00b7 Chrome', where: 'Dubai, United Arab Emirates',
         level: 'watch',
-        flags: [{ key: 'new_device', level: 'watch', message: 'Omar Haddad signed in on a Windows · Chrome for the first time.' }],
+        flags: [{ key: 'new_device', level: 'watch', message: `${who(2)} signed in on a Windows \u00b7 Chrome for the first time.` }],
         signedInAt: ago(400), signedOutAt: ago(200), activeMinutes: 88,
+      },
+      /*
+       * The rest of the office, so the time-in-CRM table is a table.
+       *
+       * Three rows showed neither the average, the quietest person nor
+       * anybody missing \u2014 which is most of what that screen is for.
+       */
+      {
+        id: 's4', name: who(0), device: 'Mac \u00b7 Safari', where: 'Dubai, United Arab Emirates',
+        level: 'none', flags: [], signedInAt: ago(330), signedOutAt: null, activeMinutes: 148,
+      },
+      {
+        id: 's5', name: who(1), device: 'Windows \u00b7 Chrome', where: 'Dubai, United Arab Emirates',
+        level: 'none', flags: [], signedInAt: ago(500), signedOutAt: ago(430), activeMinutes: 48,
       },
     ];
     return { items: query.get('flagged') === '1' ? all.filter((row) => row.level !== 'none') : all };
   } },
   { method: 'GET', pattern: /^\/api\/activity\/heatmap$/, handler: () => ({ cells: [] }) },
-  { method: 'POST', pattern: /^\/api\/activity\/sign-out\/([^/]+)$/, handler: () => ({
-    ok: true, endedSessions: 2, name: 'Raj Mehta',
+  { method: 'POST', pattern: /^\/api\/activity\/sign-out\/([^/]+)$/, handler: ({ params }) => ({
+    ok: true, endedSessions: 2, name: USERS.find((u) => u.id === params[0])?.name ?? 'That person',
   }) },
   { method: 'GET', pattern: /^\/api\/activity\/audit$/, handler: () => ({
     page: 1, pageSize: 50,
@@ -3663,6 +3726,141 @@ const ROUTES: Route[] = [
     ],
     realtimeClients: 3,
   }) },
+
+  /*
+   * Homes AI, answering from the demo leads.
+   *
+   * The real endpoint calls Gemini through read-only, permission-checked
+   * tools; there is no model here, so the answer is written from the same
+   * in-memory leads the rest of the preview uses, and `toolsUsed` names them.
+   * No price, payment plan or handover date appears in any of these answers —
+   * the screen has to be shown behaving the way the hard rule requires.
+   */
+  { method: 'POST', pattern: /^\/api\/ai\/ask$/, handler: ({ body }) => {
+    const asked = String(body.question ?? '').toLowerCase();
+    const mine = currentUser().role === 'agent'
+      ? LEADS.filter((lead) => lead.owner === currentUser().id)
+      : LEADS;
+    const open = mine.filter((lead) => lead.status === 'open');
+    const name = (lead: (typeof LEADS)[number]) => `${lead.name} · ${lead.project ?? 'no project'}`;
+
+    const answer = /call|first|priority|now|need/.test(asked)
+      ? [
+        `${open.length} of your leads are open. Call these first:`,
+        ...open.slice(0, 3).map((lead, i) => `- ${name(lead)} · score ${lead.score}${i === 0 ? ' · highest score' : ''}`),
+        'I have not written to any of them. Open the lead and send it yourself.',
+      ].join('\n')
+      : /cold|next step|forgot|nothing planned/.test(asked)
+        ? [
+          `${open.filter((lead) => lead.unread === 0).length} leads have had nothing from us today.`,
+          ...open.slice(0, 2).map((lead) => `- ${name(lead)} · stage ${lead.stage.replace(/_/g, ' ')}`),
+          'Add a follow-up on each so they do not go quiet.',
+        ].join('\n')
+        : /project|most leads|which project/.test(asked)
+          ? [
+            'Open leads by project:',
+            ...[...new Set(open.map((lead) => lead.project))].filter(Boolean)
+              .map((project) => `- ${String(project)} · ${open.filter((lead) => lead.project === project).length}`),
+            'Prices and payment plans are on the project page — I do not quote a figure that is not in the library.',
+          ].join('\n')
+          : /too many|load|busy|team|how is/.test(asked)
+            ? [
+              'Open leads by person:',
+              ...USERS.filter((u) => u.role === 'agent')
+                .map((u) => `- ${u.name} · ${LEADS.filter((lead) => lead.owner === u.id && lead.status === 'open').length}`),
+            ].join('\n')
+            : 'This is the demo, so I only answer a few questions here. Try one of the suggestions under the chat. In the real CRM I read your leads, your calendar and the project library, and I say I do not know rather than guessing.';
+
+    return {
+      answer,
+      toolsUsed: ['search_leads', 'get_pipeline_stats'],
+      model: 'preview',
+      conversationId: String(body.conversationId ?? 'ai-demo-1'),
+    };
+  } },
+
+  /*
+   * One project, in the shape the real `GET /api/library/:id` returns. It is
+   * last in the list on purpose: the pattern would also match
+   * `/api/library/stats` and `/api/library/developers`, and the first match
+   * wins, so those have to be declared above it.
+   */
+  { method: 'GET', pattern: /^\/api\/library\/([^/]+)$/, handler: ({ params }) => {
+    const project = PROJECTS.find((one) => one.id === params[0]) ?? PROJECTS[0]!;
+    const index = PROJECTS.indexOf(project);
+    const total = [120, 40, 60, 0][index % 4] as number;
+    const spare = [24, 8, 0, 0][index % 4] as number;
+    const types = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom'];
+
+    return {
+      project: {
+        id: project.id,
+        slug: project.slug,
+        name: project.name,
+        developer: project.developer,
+        developer_name: project.developer,
+        emirate: project.emirate,
+        community: project.area,
+        property_type: 'apartment',
+        sale_status: (['selling_now', 'selling_now', 'coming_soon', 'sold_out'][index % 4]) as string,
+        starting_price_aed: project.starting_price_aed,
+        handover_date: project.handover_date,
+        payment_plan: project.payment_plan,
+        rera_no: project.starting_price_aed ? '2104' : null,
+        ownership: 'freehold',
+        escrow_account: 'Emirates NBD · escrow',
+        construction_pct: [62, 38, 81, null][index % 4] as number | null,
+        service_charge_sqft: 16,
+        golden_visa_threshold_aed: 2_000_000,
+        visibility: 'private',
+        starred: index === 0 ? 1 : 0,
+        verified_at: project.verified_at,
+        cover_photo_id: null,
+        image_url: null,
+        brochure_url: project.brochure_url,
+        description: project.starting_price_aed
+          ? [
+            `${project.area}, a short drive from Downtown and the business district.`,
+            `From ${project.starting_price_aed.toLocaleString('en-GB')} AED on a ${project.payment_plan ?? 'standard'} plan.`,
+            `${project.developer} delivers on time, and people who work nearby want to rent here.`,
+          ].join('\n')
+          : null,
+      },
+      units: Array.from({ length: Math.min(total, 12) }, (_unused, i) => ({
+        id: `${project.id}-u${i + 1}`,
+        unit_no: `${10 + i}0${i + 1}`,
+        unit_type: types[i % types.length] as string,
+        bedrooms: i % 4,
+        price_aed: (project.starting_price_aed ?? 1_200_000) + i * 85_000,
+        status: i < spare ? 'available' : 'sold',
+      })),
+      plans: project.payment_plan
+        ? [{
+          id: `${project.id}-plan`,
+          name: project.payment_plan,
+          is_default: 1,
+          rows: [
+            { id: 'r1', seq: 1, milestone: 'On booking', percent: '20', due_note: 'Immediate' },
+            { id: 'r2', seq: 2, milestone: 'During construction', percent: '40', due_note: 'By milestones' },
+            { id: 'r3', seq: 3, milestone: 'On handover', percent: '40', due_note: project.handover_date },
+          ],
+        }]
+        : [],
+      commission: currentUser().role === 'agent' ? null : { project_id: project.id, rate_pct: '4.00' },
+      location: project.location_lat
+        ? { lat: project.location_lat, lng: project.location_lng, address: project.area }
+        : null,
+      amenities: [],
+    };
+  } },
+
+  /* Pinning is its own permission on the server; the wall's "Owner news"
+     switch posts and then pins, so the preview needs both. */
+  { method: 'POST', pattern: /^\/api\/wall\/([^/]+)\/pin$/, handler: ({ params, body }) => {
+    const post = WALL_POSTS.find((one) => one.id === params[0]);
+    if (post) post.pinned_at = (body as { pinned?: boolean }).pinned ? new Date().toISOString() : null;
+    return { ok: true };
+  } },
 ];
 
 function resolve(method: string, path: string): { route: Route; params: string[] } | null {

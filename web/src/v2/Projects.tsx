@@ -45,6 +45,7 @@ interface Card {
 /** A pinned post on the Team wall, which is where the owner's note comes from. */
 interface WallPost {
   id: string;
+  author_id: string | null;
   author_name: string | null;
   author_photo_url: string | null;
   body: string | null;
@@ -96,10 +97,16 @@ export function V2Projects() {
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
   const items = list.data?.items ?? [];
-  /* The design's banner is a note from the owner. The wall already holds one
-     — pinned, so it stays on top — rather than this screen keeping a second
-     copy of the same sentence that could disagree with it. */
-  const note = wall.data?.items.find((one) => one.pinned_at && one.body?.trim());
+  /*
+   * The design's banner is a note from the owner. The wall already holds one
+   * — pinned, so it stays on top — rather than this screen keeping a second
+   * copy of the same sentence that could disagree with it.
+   *
+   * It has to be somebody's post, not one the CRM wrote itself: the weekly
+   * ranking is also pinned, and "Best of the week · Layla Hassan" above the
+   * project library is not a note from the owner.
+   */
+  const note = wall.data?.items.find((one) => one.pinned_at && one.author_id && one.body?.trim());
 
   return (
     <div className="v2-projects p-projects">
@@ -114,7 +121,7 @@ export function V2Projects() {
             <span className="d-who">
               From {note.author_name ?? 'homes.me'} · {dayAndTime(note.created_at)}
             </span>
-            {firstLine(note.body)}
+            {note.body}
           </p>
           <Link className="d-btn d-on-dark" to="/v2/wall">
             Read on the team wall <Icon name="arrow-right" />
@@ -236,7 +243,9 @@ function ProjectCard({ card, onOpen }: { card: Card; onOpen: () => void }) {
       <div className="d-pbody">
         <h2>
           <Link to={`/v2/projects/${card.id}`}>{card.name}</Link>
-          {card.starred === 1 && <span className="d-chip d-orange">Our pick</span>}
+          {/* CLAUDE.md asks for the Private badge on the card. "Our picks" is
+              a filter rather than a badge, so a starred project is not also
+              given a chip that pushes the name onto two lines. */}
           {card.visibility === 'private' && <span className="d-chip">Private</span>}
         </h2>
         <div className="d-dev">
@@ -498,7 +507,7 @@ export function V2Project() {
                             {row.full_name ?? 'No name'}
                           </Link>
                           {row.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
-                          <div className="d-t-sub">{row.unit_type ?? '—'}</div>
+                          {row.unit_type && <div className="d-t-sub">{row.unit_type}</div>}
                         </td>
                         <td className="d-t-mono">{row.phone_e164 ?? '—'}</td>
                         <td>
@@ -788,11 +797,6 @@ function priceChecked(at: string | null): string {
   if (days === 1) return 'Prices checked yesterday';
   if (days < 30) return `Prices checked ${days} days ago`;
   return `Prices checked ${new Date(at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
-}
-
-/** The post's own lines, so a pinned note keeps its shape in the banner. */
-function firstLine(body: string | null | undefined): string {
-  return (body ?? '').split('\n')[0] ?? '';
 }
 
 function lines(text: string): string[] {
