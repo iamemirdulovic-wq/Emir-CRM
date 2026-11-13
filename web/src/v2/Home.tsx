@@ -1037,7 +1037,11 @@ function OwnerDay({ home }: { home: OwnerHome }) {
               /* `OwnerHome.dc.html` gives every row an icon of its own: five
                  identical lines of text is a list nobody reads down. */
               <div className="d-srow" key={row.kind}>
-                <span className="d-card-icon v2-a-need-ic"><Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} /></span>
+                {isPhone && (
+                  <span className="d-card-icon v2-a-need-ic">
+                    <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
+                  </span>
+                )}
                 <div className="d-grow">
                   <b>{row.n} {row.text}</b>
                 </div>

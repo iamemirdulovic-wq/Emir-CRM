@@ -123,9 +123,10 @@
     color: var(--accent-ink); background: var(--accent-soft);
     border-radius: 8px; padding: 3px 8px;
   }
+  /* `Leads.dc.html` lets this line wrap — its third card reads "The Archive
+     · 2BR · AED 2M" over two lines. Cut at "up to AED …" it says nothing. */
   .v2.v2-phone .v2-a-proj {
-    display: block; font-size: 13px; color: var(--ink-3);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: block; font-size: 13px; color: var(--ink-3); line-height: 1.35;
   }
   .v2.v2-phone .v2-a-card-top .d-chip { flex: none; }
 
