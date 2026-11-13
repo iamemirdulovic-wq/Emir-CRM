@@ -73,6 +73,10 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-12T07:00:00Z'));
 
+  /* jsdom lays nothing out, so it has no `scrollIntoView`. The tab strip
+     scrolls the open tab into view on every change. */
+  Element.prototype.scrollIntoView = () => undefined;
+
   vi.stubGlobal('matchMedia', (media: string) => ({
     matches: false,
     media,
