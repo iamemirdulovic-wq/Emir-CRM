@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Email.
@@ -81,6 +82,10 @@ export function V2Email() {
     [list.data],
   );
   const chosen = items.find((one) => one.id === chosenId) ?? items[0] ?? null;
+
+  /* §1.4. There is no count to carry here, so the sub says what the screen
+     is: these are the emails the CRM sends, not a mailbox. */
+  usePhoneHead({ sub: 'The emails the CRM sends, as the client sees them' });
 
   return (
     <div className="v2-email p-email">

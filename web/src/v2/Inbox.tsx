@@ -7,7 +7,8 @@ import { connectRealtime } from '../lib/realtime.js';
 import { formatTime } from '../lib/format.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
-import { useFullAttention } from './phone.js';
+import { useFullAttention, usePhoneHead } from './phone.js';
+import { useCheckIn } from './check-in.js';
 import type {
   Contact360, Conversation, Message, StageKey, TemplateRow, ThreadResponse,
 } from '../lib/types.js';
@@ -61,23 +62,37 @@ const STAGE_CLASS: Record<string, string> = {
 
 /** Below this the three columns become one at a time. Matches v2-shell.css. */
 const NARROW = 900;
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
 
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${NARROW}px)`).matches,
+function useUnder(px: number): boolean {
+  const [under, setUnder] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${px}px)`).matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia(`(max-width:${NARROW}px)`);
-    const onChange = () => setNarrow(mq.matches);
+    const mq = window.matchMedia(`(max-width:${px}px)`);
+    const onChange = () => setUnder(mq.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return narrow;
+  }, [px]);
+  return under;
 }
 
 export function V2Inbox() {
   const { user } = useAuth();
-  const narrow = useNarrow();
+  const narrow = useUnder(NARROW);
+  /*
+   * `Chat.dc.html` is a whole screen — header, thread, composer, and nothing
+   * else. The build renders the Contact-360 panel under the composer, so on
+   * a phone you scroll past "Nothing goes out until you press Send" into a
+   * second screen's worth of lead detail. That panel is the `Lead` screen's
+   * job; here it is suppressed and what the design does keep — a call button
+   * and the ready messages — moves into the thread.
+   */
+  const phone = useUnder(PHONE - 1);
+
+  /* §1.4, and `Inbox.dc.html`'s own line under the title. */
+  usePhoneHead({ sub: 'WhatsApp, email and notes in one place' });
   const seesEveryone = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
 
   const [scope, setScope] = useState<Scope>('mine');
@@ -225,6 +240,7 @@ export function V2Inbox() {
             key={open.id}
             chat={open}
             narrow={narrow}
+            phone={phone}
             onBack={() => setOpenId(null)}
             onChanged={() => setVersion((n) => n + 1)}
           />
@@ -240,7 +256,7 @@ export function V2Inbox() {
           </section>
         )}
 
-        {showThread && open && <LeadSide contactId={open.contact_id} />}
+        {showThread && open && !phone && <LeadSide contactId={open.contact_id} />}
       </div>
     </div>
   );
@@ -295,9 +311,19 @@ function ChannelMark({ channel }: { channel: string | null }) {
 /* ── the thread ────────────────────────────────────────────────────────── */
 
 function Thread({
-  chat, narrow, onBack, onChanged,
-}: { chat: Conversation; narrow: boolean; onBack: () => void; onChanged: () => void }) {
+  chat, narrow, phone, onBack, onChanged,
+}: {
+  chat: Conversation;
+  narrow: boolean;
+  phone: boolean;
+  onBack: () => void;
+  onChanged: () => void;
+}) {
   const toast = useToast();
+  /* Every call affordance in the prototypes exists twice — a link when the
+     agent is checked in, a button that opens the gate when they are not.
+     This is the shared gate, not a second one. */
+  const gate = useCheckIn({ strip: false });
   const scroller = useRef<HTMLDivElement | null>(null);
 
   const thread = useAsync<ThreadResponse>(
@@ -305,6 +331,25 @@ function Thread({
     [chat.id, chat.last_message_at, chat.unread_count],
   );
   const templates = useAsync<{ items: TemplateRow[] }>(() => api.get('/api/templates'), []);
+
+  /*
+   * On a phone the lead panel is gone, so the two things it carried that the
+   * design keeps on the chat itself come here: the name as a link to the
+   * lead page, and the ready messages as a row of chips above the composer.
+   * Both are fetched only on a phone — on a computer the panel beside the
+   * thread already has them.
+   */
+  const side = useAsync<Contact360 | null>(
+    () => (phone ? api.get(`/api/contacts/${chat.contact_id}`) : Promise.resolve(null)),
+    [phone, chat.contact_id],
+  );
+  const openings = useAsync<{ openings: Array<{ key: string; label: string; text: string }> } | null>(
+    () => (phone
+      ? api.get(`/api/email/whatsapp-openings/${chat.contact_id}`)
+      : Promise.resolve(null)),
+    [phone, chat.contact_id],
+  );
+  const leadId = side.data?.opportunities?.[0]?.id ?? null;
 
   const [mode, setMode] = useState<Mode>('whatsapp');
   const [draft, setDraft] = useState('');
@@ -402,12 +447,39 @@ function Thread({
         )}
         <Avatar name={chat.full_name} />
         <div className="d-grow">
-          <b className="d-bold d-truncate">{chat.full_name ?? 'Unknown'}</b>
+          {/* `Chat.dc.html` wraps the name and the line under it in a link to
+              the lead. Without it the only way through was "Open the lead" at
+              the foot of a panel that a phone does not show. */}
+          {leadId ? (
+            <Link className="d-bold d-truncate" to={`/v2/leads/${String(leadId)}`}>
+              {chat.full_name ?? 'Unknown'}
+            </Link>
+          ) : (
+            <b className="d-bold d-truncate">{chat.full_name ?? 'Unknown'}</b>
+          )}
           <div className="d-small d-muted d-truncate">
             {chat.phone_e164 ?? chat.email ?? '—'}
             {chat.assignee_name ? ` · ${chat.assignee_name}` : ' · nobody yet'}
           </div>
         </div>
+        {/* `Chat.dc.html` puts a round call button in the thread header: the
+            one action a thread has that opening the lead page is a detour
+            for. It asks the check-in gate, as every call affordance does. */}
+        {phone && chat.phone_e164 && (
+          <button
+            type="button"
+            className="v2-b-call"
+            aria-label={`Call ${chat.full_name ?? 'this lead'}`}
+            onClick={() => {
+              void gate.ask().then((answer) => {
+                if (answer === 'cancel') return;
+                window.location.href = `tel:${chat.phone_e164}`;
+              });
+            }}
+          >
+            <Icon name="phone" />
+          </button>
+        )}
         <WindowChip conversation={conversation} />
       </div>
 
@@ -485,6 +557,26 @@ function Thread({
         </div>
       )}
 
+      {/* The design's quick-send row above the composer, horizontally
+          scrolling. Its own five chips name a payment plan and a video the
+          CRM does not hold; these are the server's openings, written from
+          the project the lead actually asked about, and tapping one fills
+          the box rather than sending anything. */}
+      {phone && !templateOnly && mode === 'whatsapp' && (openings.data?.openings ?? []).length > 0 && (
+        <div className="v2-b-quick">
+          {(openings.data?.openings ?? []).map((one) => (
+            <button
+              key={one.key}
+              type="button"
+              className="d-chip-opt"
+              onClick={() => setDraft(one.text)}
+            >
+              {one.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="d-ib-compose">
         <input
           className="d-input"
@@ -523,6 +615,8 @@ function Thread({
             ? 'A note stays inside the CRM.'
             : 'Nothing goes out until you press Send.'}
       </div>
+
+      {gate.banner}
     </section>
   );
 }

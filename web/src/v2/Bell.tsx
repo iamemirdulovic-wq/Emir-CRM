@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The bell, the panel behind it, and the whole page behind that.
@@ -205,6 +206,13 @@ export function V2Notifications() {
   const items = list.data?.items ?? [];
   const unread = items.filter((one) => !one.read_at).length;
 
+  /*
+   * §1.4. `Notifications.dc.html` writes "5 new" or "All read" under the
+   * title; the build opened with a hero count card saying the same thing
+   * twice the size.
+   */
+  usePhoneHead({ sub: unread === 0 ? 'All read' : `${unread} new` });
+
   /* Only the categories that have something in them, plus All. Five empty
      tabs is five taps that do nothing. */
   const tabs = useMemo(() => {
@@ -392,6 +400,11 @@ export function V2Notifications() {
             <p className="d-muted d-small">
               Add homes.me to your phone&rsquo;s home screen to get alerts when the computer is
               closed.
+            </p>
+            {/* `Notifications.dc.html` closes on the sentence that explains
+                why every row carries a link at all. */}
+            <p className="d-muted d-small d-mt-8">
+              Tap a notification on your phone and the CRM opens on that same page.
             </p>
             <div className="d-card-foot">
               <Link className="d-card-link" to="/v2/settings/phone-app">

@@ -90,17 +90,56 @@ const DAY_FROM = 7;
 const DAY_TO = 22;
 const HOUR_PX = 46;
 
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
+
+/**
+ * Whether this is a phone, in the component and not only in CSS.
+ *
+ * The week is a different *thing* on a phone, not a narrower one:
+ * `Calendar.dc.html` draws seven full-width day rows where the computer
+ * draws an hour grid. An hour grid for seven days needs 640px, so at 390 it
+ * either scrolls sideways or clips six of the seven columns away.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
+/** The five kinds a plan can be, in the design's words and its order. */
+const KINDS: Array<{ value: Meeting['kind']; label: string }> = [
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'site_visit', label: 'Site visit' },
+  { value: 'call', label: 'Call' },
+  { value: 'follow_up', label: 'Follow-up' },
+  { value: 'team', label: 'Team' },
+];
+
+/** Where it happens — the design's four, and nothing invented beyond them. */
+const PLACES = ['Office', 'Sales centre', 'Client’s place', 'Online / Zoom'];
+
+/** How long, in minutes. */
+const LENGTHS = [15, 30, 60, 120];
+
 export function V2Calendar() {
-  /* §1.4: this screen's one round action in the shell's header. */
-  usePhoneHead({ action: { icon: 'plus', label: 'Add event', to: '/v2/calendar?new=1' } });
   const { user } = useAuth();
   const canSeeTeam = user?.role !== 'agent';
+  const phone = useIsPhone();
 
   const [view, setView] = useState<View>('month');
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
   const [picked, setPicked] = useState(() => dayKey(new Date()));
   const [open, setOpen] = useState<Plan | null>(null);
+  const [adding, setAdding] = useState(false);
   const toast = useToast();
 
   /* The visible window, whole weeks for the month and whole days otherwise. */
@@ -143,6 +182,25 @@ export function V2Calendar() {
   );
 
   const chosen = byDay.get(picked) ?? [];
+
+  /*
+   * §1.4: the title, the live count under it, and the one round action on
+   * the right — `Calendar.dc.html` draws a `+ Add event` there. It used to
+   * point at `/v2/calendar?new=1`, which nothing read, so the button did
+   * nothing at all; it opens the sheet now.
+   */
+  usePhoneHead({
+    sub: chosen.length === 0
+      ? `Nothing planned ${picked === dayKey(new Date()) ? 'today' : `on ${nice(picked)}`}`
+      : `${chosen.length} plan${chosen.length === 1 ? '' : 's'} ${
+        picked === dayKey(new Date()) ? 'today' : `on ${nice(picked)}`}`
+      + (waiting.length > 0 ? ` · ${waiting.length} waiting for a result` : ''),
+    /* The handler is stable on purpose: `usePhoneHead` keys on the label and
+       the sub, so a closure that changed every time `picked` did would be
+       remembered from the render before. The sheet reads the day itself. */
+    action: { icon: 'plus', label: 'Add a plan', onClick: () => setAdding(true) },
+  });
+
   const title = view === 'month'
     ? anchor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     : view === 'week'
@@ -217,9 +275,9 @@ export function V2Calendar() {
             </button>
           </div>
         )}
-        <Link className="d-btn d-primary" to="/v2/tasks?new=1">
+        <button type="button" className="d-btn d-primary" onClick={() => setAdding(true)}>
           <Icon name="plus" />New plan
-        </Link>
+        </button>
       </div>
 
       {got.error && <ErrorNote>{got.error}</ErrorNote>}
@@ -238,7 +296,16 @@ export function V2Calendar() {
                 onOpen={setOpen}
               />
             )}
-            {view !== 'month' && (
+            {/*
+              * The week, on a phone, is seven full-width day rows — day name
+              * and number, two event lines, "+N more", a count on the right.
+              * `Calendar.dc.html` draws it that way because an hour grid for
+              * seven days wants 640px and there are 358.
+              */}
+            {view === 'week' && phone && (
+              <WeekRows days={days} byDay={byDay} picked={picked} onPick={setPicked} />
+            )}
+            {view !== 'month' && !(view === 'week' && phone) && (
               <TimeGrid
                 days={days}
                 byDay={byDay}
@@ -311,9 +378,9 @@ export function V2Calendar() {
               ))}
 
               <div className="d-card-foot v2-cal-foot">
-                <Link className="d-btn d-sm d-block" to={`/v2/tasks?new=1&on=${picked}`}>
-                  <Icon name="plus" />Add a plan on this day
-                </Link>
+                <button type="button" className="d-btn d-sm d-block" onClick={() => setAdding(true)}>
+                  <Icon name="plus" />Add a plan on {picked === dayKey(new Date()) ? 'today' : nice(picked)}
+                </button>
               </div>
             </section>
           </aside>
@@ -327,7 +394,235 @@ export function V2Calendar() {
           onSaved={() => { setOpen(null); got.reload(); toast('Saved'); }}
         />
       )}
+
+      {adding && (
+        <NewPlan
+          day={picked}
+          onClose={() => setAdding(false)}
+          onMade={(when) => { setAdding(false); got.reload(); toast(`Added · ${when}`); }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ── the week, on a phone ──────────────────────────────────────────────── */
+
+function WeekRows({
+  days, byDay, picked, onPick,
+}: {
+  days: Date[];
+  byDay: Map<string, Plan[]>;
+  picked: string;
+  onPick: (key: string) => void;
+}) {
+  const today = dayKey(new Date());
+  return (
+    <div className="v2-b-wkrows">
+      {days.map((day) => {
+        const key = dayKey(day);
+        const plans = byDay.get(key) ?? [];
+        return (
+          <button
+            key={key}
+            type="button"
+            className={[
+              'v2-b-wkrow',
+              key === today ? 'd-today' : '',
+              key === picked ? 'd-on' : '',
+            ].filter(Boolean).join(' ')}
+            onClick={() => onPick(key)}
+          >
+            <span className="v2-b-wkday">
+              <span>{day.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+              <b>{day.getDate()}</b>
+            </span>
+            <span className="v2-b-wkev">
+              {plans.length === 0 && <span className="v2-b-wkempty">Nothing planned</span>}
+              {plans.slice(0, 2).map((plan) => (
+                <span key={plan.id}>
+                  {plan.allDay ? '' : `${clock(plan.at)} · `}{plan.title}
+                </span>
+              ))}
+              {plans.length > 2 && (
+                <span className="v2-b-wkmore">+{plans.length - 2} more · tap to see all</span>
+              )}
+            </span>
+            {plans.length > 0 && <span className="v2-b-wkn">{plans.length}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── putting something in the diary ────────────────────────────────────── */
+
+/**
+ * The design's "new plan" sheet, as far as the server can honestly go.
+ *
+ * `POST /api/v2/meetings` takes a kind, a title, a start, an end and a place,
+ * so that is what this asks for. Four things `Calendar.dc.html` also draws
+ * are **not** here because nothing behind them exists: the lead picker, the
+ * clash warning, the "runs for several days" switch and "remind me". They
+ * are written down in `docs/v2/phone-questions-b.md` rather than drawn as
+ * controls that do nothing — which is what the three buttons that used to
+ * open this did.
+ */
+function NewPlan({
+  day, onClose, onMade,
+}: { day: string; onClose: () => void; onMade: (when: string) => void }) {
+  const [kind, setKind] = useState<Meeting['kind']>('meeting');
+  const [title, setTitle] = useState('');
+  const [on, setOn] = useState(day);
+  const [at, setAt] = useState('10:00');
+  const [mins, setMins] = useState(60);
+  const [place, setPlace] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const ok = on.length === 10 && at.length >= 4;
+
+  async function save() {
+    setTouched(true);
+    if (!ok) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      /* Built in the reader's own timezone: 10:00 is 10:00 where the person
+         setting it is standing, which is the only reading that is ever
+         right for a meeting somebody has to be at. */
+      const starts = new Date(`${on}T${at}:00`);
+      await api.post('/api/v2/meetings', {
+        kind,
+        title: title.trim() || null,
+        startsAt: starts.toISOString(),
+        endsAt: new Date(starts.getTime() + mins * 60_000).toISOString(),
+        place,
+      });
+      onMade(`${nice(on)} · ${at}`);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That did not save.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="v2-panel-back" onClick={onClose} aria-hidden />
+      <aside className="d-panel d-open" aria-label="New plan">
+        <div className="d-panel-head">
+          <h2>New plan</h2>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        <div className="d-panel-body d-col d-gap-16">
+          <div className="d-field">
+            <span className="d-field-label">What is it?</span>
+            <div className="d-chips">
+              {KINDS.map((one) => (
+                <button
+                  key={one.value}
+                  type="button"
+                  className={kind === one.value ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                  onClick={() => setKind(one.value)}
+                >
+                  {one.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="d-field">
+            <label htmlFor="v2-cal-title">Title or note <span className="d-muted">· optional</span></label>
+            <input
+              id="v2-cal-title"
+              className="d-input"
+              value={title}
+              placeholder="Site visit with Khalid"
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="d-two">
+            <div className={touched && on.length !== 10 ? 'd-field d-invalid' : 'd-field'}>
+              <label htmlFor="v2-cal-day">Day <span className="d-req">*</span></label>
+              <input
+                id="v2-cal-day"
+                className="d-input"
+                type="date"
+                value={on}
+                onChange={(e) => setOn(e.target.value)}
+              />
+              <span className="d-error">Pick a day.</span>
+            </div>
+            <div className={touched && at.length < 4 ? 'd-field d-invalid' : 'd-field'}>
+              <label htmlFor="v2-cal-time">Time <span className="d-req">*</span></label>
+              <input
+                id="v2-cal-time"
+                className="d-input"
+                type="time"
+                value={at}
+                onChange={(e) => setAt(e.target.value)}
+              />
+              <span className="d-error">Pick the time.</span>
+            </div>
+          </div>
+
+          <div className="d-field">
+            <span className="d-field-label">How long?</span>
+            <div className="d-chips">
+              {LENGTHS.map((one) => (
+                <button
+                  key={one}
+                  type="button"
+                  className={mins === one ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                  onClick={() => setMins(one)}
+                >
+                  {one < 60 ? `${one} min` : `${one / 60} h`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="d-field">
+            <span className="d-field-label">Where? <span className="d-muted">· optional</span></span>
+            <div className="d-chips">
+              {PLACES.map((one) => (
+                <button
+                  key={one}
+                  type="button"
+                  className={place === one ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                  onClick={() => setPlace(place === one ? null : one)}
+                >
+                  {one}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {problem && <ErrorNote>{problem}</ErrorNote>}
+        </div>
+
+        <div className="d-panel-foot">
+          <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
+          <span className="d-grow" />
+          <button type="button" className="d-btn d-primary" disabled={busy} onClick={save}>
+            {busy ? 'Saving…' : `Add · ${nice(on)} · ${at}`}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -672,4 +967,9 @@ function weekOf(at: Date): Date[] {
 
 function clock(at: Date): string {
   return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+}
+
+/** "Thu 12 Nov", for a day key — the header's sub-line and the save label. */
+function nice(key: string): string {
+  return new Date(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }

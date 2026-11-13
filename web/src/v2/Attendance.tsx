@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Attendance and leave.
@@ -119,6 +120,25 @@ export function V2Attendance() {
   );
   const [tab, setTab] = useState(seesTeam ? 'team' : 'today');
   const [asking, setAsking] = useState(false);
+
+  /*
+   * §1.4: the 13px line under the title that carries the live count.
+   * `Attendance.dc.html` writes "Shift 09:00 – 18:00 · Business Bay office"
+   * there; `/attendance/me` knows when a shift starts and nothing else, so
+   * this says what today actually is instead of naming an office and an end
+   * time nobody has stored. `TeamAttendance.dc.html` writes "Owner · today,
+   * Wed 11 Nov", which is the whole of the owner's line.
+   */
+  const today = mine.data?.today;
+  usePhoneHead({
+    sub: seesTeam
+      ? `Owner · today, ${new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`
+      : !today?.enabled ? 'Check-in is switched off'
+        : today.marked === 'office' ? `Checked in${today.markedAt ? ` ${clock(today.markedAt)}` : ''} · in the office`
+          : today.marked === 'outside' ? 'Working outside · owners see where and why'
+            : today.startsAt ? `Not checked in yet · shift starts ${today.startsAt}`
+              : 'Not checked in yet',
+  });
 
   if (mine.error) return <ErrorNote>{mine.error}</ErrorNote>;
   if (!mine.data) return <Spinner />;
@@ -1326,8 +1346,17 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         <div className="d-panel-foot">
           <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
           <span className="d-grow" />
+          {/*
+            * `WorkOutside.dc.html` names the missing field in the button
+            * itself rather than letting you press it and be refused —
+            * "Pick why you are outside" → "Write where exactly" → "I'm going
+            * outside". Under a thumb that is the only place anybody looks.
+            */}
           <button type="button" className="d-btn d-primary" disabled={busy} onClick={save}>
-            {busy ? 'Saving…' : 'Start working outside'}
+            {busy ? 'Saving…'
+              : missing.why ? 'Pick why you are outside'
+                : missing.where ? 'Write where exactly'
+                  : 'I’m going outside'}
           </button>
         </div>
       </aside>

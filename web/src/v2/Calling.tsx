@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -7,6 +7,7 @@ import { Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { spacedE164 } from '../design/phone.js';
 import { useCheckIn } from './check-in.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Calling: one lead at a time, until the list is done.
@@ -88,6 +89,39 @@ const STAGE_LABEL: Record<string, string> = {
 const AED = (n: number | null): string =>
   (n === null ? '—' : `AED ${n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString()}`);
 
+/** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
+const PHONE = 768;
+
+/**
+ * Whether this is a phone, in the component rather than only in CSS.
+ *
+ * Two things on this screen are a different shape rather than a different
+ * size: the outcome forms, which are a bottom sheet on a phone and a panel
+ * inside the card on a computer, and the header, which the shell draws.
+ */
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
+/** The sheet's own title and sub-line, one per outcome — the design's words. */
+const SHEET_HEAD: Record<Outcome, { title: string; sub: string; icon: IconName }> = {
+  interested: { title: 'Interested', sub: 'Great! Set the next step now', icon: 'star' },
+  no_answer: { title: 'No answer', sub: 'A reminder is set for you', icon: 'phone' },
+  busy: { title: 'Busy', sub: 'A reminder is set for you', icon: 'clock' },
+  call_back: { title: 'Call back', sub: 'When should you call again?', icon: 'calendar-days' },
+  wrong_number: { title: 'Wrong number', sub: 'It is flagged for the owner', icon: 'alert-triangle' },
+  not_interested: { title: 'Not interested', sub: 'Pick a reason · the lead goes to Lost', icon: 'x' },
+};
+
 export function V2Calling() {
   const queue = useAsync<{ items: QueueLead[] }>(() => api.get('/api/v2/queue'), []);
   /* The gate belongs to the screen, not to one lead: the design puts its
@@ -100,8 +134,24 @@ export function V2Calling() {
   const [taps, setTaps] = useState(0);
   const [ending, setEnding] = useState(false);
 
+  const phone = useIsPhone();
+
   const items = queue.data?.items ?? [];
   const lead = items[at];
+
+  /*
+   * `Dialer.dc.html` has no app bar: a close arrow, a two-line title —
+   * "POWER DIALER · 11 LEFT AFTER THIS" over "Lead 1 of 12" — and a points
+   * pill. The shell draws the title and the way out, so the screen hands it
+   * both rather than drawing a second `<h1>` under the first one.
+   */
+  const left = Math.max(0, items.length - at - 1);
+  usePhoneHead({
+    title: items.length > 0 ? `Lead ${at + 1} of ${items.length}` : 'Calling',
+    sub: items.length > 0
+      ? `Power dialler · ${left === 0 ? 'last one' : `${left} left after this`}`
+      : 'Nothing in the queue',
+  });
 
   if (queue.error) return <ErrorNote>{queue.error}</ErrorNote>;
   if (!queue.data) return <Spinner />;
@@ -156,6 +206,7 @@ export function V2Calling() {
           <LeadCard
             key={lead.id}
             lead={lead}
+            phone={phone}
             ask={gate.ask}
             saved={done.get(lead.id) ?? null}
             last={last}
@@ -240,10 +291,11 @@ function whyOf(lead: QueueLead): string {
 }
 
 function LeadCard({
-  lead, ask, saved, last, canGoBack, nextName,
+  lead, phone, ask, saved, last, canGoBack, nextName,
   onCalled, onTapped, onSaved, onUndo, onNext, onSkip, onPrev,
 }: {
   lead: QueueLead;
+  phone: boolean;
   ask: () => Promise<'checked_in' | 'outside' | 'anyway' | 'cancel'>;
   saved: string | null;
   last: boolean;
@@ -371,6 +423,143 @@ function LeadCard({
 
   const locked = !touched && !saved;
 
+  /*
+   * The outcome's own fields.
+   *
+   * One shape, two containers: `Dialer.dc.html` puts them in a bottom sheet
+   * with a coloured mark, a title and a sub-line, while the computer design
+   * opens them inside the card. `docs/v2/phone-shell.md` §5.7 is explicit —
+   * "build the body of each flow as a shared piece, and let the shell decide
+   * sheet vs panel". This is that shared piece.
+   */
+  let form: ReactNode = null;
+  if (outcome === 'interested') {
+    form = (
+      <>
+        <div className="d-row">
+          <Icon name="star" size={15} />
+          <span className="d-grow">
+            The lead moves to <b>Interested</b>. Choose what happens next on the lead page.
+          </span>
+        </div>
+        <NoteField note={note} setNote={setNote} />
+      </>
+    );
+  } else if (outcome === 'no_answer') {
+    form = (
+      <>
+        <div className="d-row">
+          <Icon name="refresh-cw" size={15} />
+          <span className="d-grow">The lead comes back in your list in <b>2 hours</b>.</span>
+        </div>
+        <label className="d-check">
+          <input
+            type="checkbox"
+            checked={alsoWhatsapp}
+            onChange={(e) => setAlsoWhatsapp(e.target.checked)}
+          />
+          Also open WhatsApp with a short “I tried to call you” message
+        </label>
+        <NoteField note={note} setNote={setNote} />
+      </>
+    );
+  } else if (outcome === 'busy') {
+    form = (
+      <>
+        <div className="d-row">
+          <Icon name="refresh-cw" size={15} />
+          <span className="d-grow">The lead comes back in your list in <b>1 hour</b>.</span>
+        </div>
+        <NoteField note={note} setNote={setNote} />
+      </>
+    );
+  } else if (outcome === 'call_back') {
+    form = (
+      <div className="d-form-grid v2-dial-when">
+        <div className={shown && !whenOk ? 'd-field d-invalid' : 'd-field'}>
+          <label htmlFor="v2-cb-date">Day</label>
+          <input
+            id="v2-cb-date"
+            className="d-input"
+            type="date"
+            value={day}
+            min={today()}
+            onChange={(e) => { setDay(e.target.value); setShown(false); }}
+          />
+          <span className="d-error">Not in the past.</span>
+        </div>
+        <div className="d-field">
+          <label htmlFor="v2-cb-time">Time</label>
+          <input
+            id="v2-cb-time"
+            className="d-input"
+            type="time"
+            value={time}
+            onChange={(e) => { setTime(e.target.value); setShown(false); }}
+          />
+        </div>
+        <div className={shown && note.trim().length < 3 ? 'd-field d-invalid' : 'd-field'}>
+          <label htmlFor="v2-cb-why">Why <span className="d-req">*</span></label>
+          <input
+            id="v2-cb-why"
+            className="d-input"
+            value={note}
+            placeholder="In a meeting, asked for the evening…"
+            onChange={(e) => { setNote(e.target.value); setShown(false); }}
+          />
+          <span className="d-error">Write why in a few words.</span>
+        </div>
+      </div>
+    );
+  } else if (outcome === 'wrong_number') {
+    form = (
+      <>
+        {/*
+          * The design offers "I have the new number" here. Nothing takes a
+          * replacement number from this screen, so it is left out rather
+          * than drawn as a box that quietly throws the number away.
+          */}
+        <span className="d-small d-muted">
+          The lead leaves your list. The owner sees “wrong number” on it.
+        </span>
+        <NoteField note={note} setNote={setNote} />
+      </>
+    );
+  } else if (outcome === 'not_interested') {
+    form = (
+      <>
+        <div className={shown && !reason ? 'd-field d-invalid' : 'd-field'}>
+          <span className="d-field-label">Reason <span className="d-t-accent">*</span></span>
+          <div className="d-chips">
+            {LOST_REASONS.map((one) => (
+              <button
+                key={one.key}
+                type="button"
+                className={reason === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                onClick={() => { setReason(one.key); setShown(false); }}
+              >
+                {one.label}
+              </button>
+            ))}
+          </div>
+          <span className="d-error">Choose a reason. The lead moves to Lost.</span>
+        </div>
+        <NoteField note={note} setNote={setNote} />
+      </>
+    );
+  }
+
+  const saveRow = (
+    <div className={outcome && !saved ? 'd-row d-mt-16 d-id-save-row' : 'd-row d-mt-16 d-id-save-row d-hide'}>
+      <span className="d-small d-muted d-grow">{outcome ? CONSEQUENCE[outcome] : ''}</span>
+      <button type="button" className="d-btn d-dark" disabled={saving} onClick={save}>
+        {saving ? 'Saving…' : 'Save result'}
+      </button>
+    </div>
+  );
+
+  const head = outcome ? SHEET_HEAD[outcome] : null;
+
   return (
     <>
       <section className="d-card d-hero d-id-lead d-fade-in" aria-label="Lead">
@@ -467,130 +656,12 @@ function LeadCard({
           ))}
         </div>
 
-        {!saved && outcome === 'interested' && (
-          <div className="d-sub d-on">
-            <div className="d-row">
-              <Icon name="star" size={15} />
-              <span className="d-grow">
-                The lead moves to <b>Interested</b>. Choose what happens next on the lead page.
-              </span>
-            </div>
-            <NoteField note={note} setNote={setNote} />
-          </div>
-        )}
+        {!phone && !saved && form && <div className="d-sub d-on">{form}</div>}
 
-        {!saved && outcome === 'no_answer' && (
-          <div className="d-sub d-on">
-            <div className="d-row">
-              <Icon name="refresh-cw" size={15} />
-              <span className="d-grow">The lead comes back in your list in <b>2 hours</b>.</span>
-            </div>
-            <label className="d-check">
-              <input
-                type="checkbox"
-                checked={alsoWhatsapp}
-                onChange={(e) => setAlsoWhatsapp(e.target.checked)}
-              />
-              Also open WhatsApp with a short “I tried to call you” message
-            </label>
-            <NoteField note={note} setNote={setNote} />
-          </div>
-        )}
+        {!phone && error && <ErrorNote>{error}</ErrorNote>}
 
-        {!saved && outcome === 'busy' && (
-          <div className="d-sub d-on">
-            <div className="d-row">
-              <Icon name="refresh-cw" size={15} />
-              <span className="d-grow">The lead comes back in your list in <b>1 hour</b>.</span>
-            </div>
-            <NoteField note={note} setNote={setNote} />
-          </div>
-        )}
+        {!phone && saveRow}
 
-        {!saved && outcome === 'call_back' && (
-          <div className="d-sub d-on">
-            <div className="d-form-grid v2-dial-when">
-              <div className={shown && !whenOk ? 'd-field d-invalid' : 'd-field'}>
-                <label htmlFor="v2-cb-date">Day</label>
-                <input
-                  id="v2-cb-date"
-                  className="d-input"
-                  type="date"
-                  value={day}
-                  min={today()}
-                  onChange={(e) => { setDay(e.target.value); setShown(false); }}
-                />
-                <span className="d-error">Not in the past.</span>
-              </div>
-              <div className="d-field">
-                <label htmlFor="v2-cb-time">Time</label>
-                <input
-                  id="v2-cb-time"
-                  className="d-input"
-                  type="time"
-                  value={time}
-                  onChange={(e) => { setTime(e.target.value); setShown(false); }}
-                />
-              </div>
-              <div className={shown && note.trim().length < 3 ? 'd-field d-invalid' : 'd-field'}>
-                <label htmlFor="v2-cb-why">Why <span className="d-req">*</span></label>
-                <input
-                  id="v2-cb-why"
-                  className="d-input"
-                  value={note}
-                  placeholder="In a meeting, asked for the evening…"
-                  onChange={(e) => { setNote(e.target.value); setShown(false); }}
-                />
-                <span className="d-error">Write why in a few words.</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!saved && outcome === 'wrong_number' && (
-          <div className="d-sub d-on">
-            {/*
-              * The design offers "I have the new number" here. Nothing takes a
-              * replacement number from this screen, so it is left out rather
-              * than drawn as a box that quietly throws the number away.
-              */}
-            <span className="d-small d-muted">
-              The lead leaves your list. The owner sees “wrong number” on it.
-            </span>
-            <NoteField note={note} setNote={setNote} />
-          </div>
-        )}
-
-        {!saved && outcome === 'not_interested' && (
-          <div className="d-sub d-on">
-            <div className={shown && !reason ? 'd-field d-invalid' : 'd-field'}>
-              <span className="d-field-label">Reason <span className="d-t-accent">*</span></span>
-              <div className="d-chips">
-                {LOST_REASONS.map((one) => (
-                  <button
-                    key={one.key}
-                    type="button"
-                    className={reason === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
-                    onClick={() => { setReason(one.key); setShown(false); }}
-                  >
-                    {one.label}
-                  </button>
-                ))}
-              </div>
-              <span className="d-error">Choose a reason. The lead moves to Lost.</span>
-            </div>
-            <NoteField note={note} setNote={setNote} />
-          </div>
-        )}
-
-        {error && <ErrorNote>{error}</ErrorNote>}
-
-        <div className={outcome && !saved ? 'd-row d-mt-16 d-id-save-row' : 'd-row d-mt-16 d-id-save-row d-hide'}>
-          <span className="d-small d-muted d-grow">{outcome ? CONSEQUENCE[outcome] : ''}</span>
-          <button type="button" className="d-btn d-dark" disabled={saving} onClick={save}>
-            {saving ? 'Saving…' : 'Save result'}
-          </button>
-        </div>
 
         <div className="d-saved-box">
           <Icon name="check" size={16} />
@@ -628,6 +699,46 @@ function LeadCard({
           </button>
         </div>
       </section>
+
+      {/*
+        * On a phone the outcome's questions rise from the bottom edge, with
+        * the coloured mark, the title and the sub-line the design gives each
+        * of the five, and the save button at the very bottom under the
+        * thumb. `.d-dialog` is already a sheet by then — `v2-phone.css` does
+        * the handle, the dim, the swipe-down and the tap-outside.
+        */}
+      {phone && !saved && outcome && head && (
+        <>
+          <div className="d-scrim d-show" onClick={() => setOutcome(null)} aria-hidden />
+          <div className="d-dialog d-open" role="dialog" aria-label={head.title}>
+            <div className="v2-b-out-head">
+              <span className="v2-b-out-ic"><Icon name={head.icon} /></span>
+              <div className="d-grow">
+                <h3>{head.title}</h3>
+                <p>{head.sub}</p>
+              </div>
+              <button
+                type="button"
+                className="d-btn d-icon d-sm d-ghost"
+                aria-label="Close"
+                onClick={() => setOutcome(null)}
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="d-dialog-body d-col d-gap-8">
+              {form}
+              {error && <ErrorNote>{error}</ErrorNote>}
+              <p className="d-small d-muted">{CONSEQUENCE[outcome]}</p>
+            </div>
+            <div className="d-dialog-foot">
+              <button type="button" className="d-btn d-primary" disabled={saving} onClick={save}>
+                {saving ? 'Saving…' : `Save · ${head.title}`}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

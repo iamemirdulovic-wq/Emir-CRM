@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { ErrorNote, Spinner, useToast } from '../design/ui.js';
 import { formatDateTime } from '../lib/format.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * WhatsApp templates.
@@ -114,6 +115,12 @@ export function V2Templates() {
   const shown = category ? cards.filter((one) => one.category === category) : cards;
   const approved = cards.filter((one) => one.status === 'APPROVED').length;
   const open = cards.find((one) => one.id === openId) ?? null;
+
+  /* §1.4, and the count `Templates.dc.html` puts on its one card header:
+     "16 TEMPLATES", with how many of them Meta will actually accept. */
+  usePhoneHead({
+    sub: `${cards.length} template${cards.length === 1 ? '' : 's'} · ${approved} approved`,
+  });
 
   async function sync() {
     setSyncing(true);

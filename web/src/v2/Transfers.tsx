@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Transfers: handing a lead to a colleague.
@@ -88,6 +89,11 @@ export function V2Transfers() {
   const lists = useAsync<Lists>(() => api.get('/api/v2/transfers'), []);
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
+
+  /* §1.4, and `Transfers.dc.html`'s own two sub-lines — one per role. */
+  usePhoneHead({
+    sub: owner ? 'Owner · approve and see every transfer' : 'Leads you give and leads you get',
+  });
 
   async function act(id: string, path: string, body: unknown, told: string) {
     setBusy(id);

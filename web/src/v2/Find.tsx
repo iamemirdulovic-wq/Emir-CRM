@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../design/index.js';
 import { Avatar } from '../design/ui.js';
 import type { Role } from '../lib/types.js';
 import { extraScreensFor, groupsFor, pinnedFor } from './nav.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * One search across everything: the palette, and the page behind it.
@@ -357,6 +358,14 @@ export function V2Find() {
   const typed = term.trim().length >= 2;
   const looksLikePhone = /^[\d\s+()-]{5,}$/.test(term.trim());
 
+  /* §1.4. `Search.dc.html` echoes the term back — "3 found for “mar”" — so
+     it is clear the list is an answer to what was typed, not a stale one. */
+  usePhoneHead({
+    sub: typed
+      ? `${shown.length} found for “${term.trim()}”`
+      : 'Leads, projects and screens',
+  });
+
   return (
     <div className="v2-find-page p-find">
       <div className="d-sr">
@@ -475,6 +484,9 @@ export function V2Find() {
                     ? `No lead has the number ${term.trim()}. It is a new number.`
                     : `No lead, project or screen for “${term.trim()}”.`}
               </p>
+              {/* `Search.dc.html`'s own advice, which the build had dropped:
+                  two things that fix most empty searches. */}
+              <p className="d-small d-muted">Check the spelling, or try the phone number.</p>
               <div className="d-btn-row">
                 <Link
                   className="d-btn d-primary"
