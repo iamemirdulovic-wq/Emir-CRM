@@ -383,6 +383,12 @@ function SignIns({ rows, people, meName, onSignOut }: {
           <tbody>
             {shown.map((row) => {
               const isNew = row.flags.some((flag) => flag.key === 'new_device');
+              /* The design turns the place amber whenever the device is new,
+                 because in its sample both were new at once. Ours colours the
+                 place only when the place is the thing that changed. */
+              const oddPlace = row.flags.some(
+                (flag) => flag.key === 'new_country' || flag.key === 'impossible_travel',
+              );
               const me = row.name === meName;
               return (
                 <tr key={row.id}>
@@ -403,7 +409,7 @@ function SignIns({ rows, people, meName, onSignOut }: {
                       {isNew && <span className="d-chip d-amber">New device</span>}
                     </span>
                   </td>
-                  <td className={isNew ? 'd-t-amber' : undefined}>{row.where ?? 'Not recorded'}</td>
+                  <td className={oddPlace ? 'd-t-amber' : undefined}>{row.where ?? 'Not recorded'}</td>
                   <td className="d-t-sub">{dayAndClock(row.signedInAt)}</td>
                   <td>
                     {row.signedOutAt

@@ -113,9 +113,11 @@ describeWithDb('desks', () => {
       [stage?.pipeline_id, stage?.id, sara.id],
     );
 
-    const made = await (await send('POST', '/api/v2/desks', cookie, {
+    const madeRes = await send('POST', '/api/v2/desks', cookie, {
       name: 'Dubai off-plan', maxOpenLeads: 60, memberIds: [sara.id],
-    })).json() as { id: string };
+    });
+    expect(madeRes.status, await madeRes.clone().text()).toBe(201);
+    const made = await madeRes.json() as { id: string };
 
     const beforeRes = await send('GET', '/api/v2/desks', cookie);
     expect(beforeRes.status, await beforeRes.clone().text()).toBe(200);

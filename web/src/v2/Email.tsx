@@ -30,7 +30,7 @@ interface EmailTemplate {
   template_key: string | null;
   name: string;
   category: string;
-  language: string;
+  language: string | null;
   subject: string;
   body: string;
   preview_text: string | null;
@@ -140,7 +140,12 @@ export function V2Email() {
                 <span className="d-row d-gap-6">
                   <b className="d-truncate d-grow">{one.name}</b>
                   {one.is_system === 1 && <span className="d-vip-tag">BUILT IN</span>}
-                  <span className="d-tiny d-muted">{one.language.toUpperCase()}</span>
+                  {/* The language is on the row because the same email exists in
+                      English and Arabic, and sending the wrong one is a bad first
+                      impression. An older row may not carry one. */}
+                  {one.language && (
+                    <span className="d-tiny d-muted">{one.language.toUpperCase()}</span>
+                  )}
                 </span>
                 <span className="d-sj d-truncate">{one.subject}</span>
                 <span className="d-row d-gap-6">

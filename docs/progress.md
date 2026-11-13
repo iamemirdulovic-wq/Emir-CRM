@@ -83,3 +83,14 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   Only a screenshot catches that.
 - **Failed.** Nothing. It found three already-shipped misses: `d-card-t` on
   Add Lead, `d-gap-12` twice, and `d-lt`.
+
+## Tasks and follow-ups · 13 Nov
+
+- **Done.** Two tabs, the week as seven cards each saying how much is left on
+  it, the day's list beside the "left today" card, and the follow-ups table
+  with its four time tabs. The split between the two tabs is the design's and
+  it is a real one: a task is something the agent has to do, a follow-up is a
+  promise made to a client, and being late with one is a different kind of
+  late.
+- **Not done.** Changing or deleting a task from the row menu.
+- **Failed.** Nothing.

@@ -1484,11 +1484,11 @@
   /* Six columns cannot shrink to a phone, so the board scrolls sideways with
      the columns at a width a name and a project still fit in — which is what
      every CRM does on a phone. */
-  .v2 .d-kanban {
+  .v2 .p-pipeline .d-kanban {
     grid-auto-columns:minmax(252px,252px);
     overflow-x:auto; padding-bottom:8px; scroll-snap-type:x proximity;
   }
-  .v2 .d-kb-col { scroll-snap-align:start; }
+  .v2 .p-pipeline .d-kb-col { scroll-snap-align:start; }
 
   /* Hover does not exist on a phone, so a Call button that appears on hover
      never appears. It sits in the row instead. */
@@ -1502,7 +1502,7 @@
 
   /* The Lost strip is a row of four things on a desktop and a short stack
      here; the two sample cards are the first thing to go. */
-  .v2 .d-lost-strip { flex-wrap:wrap; row-gap:8px; }
+  .v2 .p-pipeline .d-lost-strip { flex-wrap:wrap; row-gap:8px; }
   .v2 .v2-lost-cards { display:none; }
 }
 
@@ -1516,16 +1516,30 @@
 .v2 .v2-bub-bad { background:var(--red-soft); color:var(--red-ink); }
 /* Which tools the answer came from, under it. */
 .v2 .v2-bub-read { display:block; margin-top:8px; }
+/* The design's bullet list has no space after it, and the model usually
+   writes a closing sentence under one. */
+.v2 .p-homes-ai .d-bub ul + p { margin-top:8px; }
 
+/*
+ * Every rule below names `.p-homes-ai` as well as the element.
+ *
+ * The ported sheet writes `.v2 .p-homes-ai .d-ai`, which outranks a plain
+ * `.v2 .d-ai` whatever the media query says — the first phone layout written
+ * here lost to it silently and left the chat 60px wide with the side cards
+ * sitting on top of it.
+ */
 @media (max-width: 900px) {
   /* The three side cards go under the chat rather than beside it. */
-  .v2 .d-ai { grid-template-columns:minmax(0,1fr); }
+  .v2 .p-homes-ai .d-ai { grid-template-columns:minmax(0,1fr); }
   /* With the cards underneath, a chat the height of the screen would push
      them off the bottom of it. */
-  .v2 .d-ai-chat { height:auto; min-height:0; }
-  .v2 .d-ai-msgs { max-height:52vh; }
-  .v2 .d-msg { max-width:92%; }
-  .v2 .d-ai-head, .v2 .d-ai-msgs, .v2 .d-ai-try, .v2 .d-ai-form { padding-left:16px; padding-right:16px; }
+  .v2 .p-homes-ai .d-ai-chat { height:auto; min-height:0; }
+  .v2 .p-homes-ai .d-ai-msgs { max-height:52vh; }
+  .v2 .p-homes-ai .d-msg { max-width:92%; }
+  .v2 .p-homes-ai .d-ai-head,
+  .v2 .p-homes-ai .d-ai-msgs,
+  .v2 .p-homes-ai .d-ai-try,
+  .v2 .p-homes-ai .d-ai-form { padding-left:16px; padding-right:16px; }
   /* "Enter to ask" is not a thing on a phone keyboard. */
   .v2 .p-homes-ai .d-ai-form .d-row.d-between span:last-child { display:none; }
 }
@@ -1790,10 +1804,14 @@
   /* Transfers: the rail goes under the list and stops sticking. */
   .v2 .p-transfers .d-tgrid, .v2 .v2-tr-owner{ grid-template-columns:minmax(0,1fr); }
   .v2-tr-side{ position:static; }
-  .v2 .d-treq{ flex-wrap:wrap; gap:12px; padding:16px; }
-  .v2 .d-treq .d-who{ flex:1 1 100%; }
-  .v2 .v2-treq-acts{ flex:1 1 auto; flex-direction:row; }
-  .v2 .v2-treq-acts .d-btn{ flex:1; justify-content:center; }
+  /* The request card is avatar · who · deadline · two buttons on one line.
+     On a phone each becomes its own line, in that order. The page class is in
+     the selector because the ported rules carry it and would otherwise win. */
+  .v2 .p-transfers .d-treq{ flex-wrap:wrap; gap:10px 12px; padding:16px; }
+  .v2 .p-transfers .d-treq .d-who{ flex:1 1 100%; order:2; }
+  .v2 .p-transfers .d-deadline{ flex:1 1 100%; order:3; text-align:left; }
+  .v2 .p-transfers .v2-treq-acts{ flex:1 1 100%; order:4; flex-direction:row; }
+  .v2 .p-transfers .v2-treq-acts .d-btn{ flex:1; justify-content:center; }
   .v2 .p-transfers .d-gg{ grid-template-columns:72px 1fr 22px 1fr 22px; }
 
   /* Attendance: the week strip and the month lose their roomiest parts
