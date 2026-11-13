@@ -83,11 +83,15 @@ export function V2Feedback() {
    * `Feedback.dc.html`: "Help us improve" over "Report a bug or suggest a
    * feature". `titleFor()` had no entry for this address, so the phone header
    * read "homes.me" — the screen had no name at all.
+   *
+   * `design/web/feedback.html` writes "Bugs, problems and ideas go straight
+   * to the owners", which says where it lands rather than what to type, and
+   * the computer design wins where the two differ.
    */
   usePhoneHead({
     compact: true,
     title: 'Help us improve',
-    sub: 'Report a bug or suggest a feature',
+    sub: feedbackSub(),
   });
 
   /* Where they came from. The bell and the sidebar both link here, so the

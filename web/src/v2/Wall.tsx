@@ -61,6 +61,14 @@ interface Meeting {
   agent: string;
 }
 
+/**
+ * How many days of points the board ranks, mirroring `BOARD_DAYS` in
+ * `server/src/wall/wall.ts`. `/api/wall/sidebar` does not say, and the figure
+ * was already written into the podium's own heading, so it is named once here
+ * rather than typed out twice more.
+ */
+const BOARD_DAYS = 30;
+
 /** The two reactions the design draws, in the design's order. */
 const REACTIONS: Array<{ emoji: string; label: string }> = [
   { emoji: '👏', label: 'Clap' },
@@ -476,9 +484,12 @@ export function V2Best() {
 
   /*
    * `Leaderboard.dc.html` titles this "Best of Homes" and dates it "Week 46 ·
-   * ends Sunday 23:59". The server counts points over thirty days, not over a
-   * week, so the sub-line says what the numbers really are. The week is
-   * written up in `docs/v2/phone-questions-c.md`.
+   * ends Sunday 23:59"; `design/web/best-of-homes.html` spells the window out
+   * — "Week 46 · Mon 9 – Sun 15 Nov · ends Sunday 23:59". Neither can be had:
+   * the server ranks points over a rolling `BOARD_DAYS` days, so there is no
+   * week number and nothing for a deadline to be the end of. The line gives
+   * the board's own window instead, with both ends off the Dubai clock.
+   * Written up in `docs/v2/questions-subs.md` and `phone-questions-c.md`.
    *
    * The design's round "Show on office TV" action is not here: there is no TV
    * mode anywhere in this build, and an action that does nothing is worse
@@ -487,7 +498,7 @@ export function V2Best() {
   usePhoneHead({
     compact: true,
     title: 'Best of Homes',
-    sub: side.data ? 'Points over the last 30 days · live' : undefined,
+    sub: side.data ? bestSub(BOARD_DAYS, new Date()) : undefined,
   });
 
   if (side.error) return <ErrorNote>{side.error}</ErrorNote>;

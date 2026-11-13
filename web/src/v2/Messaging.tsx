@@ -99,10 +99,13 @@ export function V2Messaging() {
    * point of the screen, because these numbers exist *because* there is no
    * WhatsApp API. `Menu.dc.html` calls the tile the same thing. The shell's
    * header draws both; the page does not draw a title of its own.
+   *
+   * `design/web/messaging-report.html` writes the shorter "WhatsApp and
+   * Telegram taps" there, and the computer design wins where the two differ.
    */
   usePhoneHead({
     title: 'WhatsApp & Telegram',
-    sub: 'Owner · taps, replies and links opened · no API needed',
+    sub: messagingSub(),
   });
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';

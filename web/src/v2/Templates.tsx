@@ -136,12 +136,16 @@ export function V2Templates() {
   const open = cards.find((one) => one.id === openId) ?? null;
 
   /* §1.4. `Templates.dc.html` centres "WhatsApp templates" over "Messages
-     agents send in one tap", and puts the count on the list's own header
-     ("16 TEMPLATES") rather than under the title. */
+     agents send in one tap"; `design/web/templates.html` puts the count
+     under the title instead — "16 WhatsApp templates · later phase" — and the
+     computer design wins. The count is `cards.length`, the live and library
+     rows this screen actually merged, not the design's sixteen; it waits for
+     both answers so the line never reads "0 WhatsApp templates" while they
+     are still in flight. */
   usePhoneHead({
     compact: true,
     title: 'WhatsApp templates',
-    sub: 'Messages agents send in one tap',
+    sub: live.data && library.data ? templatesSub(cards.length) : undefined,
   });
 
   async function sync() {

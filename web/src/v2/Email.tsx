@@ -85,8 +85,9 @@ export function V2Email() {
   const chosen = items.find((one) => one.id === chosenId) ?? items[0] ?? null;
 
   /* §1.4. There is no count to carry here, so the sub says what the screen
-     is: these are the emails the CRM sends, not a mailbox. */
-  usePhoneHead({ sub: 'The emails the CRM sends, as the client sees them' });
+     is — `design/web/email.html`'s own words, which also say the sending half
+     is a later phase. */
+  usePhoneHead({ sub: emailSub() });
 
   return (
     <div className="v2-email p-email">

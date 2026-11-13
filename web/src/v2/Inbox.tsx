@@ -93,8 +93,12 @@ export function V2Inbox() {
   const phone = useUnder(PHONE - 1);
 
   /* §1.4, and `Inbox.dc.html`'s own line under the title. */
-  /* `Inbox.dc.html` draws the same compact centred title as Follow-ups. */
-  usePhoneHead({ compact: true, title: 'Inbox', sub: 'WhatsApp, email and notes in one place' });
+  /* `Inbox.dc.html` draws the same compact centred title as Follow-ups, over
+     "WhatsApp, email and notes in one place". `design/web/inbox.html` writes
+     "WhatsApp and Telegram chats in one place · later phase" instead, and the
+     computer design wins — though it names a channel this screen does not
+     carry and leaves out two it does. `docs/v2/questions-subs.md`. */
+  usePhoneHead({ compact: true, title: 'Inbox', sub: inboxSub() });
   const seesEveryone = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
 
   const [scope, setScope] = useState<Scope>('mine');
