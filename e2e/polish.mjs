@@ -75,6 +75,11 @@ const ROUTES = [
      of thing that only breaks at one width. */
   ['/v2/offers', 'v2-offers'],
   ['/v2/import', 'v2-import'],
+  /* The three message screens. The inbox is the only three-column layout in
+     v2, so it is the one most likely to scroll sideways on a phone. */
+  ['/v2/inbox', 'v2-inbox'],
+  ['/v2/email', 'v2-email'],
+  ['/v2/templates', 'v2-templates'],
   ['/v2/settings', 'v2-settings'],
   ['/v2/settings/notifications', 'v2-settings-notifications'],
   ['/v2/settings/company', 'v2-settings-company'],

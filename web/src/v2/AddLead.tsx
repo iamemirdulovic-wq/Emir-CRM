@@ -236,7 +236,7 @@ export function V2AddLead() {
       </header>
 
       <section className="d-card v2-addlead-card">
-        <h2 className="d-card-t">Who are they?</h2>
+        <h3>Who are they?</h3>
 
         <label className="v2-field v2-field-wide">
           <span>Full name *</span>
@@ -315,7 +315,7 @@ export function V2AddLead() {
       </section>
 
       <section className="d-card v2-addlead-card">
-        <h2 className="d-card-t">Where did they come from? *</h2>
+        <h3>Where did they come from? *</h3>
         <div className="v2-chips">
           {sources.map((one) => (
             <button
@@ -337,7 +337,7 @@ export function V2AddLead() {
       </section>
 
       <section className="d-card v2-addlead-card">
-        <h2 className="d-card-t">What are they looking for?</h2>
+        <h3>What are they looking for?</h3>
         <div className="v2-two">
           <label className="v2-field v2-field-wide">
             <span>Project</span>
@@ -386,7 +386,7 @@ export function V2AddLead() {
       </section>
 
       <section className="d-card v2-addlead-card">
-        <h2 className="d-card-t">Who works it?</h2>
+        <h3>Who works it?</h3>
         <div className="v2-chips">
           <button type="button" className={keepIt ? 'v2-chip-opt v2-chip-opt-on' : 'v2-chip-opt'}
             onClick={() => { setKeepIt(true); setAssignTo(null); setIsVip(false); }}>

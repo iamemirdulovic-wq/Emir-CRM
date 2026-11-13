@@ -1221,13 +1221,18 @@ const ROUTES: Route[] = [
         /*
          * A column with two cards in it never shows the five-card limit or
          * the "+N more" link under it, so the demo could not catch either
-         * being broken. The same nine leads are cycled into a believable
-         * column, exactly as `myLeadRows` cycles them into the lead list.
+         * being broken. The leads of the other stages are borrowed to fill
+         * this one out, the same way `myLeadRows` cycles them into the lead
+         * list — borrowed rather than repeated, because five cards with the
+         * same name on them is not a column anybody can read.
          */
-        const deep = here.length === 0 ? [] : Array.from(
-          { length: Math.min(8, here.length * 4) },
-          (_unused, i) => ({ ...here[i % here.length]!, id: i < here.length ? here[i % here.length]!.id : `${here[i % here.length]!.id}-d${i}` }),
-        );
+        const spare = visible.filter((l) => l.stage !== stage.key);
+        const deep = here.length === 0 ? [] : [
+          ...here,
+          ...spare.slice(0, Math.max(0, 6 - here.length)).map((lead, i) => ({
+            ...lead, id: `${lead.id}-${stage.key}-${i}`, stage: stage.key,
+          })),
+        ];
         const cards = deep.map(card);
         /* The real endpoint counts every lead in the stage and sends only the
            first page of cards, so the total is deliberately the larger. */
@@ -3265,7 +3270,7 @@ const ROUTES: Route[] = [
   }) },
   { method: 'GET', pattern: /^\/api\/templates\/field-map\/unmapped$/, handler: () => ({ items: UNMAPPED_QUESTIONS }) },
   { method: 'GET', pattern: /^\/api\/templates\/field-map\/all$/, handler: () => ({ items: [] }) },
-  { method: 'GET', pattern: /^\/api\/templates\/library$/, handler: () => ({ items: [] }) },
+  { method: 'GET', pattern: /^\/api\/templates\/library$/, handler: () => ({ items: WA_TEMPLATE_LIBRARY }) },
   { method: 'POST', pattern: /^\/api\/templates\/sync$/, handler: () => ({ synced: TEMPLATES.length, newlyBroken: [], missingFromProvider: [] }) },
   { method: 'POST', pattern: /^\/api\/templates\/seed-library$/, handler: () => ({ inserted: 16, invalid: [] }) },
   { method: 'PATCH', pattern: /^\/api\/templates\/([^/]+)\/status$/, handler: ({ params, body }) => {
@@ -4054,3 +4059,195 @@ function buildActivities(lead: (typeof LEADS)[number], thread: { messages: Array
   }
   return activities;
 }
+
+/**
+ * The WhatsApp template library the real `/api/templates/library` returns.
+ *
+ * `wa_templates.components` holds the text in the real database, and this is
+ * where the Templates screen reads it from when a template has never been
+ * synced. The preview had an empty library, so every card drew with no words
+ * in it. Bodies and examples are the ones in
+ * `server/src/messaging/templates/library.ts`, shortened to the four the
+ * preview has rows for plus the two it does not, so the "not submitted yet"
+ * state can be seen too.
+ */
+const WA_TEMPLATE_LIBRARY = [
+  {
+    name: 'lead_welcome_en', language: 'en', category: 'MARKETING',
+    components: [
+      { type: 'HEADER', format: 'DOCUMENT' },
+      {
+        type: 'BODY',
+        text: 'Hello {{1}}, thank you for your interest in {{2}}. My name is {{3}} from {{4}} and I will '
+          + 'be looking after your enquiry personally. I have attached the project brochure above. '
+          + 'How would you like to continue?',
+        example: { body_text: [['Sara', 'Emaar Beachfront', 'Layla Hassan', 'Emigeo Homes']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Pricing' },
+          { type: 'QUICK_REPLY', text: 'Location' },
+          { type: 'QUICK_REPLY', text: 'Call me' },
+        ],
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'lead_welcome_ar', language: 'ar', category: 'MARKETING',
+    components: [
+      { type: 'HEADER', format: 'DOCUMENT' },
+      {
+        type: 'BODY',
+        text: 'مرحباً {{1}}، شكراً لاهتمامك بمشروع {{2}}. اسمي {{3}} من {{4}} وسأتابع طلبك شخصياً. '
+          + 'لقد أرفقت كتيب المشروع أعلاه. كيف تحب أن نكمل؟',
+        example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'ليلى حسن', 'Emigeo Homes']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · أرسل STOP للإلغاء' },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_2h_en', language: 'en', category: 'MARKETING',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hi {{1}}, this is {{2}} following up on your enquiry about {{3}}. I have availability '
+          + 'today to walk you through the floor plans and payment options. Shall I call you?',
+        example: { body_text: [['Sara', 'Layla Hassan', 'Emaar Beachfront']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Call me' },
+          { type: 'QUICK_REPLY', text: 'Send pricing' },
+        ],
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_2h_ar', language: 'ar', category: 'MARKETING',
+    components: [
+      {
+        type: 'BODY',
+        text: 'مرحباً {{1}}، معك {{2}} للمتابعة بخصوص استفسارك عن {{3}}. لدي وقت متاح اليوم لأشرح لك '
+          + 'المخططات وخطط السداد. هل أتصل بك؟',
+        example: { body_text: [['سارة', 'ليلى حسن', 'إعمار بيتشفرونت']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_24h_en', language: 'en', category: 'MARKETING',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Hi {{1}}, {{2}} starts from {{3}} and the current release is selling quickly. '
+          + 'I can hold a unit for you while you decide. Would you like the full price list?',
+        example: { body_text: [['Sara', 'Emaar Beachfront', 'AED 2,100,000']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_24h_ar', language: 'ar', category: 'MARKETING',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'مرحباً {{1}}، مشروع {{2}} يبدأ من {{3}} والمرحلة الحالية تُبَاع بسرعة. '
+          + 'يمكنني حجز وحدة لك حتى تقرر. هل ترغب في قائمة الأسعار الكاملة؟',
+        example: { body_text: [['سارة', 'إعمار بيتشفرونت', 'AED 2,100,000']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_3d_en', language: 'en', category: 'MARKETING',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hi {{1}}, I have not heard back about {{2}}, so I will stop chasing. '
+          + 'Tell me which of these suits you and I will do the rest.',
+        example: { body_text: [['Sara', 'Emaar Beachfront']] },
+      },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Still interested' },
+          { type: 'QUICK_REPLY', text: 'Not now' },
+          { type: 'QUICK_REPLY', text: 'Stop' },
+        ],
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'followup_3d_ar', language: 'ar', category: 'MARKETING',
+    components: [
+      {
+        type: 'BODY',
+        text: 'مرحباً {{1}}، لم يصلني ردك بخصوص {{2}}، لذلك سأتوقف عن المتابعة. '
+          + 'اختر ما يناسبك وسأتولى الباقي.',
+        example: { body_text: [['سارة', 'إعمار بيتشفرونت']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'appointment_confirm_en', language: 'en', category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hello {{1}}, your viewing at {{2}} is booked for {{3}}. The sales centre address and '
+          + 'a map are below. Reply here if anything changes.',
+        example: { body_text: [['Sara', 'Emaar Beachfront', 'Thursday 12 November, 16:30']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'appointment_reminder_en', language: 'en', category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hello {{1}}, a short reminder that we meet at {{2}} today at {{3}}. '
+          + 'I will be waiting at the sales centre entrance.',
+        example: { body_text: [['Sara', 'Emaar Beachfront', '16:30']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'agent_new_lead_alert_en', language: 'en', category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'New lead: {{1}} asked about {{2}} and is waiting for your call. '
+          + 'Their budget is {{3}}. Open the CRM to take it.',
+        example: { body_text: [['Sara Al Mansoori', 'Emaar Beachfront', 'AED 2,000,000']] },
+      },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+  {
+    name: 'new_launch_alert_en', language: 'en', category: 'MARKETING',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Hello {{1}}, {{2}} by {{3}} opens for booking this week and you asked to be told '
+          + 'about new launches. Shall I send you the first price list?',
+        example: { body_text: [['Sara', 'Valia', 'Emaar']] },
+      },
+      { type: 'FOOTER', text: 'Emigeo Homes Real Estate · Reply STOP to opt out' },
+    ],
+    validation: { valid: true, issues: [] },
+  },
+];

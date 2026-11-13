@@ -894,7 +894,7 @@
 
 /* A week cell is 110px wide and "Working outside" is not, so its chip wraps
    rather than running out of the box. */
-.v2 .d-wd .d-chip{ white-space:normal; height:auto; padding:4px 9px; line-height:1.25; }
+.v2 .p-team-attendance .d-wd .d-chip{ white-space:normal; height:auto; padding:4px 9px; line-height:1.25; }
 
 /* The violet waiting row's icon is a light square on a violet card. */
 .v2 .v2-pend-ic{ background:var(--surface); color:var(--violet-ink); }
@@ -1607,6 +1607,11 @@
 
 /* The rank number in the wall's ranking card, which the design sets inline. */
 .v2 .v2-rank-n { width:22px; flex:none; text-align:left; }
+
+/* The design's post menu is `position:fixed` and placed by its own script.
+   Here it hangs off the button, so it needs an anchor to hang from. */
+.v2 .v2-post-more { position:relative; display:inline-flex; flex:none; }
+.v2 .v2-post-menu { position:absolute; top:100%; right:0; margin-top:6px; }
 
 /* The design's own `style="padding-bottom:14px"` on the notifications card. */
 .v2 .v2-bell-list { padding-bottom:14px; }

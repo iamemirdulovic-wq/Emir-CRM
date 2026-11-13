@@ -172,7 +172,7 @@ export function V2SettingsPhoneApp() {
             </section>
 
             <section className="d-card">
-              <div className="d-row d-gap-12">
+              <div className="d-row d-gap-16">
                 <span className="d-card-icon d-accent"><Icon name="bell" /></span>
                 <div className="d-grow">
                   <b className="d-bold">Alerts on this computer</b>

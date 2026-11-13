@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -230,7 +230,9 @@ export function V2Wall() {
                 key={one.id}
                 post={one}
                 mine={one.author_id !== null && one.author_id === user?.id}
+                canPin={canPin}
                 onReact={(emoji) => react(one.id, emoji)}
+                onChanged={() => feed.reload()}
               />
             ))}
           </div>
@@ -307,10 +309,55 @@ export function V2Wall() {
 
 /** One post, in whichever of the design's three shapes it is. */
 function PostCard({
-  post, mine, onReact,
-}: { post: Post; mine: boolean; onReact: (emoji: string) => void }) {
+  post, mine, canPin, onReact, onChanged,
+}: {
+  post: Post;
+  mine: boolean;
+  canPin: boolean;
+  onReact: (emoji: string) => void;
+  onChanged: () => void;
+}) {
+  const toast = useToast();
   const shape = shapeOf(post);
   const dark = shape === 'win';
+  const [menu, setMenu] = useState(false);
+  /* Delete asks twice, in the same button, the way the design's own
+     `data-confirm` does: a second press, not a dialog in the way. */
+  const [sure, setSure] = useState(false);
+  const canEdit = mine || canPin;
+
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = () => { setMenu(false); setSure(false); };
+    document.addEventListener('click', away);
+    return () => document.removeEventListener('click', away);
+  }, [menu]);
+
+  async function pin() {
+    try {
+      await api.post(`/api/wall/${post.id}/pin`, { pinned: !post.pinned_at });
+      toast(post.pinned_at ? 'Not pinned any more' : 'Pinned on top of the wall');
+      onChanged();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'That did not save.');
+    } finally {
+      setMenu(false);
+    }
+  }
+
+  async function remove() {
+    if (!sure) { setSure(true); return; }
+    try {
+      await api.del(`/api/wall/${post.id}`);
+      toast('Post deleted');
+      onChanged();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'That did not delete.');
+    } finally {
+      setMenu(false);
+      setSure(false);
+    }
+  }
 
   return (
     <article className={`d-card d-post${shape === 'post' ? '' : ` d-${shape}`}`}>
@@ -331,6 +378,30 @@ function PostCard({
         {shape === 'news' && <span className="d-chip d-dark">Owner news</span>}
         {shape === 'win' && (
           <span className="d-chip d-green"><Icon name="trophy" />Win</span>
+        )}
+        {canEdit && (
+          <span className="v2-post-more">
+            <button
+              type="button"
+              aria-label="More"
+              className={dark ? 'd-btn d-icon d-sm d-ghost d-on-dark' : 'd-btn d-icon d-sm d-ghost'}
+              onClick={(e) => { e.stopPropagation(); setMenu((was) => !was); setSure(false); }}
+            >
+              <Icon name="more-horizontal" />
+            </button>
+            {menu && (
+              <div className="d-menu d-open v2-post-menu" onClick={(e) => e.stopPropagation()}>
+                {canPin && (
+                  <button type="button" className="d-menu-item" onClick={pin}>
+                    <Icon name="pin" />{post.pinned_at ? 'Unpin it' : 'Pin it on top'}
+                  </button>
+                )}
+                <button type="button" className="d-menu-item d-danger" onClick={remove}>
+                  <Icon name="trash-2" />{sure ? 'Press again to delete' : 'Delete the post'}
+                </button>
+              </div>
+            )}
+          </span>
         )}
       </div>
 

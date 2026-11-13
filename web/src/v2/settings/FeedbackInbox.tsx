@@ -132,7 +132,7 @@ export function V2FeedbackInbox() {
             <div className="d-divide">
               {inbox.items.map((one) => (
                 <div className="v2-fb-row" key={one.id}>
-                  <div className="d-row d-gap-12 d-top">
+                  <div className="d-row d-gap-16 d-top">
                     <span className={one.blocking ? 'd-card-icon d-accent' : 'd-card-icon'}>
                       <Icon name={one.kind === 'idea' ? 'sparkles' : one.kind === 'question' ? 'help-circle' : 'alert-triangle'} />
                     </span>

@@ -25,7 +25,7 @@ import type { Notify } from './notify.js';
  */
 
 const THEMES: Array<{ value: Appearance; preview: string; title: string; note: string }> = [
-  { value: 'light', preview: 'd-lt', title: 'Light', note: 'Bright office' },
+  { value: 'light', preview: '', title: 'Light', note: 'Bright office' },
   { value: 'dark', preview: 'd-dk', title: 'Dark', note: 'Easy at night' },
   { value: 'system', preview: 'd-au', title: 'Auto', note: 'Follows this computer' },
 ];
@@ -86,7 +86,7 @@ function Appearance_() {
           >
             {/* The design draws a miniature of the CRM rather than a swatch:
                 a colour chip does not tell anybody what dark mode looks like. */}
-            <span className={`d-th-pre ${one.preview}`} aria-hidden>
+            <span className={one.preview ? `d-th-pre ${one.preview}` : 'd-th-pre'} aria-hidden>
               <i /><b /><u /><em />
             </span>
             <span className="d-th-lab">
