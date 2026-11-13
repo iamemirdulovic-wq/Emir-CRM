@@ -588,6 +588,14 @@ below was opened in a browser and used, not just compiled.
 - [x] **Attendance and leave** — an agent can see their own month at last,
       ask for days off, and an owner answers with a reason
 - [x] **The team, a person's page, the project library**
-- [x] **The polish pass covers v2** — 45 routes, 180 screens, clean
-- [ ] Sales offers, import, settings, the team wall, activity, Homes AI,
-      automations — each has a page that says so
+- [x] **Sales offers, import, settings, the team wall, activity, Homes AI,
+      automations** — built, not a page that says so
+- [x] **Every page in the design package has an address.** 48 routes, no
+      placeholders. `docs/v2/screens.md` lists each one against its design
+      file and says how far it got
+- [x] **The two that had never been built**: the owner's full dashboard
+      (`/v2/dashboard`) and Team live (`/v2/team-live`)
+- [x] **The polish pass covers v2** — 75 routes, 300 screens, 2 sizes x 2
+      themes. No page scrolls sideways, nothing is clipped, no console errors
+- [ ] **Cutover.** v2 is on the `v2` branch and on a test address only.
+      Putting it on crm.homes.me is Emir's decision and has not been made
