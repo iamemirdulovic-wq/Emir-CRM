@@ -27,3 +27,6 @@
 @import './v2-ui.css';
 @import './v2-home.css';
 @import './v2-shell.css';
+/* The phone, last of all: under 768px it overrides the four above, and above
+   768px it is empty. See the head of the file. */
+@import './v2-phone.css';

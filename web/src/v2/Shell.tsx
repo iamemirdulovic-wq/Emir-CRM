@@ -5,9 +5,14 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { Avatar, ToastHost } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
-import { groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem } from './nav.js';
+import {
+  extraScreensFor, groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem,
+} from './nav.js';
 import { Bell } from './Bell.js';
 import { Find } from './Find.js';
+import {
+  barIsHiddenAt, FullAttentionProvider, usePhoneSheets, useRiseIn,
+} from './phone.js';
 
 /**
  * The frame every v2 screen sits inside.
@@ -349,18 +354,38 @@ export function V2Shell() {
    * including the one on the dashboard that takes thirty-one leads off an
    * agent. The host was mounted in the v1 layout only, which v2 does not use.
    */
+  /* Sheets are dragged with a thumb, so the handlers only exist on a phone. */
+  usePhoneSheets(isPhone);
+  /* And the cards rise in again on every screen, not only the first. */
+  const run = useRiseIn(pathname, isPhone);
+
   return (
     <ToastHost>
       <Counts.Provider value={counts}>
-        <div className={isPhone ? 'v2 v2-phone' : 'v2'}>
-          {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
-          <div className="v2-main">
-            {!isPhone && <TopBar />}
-            {isPhone && <PhoneTop />}
-            <main className="v2-page"><Outlet /></main>
-          </div>
-          {isPhone && <PhoneBar />}
-        </div>
+        <FullAttentionProvider>
+          {(oneJob) => (
+            <div
+              className={[
+                'v2',
+                isPhone ? 'v2-phone' : '',
+                isPhone && !oneJob && !barIsHiddenAt(pathname) ? 'v2-has-bar' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
+              <div className="v2-main">
+                {!isPhone && <TopBar />}
+                {isPhone && <PhoneTop />}
+                <main className="v2-page" key={isPhone ? run : 'wide'}><Outlet /></main>
+              </div>
+              {/*
+                * No bar on the four full-attention screens: the dialler, a
+                * chat, email and sign-in. `design/screens` draws them without
+                * one on purpose — see `phone.tsx`.
+                */}
+              {isPhone && !oneJob && !barIsHiddenAt(pathname) && <PhoneBar />}
+            </div>
+          )}
+        </FullAttentionProvider>
       </Counts.Provider>
     </ToastHost>
   );
@@ -374,79 +399,140 @@ export function V2Shell() {
  * all — the computer layout hides that, and it is exactly the thing most of
  * this team does most of the day.
  */
+/**
+ * The top of a phone screen.
+ *
+ * It is not an app bar. `docs/v2/phone-shell.md` §1.4: "There is no persistent
+ * app bar. Each screen draws its own header as the first child of the
+ * scroller, and it scrolls away." So this scrolls with the page, and what it
+ * holds depends on where you are:
+ *
+ *  - **Home** has no title and no back: your own avatar, then search, then the
+ *    bell. The screen's own greeting is the title.
+ *  - **Everywhere else** opens with a round back button, then the title, then
+ *    search, the bell and Add lead.
+ *
+ * The back button is history rather than the prototypes' hard-coded parent
+ * per screen, because this is a web app where the back a person expects is
+ * the one they came from.
+ */
 function PhoneTop() {
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const onRecord = /^\/v2\/leads\/[^/]+$/.test(pathname);
   const navigate = useNavigate();
+  const atHome = pathname === '/v2';
+  /* The five the bottom bar goes to are roots: there is nothing behind them
+     to go back to, and the design draws no back button on any of them. */
+  const isRoot = PHONE_BAR.some((one) => one.to === pathname);
 
   return (
-    <header className="v2-ptop">
-      {onRecord ? (
-        <button type="button" className="v2-back" onClick={() => navigate(-1)}>
-          <Icon name="arrow-left" />Back
-        </button>
-      ) : (
-        <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>
-      )}
-      <Find compact />
-      <Bell />
-      <Link to="/v2/leads/new" className="v2-padd" aria-label="Add lead"><Icon name="plus" /></Link>
+    <header className={atHome ? 'v2-ptop v2-ptop-home' : 'v2-ptop'}>
+      <div className="v2-ptop-row">
+        {atHome ? (
+          <Link to="/v2/profile" className="v2-pme" aria-label="My profile">
+            <Avatar name={user?.name ?? '?'} />
+          </Link>
+        ) : !isRoot && (
+          <button
+            type="button"
+            className="v2-pback"
+            onClick={() => navigate(-1)}
+            aria-label="Back"
+          >
+            <Icon name="arrow-left" />
+          </button>
+        )}
+        <span className="v2-pgrow" />
+        <Find compact />
+        <Bell />
+        {!atHome && (
+          <Link to="/v2/leads/new" className="v2-padd" aria-label="Add lead">
+            <Icon name="plus" />
+          </Link>
+        )}
+      </div>
+      {/* §1.4 pattern B: the title is its own line under the buttons, at
+          30px, not a label squeezed between them. */}
+      {!atHome && <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>}
     </header>
   );
 }
 
 /** The phone's More screen: the rest of the same menu, in the same order. */
+/**
+ * The phone's More screen — `Menu.dc.html`.
+ *
+ * Tiles, two across, grouped the way the menu is grouped, with everything the
+ * sidebar holds on a computer plus everything the command palette holds. The
+ * owner's tools are in their own block and an agent never sees it: the lists
+ * in `nav.ts` already know which role may open what, so this cannot drift.
+ *
+ * It was a list of rows, which is the computer shape and reaches about a third
+ * as many tools per screen of thumb-travel.
+ */
 export function V2More() {
   const { user } = useAuth();
   const role = user?.role ?? 'agent';
   const counts = useContext(Counts);
 
+  const blocks = [
+    ...groupsFor(role).map((group, i) => ({
+      label: group.label ?? 'Today',
+      items: group.items,
+      key: group.label ?? `top-${i}`,
+    })),
+    { label: 'Messages', items: MESSAGE_ITEMS, key: 'messages' },
+    { label: 'Everything else', items: [...pinnedFor(role), ...extraScreensFor(role)], key: 'rest' },
+  ];
+
+  /* A tool reached from two places is still one tool. */
+  const seen = new Set<string>();
+
   return (
     <div className="v2-more">
-      {groupsFor(role).map((group, i) => (
-        <section className="v2-more-group" key={group.label ?? `top-${i}`}>
-          {group.label && <h2>{group.label}</h2>}
-          {group.items.map((item) => (
-            <NavLink key={item.to} to={item.to} className="v2-more-row">
-              <Icon name={item.icon} />
-              <span className="v2-more-label">{item.label}</span>
-              {item.badge && (counts[item.badge] ?? 0) > 0 && (
-                <span className={item.urgent ? 'v2-badge v2-badge-urgent' : 'v2-badge'}>
-                  {counts[item.badge]}
-                </span>
-              )}
-              <Icon name="chevron-right" />
-            </NavLink>
-          ))}
-        </section>
-      ))}
+      {blocks.map((block) => {
+        const items = block.items.filter((one) => {
+          const key = `${one.to}|${one.label}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        if (items.length === 0) return null;
+        return (
+          <section key={block.key}>
+            <h2 className="v2-tiles-head">{block.label}</h2>
+            <div className="v2-tiles">
+              {items.map((item) => {
+                const n = 'badge' in item && item.badge ? counts[item.badge] ?? 0 : 0;
+                return (
+                  <NavLink key={`${item.to}|${item.label}`} to={item.to} className="v2-tile">
+                    <Icon name={item.icon} />
+                    <span className="v2-tile-label">{item.label}</span>
+                    {n > 0 && (
+                      <span
+                        className={'urgent' in item && item.urgent
+                          ? 'v2-tile-badge v2-tile-urgent' : 'v2-tile-badge'}
+                      >
+                        {n}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
 
-      <section className="v2-more-group">
-        {pinnedFor(role).map((item) => (
-          <NavLink key={item.to} to={item.to} className="v2-more-row">
-            <Icon name={item.icon} />
-            <span className="v2-more-label">{item.label}</span>
-            <Icon name="chevron-right" />
-          </NavLink>
-        ))}
-        <Link to="/v2/profile" className="v2-more-row">
-          <Avatar name={user?.name ?? '?'} />
-          <span className="v2-more-label">{user?.name ?? 'My profile'}</span>
-          <Icon name="chevron-right" />
-        </Link>
-      </section>
-
-      <section className="v2-more-group">
-        <h2>MESSAGES</h2>
-        {MESSAGE_ITEMS.map((item) => (
-          <NavLink key={item.to} to={item.to} className="v2-more-row">
-            <Icon name={item.icon} />
-            <span className="v2-more-label">{item.label}</span>
-            <Icon name="chevron-right" />
-          </NavLink>
-        ))}
-      </section>
+      <Link to="/v2/profile" className="v2-me-row">
+        <Avatar name={user?.name ?? '?'} />
+        <span className="d-grow">
+          <b>{user?.name ?? 'My profile'}</b>
+          <span>{role === 'agent' ? 'Agent' : role}</span>
+        </span>
+        <Icon name="chevron-right" />
+      </Link>
     </div>
   );
 }
+

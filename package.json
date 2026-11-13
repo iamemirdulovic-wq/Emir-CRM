@@ -23,6 +23,9 @@
     "demo": "npm run demo --workspace=server",
     "e2e": "node e2e/ui.mjs",
     "polish": "node e2e/polish.mjs",
-    "start:server-only": "npm run start --workspace=server"
+    "start:server-only": "npm run start --workspace=server",
+    "phone": "node e2e/phone.mjs",
+    "desktop:shots": "node scripts/desktop-shots.mjs",
+    "desktop:diff": "node scripts/desktop-diff.mjs"
   }
 }

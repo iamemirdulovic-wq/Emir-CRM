@@ -7,6 +7,7 @@ import { connectRealtime } from '../lib/realtime.js';
 import { formatTime } from '../lib/format.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
+import { useFullAttention } from './phone.js';
 import type {
   Contact360, Conversation, Message, StageKey, TemplateRow, ThreadResponse,
 } from '../lib/types.js';
@@ -85,6 +86,12 @@ export function V2Inbox() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [typed, setTyped] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  /*
+   * A thread is one of the phone design's four full-attention screens — see
+   * `phone.tsx`. While one is open the bottom bar goes away, which is also
+   * what gives the composer the bottom of the screen.
+   */
+  useFullAttention(openId !== null);
   const [version, setVersion] = useState(0);
   const search = useDebounced(typed);
 
