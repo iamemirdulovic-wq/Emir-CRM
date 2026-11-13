@@ -149,6 +149,11 @@ function myLeadRows() {
     phone_e164: lead.phone,
     email: null,
     owner_name: lead.owner ? 'Layla Hassan' : null,
+    /* Group A, phone build: the real list endpoint sends these two and the
+       VIP screens read them -- `is_vip` on the lead card and "VIP leads I
+       gave", `returned_at` for a hand-off that came back. */
+    is_vip: index % 7 === 0 ? 1 : 0,
+    returned_at: index % 21 === 0 ? at(-2) : null,
   }));
 }
 
@@ -2216,6 +2221,7 @@ const ROUTES: Route[] = [
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
       if (tab === 'overdue') return row.last_contact_at === null;
+      if (tab === 'vip') return row.is_vip === 1;
       if (tab === 'all') return true;
       return row.next_step_at !== null;
     });
@@ -3611,6 +3617,7 @@ const ROUTES: Route[] = [
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
       if (tab === 'overdue') return row.last_contact_at === null;
+      if (tab === 'vip') return row.is_vip === 1;
       if (tab === 'all') return true;
       return row.next_step_at !== null;
     });

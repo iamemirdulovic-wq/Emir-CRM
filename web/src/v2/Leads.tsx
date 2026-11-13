@@ -38,6 +38,29 @@ import { clockIn, originOf } from '../lib/dialling.js';
  *     remembered elsewhere.
  */
 
+/**
+ * Under this, the phone layout — `design/screens/Leads.dc.html` and
+ * `AllLeads.dc.html` rather than the two computer tables.
+ *
+ * The shell keeps its own copy of this number and this hook in `Shell.tsx`,
+ * which this group may not edit, and `Inbox.tsx` keeps a third for the same
+ * reason. Six lines repeated beats four people editing one file.
+ */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
 /** The tab strip, in the design's order. `hot` is a chip, not a tab. */
 const TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'today', label: 'Today' },
@@ -132,6 +155,46 @@ function nextStep(row: Row): { text: string; urgent: boolean; none: boolean } {
   return { text: `${late ? 'Overdue' : 'Due'} ${when}${note}`, urgent: late, none: false };
 }
 
+/**
+ * The human reason this lead is in front of you, for the phone card.
+ *
+ * `Leads.dc.html` writes a sentence here — "VIP · call within 24 min",
+ * "Follow-up overdue since 11:00", "No next step · plan one" — and colours it
+ * by how late it is. Every branch below is built from a column the list
+ * endpoint really sends; nothing is guessed.
+ */
+function reason(row: Row): { text: string; tone: 'red' | 'amber' | 'calm' } {
+  const clock = (value: string) => new Date(value).toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+
+  if (row.status === 'lost') return { text: 'Lost', tone: 'calm' };
+  if (row.returned_at) return { text: 'Came back to you · give it again', tone: 'red' };
+  if (row.is_vip === 1 && !row.last_contact_at) {
+    return { text: 'VIP · not called yet', tone: 'red' };
+  }
+  if (!row.next_step_at) {
+    return {
+      text: row.last_contact_at ? 'No next step · plan one' : 'Not called yet',
+      tone: 'amber',
+    };
+  }
+
+  const due = new Date(row.next_step_at);
+  const note = row.next_step_note ? ` · ${row.next_step_note}` : '';
+  if (due.getTime() < Date.now()) {
+    const sameDay = Math.floor((due.getTime() + 4 * 3_600_000) / 86_400_000)
+      === Math.floor((Date.now() + 4 * 3_600_000) / 86_400_000);
+    return {
+      text: sameDay
+        ? `Follow-up overdue since ${clock(row.next_step_at)}${note}`
+        : `Follow-up overdue since ${due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${note}`,
+      tone: 'red',
+    };
+  }
+  return { text: `Next ${whenShort(row.next_step_at)}${note}`, tone: 'calm' };
+}
+
 /** "Today 10:30", "Yesterday", "9 Nov" — the design's own shorthand. */
 function whenShort(value: string | null): string {
   if (!value) return 'Not yet';
@@ -155,8 +218,7 @@ function wanted(row: Row): string {
 }
 
 export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
-  /* §1.4: this screen's one round action in the shell's header. */
-  usePhoneHead({ action: { icon: 'plus', label: 'Add lead', to: '/v2/leads/new' } });
+  const isPhone = useIsPhone();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   /* Follow-ups is this screen opened on what is late. The tab is then not the
@@ -170,6 +232,18 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     { key: '', rows: [], pages: 1 },
   );
   const [loadingMore, setLoadingMore] = useState(false);
+  /*
+   * Select-to-move, on the owner's All leads — `AllLeads.dc.html`. Off until
+   * the owner asks for it, because a checkbox on every row turns a list you
+   * read into a form you fill in.
+   */
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTo, setMoveTo] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [moved, setMoved] = useState<Record<string, string>>({});
   /* On a phone the seven pills do not fit, so the strip scrolls. Landing on
      All with "Today, New, Overdue" on screen reads as the wrong tab being
      open, so the one that is open is brought into view. */
@@ -279,6 +353,254 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const count = rows.length < total
     ? <><b className="d-ink-2">{rows.length.toLocaleString()}</b> of {total.toLocaleString()} leads</>
     : <><b className="d-ink-2">{total.toLocaleString()}</b> {total === 1 ? 'lead' : 'leads'}</>;
+
+  /*
+   * §1.4: the live count goes under the title in the shell's header, not in a
+   * strip of its own. The design writes "62 open · 12 to call today"; the
+   * counts endpoint sends one number per tab and no open-lead total, so this
+   * says what it really knows. See `docs/v2/phone-questions-a.md`.
+   */
+  const headSub = wide
+    ? `Owner · ${(counts.data?.all ?? 0).toLocaleString()} leads · every agent`
+    : `${(counts.data?.all ?? 0).toLocaleString()} leads · ${todayCount} to call today`;
+  usePhoneHead({
+    title: wide ? 'All leads' : 'My leads',
+    sub: headSub,
+    action: { icon: 'plus', label: 'Add lead', to: '/v2/leads/new' },
+  });
+
+  const chosen = Object.keys(picked).filter((id) => picked[id]);
+
+  /** The design's own result line: what you are looking at, and in what order. */
+  const order = tab === 'today' || tab === 'overdue'
+    ? ' · most overdue first'
+    : tab === 'all' ? ' · newest first' : '';
+  const resultLine = search.trim()
+    ? `${rows.length} found for “${search.trim()}”`
+    : rows.length < total
+      ? `${rows.length} shown of ${total.toLocaleString()}${order}`
+      : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
+
+  async function doMove() {
+    if (!moveTo || chosen.length === 0) return;
+    setMoving(true);
+    setMoveError(null);
+    const who = (people.data?.items ?? []).find((one) => one.id === moveTo);
+    try {
+      /*
+       * One call per lead: the server has `POST /api/pipeline/opportunities/
+       * :id/reassign` and no bulk endpoint, and a reassign writes an activity
+       * and an audit row per lead, which is what the owner wants anyway.
+       */
+      for (const id of chosen) {
+        // eslint-disable-next-line no-await-in-loop -- sequential on purpose: a
+        // burst of twenty parallel reassigns is a denial of service on our own box.
+        await api.post(`/api/pipeline/opportunities/${id}/reassign`, { toUserId: moveTo });
+      }
+      setMoved((was) => {
+        const next = { ...was };
+        for (const id of chosen) next[id] = who?.name ?? 'the agent';
+        return next;
+      });
+      setMoveOpen(false);
+      setSelecting(false);
+      setPicked({});
+      setMoveTo(null);
+      leads.reload();
+    } catch (problem) {
+      setMoveError(problem instanceof Error ? problem.message : 'That did not go through.');
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  if (isPhone) {
+    return (
+      <div className={wide ? 'v2-leadlist p-all-leads v2-a-list' : 'v2-leadlist p-my-leads v2-a-list'}>
+        {/* The design opens with the search field, above the chips. */}
+        <label className="v2-a-search">
+          <Icon name="search" />
+          <input
+            type="search"
+            value={search}
+            aria-label={wide ? 'Search all leads' : 'Search my leads'}
+            placeholder="Search name, phone or project"
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+
+        {/* The owner's book narrows by agent first — `AllLeads.dc.html`. */}
+        {wide && !isAgent && (people.data?.items.length ?? 0) > 0 && (
+          <div className="v2-a-chips">
+            <button
+              type="button"
+              className={agent === '' ? 'v2-a-chip v2-a-chip-on' : 'v2-a-chip'}
+              onClick={() => narrow('agent', '')}
+            >
+              All agents
+            </button>
+            {(people.data?.items ?? [])
+              .filter((one) => one.is_active === 1 && one.role !== 'accountant')
+              .map((one) => (
+                <button
+                  key={one.id}
+                  type="button"
+                  className={agent === one.id ? 'v2-a-chip v2-a-chip-on' : 'v2-a-chip'}
+                  onClick={() => narrow('agent', one.id)}
+                >
+                  {one.name.split(' ')[0]}
+                </button>
+              ))}
+          </div>
+        )}
+
+        {!fixedTab && (
+          <div ref={tabStrip} className="v2-a-chips" role="tablist">
+            {TABS.map((one) => {
+              const on = !search.trim() && tab === one.key;
+              const n = counts.data?.[one.key];
+              return (
+                <button
+                  key={one.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  className={on ? 'v2-a-chip v2-a-chip-on' : 'v2-a-chip'}
+                  onClick={() => { setSearch(''); chooseTab(one.key); }}
+                >
+                  {one.label}{n ? ` · ${n.toLocaleString()}` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="v2-a-count-row">
+          <span className="v2-a-count">{leads.data ? resultLine : 'Loading…'}</span>
+          {wide
+            ? (
+              <button
+                type="button"
+                className="v2-a-textbtn"
+                onClick={() => { setSelecting(!selecting); setPicked({}); }}
+              >
+                {selecting ? 'Cancel' : 'Select to move'}
+              </button>
+            )
+            : (
+              <span className="v2-a-links">
+                <Link to="/v2/incoming">Free leads</Link>
+                <Link to="/v2/pipeline">Pipeline</Link>
+              </span>
+            )}
+        </div>
+
+        {/* Only over Today, and only when nothing is typed: the design's rule. */}
+        {!wide && tab === 'today' && !search.trim() && todayCount > 0 && (
+          <Link className="v2-a-start" to="/v2/calling">
+            <Icon name="zap" />Start calling · {todayCount} ready
+          </Link>
+        )}
+
+        {leads.error && <ErrorNote>{leads.error}</ErrorNote>}
+        {!leads.data && !leads.error && <Spinner />}
+
+        {leads.data && rows.length > 0 && (
+          wide
+            ? (
+              <div className="v2-a-allcard">
+                {rows.map((row) => (
+                  <AllLeadRow
+                    key={row.id}
+                    row={row}
+                    selecting={selecting}
+                    picked={picked[row.id] === true}
+                    movedTo={moved[row.id] ?? null}
+                    onTick={() => setPicked((was) => ({ ...was, [row.id]: !was[row.id] }))}
+                  />
+                ))}
+              </div>
+            )
+            : (
+              <div className="v2-a-cards">
+                {rows.map((row) => <PhoneLeadCard key={row.id} row={row} />)}
+              </div>
+            )
+        )}
+
+        {leads.data && rows.length === 0 && (
+          <div className="d-card v2-a-none">
+            <b>No lead found</b>
+            <p className="d-muted">
+              {search.trim()
+                ? `Nothing matches “${search.trim()}”. Check the spelling or add the lead.`
+                : leads.data.empty.hint}
+            </p>
+            <Link className="d-btn d-primary" to="/v2/leads/new">Add a new lead</Link>
+          </div>
+        )}
+
+        {rows.length > 0 && rows.length < total && (
+          <button type="button" className="d-btn v2-a-more" onClick={showMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : `Show ${Math.min(PAGE, total - rows.length)} more`}
+          </button>
+        )}
+
+        {/* The floating bar the design puts above the bottom bar. */}
+        {selecting && chosen.length > 0 && (
+          <button type="button" className="v2-a-movebar" onClick={() => setMoveOpen(true)}>
+            Move {chosen.length} {chosen.length === 1 ? 'lead' : 'leads'}
+          </button>
+        )}
+
+        {moveOpen && (
+          <>
+            <div className="d-scrim" onClick={() => setMoveOpen(false)} aria-hidden />
+            <div className="d-dialog d-open" role="dialog" aria-label="Move leads">
+              <div className="d-dialog-head">
+                <b>Move {chosen.length} {chosen.length === 1 ? 'lead' : 'leads'} to</b>
+                <button
+                  type="button"
+                  className="d-x"
+                  aria-label="Close"
+                  onClick={() => setMoveOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="d-dialog-body v2-a-targets">
+                {(people.data?.items ?? [])
+                  .filter((one) => one.is_active === 1 && one.role !== 'accountant')
+                  .map((one) => (
+                    <button
+                      key={one.id}
+                      type="button"
+                      className={moveTo === one.id ? 'v2-a-target v2-a-target-on' : 'v2-a-target'}
+                      onClick={() => setMoveTo(one.id)}
+                    >
+                      {one.name}
+                    </button>
+                  ))}
+              </div>
+              {moveError && <ErrorNote>{moveError}</ErrorNote>}
+              <div className="d-dialog-foot">
+                <button
+                  type="button"
+                  className="d-btn d-primary"
+                  disabled={moving}
+                  onClick={doMove}
+                >
+                  {moveTo
+                    ? `Move to ${(people.data?.items ?? []).find((o) => o.id === moveTo)?.name ?? 'them'} · notify them`
+                    : 'Pick who gets them'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={wide ? 'v2-leadlist p-all-leads' : 'v2-leadlist p-my-leads'}>
@@ -478,6 +800,116 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * One lead, as the phone draws it — `Leads.dc.html`.
+ *
+ * Two parts with a hairline between them. The top opens the lead: face, name,
+ * VIP, what they are looking at, and the stage. The bottom is the clock where
+ * they are, why this lead is in front of you, and the two round buttons that
+ * are the whole job — message and call. A row in the computer table is six
+ * lines tall at 390px; this is three.
+ */
+function PhoneLeadCard({ row }: { row: Row }) {
+  const why = reason(row);
+  const origin = originOf(row.phone_e164);
+  const local = origin ? clockIn(origin.timeZone) : null;
+  const phone = row.phone_e164 ?? '';
+  const to = `/v2/leads/${row.id}`;
+  const name = row.full_name ?? 'Unnamed lead';
+
+  return (
+    <div className="v2-a-card">
+      <Link className="v2-a-card-top" to={to} aria-label={`Open ${name}`}>
+        <Avatar name={name} size={46} />
+        <span className="v2-a-who">
+          <span className="v2-a-name-row">
+            <span className="v2-a-name" dir="auto">{name}</span>
+            {row.is_vip === 1 && <span className="v2-a-vip">VIP</span>}
+          </span>
+          <span className="v2-a-proj">
+            {[row.project_name, wanted(row)].filter(Boolean).join(' · ') || 'No project yet'}
+          </span>
+        </span>
+        <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
+          {STAGE_LABEL[row.stage_key] ?? row.stage_key}
+        </span>
+      </Link>
+
+      <div className="v2-a-card-foot">
+        <span className="v2-a-when">
+          {/* Twelve-hour, and only here: Emir asked for it by name on 10 Nov
+              so the column reads at a glance. */}
+          <span className="v2-a-local">
+            {origin && local ? `${origin.zoneLabel ?? origin.name} ${local.time}` : 'No number'}
+          </span>
+          <span className={`v2-a-note v2-a-note-${why.tone}`}>{why.text}</span>
+        </span>
+        {phone && (
+          <a
+            className="v2-a-rbtn v2-a-rbtn-wa"
+            href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Message ${name}`}
+          >
+            <Icon name="message-circle" />
+          </a>
+        )}
+        {phone && (
+          <a className="v2-a-rbtn v2-a-rbtn-call" href={`tel:${phone}`} aria-label={`Call ${name}`}>
+            <Icon name="phone" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One row of the owner's book — `AllLeads.dc.html`.
+ *
+ * A tight list inside one card rather than a stack of cards: the owner is
+ * scanning for the agent's name and the warning, not reading each lead.
+ */
+function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
+  row: Row;
+  selecting: boolean;
+  picked: boolean;
+  movedTo: string | null;
+  onTick: () => void;
+}) {
+  const why = reason(row);
+  const name = row.full_name ?? 'Unnamed lead';
+  const stage = STAGE_LABEL[row.stage_key] ?? row.stage_key;
+
+  return (
+    <div className="v2-a-allrow">
+      {selecting && (
+        <button
+          type="button"
+          className={picked ? 'v2-a-tick v2-a-tick-on' : 'v2-a-tick'}
+          aria-label={`Select ${name}`}
+          aria-pressed={picked}
+          onClick={onTick}
+        >
+          {picked ? '✓' : ''}
+        </button>
+      )}
+      <Link className="v2-a-allwho" to={`/v2/leads/${row.id}`}>
+        <span className="v2-a-name" dir="auto">{name}</span>
+        <span className="v2-a-proj">
+          {[row.project_name ?? 'No project yet', stage, row.is_vip === 1 ? 'VIP' : null]
+            .filter(Boolean).join(' · ')}
+        </span>
+        {why.tone !== 'calm' && <span className="v2-a-warn">{why.text}</span>}
+      </Link>
+      <span className={movedTo ? 'v2-a-agpill v2-a-agpill-moved' : 'v2-a-agpill'}>
+        {movedTo ?? row.owner_name ?? 'Incoming'}
+      </span>
     </div>
   );
 }

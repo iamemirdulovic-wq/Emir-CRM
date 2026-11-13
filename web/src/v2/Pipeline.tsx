@@ -5,6 +5,7 @@ import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The board, from `design/web/pipeline.html`.
@@ -20,7 +21,30 @@ import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
  * come from `/api/pipeline/board`, the percentages are those totals over
  * their own sum, and the "open leads" count is every stage except Won and
  * Lost. Nothing here is worked out from the handful of cards on screen.
+ *
+ * **Under 768px it is not a board at all.** `design/screens/Pipeline.dc.html`
+ * draws a scrolling row of stage chips and then one vertical list of cards
+ * for the open stage, with the stage model written out in prose at the foot.
+ * `docs/v2/phone-shell.md` §5.4: "There is no horizontal drag anywhere in the
+ * 68 files." The board as it stands shows one and a half of six columns at
+ * 390px and the rest are five sideways drags away.
  */
+
+/** Under this, the phone layout. See the note in `Leads.tsx` about the copy. */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 interface Card {
   id: string;
@@ -65,9 +89,12 @@ const STAGE: Record<string, { label: string; tone: string }> = {
 const SHOW = 5;
 
 export function V2Pipeline() {
+  const isPhone = useIsPhone();
   const { user } = useAuth();
   const seesEveryone = user?.role !== 'agent';
 
+  /* Which stage the phone is showing. One at a time, as the design has it. */
+  const [open1, setOpen1] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [project, setProject] = useState('');
   const [agent, setAgent] = useState('');
@@ -111,6 +138,17 @@ export function V2Pipeline() {
     });
   }, [loaded]);
 
+  /* §1.4: the live count belongs under the title in the shell's header. It is
+     read off the board before the early returns below, so that the hook runs
+     on every render — `hook-order.test.ts` exists because it once did not. */
+  const openNow = (board.data?.columns ?? [])
+    .filter((one) => one.stageKey !== 'lost' && one.stageKey !== 'won')
+    .reduce((sum, one) => sum + one.total, 0);
+  usePhoneHead({
+    title: 'Pipeline',
+    sub: `${openNow.toLocaleString('en-GB')} open leads by stage · Won is counted apart`,
+  });
+
   if (board.error) return <ErrorNote>{board.error}</ErrorNote>;
   if (!board.data) return <Spinner />;
 
@@ -122,6 +160,100 @@ export function V2Pipeline() {
      the board, Lost included, which is how the design reads it. */
   const everything = board.data.columns.reduce((sum, one) => sum + one.total, 0);
   const open = columns.reduce((sum, one) => (one.stageKey === 'won' ? sum : sum + one.total), 0);
+
+  if (isPhone) {
+    /* The design opens on Interested — the stage with work in it — and falls
+       back to the first column when that stage is not on the board. */
+    const fallback = columns.find((one) => one.stageKey === 'engaged_qualified')
+      ?? columns[0];
+    const here = columns.find((one) => one.stageKey === open1) ?? fallback;
+    const seat = here ? columns.findIndex((one) => one.stageKey === here.stageKey) : -1;
+    const nextStage = seat >= 0 ? columns[seat + 1] : undefined;
+
+    return (
+      <div className="v2-pipe p-pipeline v2-a-pipe">
+        <div className="v2-a-chips">
+          {columns.map((column) => (
+            <button
+              key={column.stageKey}
+              type="button"
+              aria-pressed={here?.stageKey === column.stageKey}
+              className={here?.stageKey === column.stageKey
+                ? 'v2-a-stagetile v2-a-stagetile-on' : 'v2-a-stagetile'}
+              onClick={() => setOpen1(column.stageKey)}
+            >
+              <span className="v2-a-stagetile-name">
+                {STAGE[column.stageKey]?.label ?? column.stageName}
+              </span>
+              <span className="v2-a-stagetile-n">{column.total.toLocaleString('en-GB')}</span>
+            </button>
+          ))}
+        </div>
+
+        {here && (
+          <div className="v2-a-pipe-title">
+            {STAGE[here.stageKey]?.label ?? here.stageName} · {here.total.toLocaleString('en-GB')}
+            {here.total === 1 ? ' lead' : ' leads'}
+            {here.cards.length < here.total ? ` · the ${here.cards.length} newest shown` : ''}
+          </div>
+        )}
+
+        <div className="v2-a-cards">
+          {(here?.cards ?? []).map((card) => {
+            const next = latest(card);
+            return (
+              <div className="v2-a-pcard" key={card.id}>
+                <Link className="v2-a-pcard-top" to={`/v2/leads/${card.id}`}>
+                  <span className="v2-a-pcard-who">
+                    <span className="v2-a-pcard-name">{nameOf(card)}</span>
+                    <span className="v2-a-pcard-meta">{describe(card)}</span>
+                  </span>
+                  <span className={next.urgent ? 'v2-a-pcard-last v2-a-pcard-late' : 'v2-a-pcard-last'}>
+                    {next.text}
+                  </span>
+                </Link>
+                <div className="v2-a-pcard-foot">
+                  <Link className="v2-a-pcard-open" to={`/v2/leads/${card.id}`}>
+                    {here?.stageKey === 'won'
+                      ? 'Open the deal'
+                      : nextStage
+                        ? `Open the lead · next stage: ${STAGE[nextStage.stageKey]?.label ?? nextStage.stageName}`
+                        : 'Open the lead'}
+                  </Link>
+                  {card.phone_e164 && (
+                    <a
+                      className="v2-a-rbtn v2-a-rbtn-call"
+                      href={`tel:${card.phone_e164}`}
+                      aria-label={`Call ${nameOf(card)}`}
+                    >
+                      <Icon name="phone" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {(here?.cards.length ?? 0) === 0 && (
+            <div className="d-card v2-a-none"><b>No leads in this stage.</b></div>
+          )}
+        </div>
+
+        {/* The rule, printed at the foot — the design's own words. */}
+        <p className="v2-a-pipe-rule">
+          A lead changes stage by itself when you call, book a meeting, send an
+          offer or mark it Won on the lead page. Stages: New → Called →
+          Interested → Meeting → Offer → Won. Lost is kept apart.
+        </p>
+
+        {lost && lost.total > 0 && (
+          <Link className="v2-a-lost" to="/v2/leads?tab=lost">
+            Lost · {lost.total.toLocaleString('en-GB')} · see all
+          </Link>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="v2-pipe p-pipeline">

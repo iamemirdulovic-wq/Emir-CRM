@@ -7,8 +7,11 @@ import { sourceStyle } from '../design/stages.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
+import { spacedE164 } from '../design/phone.js';
 import { TransferLead } from './TransferLead.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
+import { usePhoneHead } from './phone.js';
+import { LeadNotes } from '../components/LeadNotes.js';
 
 /**
  * One lead, and everything you can do to it.
@@ -128,6 +131,29 @@ export function V2Lead() {
   const [said, setSaid] = useState<string | null>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
 
+  /*
+   * §1.4 / the audit: the shell draws the header, so this page must not draw
+   * a title of its own — two titles appeared, "My leads" over the record.
+   * `Lead.dc.html` gives this screen no page title at all: the header *is*
+   * the record, back button then stage and score. The nearest the shell can
+   * do is carry the name and those two pills, which is what this says.
+   *
+   * It is above the early returns on purpose: a hook after a `return` runs on
+   * the second render and not the first, and blanks the page. That has
+   * happened on this very page before — `hook-order.test.ts`.
+   */
+  const loaded = detail.data?.lead;
+  usePhoneHead({
+    title: loaded?.full_name ?? 'Lead',
+    sub: loaded
+      ? [
+        STAGE_LABEL[loaded.stage_key] ?? loaded.stage_key,
+        loaded.lead_score === null ? null : `Score ${loaded.lead_score}`,
+        loaded.owner_name ? `with ${loaded.owner_name}` : 'in Incoming',
+      ].filter(Boolean).join(' · ')
+      : '',
+  });
+
   if (detail.error) return <ErrorNote>{detail.error}</ErrorNote>;
   if (!detail.data) return <Spinner />;
 
@@ -151,13 +177,19 @@ export function V2Lead() {
         <aside className="d-lcol">
           <section className="d-card">
             <span className="d-sec-label">Phone</span>
+            {/*
+              * Grouped for reading aloud. The calling screen has printed
+              * `+971 50 123 4567` since it was built and this one printed the
+              * raw `+971501234567` — and this is the one an agent dictates
+              * from. `tel:` still carries the unspaced number.
+              */}
             <a
               className="d-lead-phone"
               href={phone ? `tel:${phone}` : undefined}
               dir="ltr"
               title={phone ? 'Call' : undefined}
             >
-              {phone || 'No number'}
+              {spacedE164(phone) ?? 'No number'}
             </a>
             <div className="d-lead-name" dir="auto">{lead.full_name ?? 'Unnamed lead'}</div>
 
@@ -318,12 +350,26 @@ export function V2Lead() {
               ))}
             </div>
 
+            {/*
+              * Notes, for real.
+              *
+              * The tab said "not built yet · phase 4" while `/api/notes` has
+              * been complete since phase 2 — list, add, pin, edit, restore,
+              * attachments and voice files — and `components/LeadNotes.tsx`
+              * already drives all of it. `Notes.dc.html` asks for the type
+              * chip, the PINNED badge, who and when, the quick phrases, the
+              * hold-to-record voice note and the reminder, and that
+              * component has every one of them. What it has not got is the
+              * transcript, the AI-extracted fields and the four named
+              * folders, because the server stores none of those — see
+              * `docs/v2/phone-questions-a.md`.
+              */}
             {tab === 'notes' && (
-              <div className="d-empty">
-                <span className="d-ic"><Icon name="pencil" size={26} /></span>
-                <b>Notes are not built yet</b>
-                <p>Notes, voice notes and reminders arrive in phase 4.</p>
-              </div>
+              <LeadNotes
+                contactId={lead.contact_id}
+                opportunityId={lead.id}
+                onLeadChanged={detail.reload}
+              />
             )}
 
             {tab === 'timeline' && (
@@ -381,8 +427,15 @@ export function V2Lead() {
             {tab === 'files' && (
               <div className="d-empty">
                 <span className="d-ic"><Icon name="paperclip" size={26} /></span>
-                <b>Files are not built yet</b>
-                <p>Photos, booking forms and ID arrive in phase 4.</p>
+                <b>Files live on a note</b>
+                <p>
+                  A photo, a booking form or a voice note is attached to the note
+                  it belongs to, so it keeps the words that go with it. Open
+                  Notes to add one or to look at what is there.
+                </p>
+                <button type="button" className="d-btn d-sm" onClick={() => setTab('notes')}>
+                  Open Notes
+                </button>
               </div>
             )}
           </section>

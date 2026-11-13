@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { spacedE164 } from '../design/phone.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Incoming: the leads nobody is working on.
@@ -75,22 +76,30 @@ export function V2Incoming() {
 
 function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
   const [taking, setTaking] = useState<string | null>(null);
-  const [said, setSaid] = useState<string | null>(null);
+  /* `to` is set when the message is about a lead that is now yours, so the
+     confirmation has a way through to it — `Incoming.dc.html` replaces the
+     card with "{name} is now your lead. It is in My Leads." and an **Open
+     the lead and call** link, and the build's banner was a dead end. */
+  const [said, setSaid] = useState<{ text: string; to: string | null } | null>(null);
 
   const normal = free.filter((lead) => !lead.isVip).length;
   const vip = free.length - normal;
+  usePhoneHead({ sub: 'Free leads · first agent to take it gets it' });
 
   async function take(lead: FreeLead) {
     setTaking(lead.id);
     setSaid(null);
     try {
       await api.post(`/api/v2/incoming/${lead.id}/take`, {});
-      setSaid(`${lead.name ?? 'The lead'} is now in My leads · call today`);
+      setSaid({
+        text: `${lead.name ?? 'The lead'} is now your lead. It is in My leads.`,
+        to: `/v2/leads/${lead.id}`,
+      });
       reload();
     } catch (err) {
       /* "Somebody was quicker" is the usual one, and it is not an error the
          agent did anything about — it is said plainly and the list refreshes. */
-      setSaid(err instanceof Error ? err.message : 'That did not work.');
+      setSaid({ text: err instanceof Error ? err.message : 'That did not work.', to: null });
       reload();
     } finally {
       setTaking(null);
@@ -99,7 +108,12 @@ function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
 
   return (
     <div className="p-incoming v2-incoming">
-      {said && <p className="v2-said">{said}</p>}
+      {said && (
+        <p className="v2-said">
+          {said.text}
+          {said.to && <> <Link className="d-card-link" to={said.to}>Open the lead and call</Link></>}
+        </p>
+      )}
 
       <div className="d-inc-grid">
         <div>
@@ -116,8 +130,8 @@ function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
             <div className="d-card">
               <div className="d-empty">
                 <span className="d-ic"><Icon name="inbox" size={26} /></span>
-                <b>No free leads now</b>
-                <p>You took them all. New free leads show up here.</p>
+                <b>Incoming is empty</b>
+                <p>Every lead has an agent. New free leads show up here.</p>
                 <Link className="d-btn d-sm" to="/v2/leads">Open My leads</Link>
               </div>
             </div>
@@ -174,6 +188,7 @@ function OwnerView({ data, reload }: {
   const [giving, setGiving] = useState<FreeLead | null>(null);
   const { user } = useAuth();
   const me = user?.name ?? 'You';
+  usePhoneHead({ sub: 'Owner view · give each lead a home' });
 
   const normal = useMemo(() => data.free.filter((lead) => !lead.isVip), [data.free]);
   /* The people a lead can actually go to: everyone not marked unavailable,

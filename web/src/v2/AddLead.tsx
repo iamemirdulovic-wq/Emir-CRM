@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -7,6 +8,7 @@ import { Avatar } from '../design/ui.js';
 import {
   COUNTRIES, DEFAULT_COUNTRY, flagOf, readPhone, type Country,
 } from '../design/phone.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Add a lead.
@@ -77,6 +79,22 @@ const LANGUAGES = [
   { code: 'ru', label: 'Russian' }, { code: 'hi', label: 'Hindi' },
   { code: 'ur', label: 'Urdu' }, { code: 'fr', label: 'Other' },
 ];
+/** Under this, the phone layout. See the note in `Leads.tsx` about the copy. */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
+
 const WITHIN: Array<{ value: 15 | 30 | 60 | null; label: string }> = [
   { value: 15, label: '15 min' },
   { value: 30, label: '30 min' },
@@ -124,6 +142,7 @@ interface Duplicate {
 interface Agent { id: string; name: string; open_leads: number }
 
 export function V2AddLead() {
+  const isPhone = useIsPhone();
   const { user } = useAuth();
   const isOwner = user?.role !== 'agent';
   const sources = isOwner ? OWNER_SOURCES : AGENT_SOURCES;
@@ -159,6 +178,10 @@ export function V2AddLead() {
   const [problem, setProblem] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
   const [saved, setSaved] = useState<{ opportunityId: string; name: string } | null>(null);
+
+  /* §1.4: the shell draws the header, so without this it reads "My leads"
+     over a form for adding one — the audit found two titles on this screen. */
+  usePhoneHead({ title: 'Add a lead', sub: 'Name, phone and lead source are needed' });
 
   const phone = useMemo(() => readPhone(phoneRaw, country), [phoneRaw, country]);
   const whatsapp = useMemo(() => readPhone(whatsappRaw, country), [whatsappRaw, country]);
@@ -341,6 +364,7 @@ export function V2AddLead() {
                     {ccOpen && (
                       <CountryMenu
                         chosen={country}
+                        sheet={isPhone}
                         onPick={(picked) => { setCountry(picked); setCcOpen(false); }}
                         onClose={() => setCcOpen(false)}
                       />
@@ -813,9 +837,17 @@ function Check({ duplicate, checking, phone }: {
   );
 }
 
-/** The country picker: search, region chips, then the list. */
-function CountryMenu({ chosen, onPick, onClose }: {
+/**
+ * The country picker: search, region chips, then the list.
+ *
+ * On a computer it is a dropdown anchored under the code button. On a phone
+ * it is a full bottom sheet with its own title and close button, which is
+ * what `AddLead.dc.html` draws and the only shape that works: a 320px menu
+ * hanging off a button holds four countries above the keyboard.
+ */
+function CountryMenu({ chosen, sheet, onPick, onClose }: {
   chosen: Country;
+  sheet: boolean;
   onPick: (country: Country) => void;
   onClose: () => void;
 }) {
@@ -849,15 +881,28 @@ function CountryMenu({ chosen, onPick, onClose }: {
     return REGION[country.iso] === region;
   });
 
-  return (
-    <div className="d-menu d-open d-id-cc-menu v2-cc-menu" ref={box}>
+  const body = (
+    <>
+    {sheet && <div className="d-scrim v2-a-ccdim" onClick={onClose} aria-hidden />}
+    <div
+      className={sheet ? 'd-menu d-open d-id-cc-menu v2-cc-menu v2-a-ccsheet' : 'd-menu d-open d-id-cc-menu v2-cc-menu'}
+      ref={box}
+      role={sheet ? 'dialog' : undefined}
+      aria-label={sheet ? 'Choose country' : undefined}
+    >
+      {sheet && (
+        <div className="v2-a-cchead">
+          <b>Choose country</b>
+          <button type="button" className="d-x" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+      )}
       <div className="d-input-icon">
         <Icon name="search" size={15} />
         <input
           className="d-input d-sm"
           value={term}
           autoFocus
-          placeholder="Country or code"
+          placeholder={sheet ? 'Search country or code, e.g. India or +91' : 'Country or code'}
           onChange={(e) => setTerm(e.target.value)}
         />
       </div>
@@ -875,7 +920,9 @@ function CountryMenu({ chosen, onPick, onClose }: {
       </div>
       <div className="d-id-cc-list">
         {rows.length === 0 ? (
-          <div className="d-small d-muted v2-cc-none">No country found.</div>
+          <div className="d-small d-muted v2-cc-none">
+            {sheet ? 'No country found. Try the code, e.g. +44' : 'No country found.'}
+          </div>
         ) : rows.map((country) => (
           <button
             key={country.iso}
@@ -890,7 +937,25 @@ function CountryMenu({ chosen, onPick, onClose }: {
         ))}
       </div>
     </div>
+    </>
   );
+
+  /*
+   * The sheet is moved up to the shell's own root.
+   *
+   * It lives five levels down inside `.d-add-grid`, and that element is the
+   * one the shell's rise-in animates — an animated transform makes a
+   * stacking context, so everything inside it is painted below the floating
+   * bottom bar whatever z-index it carries. The bar sat on top of the
+   * country list.
+   *
+   * It goes to `.v2`, not to `document.body`: every rule in this app is
+   * written `.v2 .d-…`, so a sheet outside that element renders with no
+   * styling at all. The computer's dropdown stays where it is, because it is
+   * anchored to the button it hangs off.
+   */
+  const root = typeof document === 'undefined' ? null : document.querySelector('.v2');
+  return sheet && root ? createPortal(body, root) : body;
 }
 
 /**

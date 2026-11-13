@@ -111,7 +111,19 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
             </div>
           )}
 
-          {languagesIn(all).length > 1 && (
+          {/*
+            * A VIP lead gets the banner and nothing else.
+            *
+            * `server/src/v2/transfers.ts` refuses one outright — "A VIP lead
+            * cannot be passed sideways" — so filling the form in could only
+            * ever end in that error, and `TransferLead.dc.html` draws the
+            * blocked state instead of the form for exactly that reason.
+            */}
+          {isVip && (
+            <button type="button" className="d-btn d-full" onClick={onCancel}>Close</button>
+          )}
+
+          {!isVip && languagesIn(all).length > 1 && (
             <div className="d-field">
               <span className="d-field-label">Language</span>
               <div className="d-chips">
@@ -136,6 +148,8 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
             </div>
           )}
 
+          {!isVip && (
+          <>
           <div className={bad(to === null)}>
             <span className="d-field-label">
               Give to <span className="d-t-accent">*</span>{' '}
@@ -215,8 +229,11 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
           </ul>
 
           {problem && <div className="d-banner d-red"><span className="d-grow">{problem}</span></div>}
+          </>
+          )}
         </div>
 
+        {!isVip && (
         <div className="d-panel-foot">
           <button type="button" className="d-btn d-ghost" onClick={onCancel}>Cancel</button>
           <span className="d-grow" />
@@ -224,6 +241,7 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
             {busy ? 'Asking…' : chosen ? `Send request to ${chosen.name}` : 'Send request'}
           </button>
         </div>
+        )}
       </aside>
     </>
   );

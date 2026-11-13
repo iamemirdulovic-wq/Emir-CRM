@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * The full dashboard — `design/web/dashboard.html`, page 32.
@@ -30,6 +31,22 @@ import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
  * list — real work, each with somewhere to go. Nothing here is a machine's
  * opinion dressed as one, and nothing is invented.
  */
+
+/** Under this, the phone layout. See the note in `Leads.tsx` about the copy. */
+const PHONE = 768;
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
+}
 
 interface AgentRow {
   userId: string;
@@ -178,6 +195,7 @@ function Spark({ days }: { days: number[] }) {
 }
 
 export function V2Dashboard() {
+  const isPhone = useIsPhone();
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin';
   const [period, setPeriod] = useState<Period>('today');
@@ -212,6 +230,14 @@ export function V2Dashboard() {
       setAsked(null);
     }
   }
+
+  /*
+   * §1.4: the title and the live line go in the shell's header. The design's
+   * sub is the company's name and "all leads"; the company's name is not on
+   * this payload, so this says what the page is instead of hard-coding a
+   * brand into a screen — `docs/v2/phone-questions-a.md`.
+   */
+  usePhoneHead({ title: 'Dashboard', sub: 'Every agent · lead totals are always now' });
 
   if (!canSee) {
     return (
@@ -561,8 +587,44 @@ export function V2Dashboard() {
                 </div>
               </div>
 
-              {/* Side-scrolls on a phone rather than squeezing seven columns
-                  into 390px: see `.v2-dash-scroll` in v2-shell.css. */}
+              {/*
+                * On a phone this was a seven-column table whose last cell
+                * ended 282px past the right edge, reachable only by dragging
+                * inside the card with nothing saying so. `OwnerDashboard.dc
+                * .html` draws five narrow columns that fit 390px — agent,
+                * then four numbers — so that is what a phone gets. The two
+                * that go are "Where", which the attendance strip above
+                * already says, and the sparkline, which is unreadable at
+                * that width.
+                */}
+              {isPhone
+                ? (
+                  <div className="v2-a-team">
+                    <div className="v2-a-team-head">
+                      <span className="v2-a-team-name">Agent</span>
+                      <span>Open</span>
+                      <span>Calls</span>
+                      <span>Mtg</span>
+                      <span>Overdue</span>
+                    </div>
+                    {d.agents.map((row) => (
+                      <Link className="v2-a-team-row" key={row.userId} to={`/v2/team/${row.userId}`}>
+                        <Avatar name={row.name} src={row.photoUrl ?? undefined} size={34} />
+                        <span className="v2-a-team-name">{row.name}</span>
+                        <span>{count(row.open)}</span>
+                        <span>{count(row.calls)}</span>
+                        <span className="v2-a-team-good">{count(row.meetings)}</span>
+                        <span className={row.overdue > 0 ? 'v2-a-team-bad' : undefined}>
+                          {count(row.overdue)}
+                        </span>
+                      </Link>
+                    ))}
+                    {d.agents.length === 0 && (
+                      <p className="d-small d-muted">No agents yet.</p>
+                    )}
+                  </div>
+                )
+                : (
               <div className="v2-dash-scroll">
               <table className="d-table d-compact d-id-team">
                 <thead>
@@ -612,6 +674,7 @@ export function V2Dashboard() {
                 </tbody>
               </table>
               </div>
+                )}
 
               <div className="d-card-foot">
                 <Icon name="info" />
