@@ -94,3 +94,43 @@ same job. They are on the list to build.
 
 **Feedback inbox** is in your design nav. There is no feedback system in the
 CRM at all, so I left the link out rather than pointing at nothing.
+
+---
+
+## 7 · System health has no uptime bars
+
+**The decision.** `design/web/system-health.html` draws a thirty-day bar per
+service and a list of past problems. **Nothing in the CRM records uptime
+history**, so those bars would be decoration — drawn green because nobody is
+counting, which is worse than not drawing them.
+
+**What the page shows instead** is what is true right now, checked when you
+open it: which services are connected, who has no phone registered for alerts,
+and whether the website form has gone quiet. The page says plainly that there
+is no history yet.
+
+**What I need from you.** Whether recording uptime is worth building. It means
+a check running every few minutes and a table to keep the results in.
+
+---
+
+## 8 · Feedback keeps a report's screen, and "it stops me working" sorts first
+
+**The decision.** When somebody reports a bug, the page they were on is saved
+automatically rather than asked for. It is the first question anybody would
+ask back, and an agent who has to answer it before they can report usually
+does not report.
+
+**And the urgency is two choices, not three.** "Normal" and "It stops me
+working". A blocking report sorts above everything else in your inbox
+whatever its date — an agent who cannot do their job today buried under last
+week's ideas is the thing this ordering exists to prevent.
+
+---
+
+## 9 · Five home banners, enforced on the server
+
+**The decision.** The design says up to five. That is checked on the server,
+not just by greying out the button — six banners rotating is not five plus
+one, it is a carousel nobody waits through, and the sixth is the one nobody
+ever sees. Switching an old one back on counts against the five too.

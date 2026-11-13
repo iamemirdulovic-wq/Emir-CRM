@@ -36,6 +36,14 @@ import {
   officeRules, saveOfficeRules, saveSchema as rulesSchema,
 } from '../../v2/office-rules.js';
 import {
+  answerFeedback, answerSchema as feedbackAnswerSchema, feedbackInbox, myFeedback,
+  sendFeedback, sendSchema, type FeedbackStatus,
+} from '../../v2/feedback.js';
+import {
+  bannerSchema, createBanner, deleteBanner, listBanners, reorderBanners, updateBanner,
+} from '../../v2/banners.js';
+import { websiteConnection } from '../../services/integration-status.js';
+import {
   createSheet, deleteDraft, getSheet, listSheets, markAccepted, markShared,
   patchSchema, sheetSchema, SHEET_TABS, updateSheet, type SheetTab,
 } from '../../v2/offers.js';
@@ -670,6 +678,126 @@ v2Router.get(
   }),
 );
 
+/* ── feedback ──────────────────────────────────────────────────────────── */
+
+/**
+ * "Report a bug or an idea."
+ *
+ * Anybody may send one and see their own. The inbox and the replies are the
+ * owner's: an agent reading everybody's complaints is not what this is for.
+ */
+v2Router.post(
+  '/feedback',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.status(201).json(await sendFeedback(user.id, sendSchema.parse(req.body)));
+  }),
+);
+
+v2Router.get(
+  '/feedback/mine',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json({ items: await myFeedback(user.id) });
+  }),
+);
+
+v2Router.get(
+  '/feedback',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const asked = String(req.query.filter ?? 'all');
+    const known = ['all', 'blocking', 'new', 'planned', 'fixed', 'declined'];
+    res.json(await feedbackInbox(
+      (known.includes(asked) ? asked : 'all') as FeedbackStatus | 'all' | 'blocking',
+    ));
+  }),
+);
+
+v2Router.patch(
+  '/feedback/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await answerFeedback(
+      { ...actorFrom(req), id: user.id }, String(req.params.id),
+      feedbackAnswerSchema.parse(req.body),
+    ));
+  }),
+);
+
+/* ── the banners on My Day ─────────────────────────────────────────────── */
+
+v2Router.get(
+  '/banners',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ items: await listBanners() });
+  }),
+);
+
+v2Router.post(
+  '/banners',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.status(201).json(await createBanner(actorFrom(req), bannerSchema.parse(req.body)));
+  }),
+);
+
+v2Router.patch(
+  '/banners/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await updateBanner(
+      actorFrom(req), String(req.params.id), bannerSchema.partial().parse(req.body),
+    ));
+  }),
+);
+
+v2Router.delete(
+  '/banners/:id',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await deleteBanner(actorFrom(req), String(req.params.id)));
+  }),
+);
+
+v2Router.post(
+  '/banners/order',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({ ids: z.array(z.string().max(36)).max(20) }).parse(req.body);
+    res.json({ items: await reorderBanners(actorFrom(req), body.ids) });
+  }),
+);
+
+/* ── is anything actually working ──────────────────────────────────────── */
+
+/**
+ * System health.
+ *
+ * `design/web/system-health.html`. Every one of these fails silently and
+ * separately — email answers inside a conversation nobody is reading, push
+ * has no devices so the five-minute rule only works while the CRM is open —
+ * so the point of the screen is that they are counted in one place, from the
+ * same places the features themselves read.
+ */
+v2Router.get(
+  '/health',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const [setup, website, push] = await Promise.all([
+      setupChecklist(), websiteConnection(), pushReadiness(),
+    ]);
+    res.json({
+      services: setup.items,
+      outstanding: setup.outstanding,
+      website,
+      push,
+    });
+  }),
+);
+
 /* ── what the CRM does on its own ──────────────────────────────────────── */
 
 /**
@@ -873,13 +1001,14 @@ v2Router.get(
   '/settings-summary',
   requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
-    const [attendance, automations, company, spend, push, setup] = await Promise.all([
+    const [attendance, automations, company, spend, push, setup, feedback] = await Promise.all([
       attendanceSettings(),
       listAutomations(),
       companyDetails(),
       monthSpend(),
       pushReadiness(),
       setupChecklist(),
+      feedbackInbox('new'),
     ]);
 
     res.json({
@@ -903,6 +1032,7 @@ v2Router.get(
          counts the things that are switched on, from the same places the
          features read. */
       health: { ok: setup.items.length - setup.outstanding, total: setup.items.length },
+      feedback: { open: feedback.items.length },
     });
   }),
 );

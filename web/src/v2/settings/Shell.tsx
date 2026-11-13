@@ -36,11 +36,10 @@ const OFFICE: Section[] = [
   { to: '/v2/settings/attendance', icon: 'pin', label: 'Attendance rules', ownerOnly: true },
   { to: '/v2/settings/automations', icon: 'zap', label: 'Automations', ownerOnly: true },
   { to: '/v2/settings/company', icon: 'building', label: 'Company', ownerOnly: true },
+  { to: '/v2/settings/banners', icon: 'megaphone', label: 'Home banners', ownerOnly: true },
   { to: '/v2/settings/ai', icon: 'sparkles', label: 'Homes AI', ownerOnly: true },
   { to: '/v2/settings/health', icon: 'shield', label: 'System health', ownerOnly: true },
-  /* The design also lists a Feedback inbox. There is no feedback system in
-     the CRM yet — not a half-built one, none — so the link is left out
-     rather than pointing at an empty page. */
+  { to: '/v2/settings/feedback', icon: 'inbox', label: 'Feedback inbox', ownerOnly: true },
 ];
 
 /**

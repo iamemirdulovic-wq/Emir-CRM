@@ -57,7 +57,12 @@ import { V2SettingsNotifications } from './v2/settings/Notifications.js';
 import { V2SettingsCompany } from './v2/settings/Company.js';
 import { V2SettingsAttendance } from './v2/settings/Attendance.js';
 import { V2SettingsAi } from './v2/settings/Ai.js';
-import { V2SettingsHealth, V2SettingsPhoneApp, V2SettingsTeam } from './v2/settings/Soon.js';
+import { V2SettingsHealth } from './v2/settings/Health.js';
+import { V2SettingsTeam } from './v2/settings/Team.js';
+import { V2SettingsPhoneApp } from './v2/settings/PhoneApp.js';
+import { V2FeedbackInbox } from './v2/settings/FeedbackInbox.js';
+import { V2SettingsBanners } from './v2/settings/Banners.js';
+import { V2Feedback } from './v2/Feedback.js';
 import { V2Activity } from './v2/Activity.js';
 import { V2Lead } from './v2/Lead.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
@@ -158,6 +163,9 @@ export function App() {
           <Route path="/v2/settings/company" element={<V2SettingsCompany />} />
           <Route path="/v2/settings/ai" element={<V2SettingsAi />} />
           <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
+          <Route path="/v2/settings/feedback" element={<V2FeedbackInbox />} />
+          <Route path="/v2/settings/banners" element={<V2SettingsBanners />} />
+          <Route path="/v2/feedback" element={<V2Feedback />} />
           {/* The old address kept working, since it is in the nav of every
               screen already shipped. */}
           <Route path="/v2/automations" element={<V2Automations />} />

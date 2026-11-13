@@ -62,3 +62,13 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
 - **Not done.** Making a plan from this screen opens Tasks rather than a
   panel of its own. Dragging a plan to another time is not built.
 - **Failed.** Nothing.
+
+## Settings pages that had nothing behind them · 13 Nov
+
+- **Done.** Team and roles (people, who has alerts on, what each role can do),
+  System health, Phone app, Feedback inbox, Home banners, and the agent's own
+  "report a bug" page. Feedback and banners are new on the server, with tests;
+  both tables already existed from migration 0036 and had no routes.
+- **Not done.** Desks, the business card, manage projects and the messaging
+  report are still placeholders.
+- **Failed.** Nothing.

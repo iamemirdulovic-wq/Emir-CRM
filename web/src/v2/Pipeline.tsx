@@ -1,39 +1,43 @@
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { useAsync } from '../lib/hooks.js';
+import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 
 /**
- * The board.
+ * The board, from `design/web/pipeline.html`.
  *
- * `docs/v2/pages.md` §12. Six columns, every card a lead, and a card dragged
- * to another column moves the lead — through the same endpoint the live CRM
- * uses, so the board and the lead page cannot disagree about what a stage
- * change means.
+ * Six columns across, Lost kept apart in a strip underneath, and a note in
+ * the filter row that says out loud what the design decided: **no drag.** A
+ * stage changes when somebody saves a call, a meeting, an offer or Won on the
+ * lead itself, which is what `LeadAction` already does. Dragging a card was
+ * the one way to move a lead without recording *why* it moved, and a Lost
+ * with no reason and a Won with no unit teach nobody anything.
  *
- * Two things the design insists on and this keeps:
- *  - **Lost needs a reason.** Dropping a card on Lost opens the question
- *    rather than moving it quietly; a lost lead with no reason teaches nobody
- *    anything, and it is the one number an owner actually reads.
- *  - **Won is a celebration, not a filing cabinet.** The move is confirmed
- *    first, because it is the one nobody wants to undo.
+ * Everything with a number on it is counted by the server: the column totals
+ * come from `/api/pipeline/board`, the percentages are those totals over
+ * their own sum, and the "open leads" count is every stage except Won and
+ * Lost. Nothing here is worked out from the handful of cards on screen.
  */
 
 interface Card {
   id: string;
   contact_id: string;
+  stage_key: string;
   title?: string | null;
   full_name?: string | null;
+  phone_e164?: string | null;
   project_name?: string | null;
+  unit_type?: string | null;
+  budget_band?: string | null;
+  owner_user_id?: string | null;
   owner_name?: string | null;
-  lead_score?: number | null;
-  score_band?: string | null;
-  next_step_at?: string | null;
-  is_vip?: number;
-  budget_max_aed?: number | null;
+  stage_changed_at?: string | null;
+  last_inbound_at?: string | null;
+  sla_due_at?: string | null;
+  sla_breached?: number | null;
 }
 
 interface Column {
@@ -44,194 +48,285 @@ interface Column {
   cards: Card[];
 }
 
-const LABEL: Record<string, string> = {
-  new_lead: 'New', attempted_contact: 'Called', engaged_qualified: 'Interested',
-  appointment_scheduled: 'Meeting', deal_sent: 'Offer', won: 'Won', lost: 'Lost',
+interface Person { id: string; name: string; role: string }
+
+/** The design's own words for our stage keys, and its colour class per column. */
+const STAGE: Record<string, { label: string; tone: string }> = {
+  new_lead: { label: 'New', tone: 'new' },
+  attempted_contact: { label: 'Called', tone: 'called' },
+  engaged_qualified: { label: 'Interested', tone: 'interested' },
+  appointment_scheduled: { label: 'Meeting', tone: 'meeting' },
+  deal_sent: { label: 'Offer', tone: 'offer' },
+  won: { label: 'Won', tone: 'won' },
+  lost: { label: 'Lost', tone: 'lost' },
 };
 
-const LOST_REASONS = [
-  { key: 'bought_elsewhere', label: 'Bought somewhere else' },
-  { key: 'budget_too_low', label: 'Budget too low' },
-  { key: 'just_browsing', label: 'Only looking' },
-  { key: 'not_reachable', label: 'Never reachable' },
-  { key: 'changed_plans', label: 'Changed their plans' },
-  { key: 'other', label: 'Something else' },
-];
+/** Five cards a column, then a link to the list. Straight from the design. */
+const SHOW = 5;
 
 export function V2Pipeline() {
   const { user } = useAuth();
-  const board = useAsync<{ columns: Column[] }>(() => api.get('/api/pipeline/board'), []);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [over, setOver] = useState<string | null>(null);
-  const [asking, setAsking] = useState<{ id: string; to: string } | null>(null);
-  const [reason, setReason] = useState<string | null>(null);
-  const [said, setSaid] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const seesEveryone = user?.role !== 'agent';
 
-  const move = useCallback(async (id: string, to: string, lostReason?: string) => {
-    setBusy(true);
-    try {
-      await api.post(`/api/pipeline/opportunities/${id}/stage`, {
-        to,
-        ...(lostReason ? { lostReason } : {}),
-      });
-      setSaid(`Moved to ${LABEL[to] ?? to}.`);
-      board.reload();
-    } catch (err) {
-      setSaid(err instanceof Error ? err.message : 'That did not move.');
-    } finally {
-      setBusy(false);
-      setAsking(null);
-      setReason(null);
-    }
-  }, [board]);
+  const [search, setSearch] = useState('');
+  const [project, setProject] = useState('');
+  const [agent, setAgent] = useState('');
+  const typed = useDebounced(search.trim(), 300);
+
+  const query = new URLSearchParams();
+  if (typed) query.set('search', typed);
+  if (project) query.set('projectName', project);
+  if (agent) query.set('ownerUserId', agent);
+
+  const board = useAsync<{ columns: Column[] }>(
+    () => api.get(`/api/pipeline/board?${query.toString()}`),
+    [typed, project, agent],
+  );
+
+  /* The agent list is the team, not the agents who happen to have a card on
+     the board — an owner looking for "who has nothing in Offer" needs to be
+     able to pick the person with nothing. */
+  const team = useAsync<{ items: Person[] }>(
+    () => (seesEveryone ? api.get('/api/v2/team') : Promise.resolve({ items: [] })),
+    [seesEveryone],
+  );
+
+  /*
+   * The projects in the dropdown are the ones on the board, remembered.
+   *
+   * Picking a project narrows the board to it, and reading the list back off
+   * the narrowed board would leave the dropdown holding one option — the one
+   * already chosen — with no way back. So the names only ever accumulate.
+   */
+  const [seen, setSeen] = useState<string[]>([]);
+  useEffect(() => {
+    if (!board.data) return;
+    setSeen((was) => {
+      const names = new Set(was);
+      for (const column of board.data.columns) {
+        for (const card of column.cards) if (card.project_name) names.add(card.project_name);
+      }
+      return names.size === was.length ? was : [...names].sort((a, b) => a.localeCompare(b));
+    });
+  }, [board.data]);
 
   if (board.error) return <ErrorNote>{board.error}</ErrorNote>;
   if (!board.data) return <Spinner />;
 
-  const columns = board.data.columns.filter((c) => c.stageKey !== 'lost');
-  const lost = board.data.columns.find((c) => c.stageKey === 'lost');
+  const filtered = Boolean(typed || project || agent);
+  const columns = board.data.columns.filter((one) => one.stageKey !== 'lost');
+  const lost = board.data.columns.find((one) => one.stageKey === 'lost');
 
-  function drop(stageKey: string) {
-    const id = dragging;
-    setDragging(null);
-    setOver(null);
-    if (!id) return;
-    /* Lost and Won both ask first — one needs a reason, the other is the one
-       move nobody wants to make by accident. */
-    if (stageKey === 'lost' || stageKey === 'won') {
-      setAsking({ id, to: stageKey });
-      return;
-    }
-    void move(id, stageKey);
-  }
+  /* The percentage in a column head is that stage's share of everything on
+     the board, Lost included, which is how the design reads it. */
+  const everything = board.data.columns.reduce((sum, one) => sum + one.total, 0);
+  const open = columns.reduce((sum, one) => (one.stageKey === 'won' ? sum : sum + one.total), 0);
 
   return (
-    <div className="v2-pipe">
-      <header className="v2-pipe-head">
-        <h1 className="v2-hi">Pipeline</h1>
-        <p className="d-muted">
-          Drag a lead to move it. {user?.role === 'agent' ? 'These are yours.' : 'Everyone’s.'}
-        </p>
-      </header>
+    <div className="v2-pipe p-pipeline">
+      <div className="d-filters v2-pipe-filters">
+        <div className="d-input-icon">
+          <Icon name="search" />
+          <input
+            className="d-input d-sm"
+            value={search}
+            aria-label="Name or project"
+            placeholder="Name or project"
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-      {said && <p className="v2-said">{said}</p>}
-
-      <div className="v2-board">
-        {[...columns, ...(lost ? [lost] : [])].map((column) => (
-          <section
-            key={column.stageKey}
-            className={over === column.stageKey ? 'v2-col v2-col-over' : 'v2-col'}
-            onDragOver={(e) => { e.preventDefault(); setOver(column.stageKey); }}
-            onDragLeave={() => setOver((was) => (was === column.stageKey ? null : was))}
-            onDrop={(e) => { e.preventDefault(); drop(column.stageKey); }}
+        {seesEveryone && (
+          <select
+            className="d-select d-sm"
+            value={agent}
+            aria-label="Agent"
+            onChange={(e) => setAgent(e.target.value)}
           >
-            <div className="v2-col-head">
-              <span className={`v2-stage-dot v2-dot-${column.stageKey}`} />
-              <h2>{LABEL[column.stageKey] ?? column.stageName}</h2>
-              <span className="v2-col-n">{column.total}</span>
-            </div>
+            <option value="">
+              Agent: all{team.data ? ` ${team.data.items.length}` : ''}
+            </option>
+            {team.data?.items.map((one) => (
+              <option key={one.id} value={one.id}>{one.name}</option>
+            ))}
+          </select>
+        )}
 
-            <ol className="v2-col-list">
-              {column.cards.map((card) => (
-                <li key={card.id}>
-                  <div
-                    className={dragging === card.id ? 'v2-card-lead v2-card-dragging' : 'v2-card-lead'}
-                    draggable
-                    onDragStart={() => setDragging(card.id)}
-                    onDragEnd={() => { setDragging(null); setOver(null); }}
-                  >
-                    <Link to={`/v2/leads/${card.id}`} className="v2-card-main">
-                      <Avatar name={card.full_name ?? card.title ?? '?'} />
-                      <span className="v2-card-who">
-                        <b>
-                          {card.full_name ?? card.title ?? 'Unnamed lead'}
-                          {card.is_vip === 1 && <span className="v2-vip">VIP</span>}
-                        </b>
-                        <span>{card.project_name ?? 'No project'}</span>
-                      </span>
-                    </Link>
-                    <span className="v2-card-foot">
-                      {card.owner_name && <span>{card.owner_name}</span>}
-                      {card.next_step_at && (
-                        <span className={new Date(card.next_step_at) < new Date() ? 'v2-late' : undefined}>
-                          {new Date(card.next_step_at).toLocaleDateString('en-GB', {
-                            day: 'numeric', month: 'short',
-                          })}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </li>
-              ))}
-              {column.cards.length === 0 && <li className="v2-col-empty">Nothing here</li>}
-              {column.total > column.cards.length && (
-                <li className="v2-col-more">
-                  <Link to={`/v2/leads?tab=all&stage=${column.stageKey}`}>
-                    {column.total - column.cards.length} more
-                  </Link>
-                </li>
-              )}
-            </ol>
-          </section>
-        ))}
+        <select
+          className="d-select d-sm"
+          value={project}
+          aria-label="Project"
+          onChange={(e) => setProject(e.target.value)}
+        >
+          <option value="">Project: all</option>
+          {seen.map((one) => <option key={one} value={one}>{one}</option>)}
+        </select>
+
+        <span className="d-grow" />
+
+        <span className="d-how">
+          <Icon name="lock" size={14} />
+          No drag. A stage changes when you save a call, a meeting, an offer or Won.
+        </span>
+
+        <span className="d-result-count">
+          {filtered
+            ? `${columns.reduce((n, one) => n + one.cards.length, 0) + (lost?.cards.length ?? 0)} found`
+            : `${open.toLocaleString('en-GB')} open lead${open === 1 ? '' : 's'}${
+              seesEveryone && !agent ? ' · every agent' : ''}`}
+        </span>
       </div>
 
-      {asking && (
-        <div className="v2-scrim" role="dialog" aria-modal="true">
-          <div className="v2-dialog">
-            {asking.to === 'lost' ? (
-              <>
-                <h2>Why is it lost?</h2>
-                <p>A lost lead with no reason teaches nobody anything.</p>
-                <div className="v2-chips">
-                  {LOST_REASONS.map((one) => (
-                    <button
-                      key={one.key}
-                      type="button"
-                      className={reason === one.key ? 'v2-chip-opt v2-chip-opt-on' : 'v2-chip-opt'}
-                      onClick={() => setReason(one.key)}
-                    >
-                      {one.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="v2-dialog-acts">
-                  <button
-                    type="button"
-                    className="d-btn d-danger d-solid"
-                    disabled={!reason || busy}
-                    onClick={() => reason && move(asking.id, 'lost', reason)}
-                  >
-                    Mark it lost
-                  </button>
-                  <button type="button" className="d-btn d-ghost" onClick={() => setAsking(null)}>
-                    Keep it open
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>Won?</h2>
-                <p>This is the one nobody wants to press by accident.</p>
-                <div className="v2-dialog-acts">
-                  <button
-                    type="button"
-                    className="d-btn d-primary"
-                    disabled={busy}
-                    onClick={() => move(asking.id, 'won')}
-                  >
-                    <Icon name="trophy" />Yes — they bought
-                  </button>
-                  <button type="button" className="d-btn d-ghost" onClick={() => setAsking(null)}>
-                    Not yet
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+      <div className="d-kanban">
+        {columns.map((column) => {
+          const tone = STAGE[column.stageKey]?.tone ?? 'new';
+          const shown = column.cards.slice(0, SHOW);
+          /* When a filter is on, the server has already counted only the
+             matches, so "+N more" is still the honest difference. */
+          const more = column.total - shown.length;
+
+          return (
+            <section className={`d-kb-col d-${tone}`} key={column.stageKey}>
+              <div className="d-kb-head">
+                <span className={`d-chip d-stage-${tone}`}>
+                  {STAGE[column.stageKey]?.label ?? column.stageName}
+                </span>
+                <span className="d-grow" />
+                {/* Won is a running total of every unit ever booked, not a
+                    share of what is open, so it carries no percentage. */}
+                {column.stageKey !== 'won' && everything > 0 && (
+                  <span className="d-pc">{Math.round((column.total / everything) * 100)}%</span>
+                )}
+                <b className="d-ct">{column.total.toLocaleString('en-GB')}</b>
+              </div>
+              <div className="d-kb-bar" />
+
+              {shown.map((card) => (
+                <LeadCard key={card.id} card={card} showAgent={seesEveryone} />
+              ))}
+
+              {shown.length === 0 && (
+                <div className="d-small d-muted d-center v2-kb-none">No leads here</div>
+              )}
+
+              {more > 0 && (
+                <Link className="d-kb-more" to="/v2/leads?tab=all">+ {more} more</Link>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      {lost && (
+        <div className="d-lost-strip">
+          <span className="d-chip d-stage-lost">Lost</span>
+          <b className="d-bold">{lost.total.toLocaleString('en-GB')}</b>
+          <span className="d-small d-muted">kept apart · not counted in open leads</span>
+          <span className="d-row d-gap-8 v2-lost-cards">
+            {lost.cards.slice(0, 2).map((card) => (
+              <Link className="d-kb-card" key={card.id} to={`/v2/leads/${card.id}`}>
+                <b>{nameOf(card)}</b>
+                <span className="d-t-sub">{describe(card)}</span>
+              </Link>
+            ))}
+          </span>
+          <span className="d-grow" />
+          <Link className="d-card-link" to="/v2/leads?tab=lost">
+            See all lost <Icon name="arrow-right" size={14} />
+          </Link>
         </div>
       )}
     </div>
   );
+}
+
+/* ── one card ──────────────────────────────────────────────────────────── */
+
+function LeadCard({ card, showAgent }: { card: Card; showAgent: boolean }) {
+  const next = latest(card);
+
+  return (
+    <div className="d-kb-card">
+      {/*
+       * The whole card opens the lead, as the design has it. The link is
+       * stretched over the card rather than wrapped around it because Call
+       * sits inside, and an anchor cannot hold another anchor.
+       */}
+      <Link className="v2-kb-hit" to={`/v2/leads/${card.id}`} aria-label={nameOf(card)} />
+
+      <div className="d-nm"><b>{nameOf(card)}</b></div>
+      <span className="d-t-sub">{describe(card)}</span>
+
+      <div className="d-ft">
+        {showAgent && card.owner_name && (
+          <Avatar name={card.owner_name} size={20} className="v2-kb-who" />
+        )}
+        <span className={next.urgent ? 'd-nx d-red' : 'd-nx'}>{next.text}</span>
+        {card.phone_e164 && (
+          <a className="d-btn d-xs v2-kb-call" href={`tel:${card.phone_e164}`}>
+            <Icon name="phone" size={14} />Call
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function nameOf(card: Card): string {
+  return card.full_name ?? card.title ?? 'No name yet';
+}
+
+/** "The Archive · 2BR" — the project, then whatever we know about the unit. */
+function describe(card: Card): string {
+  const unit = card.unit_type ?? card.budget_band ?? null;
+  return [card.project_name ?? 'No project yet', unit].filter(Boolean).join(' · ');
+}
+
+/**
+ * The one line under a card: where this lead stands, and whether it is late.
+ *
+ * Deliberately short of what the design draws. Its cards say things like
+ * "Site visit Thu 11:00", which is the lead's next step — and the board
+ * endpoint does not send `next_step_at`, so inventing a plausible one here
+ * would be worse than being brief. What the board does send is the clock, the
+ * last reply and when the stage last changed, and all three are true.
+ */
+function latest(card: Card): { text: string; urgent: boolean } {
+  if (card.sla_due_at) {
+    const minutes = Math.round((new Date(card.sla_due_at).getTime() - Date.now()) / 60_000);
+    if (minutes >= 0) return { text: `Call within ${minutes} min`, urgent: true };
+  }
+  if (card.sla_breached) return { text: 'Nobody called in time', urgent: true };
+  if (card.last_inbound_at) return { text: `Replied ${ago(card.last_inbound_at)}`, urgent: false };
+  if (!card.stage_changed_at) return { text: 'Nothing recorded yet', urgent: false };
+
+  const verb = VERB[card.stage_key] ?? 'Here since';
+  return { text: `${verb} ${when(card.stage_changed_at)}`, urgent: false };
+}
+
+const VERB: Record<string, string> = {
+  new_lead: 'Arrived',
+  attempted_contact: 'Called',
+  engaged_qualified: 'Interested since',
+  appointment_scheduled: 'Meeting booked',
+  deal_sent: 'Offer sent',
+  won: 'Booked',
+  lost: 'Closed',
+};
+
+/** "11:19" today, "4 Nov" before that. Dubai is UTC+4, with no summer time. */
+function when(at: string): string {
+  const then = new Date(at);
+  if (Number.isNaN(then.getTime())) return '';
+  const day = (ms: number) => new Date(ms + 4 * 3_600_000).toISOString().slice(0, 10);
+  return day(then.getTime()) === day(Date.now())
+    ? then.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : then.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function ago(at: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(at).getTime()) / 60_000));
+  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)} h ago`;
+  return `${Math.round(minutes / (60 * 24))} d ago`;
 }

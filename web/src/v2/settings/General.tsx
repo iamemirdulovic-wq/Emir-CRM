@@ -343,6 +343,7 @@ interface Summary {
   company: { missing: number };
   ai: { spentUsd: string; capUsd: string };
   health: { ok: number; total: number };
+  feedback: { open: number };
 }
 
 const SHORTCUTS: Shortcut[] = [
@@ -373,6 +374,12 @@ const SHORTCUTS: Shortcut[] = [
   {
     to: '/v2/settings/health', icon: 'shield', label: 'System health',
     detail: (s) => `${s.health.ok} of ${s.health.total} services are set up`,
+  },
+  {
+    to: '/v2/settings/feedback', icon: 'inbox', label: 'Feedback inbox',
+    detail: (s) => (s.feedback.open === 0
+      ? 'Bugs and ideas from the team'
+      : `${s.feedback.open} waiting for an answer`),
   },
 ];
 
