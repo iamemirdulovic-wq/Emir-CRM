@@ -91,6 +91,16 @@ const ROUTES = [
   ['/v2/settings/ai', 'v2-settings-ai'],
   ['/v2/settings/automations', 'v2-settings-automations'],
   ['/v2/settings/team', 'v2-settings-team'],
+  ['/v2/settings/desks', 'v2-settings-desks'],
+  ['/v2/card', 'v2-card'],
+  ['/v2/messaging', 'v2-messaging'],
+  ['/v2/projects/manage', 'v2-manage-projects'],
+  ['/v2/feedback', 'v2-feedback'],
+  ['/v2/settings/feedback', 'v2-settings-feedback'],
+  ['/v2/settings/banners', 'v2-settings-banners'],
+  ['/v2/settings/health', 'v2-settings-health'],
+  ['/v2/settings/phone-app', 'v2-settings-phone-app'],
+  ['/v2/team/u-2', 'v2-team-member'],
 ];
 
 const VIEWPORTS = [['desktop', 1440, 1000], ['mobile', 390, 844]];

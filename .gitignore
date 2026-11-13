@@ -27,3 +27,6 @@ server/var/emir-crm.key
 # Database dumps. They hold every client in the business; they never go in git.
 *.sql.gz
 crm-backups/
+shots*/
+web/dist-polish*/
+/*.mjs

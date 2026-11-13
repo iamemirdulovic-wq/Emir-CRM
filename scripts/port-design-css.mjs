@@ -338,6 +338,7 @@ const PAGES = [
   ['home-banners.html', 'home banners', 'p-banners'],
   ['messaging-report.html', 'the messaging report', 'p-messaging'],
   ['install-guide.html', 'the install guide', 'p-install'],
+  ['add-lead.html', 'adding a lead', 'p-add-lead'],
 ];
 
 const pageCss = PAGES.map(([file, what, pageClass]) => {
