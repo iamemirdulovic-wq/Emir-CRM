@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
+import { sourceStyle } from '../design/stages.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
@@ -424,7 +425,7 @@ export function V2Lead() {
               <Row label="Language" value={lead.language} />
             </dl>
             <dl className="d-kv d-mt-12 v2-leadpage-wants-foot">
-              <Row label="Source" value={lead.source} />
+              <Row label="Source" value={sourceStyle(lead.source).label} />
               <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
             </dl>
           </section>
