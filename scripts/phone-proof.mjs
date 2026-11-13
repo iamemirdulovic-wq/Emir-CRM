@@ -68,7 +68,7 @@ export const SCREENS = [
   ['attendance', 'Attendance', '/v2/attendance', 'agent'],
   ['team-attendance', 'TeamAttendance', '/v2/attendance', 'owner'],
   ['work-outside', 'WorkOutside', '/v2/attendance', 'agent', { click: /working outside/i }],
-  ['leave-request', 'LeaveRequest', '/v2/attendance', 'agent', { click: /ask for days off/i }],
+  ['leave-request', 'LeaveRequest', '/v2/attendance', 'agent', { click: [/^Leave/, /ask for days off/i] }],
   ['leave-approvals', 'LeaveApprovals', '/v2/attendance', 'owner', { click: /leave/i }],
   ['transfers', 'Transfers', '/v2/transfers', 'agent'],
   ['transfer-lead', 'TransferLead', '/v2/leads/o-1', 'agent', { click: 'button.d-tr-link' }],
@@ -167,14 +167,16 @@ for (const [key, design, route, role, how = {}] of list) {
       await page.goto(`${BASE}/?as=${role}#${route}`, { waitUntil: 'networkidle' });
     }
     await page.waitForTimeout(900);
-    if (how.click) {
-      const target = typeof how.click === 'string' && how.click.includes('.')
-        ? page.locator(how.click).first()
-        : page.getByRole('button', { name: how.click }).first();
-      const also = page.getByRole('tab', { name: how.click }).first();
-      if (await target.count() > 0) await target.click().catch(() => {});
-      else if (await also.count() > 0) await also.click().catch(() => {});
-      else missed.push(`${key}: nothing matched ${how.click} in the build`);
+    /* A list, because some of these sit behind a tab: open the tab, then
+       the sheet. One string is the same thing with one step. */
+    for (const step of [how.click].flat().filter(Boolean)) {
+      const target = typeof step === 'string' && step.includes('.')
+        ? page.locator(step).first()
+        : page.getByRole('button', { name: step }).first();
+      const also = page.getByRole('tab', { name: step }).first();
+      if (await also.count() > 0) await also.click().catch(() => {});
+      else if (await target.count() > 0) await target.click().catch(() => {});
+      else missed.push(`${key}: nothing matched ${step} in the build`);
       await page.waitForTimeout(700);
     }
     await shoot(page, path.join(SHOTS, `${key}-${theme}.png`));
