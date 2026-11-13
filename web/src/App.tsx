@@ -50,6 +50,7 @@ import { V2Projects } from './v2/Projects.js';
 import { V2Wall } from './v2/Wall.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
+import { V2Offers } from './v2/Offers.js';
 import { V2SettingsGeneral } from './v2/settings/General.js';
 import { V2SettingsNotifications } from './v2/settings/Notifications.js';
 import { V2SettingsCompany } from './v2/settings/Company.js';
@@ -136,7 +137,7 @@ export function App() {
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
           <Route path="/v2/projects" element={<V2Projects />} />
-          <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
+          <Route path="/v2/offers" element={<V2Offers />} />
           <Route path="/v2/team" element={<V2Team />} />
           <Route path="/v2/team/:id" element={<V2Person />} />
           <Route path="/v2/wall" element={<V2Wall />} />

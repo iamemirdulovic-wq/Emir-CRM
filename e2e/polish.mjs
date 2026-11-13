@@ -70,6 +70,7 @@ const ROUTES = [
   /* Settings, one route per panel: they share a shell but each lays its
      own page out, and the Company page's two columns are exactly the kind
      of thing that only breaks at one width. */
+  ['/v2/offers', 'v2-offers'],
   ['/v2/settings', 'v2-settings'],
   ['/v2/settings/notifications', 'v2-settings-notifications'],
   ['/v2/settings/company', 'v2-settings-company'],

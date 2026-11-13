@@ -2,6 +2,50 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Sales offers
+
+Built from `design/web/sales-offers.html`, and it is a much smaller thing than
+the offer builder in the original brief — in the design's own words: *"A sales
+offer is a one-page price sheet for one unit. You share the link yourself in
+WhatsApp. The CRM shows when the client opens it."*
+
+Four numbers across the top, tabs for All · Draft · Shared · Accepted with
+their counts, search and filters, and the list. Opening one shows the sheet as
+the client will see it, whether they have actually opened it and how often, the
+private link, and Share on WhatsApp or Telegram.
+
+**Nothing here sends anything.** Making an offer writes a draft. "Share on
+WhatsApp" opens WhatsApp with the message written and the link in it, and the
+agent presses send; the CRM records that it went out. That is the design's
+decision and it is the right one — an offer carries a price a client will hold
+the brokerage to.
+
+What the rules enforce, in the database and not only on screen: an offer can
+only be built on a lead that person may work; the valid-until day cannot be in
+the past; an offer cannot be marked accepted before it has been shared; and an
+offer the client has already been sent cannot be deleted — deleting the record
+does not unsend it, and a price somebody was quoted is worth keeping.
+
+**The price is an integer of whole AED, and it is shown in full.** The first
+version abbreviated it, so a unit at 2,050,000 appeared on the sheet as "AED
+2.0M" — a fifty thousand dirham difference on a document a client holds you
+to. Only the four tiles at the top round, where a month's total is a sense of
+scale rather than a figure anybody quotes.
+
+Migration 0037 adds four columns to the existing `offers` table and touches
+none of the builder's: the unit label, the price, the payment plan, and when
+the client said yes. "Accepted" is a timestamp rather than a new status value,
+because changing an ENUM means `ALTER ... MODIFY`, which the migration guard
+refuses on a live table and is right to — and because this table already works
+that way, with "opened" and "reading now" read from the views rather than
+stored.
+
+On a phone the eight-column table becomes one card per offer, since a table
+that wide is either a sideways scroll nobody finds or a squeeze that clips the
+price.
+
+Server 2,770 tests. Web 483. Polish: 212 screens, nothing overflowing.
+
 ## Settings, rebuilt from the design file
 
 Emir, looking at the Settings screen being typed: *"Wait what design you make

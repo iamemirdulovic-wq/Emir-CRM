@@ -32,6 +32,10 @@ import { companyDetails, companyIssues } from '../../config/company.js';
 import { monthSpend, usd } from '../../ai/usage.js';
 import { pushReadiness } from '../../services/integration-status.js';
 import { setupChecklist } from '../../services/setup-checklist.js';
+import {
+  createSheet, deleteDraft, getSheet, listSheets, markAccepted, markShared,
+  patchSchema, sheetSchema, SHEET_TABS, updateSheet, type SheetTab,
+} from '../../v2/offers.js';
 import { newId } from '../../lib/ids.js';
 import { writeAudit } from '../../audit/audit.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
@@ -659,6 +663,134 @@ v2Router.get(
         openLeads: r.openLeads === null ? null : Number(r.openLeads),
       })),
       canSeeNumbers: isOwner,
+    });
+  }),
+);
+
+/* ── sales offers ──────────────────────────────────────────────────────── */
+
+/**
+ * The offer sheets.
+ *
+ * `design/web/sales-offers.html`. Everything is scoped by the session's role
+ * inside the service, so there is no parameter here that widens what anybody
+ * can see — `agent` filters within what the caller may already read.
+ */
+v2Router.get(
+  '/offers',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const asked = String(req.query.tab ?? 'all');
+    const tab = (SHEET_TABS as readonly string[]).includes(asked) ? (asked as SheetTab) : 'all';
+    res.json(await listSheets({ id: user.id, role: user.role }, {
+      tab,
+      search: req.query.q ? String(req.query.q) : undefined,
+      projectId: req.query.project ? String(req.query.project) : undefined,
+      agentUserId: req.query.agent ? String(req.query.agent) : undefined,
+    }));
+  }),
+);
+
+v2Router.get(
+  '/offers/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await getSheet({ id: user.id, role: user.role }, String(req.params.id)));
+  }),
+);
+
+v2Router.post(
+  '/offers',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const made = await createSheet(
+      { ...actorFrom(req), id: user.id, role: user.role },
+      sheetSchema.parse(req.body),
+    );
+    res.status(201).json(made);
+  }),
+);
+
+v2Router.patch(
+  '/offers/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await updateSheet(
+      { ...actorFrom(req), id: user.id, role: user.role },
+      String(req.params.id),
+      patchSchema.parse(req.body),
+    ));
+  }),
+);
+
+/* Shared and accepted are two separate facts, so they are two routes rather
+   than one status field a client could set to anything. */
+v2Router.post(
+  '/offers/:id/shared',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await markShared(
+      { ...actorFrom(req), id: user.id, role: user.role }, String(req.params.id),
+    ));
+  }),
+);
+
+v2Router.post(
+  '/offers/:id/accepted',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await markAccepted(
+      { ...actorFrom(req), id: user.id, role: user.role }, String(req.params.id),
+    ));
+  }),
+);
+
+v2Router.delete(
+  '/offers/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    res.json(await deleteDraft(
+      { ...actorFrom(req), id: user.id, role: user.role }, String(req.params.id),
+    ));
+  }),
+);
+
+/**
+ * The leads and projects the new-offer form chooses between.
+ *
+ * Only open leads this person may work, so an agent's list is their own. One
+ * request rather than two, because the form needs both before it can be used.
+ */
+v2Router.get(
+  '/offers-form',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const scope = ownerPredicate('o.owner_user_id', await visibleUserIds(user));
+    const [leads, projects] = await Promise.all([
+      query<{ id: string; name: string; project: string | null; projectId: string | null }>(
+        `SELECT o.id, c.full_name AS name, p.name AS project, o.project_id AS projectId
+           FROM opportunities o
+           JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+           LEFT JOIN projects p ON p.id = o.project_id
+          WHERE ${scope.sql} AND o.status = 'open'
+          ORDER BY o.updated_at DESC
+          LIMIT 300`,
+        scope.params,
+      ),
+      query<{ id: string; name: string; priceFrom: string | number | null }>(
+        /* The design shows "The Archive starts from AED 1.6M" under the price
+           field, so the form needs the starting price with the name. */
+        `SELECT id, name, starting_price_aed AS priceFrom FROM projects
+          WHERE archived_at IS NULL ORDER BY name LIMIT 200`,
+        [],
+      ),
+    ]);
+    res.json({
+      leads,
+      /* BIGINT arrives as a string from mysql2 once it is large enough. */
+      projects: projects.map((row) => ({
+        ...row, priceFrom: row.priceFrom === null ? null : Number(row.priceFrom),
+      })),
     });
   }),
 );

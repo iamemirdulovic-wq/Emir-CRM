@@ -430,3 +430,18 @@
 .v2 .p-automations .d-tb-say {font-size:15px;line-height:1.5;color:#fff;padding-top:16px;border-top:1px solid var(--hero-line)}
 .v2 .p-automations .d-tb-say b {color:var(--accent)}
 .v2 .p-automations .d-card.d-hero .d-vip-tag {flex:none}
+
+/* ── sales offers (sales-offers.html) · scoped to .p-offers ───────────── */
+.v2 .p-offers [hidden] {display:none!important}
+.v2 .p-offers .d-so-top {display:flex;align-items:flex-end;gap:44px;margin:10px 0 20px}
+.v2 .p-offers .d-so-stat {display:flex;flex-direction:column;gap:6px}
+.v2 .p-offers .d-so-top .d-btn {align-self:center}
+.v2 .p-offers .d-id-so td {height:52px}
+.v2 .p-offers .d-doc {border-radius:18px;padding:18px;box-shadow:inset 0 0 0 1px var(--line-2);display:flex;flex-direction:column;gap:14px;background:var(--surface)}
+.v2 .p-offers .d-doc-brand {font-size:17px;font-weight:750;letter-spacing:-.03em}
+.v2 .p-offers .d-doc-brand span {color:var(--accent)}
+.v2 .p-offers .d-doc-price {display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:14px;background:var(--surface-2)}
+.v2 .p-offers .d-doc-price b {font-size:30px;font-weight:740;letter-spacing:-.03em}
+.v2 .p-offers .d-pub-link {display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--surface-2);font-weight:600;font-size:13px}
+.v2 .p-offers .d-pub-link>i, .v2 .p-offers .d-pub-link>svg {color:var(--ink-3)}
+.v2 .p-offers .d-btn>svg {width:16px;height:16px;flex:none}

@@ -1331,3 +1331,76 @@
 /* A design page with nothing behind it yet: what it will do, as a list. */
 .v2-soon-list {margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;
   font-size:13px;color:var(--ink-2)}
+
+/* ── Sales offers ────────────────────────────────────────────────────────
+ *
+ * `design/web/sales-offers.html` opens its panels with a script; in React the
+ * panel is simply mounted, so what is needed here is the scrim behind it and
+ * the few states the design's demo draws in JavaScript.
+ */
+
+/* Behind an open panel. Dismisses on a tap, which is what everyone tries. */
+.v2-panel-back {
+  position:fixed; inset:0; z-index:79; background:rgba(15,14,18,.28);
+  backdrop-filter:blur(2px); animation:v2-fade-in .18s ease;
+}
+@keyframes v2-fade-in { from { opacity:0 } to { opacity:1 } }
+@media (prefers-reduced-motion: reduce) { .v2-panel-back { animation:none } }
+
+/* A row of the offer table is a link to the offer. */
+.v2 .v2-offer-row { cursor:pointer; }
+.v2 .v2-offer-row:hover { background:var(--surface-2); }
+.v2 .v2-offer-row td { height:52px; }
+.v2 .v2-offer-row td:last-child { color:var(--ink-4); width:28px; }
+
+/* The panel holds a document preview, which wants the room. */
+.v2 .v2-offer-panel { width:520px; }
+
+/* ── Sales offers on a phone ─────────────────────────────────────────────
+ *
+ * The design's offers list is a table, and a table of eight columns on a
+ * 390px screen is either a sideways scroll nobody finds or a squeeze that
+ * clips the price. Each row becomes a card instead: who and what state on
+ * the first line, the unit on the second, the price and the rest on the
+ * third. The same cells in the same order, laid out for a thumb.
+ */
+@media (max-width: 760px) {
+  .v2 .d-so-top { flex-wrap:wrap; gap:20px 28px; }
+  .v2 .d-so-top .d-btn { align-self:stretch; width:100%; }
+  .v2 .v2-offer-panel { width:auto; }
+
+  /* Four tabs plus their counts do not fit, so they scroll. */
+  .v2 .v2-offers .d-tabs { overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+  .v2 .v2-offers .d-tabs::-webkit-scrollbar { display:none; }
+  .v2 .v2-offers .d-tab { flex:none; }
+
+  /* The filters stack rather than squeezing the search box to nothing. */
+  .v2 .v2-offers .d-filters { flex-wrap:wrap; }
+  .v2 .v2-offers .d-filters .d-input-icon { width:100%; }
+  .v2 .v2-offers .d-filters .d-select { flex:1 1 140px; }
+
+  .v2 .v2-offer-table, .v2 .v2-offer-table tbody { display:block; width:100%; }
+  .v2 .v2-offer-table thead { display:none; }
+
+  .v2 .v2-offer-row {
+    display:grid; grid-template-columns:1fr auto; gap:2px 10px;
+    padding:12px 14px; border-bottom:1px solid var(--line);
+  }
+  .v2 .v2-offer-row td { display:block; height:auto; padding:0; border:0; }
+
+  /* Lead and status on the first line. */
+  .v2 .v2-offer-row td:nth-child(1) { grid-column:1; font-weight:650; }
+  .v2 .v2-offer-row td:nth-child(5) { grid-column:2; grid-row:1; justify-self:end; }
+  /* Project · unit on the second. */
+  .v2 .v2-offer-row td:nth-child(2) { grid-column:1; grid-row:2; }
+  .v2 .v2-offer-row td:nth-child(3) { grid-column:1; grid-row:3; }
+  /* Price, agent and date on the last, with the price leading. */
+  .v2 .v2-offer-row td:nth-child(4) {
+    grid-column:2; grid-row:2 / span 2; justify-self:end; align-self:center;
+    text-align:right; font-weight:650;
+  }
+  .v2 .v2-offer-row td:nth-child(6),
+  .v2 .v2-offer-row td:nth-child(7) { grid-column:1; font-size:12px; }
+  /* The chevron is noise once the whole card is the tap target. */
+  .v2 .v2-offer-row td:last-child { display:none; }
+}

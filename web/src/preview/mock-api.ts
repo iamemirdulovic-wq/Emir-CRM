@@ -1043,6 +1043,73 @@ Our clients are mostly investors from the GCC, Europe, India and CIS countries. 
 Write short and simple English. Say "booking", not other words for it. Never promise a price, a discount or a return.`,
 };
 
+/* ── sales offers ───────────────────────────────────────────────────────
+ *
+ * Deliberately mixed: a draft, two shared (one opened, one not) and an
+ * accepted one, because a demo where everything is in the same state never
+ * shows what the status column is for.
+ */
+interface PreviewOfferSheet {
+  id: string; slug: string; reference: string;
+  contactId: string | null; opportunityId: string | null; leadName: string | null;
+  projectId: string | null; projectName: string | null; unitLabel: string | null;
+  priceAed: number | null; paymentPlan: string | null; handover: string | null;
+  note: string | null; validUntil: string | null;
+  agentUserId: string; agentName: string | null;
+  status: 'draft' | 'shared' | 'accepted';
+  createdAt: string; sharedAt: string | null; acceptedAt: string | null;
+  opens: number; lastOpenedAt: string | null;
+}
+
+const offerState: PreviewOfferSheet[] = [
+  {
+    id: 'so-1', slug: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4', reference: 'SO-0148',
+    contactId: 'c-1', opportunityId: 'o-1', leadName: 'Ahmed Khan',
+    projectId: 'p-1', projectName: 'The Archive', unitLabel: '2BR · 1204',
+    priceAed: 2_050_000, paymentPlan: '60 / 40', handover: 'Q4 2027',
+    note: 'High floor, canal view. Price from the developer list of 10 Nov.',
+    validUntil: new Date(Date.now() + 6 * 86_400_000).toISOString(),
+    agentUserId: 'u-layla', agentName: 'Layla Hassan', status: 'shared',
+    createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    sharedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), acceptedAt: null,
+    opens: 4, lastOpenedAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+  },
+  {
+    id: 'so-2', slug: 'b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5', reference: 'SO-0147',
+    contactId: 'c-2', opportunityId: 'o-2', leadName: 'Fatima Al Marri',
+    projectId: 'p-2', projectName: 'Damac Islands', unitLabel: '3BR townhouse · TH-41',
+    priceAed: 4_300_000, paymentPlan: '40 / 60 post-handover', handover: 'Q2 2028',
+    note: null,
+    validUntil: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    agentUserId: 'u-omar', agentName: 'Omar Haddad', status: 'shared',
+    createdAt: new Date(Date.now() - 4 * 86_400_000).toISOString(),
+    sharedAt: new Date(Date.now() - 4 * 86_400_000).toISOString(), acceptedAt: null,
+    opens: 0, lastOpenedAt: null,
+  },
+  {
+    id: 'so-3', slug: 'c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6', reference: 'SO-0146',
+    contactId: 'c-3', opportunityId: 'o-3', leadName: 'Sergei Volkov',
+    projectId: 'p-1', projectName: 'The Archive', unitLabel: '1BR · 0908',
+    priceAed: 1_620_000, paymentPlan: '60 / 40', handover: 'Q4 2027', note: null,
+    validUntil: new Date(Date.now() + 9 * 86_400_000).toISOString(),
+    agentUserId: 'u-layla', agentName: 'Layla Hassan', status: 'accepted',
+    createdAt: new Date(Date.now() - 9 * 86_400_000).toISOString(),
+    sharedAt: new Date(Date.now() - 9 * 86_400_000).toISOString(),
+    acceptedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    opens: 11, lastOpenedAt: new Date(Date.now() - 26 * 3_600_000).toISOString(),
+  },
+  {
+    id: 'so-4', slug: 'd4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607', reference: 'SO-0149',
+    contactId: 'c-4', opportunityId: 'o-4', leadName: 'Priya Nair',
+    projectId: 'p-3', projectName: 'Valia', unitLabel: '2BR · 1702',
+    priceAed: 2_780_000, paymentPlan: '60 / 40', handover: 'Q1 2029', note: null,
+    validUntil: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    agentUserId: 'u-priya', agentName: 'Priya Nair', status: 'draft',
+    createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+    sharedAt: null, acceptedAt: null, opens: 0, lastOpenedAt: null,
+  },
+];
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -1602,6 +1669,104 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/v2\/leave\/([^/]+)\/cancel$/, handler: () => ({ cancelled: true }) },
 
   /* The numbers on the menu, in one answer, as the real endpoint gives them. */
+  /* ── sales offers ─────────────────────────────────────────────────────── */
+  { method: 'GET', pattern: /^\/api\/v2\/offers$/, handler: ({ query }) => {
+    const me = currentUser();
+    const mine = me.role === 'agent'
+      ? offerState.filter((one) => one.agentUserId === me.id)
+      : offerState;
+
+    const tab = query.get('tab') ?? 'all';
+    const needle = (query.get('q') ?? '').toLowerCase();
+    const project = query.get('project') ?? '';
+    const agent = query.get('agent') ?? '';
+
+    const filtered = mine.filter((one) => {
+      if (project && one.projectId !== project) return false;
+      if (agent && one.agentUserId !== agent) return false;
+      if (needle && ![one.leadName, one.unitLabel, one.projectName, one.reference]
+        .some((text) => (text ?? '').toLowerCase().includes(needle))) return false;
+      return true;
+    });
+
+    const counts = {
+      all: filtered.length,
+      draft: filtered.filter((one) => one.status === 'draft').length,
+      shared: filtered.filter((one) => one.status === 'shared').length,
+      accepted: filtered.filter((one) => one.status === 'accepted').length,
+    };
+    const items = tab === 'all' ? filtered : filtered.filter((one) => one.status === tab);
+
+    return {
+      items,
+      counts,
+      stats: {
+        thisMonth: mine.length,
+        valueAed: mine.reduce((sum, one) => sum + (one.priceAed ?? 0), 0),
+        accepted: mine.filter((one) => one.status === 'accepted').length,
+        waiting: mine.filter((one) => one.status === 'shared').length,
+      },
+    };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/v2\/offers-form$/, handler: () => ({
+    leads: myLeadRows().slice(0, 12).map((row) => ({
+      id: row.id, name: row.full_name, project: row.project_name, projectId: 'p-1',
+    })),
+    projects: [
+      { id: 'p-1', name: 'The Archive', priceFrom: 1_600_000 },
+      { id: 'p-2', name: 'Damac Islands', priceFrom: 2_400_000 },
+      { id: 'p-3', name: 'Valia', priceFrom: 2_100_000 },
+      { id: 'p-4', name: 'Shahrukhz', priceFrom: 980_000 },
+    ],
+  }) },
+
+  { method: 'POST', pattern: /^\/api\/v2\/offers$/, handler: ({ body }) => {
+    const input = (body ?? {}) as Record<string, unknown>;
+    const me = currentUser();
+    const lead = myLeadRows().find((row) => row.id === input.opportunityId);
+    const made = {
+      id: `so-${Date.now()}`,
+      slug: `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(40, '0'),
+      reference: `SO-0${150 + offerState.length}`,
+      contactId: lead?.contact_id ?? null,
+      opportunityId: String(input.opportunityId ?? ''),
+      leadName: lead?.full_name ?? 'New client',
+      projectId: (input.projectId as string) ?? 'p-1',
+      projectName: lead?.project_name ?? 'The Archive',
+      unitLabel: String(input.unitLabel ?? ''),
+      priceAed: Number(input.priceAed ?? 0),
+      paymentPlan: (input.paymentPlan as string) ?? null,
+      handover: 'Q4 2027',
+      note: (input.note as string) ?? null,
+      validUntil: `${String(input.validUntil ?? '')}T23:59:59.000Z`,
+      agentUserId: me.id, agentName: me.name, status: 'draft' as const,
+      createdAt: new Date().toISOString(), sharedAt: null, acceptedAt: null,
+      opens: 0, lastOpenedAt: null,
+    };
+    offerState.unshift(made);
+    return made;
+  } },
+
+  { method: 'POST', pattern: /^\/api\/v2\/offers\/([^/]+)\/(shared|accepted)$/, handler: ({ params }) => {
+    const one = offerState.find((row) => row.id === params[0]);
+    if (!one) return { ok: false };
+    if (params[1] === 'shared') {
+      one.status = 'shared';
+      one.sharedAt = new Date().toISOString();
+    } else {
+      one.status = 'accepted';
+      one.acceptedAt = new Date().toISOString();
+    }
+    return one;
+  } },
+
+  { method: 'DELETE', pattern: /^\/api\/v2\/offers\/([^/]+)$/, handler: ({ params }) => {
+    const at = offerState.findIndex((row) => row.id === params[0]);
+    if (at >= 0) offerState.splice(at, 1);
+    return { deleted: true };
+  } },
+
   /*
    * ── v2 settings ────────────────────────────────────────────────────────
    *
