@@ -246,3 +246,38 @@ would feel on a phone:
 
 Say which of the three you want and I will do them. Say none and the phone
 works as it is; it is clean, it fits, and nothing is cut off.
+
+---
+
+## 16. The sign-in page is still green
+
+**What I found.** The sign-in page is the one screen shared between the CRM
+you use today and the new one. Everything behind it is now orange; the
+sign-in page is still the old green — the Sign in button, the tick box. On a
+phone it is the first thing anybody sees.
+
+**Why I left it.** Changing it is a cutover decision, not a phone-layout
+bug. The layout at 390px is already right: the team photo on top, the brand,
+the form, nothing cut off, nothing sideways.
+
+**A) Make it orange at the same time as everything else** (recommended — one
+look, one day). **B) Leave it green.** Which one?
+
+## 17. Two things on the sign-in page that the designs disagree about
+
+1. **Two-step sign-in.** `design/web/login.html` draws a second step for
+   owners and admins: six digits from a code app. Your master prompt says the
+   opposite — *"simple built-in email + password login only. No OTP."* I
+   followed the master prompt and built nothing. Do you want the six-digit
+   step for owners and admins, or not?
+2. **"Email me a sign-in link."** The build has this button; neither design
+   file draws it. It sends a one-time link to your work email. Keep it, or
+   take it out?
+
+## 18. Where "Sign-in and security" lives
+
+The phone design has a screen for it — change your password, see which
+phones and computers you are signed in on, sign one out. Nothing in the CRM
+reached it. There is now an address for it and the screen is being built,
+but nothing links to it yet except the settings list. Is Settings the right
+place for it, or do you want it on your profile page as well?
