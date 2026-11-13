@@ -7,6 +7,8 @@ import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, originOf, whenToCall } from '../lib/dialling.js';
 import { iosNeedsInstall, pushState, enablePush, type PushState } from '../lib/push.js';
 import { useCallAction, type CallActions } from './call.js';
+import { usePhoneHead } from './phone.js';
+import { myDaySub, ownerHomeSub } from './subs.js';
 
 /**
  * Under this, the phone layout — `design/screens/Main.dc.html` and
@@ -212,6 +214,14 @@ function greet(now: string): string {
 /* ── the agent's day ───────────────────────────────────────────────────── */
 
 function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
+  /*
+   * `my-day.html` writes the date and the Dubai clock under the title. On the
+   * phone the greeting in the page body carries it, and the header draws no
+   * title at home at all -- so this line only ever shows on the computer,
+   * where the design's page body has no greeting and the date would otherwise
+   * be nowhere on the screen.
+   */
+  usePhoneHead({ sub: myDaySub(home.now) });
   const [saying, setSaying] = useState<string | null>(null);
   const isPhone = useIsPhone();
   /* One for the whole screen, handed to the hero and the call rows. Every
@@ -1133,6 +1143,9 @@ const STAGE_WORD: Record<string, string> = {
 function OwnerDay({ home, period, onPeriod }: {
   home: OwnerHome; period: Period; onPeriod: (period: Period) => void;
 }) {
+  /* `owner-home.html` writes the date alone -- no clock, unlike the agent's
+     screen, which is the design's own distinction and not an oversight. */
+  usePhoneHead({ sub: ownerHomeSub() });
   const isPhone = useIsPhone();
 
   /*

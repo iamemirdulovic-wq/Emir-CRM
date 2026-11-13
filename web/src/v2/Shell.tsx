@@ -225,8 +225,15 @@ function Sidebar({ folded, onToggle }: { folded: boolean; onToggle: () => void }
 function TopBar() {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  /* S-38: on a record the title is the way back, not a label. */
-  const onRecord = /^\/v2\/leads\/[^/]+$/.test(pathname);
+  /* S-38: on a record the title is the way back, not a label.
+     `/v2/leads/new` is not a record -- it is the Add lead form, and
+     `design/web/add-lead.html` draws it with a title and the line "Name,
+     phone and source are needed. The rest can wait." under it, no back link.
+     Without the exception it matched here, took the back link, and lost its
+     sub-line with it, because a back link drops the sub (the design's own
+     `buildTopbar` does the same). `lead.html` is the only page in the
+     package drawn with a `data-back`. */
+  const onRecord = /^\/v2\/leads\/(?!new$)[^/]+$/.test(pathname);
   /*
    * The same slot the phone header reads. The design gives nearly every page
    * a line under the title -- the date and the shift on Attendance, "62 open

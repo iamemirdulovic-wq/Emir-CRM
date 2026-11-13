@@ -22,6 +22,10 @@
  *     the start of the shift and no end.
  *   - Best of Homes wants "Week 46 … ends Sunday 23:59"; the board counts
  *     points over a rolling thirty days and has no week and no deadline.
+ *
+ * And one is set here but not drawn: the computer top bar treats
+ * `/v2/leads/new` as an open lead and replaces the title with a back link,
+ * which takes the sub with it. The phone shows it. Same document.
  */
 import { plural } from '../lib/format.js';
 import { addDays, civil } from '../lib/calendar.js';
@@ -158,4 +162,24 @@ export function templatesSub(count: number): string {
 /** `feedback.html`. Wording only. */
 export function feedbackSub(): string {
   return 'Bugs, problems and ideas go straight to the owners';
+}
+
+/**
+ * `my-day.html`: "Wednesday, 11 November 2026 · 14:55".
+ *
+ * The time comes out of the server's own `now` sentence rather than off this
+ * machine's clock, for the same reason `greet()` reads the hour from it: an
+ * agent in Dubai and a laptop still on European time must not see two
+ * different answers on one screen. The date is the Dubai civil date, so the
+ * two halves of the line cannot disagree either.
+ */
+export function myDaySub(serverNow: string, at: Date = new Date()): string {
+  const time = serverNow.match(/(\d{1,2}:\d{2})/)?.[1];
+  const date = dubaiDate(at, true);
+  return time ? `${date} · ${time}` : date;
+}
+
+/** `owner-home.html`: "Wednesday, 11 November 2026". The date alone. */
+export function ownerHomeSub(at: Date = new Date()): string {
+  return dubaiDate(at, true);
 }
