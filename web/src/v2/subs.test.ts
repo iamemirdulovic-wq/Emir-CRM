@@ -284,3 +284,34 @@ describe('Best of Homes gives the window it really ranks', () => {
     expect(built).not.toContain('23:59');
   });
 });
+
+/**
+ * One answer per question, per screen.
+ *
+ * The Team screen used to print the count twice: "4 agents · 1 in office now"
+ * in the top bar and, thirty pixels under it, "5 people · 2 in the office
+ * now" — because the first counted the grid and the second counted everybody,
+ * the owner and the office admin included. Both were true answers to
+ * different questions and the screen asked neither out loud. The owner
+ * reported this family of fault as "team counts differ (14, 11, 12, 17)".
+ *
+ * `design/web/team.html` writes the count in the top bar and nowhere else.
+ */
+describe('the team screen counts once', () => {
+  const raw = readFileSync(path.join(__dirname, 'Team.tsx'), 'utf8');
+  /* Comments out first. The comment left where that second count used to be
+     quotes the wording it removed, which is the point of it — and would
+     otherwise fail this test for saying so. */
+  const source = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+  it('does not draw a second count in the page body', () => {
+    expect(source).not.toContain('in the office now');
+    expect(source).not.toMatch(/\{everyone\.length\}/);
+  });
+
+  it('builds its one count over the people the grid shows', () => {
+    /* `working` is agents and managers — the same set the grid renders and
+       the "All" pill counts, so the line and the pill under it agree. */
+    expect(source).toContain('teamSub(working.length, inGridNow)');
+  });
+});

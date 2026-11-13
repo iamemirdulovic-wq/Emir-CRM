@@ -151,7 +151,6 @@ export function V2Team() {
     });
   }, [working, find, only]);
 
-  const inOfficeNow = everyone.filter((one) => presence(one).kind === 'office').length;
   /*
    * `TeamDirectory.dc.html`: "Meet the team", with the live count on the
    * 13px sub-line and no action in the right slot. The build's own header
@@ -177,7 +176,6 @@ export function V2Team() {
   if (team.error) return <ErrorNote>{team.error}</ErrorNote>;
   if (!team.data) return <Spinner />;
 
-  const inOffice = inOfficeNow;
   const open = everyone.find((one) => one.id === openId) ?? null;
   const owner = user?.role === 'owner' || user?.role === 'admin';
 
@@ -193,13 +191,15 @@ export function V2Team() {
 
   return (
     <div className="v2-team p-team">
-      <div className="v2-page-head">
-        <span className="v2-page-sub">
-          {everyone.length} {everyone.length === 1 ? 'person' : 'people'}
-          {' · '}{inOffice} in the office now
-        </span>
-      </div>
-
+      {/*
+        * The count used to be drawn here as well, over `everyone` -- "5
+        * people · 2 in the office now" thirty pixels under a top bar saying
+        * "4 agents · 1 in office now", because this one counted the owner and
+        * the office admin and the other counted the grid. Two answers to one
+        * question on one screen is the fault the owner reported, so the line
+        * is gone and the top bar's is the only one. `design/web/team.html`
+        * puts it in the top bar and nowhere else.
+        */}
       {/*
         * `design/web/team.html` pairs this screen with **Best of Homes**, and
         * `/v2/best` already draws the same two tabs the other way round. The
