@@ -161,7 +161,9 @@ export async function moveLeads(
            ON DUPLICATE KEY UPDATE reason = VALUES(reason), resolved_at = NULL, resolved_by_user_id = NULL`,
           [
             randomUUID(), move.id, lead.contact_id,
-            `Moved to Incoming by ${actor.label ?? 'an owner'}`,
+            /* `reason` is VARCHAR(160) NOT NULL, and a long name would make
+               the whole move fail on a truncation rather than a bug. */
+            `Moved to Incoming by ${actor.label ?? 'an owner'}`.slice(0, 160),
           ],
           tx,
         );

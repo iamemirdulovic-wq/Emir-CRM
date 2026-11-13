@@ -5,6 +5,7 @@ import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth,
 } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
+import { isManagerOrAbove } from '../../auth/rbac.js';
 import { query, queryOne } from '../../db/client.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { rateLimit } from '../middleware/rate-limit.js';
@@ -487,7 +488,10 @@ myLeadsRouter.post(
   '/move',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
-    if (user.role === 'agent') {
+    /* Stated as who may rather than who may not: an accountant is not an
+       agent either, and the scope below would hand them an empty result
+       instead of a plain no. */
+    if (!isManagerOrAbove(user.role)) {
       throw badRequest('Only a manager or an owner can move leads. Ask for a transfer instead.');
     }
     const body = moveSchema.parse(req.body);

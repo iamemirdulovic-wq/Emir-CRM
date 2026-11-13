@@ -523,3 +523,78 @@ endpoint can take the same filters as the list.
 
 **A) Leave it off** (recommended). **B) Put it on now** and label it "Export
 every lead", which is what it would do.
+
+## 36. The sign-in page's three preview cards showed real clients and real numbers
+
+`design/web/login.html` draws three little cards on the dark panel beside the
+sign-in form, and fills them in: **"Khalid Al Mansoori"** with a countdown,
+**"Follow-up overdue · Sara Nunes"**, **"16:30 Site visit · Lucas Martin"**,
+**"Calls today 214"** with a week of bars, and **"In office now · 6 of 10 · 1
+late · 1 outside · 1 leave · 1 absent"**.
+
+This is the one page in the CRM where **nobody has signed in**. Anyone who
+opens crm.homes.me — a competitor, somebody a link was forwarded to, a search
+engine — would read your clients' names, how many calls your team made today
+and who is late this morning. That is a data leak, not a design detail.
+
+**What I built.** The three cards keep their exact shape, size, colour and
+titles — "Needs you now", "Calls today", and the orange "In office now" — and
+each says in one plain line what it does once you are inside ("The calls that
+are late, and the ones with a timer running"). No names, no counts, no bars.
+The page reads nothing from the database before a password: the only request
+it makes is the one the live sign-in page already makes, which asks whether
+this CRM has any accounts yet and is a yes/no about the installation.
+
+**A) Leave it as it is** (recommended — a sign-in page cannot show work data to
+somebody who has not signed in). **B) Put fake numbers in the cards** so the
+panel looks busier, clearly marked as a sample. **C) Empty the cards out** and
+let the panel be the headline alone.
+
+While I was there: the live `/login` has a button the design does not —
+**"Email me a sign-in link"**. The v2 screen does not have it, because the
+design file has no such button. `/login` keeps it, so for now the two screens
+differ on this one point. Say the word and I will either add it to the new
+screen or take it off the old one.
+
+## 37. The design's "open as Agent / Owner" buttons are a way in without a password
+
+Under the sign-in button the design has **"Demo only · open as — Agent ·
+Rocky / Owner · Emir"**, and the prototype's own code opens the dashboard when
+you press one. It is there so that you can click through the design without
+typing anything.
+
+In the real CRM those two buttons are a door with no lock on it: anyone who
+reaches the address is inside, as an agent or as you.
+
+**What I built.** Nothing. The buttons do not exist on the v2 screen, and a
+test fails if they ever come back — the only way in is the email-and-password
+form.
+
+**A) Leave them out** (recommended). **B) Build a demo mode** for showing the
+CRM to someone, as a separate address with made-up data and no real leads in
+it, never on the real sign-in page.
+
+## 38. The design has a 6-digit code step; your brief says email and password only
+
+The design file carries a second screen behind the form: **"Two-step sign-in —
+Owners and admin need a second step. Write the 6 digits from your code app."**
+`CLAUDE.md` says the opposite, in your words: *"simple built-in email +
+password login only. No OTP."*
+
+The two disagree, so I did not pick a winner.
+
+**What I built.** The screen is drawn and wired into the markup, so it is
+ready — but it cannot be reached. Our server never asks anyone for a code, and
+nothing in the page can switch the form into that step. It is hidden from the
+keyboard and from screen readers as well as from the eye.
+
+Turning it on is not a change to this screen. It needs your yes, and then work
+on the server: storing a secret per user, the "scan this square" setup screen,
+backup codes for the day somebody loses their phone, and a way for you to
+switch it off for a person who is locked out.
+
+**A) Leave it off** (recommended for now — it is the brief, and a second step
+that nobody can reset is worse than none). **B) Turn it on for owner and admin
+only**, which is about a day's work on the server plus the setup screen. It is
+a real protection: a password alone is all that stands between a leaked laptop
+and every lead in the company.

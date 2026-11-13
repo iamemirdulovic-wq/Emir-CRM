@@ -60,7 +60,7 @@ media query, not a second app. Where the design has a phone screen of its own
 | `feedback-inbox.html` | `/v2/settings/feedback` | Done | `OwnerFeedback` |
 | `system-health.html` | `/v2/settings/health` | Done | `Health` |
 | `install-guide.html` | `/v2/settings/phone-app` | Done | `InstallGuide` |
-| `login.html` | `/login` | Done — the existing sign-in screen, unchanged | `Login` |
+| `login.html` | `/v2/login` | Done — rebuilt from the design file (`docs/v2/proof/login-*.jpg`). Three things in it are deliberately not built as drawn: the preview cards carry no client names and no live numbers, the "open as Agent / Owner" demo buttons do not exist, and the six-digit second step is built but unreachable — `docs/decisions-to-confirm.md` §36–38. The live `/login` is untouched and is still what ten people sign in with. | `Login` |
 
 `components.html` and `index.html` are the design package's own kit and index,
 not screens.

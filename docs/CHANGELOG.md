@@ -2,6 +2,53 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Sign in, rebuilt from its design file
+
+`docs/v2/screens.md` had `login.html` down as *"Done — the existing sign-in
+screen, unchanged"*. That was a false Done, and the owner found it the usual
+way: he opened crm.homes.me and saw the old screen, a centred card with the
+team photo. The design is a different screen — a dark brand panel with the
+headline, the lead paragraph and three preview cards, beside the form.
+
+`web/src/v2/Login.tsx` at `/v2/login`, ported the house way: `login.html`
+added to `scripts/port-design-css.mjs`, the page's own `<style>` block
+generated into `v2-home.css` as `.v2 .p-login …`, the markup built to match.
+The phone comes from `design/screens/Login.dc.html` — the brand panel is not
+beside the form on a 390px screen, it collapses to the logo lockup over a
+single centred column, with the language chips under the Sign in button and
+the "no app to download" note below them, which is the prototype's own order.
+
+**Nothing about how anyone signs in changed.** `web/src/pages/Login.tsx` is
+untouched and `/login` is still what ten people use every morning. The new
+screen reuses that file's logic line for line: the same `POST /api/auth/login`,
+the same "remember me", the same redirect afterwards, and the same error text,
+which is how the lockout message after five bad attempts reaches the screen.
+Only `Protected` changed, to take which sign-in page to send a signed-out
+visitor to — `/v2/login` for the v2 screens, `/login` for everything else.
+
+**Three things in the design are deliberately not built as drawn**, each
+written up for the owner in `docs/decisions-to-confirm.md` §36-38:
+
+- The preview cards are drawn full of real work — a named VIP client, a
+  countdown, "Calls today 214", "In office now 6 of 10 · 1 late · 1 outside".
+  Nobody is signed in on this page, so anyone who loaded the address would
+  read them. The cards keep their shape and their titles and say what each one
+  does instead. The page reads nothing before a password.
+- The "Demo only · open as Agent · Rocky / Owner · Emir" buttons are a way
+  into the CRM with no password. Not built.
+- The six-digit second step contradicts the brief ("email + password only, no
+  OTP"). The markup is built and unreachable: our server never asks for a
+  code, nothing adds the class that would show the step, and it is `hidden`
+  from the keyboard and from screen readers too.
+
+**Verified**
+- 662 tests green (645 before; 17 new in `src/v2/login-screen.test.tsx`), and
+  `tsc --noEmit` clean on both workspaces.
+- Looked at in Chromium at 1440 and 390, light and dark, beside the design
+  file. `docs/v2/proof/login-computer.jpg` and `login-phone.jpg`. The brand
+  panel's headline, lead and card strip land within a pixel or two of the
+  design; no sideways scroll at 360, 390, 768, 1024 or 1440.
+
 ## Import, rebuilt as six steps
 
 `design/web/import.html`: Upload · Columns · Check · Give · Confirm · Done,

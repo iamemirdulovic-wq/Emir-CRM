@@ -23,7 +23,7 @@ import { useAppearance } from '../design/theme.js';
  * the screen.
  *
  * Three things in the design are deliberately not built as drawn. Each one is
- * written up in `docs/decisions-to-confirm.md` §32-34:
+ * written up in `docs/decisions-to-confirm.md` §36-38:
  *
  *   1. The three preview cards are drawn with real client names, a live call
  *      count and the team's attendance. Nobody is signed in on this page, so
@@ -36,6 +36,9 @@ import { useAppearance } from '../design/theme.js';
  *      server never asks for a code, and `CLAUDE.md` says email and password
  *      only. Nothing adds the `d-two` class that would show it.
  */
+
+/** §4 of the brief: under this the phone layout, above it the computer one. */
+const PHONE = '(max-width:767px)';
 
 /** The company, as it signs a contract. The design's own footer line. */
 const COMPANY = 'Emigeo Homes Real Estate LLC';
@@ -94,16 +97,24 @@ export function V2Login() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /*
-   * The install guide is behind the sign-in (`/v2/settings/phone-app`), so on
-   * a computer the design's link opens the three steps here instead of
-   * promising a page that would ask them to sign in first. The phone design
-   * has no link at all — it prints the steps — so it starts open there.
+   * Phone or computer, which the two designs disagree about enough to need
+   * asking: `login.html` is a brand panel beside a form, `Login.dc.html` is
+   * one column with no panel at all. Most of that is CSS; this is for the two
+   * places where the markup itself differs.
    */
-  const [phone] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width:767px)').matches,
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(PHONE).matches,
   );
   const [guide, setGuide] = useState(false);
   const [when] = useState(() => stamp(new Date()));
+
+  /* A phone turned on its side is still a phone, and the other way round. */
+  useEffect(() => {
+    const query = window.matchMedia(PHONE);
+    const sync = () => setPhone(query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
 
   /*
    * The orange system is opt-in per page (`:root[data-v2]`), and the v2 shell
@@ -151,7 +162,11 @@ export function V2Login() {
     setNote(null);
     try {
       const user = await signIn(email, password, rememberMe);
-      navigate(user.mustChangePassword ? '/change-password' : '/dashboard', { replace: true });
+      /* `/v2`, not `/dashboard`. Someone only reaches this screen by asking
+         for a v2 address and being sent here to sign in, so sending them to
+         the old home afterwards would make them type the address twice. The
+         live `/login` still lands on `/dashboard` and is untouched. */
+      navigate(user.mustChangePassword ? '/change-password' : '/v2', { replace: true });
     } catch (err) {
       // The server deliberately does not say which of the two was wrong. It
       // does say when the account is locked, and that message is its own.
@@ -308,7 +323,7 @@ export function V2Login() {
             </div>
 
             {/*
-              * Built and switched off. See `docs/decisions-to-confirm.md` §34:
+              * Built and switched off. See `docs/decisions-to-confirm.md` §38:
               * the design has a second step for owners and admins, and the
               * owner's brief says email and password only. Our server never
               * asks for a code, so nothing here can be reached — the markup is
@@ -385,7 +400,7 @@ export function V2Login() {
           {/* The live `/login` also offers "Email me a sign-in link". The
               design has no such button, so it is not here. `/login` keeps it,
               so the two screens differ on this one point — written up in
-              `docs/decisions-to-confirm.md` §32. */}
+              `docs/decisions-to-confirm.md` §36. */}
         </section>
       </div>
     </div>
