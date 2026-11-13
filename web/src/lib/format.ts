@@ -4,6 +4,20 @@ import { countryOfE164 } from '../design/phone.js';
 /** Asia/Dubai is the business timezone; everything is shown in it. */
 const TZ = 'Asia/Dubai';
 
+/**
+ * Twenty-four hour, said out loud, because the region tag does not say it.
+ *
+ * `en-AE` was trusted to mean "day first and 24-hour" — it is day first, and
+ * it is **12-hour**. So every time this file produced read "06:40 PM": the
+ * inbox, every timestamp beside a message, every "last contacted". Emir found
+ * it on 13 Nov and the instruction is flat: times are 24-hour everywhere.
+ *
+ * `hour12: false` is allowed alongside `timeStyle`, which the individual
+ * `hour`/`minute` options are not, so one flag fixes both functions below. It
+ * gives 00:30 rather than 24:30 at half past midnight.
+ */
+const H24 = { hour12: false } as const;
+
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -12,6 +26,7 @@ export function formatDateTime(value: string | Date | null | undefined): string 
     timeZone: TZ,
     dateStyle: 'medium',
     timeStyle: 'short',
+    ...H24,
   }).format(date);
 }
 
@@ -23,6 +38,7 @@ export function formatTime(value: string | Date | null | undefined): string {
     timeZone: TZ,
     hour: '2-digit',
     minute: '2-digit',
+    ...H24,
   }).format(date);
 }
 

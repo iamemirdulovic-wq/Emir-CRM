@@ -26,6 +26,40 @@ import {
 export const NOTE_FILE_TYPES = { ...IMAGE_TYPES, ...AUDIO_TYPES };
 export const ALLOWED_TYPES = Object.keys(NOTE_FILE_TYPES);
 
+/**
+ * The folders on the lead page's Files tab.
+ *
+ * `design/web/lead.html` names four of them — All, Passport & ID, Booking
+ * forms, WhatsApp screenshots — and adds a fifth in its empty state:
+ * "Payment receipts also get their own folder when you add the first one."
+ * `other` is where every file uploaded before migration 0038 sits, which is
+ * All, which is where it has always been.
+ */
+export const FILE_FOLDERS = ['photo', 'id', 'booking', 'whatsapp', 'receipt', 'other'] as const;
+export type FileFolder = (typeof FILE_FOLDERS)[number];
+
+export const FOLDER_LABELS: Record<FileFolder, string> = {
+  photo: 'Photos',
+  id: 'Passport & ID',
+  booking: 'Booking forms',
+  whatsapp: 'WhatsApp screenshots',
+  receipt: 'Payment receipts',
+  other: 'Other files',
+};
+
+/**
+ * Folders only the agent who holds the lead and the owners may open.
+ *
+ * The design says it in words on the tab: "IDs and passports: only you and
+ * owners see them. Every view is logged." The second half is `view_count`,
+ * below; the first half is enforced where the file is served.
+ */
+export const PRIVATE_FOLDERS = new Set<FileFolder>(['id']);
+
+export function isFileFolder(value: unknown): value is FileFolder {
+  return typeof value === 'string' && (FILE_FOLDERS as readonly string[]).includes(value);
+}
+
 export interface NoteFile {
   id: string;
   note_id: string;
@@ -35,6 +69,7 @@ export interface NoteFile {
   byte_size: number;
   duration_s: number | null;
   created_at: string;
+  folder?: FileFolder;
 }
 
 export type StoredNoteFile = NoteFile & { storage_path: string; contact_id: string };
@@ -52,6 +87,8 @@ export interface SaveNoteFileInput {
   /** Seconds. Only meaningful for a voice note, and only the browser knows it. */
   durationSeconds?: number | null;
   uploadedByUserId: string | null;
+  /** Which of the Files tab's folders it belongs in. */
+  folder?: FileFolder | null;
 }
 
 export async function saveNoteFile(
@@ -88,12 +125,14 @@ export async function saveNoteFile(
 
   await execute(
     `INSERT INTO note_files
-       (id, note_id, contact_id, kind, filename, content_type, byte_size, duration_s, storage_path, uploaded_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, note_id, contact_id, kind, filename, content_type, byte_size, duration_s, storage_path,
+        uploaded_by_user_id, folder)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id, input.noteId, input.contactId, kind,
       input.filename.slice(0, 255), input.contentType.slice(0, 100),
       input.body.length, duration, storagePath, input.uploadedByUserId,
+      isFileFolder(input.folder) ? input.folder : 'other',
     ],
     exec,
   );
@@ -107,7 +146,76 @@ export async function saveNoteFile(
     byte_size: input.body.length,
     duration_s: duration,
     created_at: new Date().toISOString(),
+    folder: isFileFolder(input.folder) ? input.folder : 'other',
   };
+}
+
+export interface LeadFile extends NoteFile {
+  folder: FileFolder;
+  /** How many times somebody has opened it. The design prints this. */
+  view_count: number;
+  last_viewed_at: string | null;
+  added_by: string | null;
+  private: boolean;
+}
+
+/**
+ * Every file on one lead, for the Files tab.
+ *
+ * Read off `note_files.contact_id` rather than by walking the notes, which is
+ * what that column was put there for.
+ */
+export async function filesForContact(
+  contactId: string,
+  exec: Executor = getPool(),
+): Promise<LeadFile[]> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT f.id, f.note_id, f.kind, f.filename, f.content_type, f.byte_size, f.duration_s,
+            f.folder, f.view_count, f.last_viewed_at, f.created_at, u.name AS added_by
+       FROM note_files f
+       LEFT JOIN users u ON u.id = f.uploaded_by_user_id
+       JOIN lead_notes n ON n.id = f.note_id AND n.deleted_at IS NULL
+      WHERE f.contact_id = ?
+      ORDER BY f.created_at DESC`,
+    [contactId],
+    exec,
+  );
+
+  return rows.map((row) => {
+    const folder = isFileFolder(row.folder) ? row.folder : 'other';
+    return {
+      id: String(row.id),
+      note_id: String(row.note_id),
+      kind: row.kind === 'voice' ? 'voice' : 'file',
+      filename: String(row.filename),
+      content_type: String(row.content_type),
+      byte_size: Number(row.byte_size),
+      duration_s: row.duration_s === null ? null : Number(row.duration_s),
+      created_at: new Date(row.created_at as string).toISOString(),
+      folder,
+      view_count: Number(row.view_count ?? 0),
+      last_viewed_at: row.last_viewed_at
+        ? new Date(row.last_viewed_at as string).toISOString()
+        : null,
+      added_by: (row.added_by as string | null) ?? null,
+      private: PRIVATE_FOLDERS.has(folder),
+    };
+  });
+}
+
+/**
+ * "Every view is logged."
+ *
+ * Counted on the row as well as written to `audit_log`, because the design
+ * prints the number on the file ("viewed 2 times") and counting audit rows
+ * for that would mean a JSON scan of the whole log on every page load.
+ */
+export async function recordFileView(id: string, exec: Executor = getPool()): Promise<void> {
+  await execute(
+    'UPDATE note_files SET view_count = view_count + 1, last_viewed_at = NOW(3) WHERE id = ?',
+    [id],
+    exec,
+  );
 }
 
 /** Files for a set of notes, so a panel of notes costs one query, not one each. */
@@ -117,7 +225,7 @@ export async function filesForNotes(
 ): Promise<NoteFile[]> {
   if (noteIds.length === 0) return [];
   return query<NoteFile>(
-    `SELECT id, note_id, kind, filename, content_type, byte_size, duration_s, created_at
+    `SELECT id, note_id, kind, filename, content_type, byte_size, duration_s, folder, created_at
        FROM note_files
       WHERE note_id IN (${noteIds.map(() => '?').join(',')})
       ORDER BY created_at ASC`,
@@ -129,7 +237,7 @@ export async function filesForNotes(
 export async function findNoteFile(id: string, exec: Executor = getPool()): Promise<StoredNoteFile> {
   const row = await queryOne<StoredNoteFile>(
     `SELECT id, note_id, contact_id, kind, filename, content_type, byte_size, duration_s,
-            storage_path, created_at
+            storage_path, folder, created_at
        FROM note_files WHERE id = ?`,
     [id],
     exec,

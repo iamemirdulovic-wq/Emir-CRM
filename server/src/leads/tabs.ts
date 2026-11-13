@@ -21,7 +21,9 @@
  * ten people use today. The v2 screen shows the seven the design asks for;
  * the live one keeps showing its six.
  */
-export const LEAD_TABS = ['today', 'new', 'hot', 'overdue', 'no_next_step', 'vip', 'lost', 'all'] as const;
+export const LEAD_TABS = [
+  'today', 'new', 'hot', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'all',
+] as const;
 export type LeadTab = (typeof LEAD_TABS)[number];
 
 /** Dubai is UTC+4 all year — no daylight saving to reason about. */
@@ -76,6 +78,28 @@ export const TABS: Record<LeadTab, TabDefinition> = {
     orderBy: 'o.lead_score DESC, o.created_at DESC',
     emptyTitle: 'No hot leads right now',
     emptyHint: 'A lead turns hot when the budget, the timeline and the replies all line up.',
+  },
+
+  cold: {
+    label: 'Going cold',
+    /*
+     * `design/web/all-leads.html`'s second tab, and the one an owner opens the
+     * screen to look at: leads nobody has touched and nobody is coming back
+     * to. The wording is the office rule's own — "No call, no message and no
+     * plan for 7 days" (`v2/office-rules.ts`, `markGoingCold`) — so the tab
+     * and the automation mean the same thing.
+     *
+     * A lead with a plan is not going cold however long ago it was last
+     * spoken to: somebody is coming back to it on a date they chose. And a
+     * lead that was never contacted is counted from the day it arrived,
+     * because a week in Incoming is a week going cold just the same.
+     */
+    where: `${OPEN} AND o.next_step_at IS NULL
+            AND COALESCE(o.last_contact_at, o.created_at) < DATE_SUB(NOW(3), INTERVAL 7 DAY)`,
+    /* Coldest first — the longest anybody has been left waiting. */
+    orderBy: 'COALESCE(o.last_contact_at, o.created_at) ASC',
+    emptyTitle: 'Nothing is going cold',
+    emptyHint: 'Every open lead has been spoken to, or has somebody coming back to it.',
   },
 
   overdue: {

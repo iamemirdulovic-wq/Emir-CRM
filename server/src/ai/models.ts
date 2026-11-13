@@ -13,6 +13,7 @@
  * fallback for when Google cannot be reached at all.
  */
 import { logger } from '../lib/logger.js';
+import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** The one place the Gemini API version is written down. */
 export const GEMINI_API_VERSION = 'v1beta';
@@ -139,7 +140,7 @@ export const MAX_MODEL_ATTEMPTS = 3;
 /**
  * How long to wait between passes when every model came back busy.
  *
- * Short and few: someone is watching the "Emir AI is reading…" panel, so a
+ * Short and few: someone is watching the "Homes AI is reading…" panel, so a
  * handful of seconds is worth spending to avoid an error they would only have
  * to answer by pressing the button again. Past that it is better to say so.
  */
@@ -330,14 +331,14 @@ export function explainGeminiError(status: number, model: string, detail?: strin
   const because = detail ? ` Google said: ${detail}` : '';
   if (status === 404) {
     return `Google does not have a model called "${model}" for your key. `
-      + 'Open Settings → Emir AI and pick one from the list — it now shows exactly '
+      + `Open ${AI_SETTINGS} and pick one from the list — it now shows exactly `
       + `what your key can use.${because}`;
   }
   if (status === 400) {
     return `Google would not accept that request.${because}`;
   }
   if (status === 401 || status === 403) {
-    return 'Google would not accept the key. Check it is correct in Settings → Emir AI, '
+    return `Google would not accept the key. Check it is correct in ${AI_SETTINGS}, `
       + `that the Generative Language API is enabled on that project, and that billing is on.${because}`;
   }
   if (status === 429) {
@@ -349,11 +350,11 @@ export function explainGeminiError(status: number, model: string, detail?: strin
    * oversubscribed this minute.
    */
   if (isModelBusy(status, detail ?? null)) {
-    return 'Google\u2019s models are busy right now. Emir AI tried the others and waited, and they '
+    return `Google\u2019s models are busy right now. ${AI_NAME} tried the others and waited, and they `
       + `were all busy. Give it a minute and press it again.${because}`;
   }
   if (status >= 500) {
     return `Google had a problem on their side. Try again in a moment.${because}`;
   }
-  return `Emir AI could not complete that (${status}).${because}`;
+  return `${AI_NAME} could not complete that (${status}).${because}`;
 }

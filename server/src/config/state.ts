@@ -9,7 +9,7 @@
  * On a host that replaces that folder on every deploy — Hostinger's own git
  * deployment does — the effect is that every deploy generates a fresh
  * encryption key, the stored Gemini key can no longer be decrypted, and the
- * owner finds Emir AI disconnected again. The uploaded photographs go the same
+ * owner finds Homes AI disconnected again. The uploaded photographs go the same
  * way, silently.
  *
  * So the default is now the home directory of the user the app runs as, which

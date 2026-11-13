@@ -23,6 +23,7 @@ import { sendEmail } from '../messaging/email/send.js';
 import { templateNameFor } from '../messaging/templates/library.js';
 import { findVerifiedProject } from '../services/projects.js';
 import { chooseAgent, type Candidate } from './assignment.js';
+import { assignmentTitle } from '../assignment/why.js';
 import { startRunOnce, setStep, completeRun, failRun } from './runs.js';
 import { companyDetails, displayName, footerFor } from '../config/company.js';
 
@@ -268,7 +269,7 @@ async function applyAssignment(
     contactId: input.contactId,
     opportunityId: input.opportunityId,
     type: 'lead.assigned',
-    title: `Assigned by ${input.reason.replace(/_/g, ' ')}`,
+    title: assignmentTitle(input.reason),
     meta: { userId: input.userId, reason: input.reason },
   });
   await writeAudit(

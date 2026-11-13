@@ -208,7 +208,7 @@ async function developerName(developerId: string | null | undefined, exec: Execu
 /**
  * The developer record a typed name belongs to, if there is one.
  *
- * Emir AI reads "ALDAR" off a brochure and the wizard used to store that as
+ * Homes AI reads "ALDAR" off a brochure and the wizard used to store that as
  * loose text with `developer_id` left null — so the project never appeared
  * under Aldar on the Developers screen, and an offer built from it had no ORN,
  * no escrow bank and nobody to ring.

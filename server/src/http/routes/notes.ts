@@ -10,7 +10,8 @@ import {
   addNote, contactOfNote, listNotes, NOTE_TYPES, restoreNote, updateNote,
 } from '../../leads/notes.js';
 import {
-  ALLOWED_TYPES, deleteNoteFile, filesForNotes, findNoteFile, openNoteFile, saveNoteFile,
+  ALLOWED_TYPES, deleteNoteFile, filesForNotes, findNoteFile, isFileFolder, openNoteFile,
+  recordFileView, saveNoteFile,
 } from '../../leads/note-files.js';
 import { baseContentType, isInlineSafe, AUDIO_TYPES, IMAGE_TYPES } from '../../lib/uploads.js';
 import { contentDisposition, decodeFilename } from './tasks.js';
@@ -151,6 +152,9 @@ notesRouter.post(
     }
 
     const seconds = Number(req.get('x-duration-seconds'));
+    /* Which of the Files tab's folders it goes in. Absent means Other, which
+       is where every file uploaded before the folders existed sits. */
+    const folder = req.get('x-folder');
     const file = await saveNoteFile({
       noteId,
       contactId,
@@ -159,6 +163,7 @@ notesRouter.post(
       body: Buffer.concat(chunks),
       durationSeconds: Number.isFinite(seconds) ? seconds : null,
       uploadedByUserId: user.id,
+      folder: isFileFolder(folder) ? folder : null,
     });
 
     await writeAudit({
@@ -185,6 +190,21 @@ notesRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const row = await findNoteFile(String(req.params.fileId));
     await assertCanViewContact(row.contact_id, await visibleUserIds(currentUser(req)));
+
+    /*
+     * "Every view is logged." The lead page prints the count beside a
+     * passport, so the count is kept on the row; the audit row is what
+     * answers who looked and when. Neither may stop the file being served,
+     * so both are best-effort and the stream opens either way.
+     */
+    await recordFileView(row.id).catch(() => undefined);
+    void writeAudit({
+      actor: actorFrom(req),
+      action: 'note.file_opened',
+      entityType: 'contact',
+      entityId: row.contact_id,
+      after: { fileId: row.id, filename: row.filename, folder: row.folder ?? 'other' },
+    });
 
     const stream = await openNoteFile(row);
     res.setHeader('Content-Type', row.content_type);

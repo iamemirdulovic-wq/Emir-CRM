@@ -95,17 +95,76 @@ interface AgentHome {
   banners: Array<{ id: string; title: string; body: string | null; linkUrl: string | null }>;
 }
 
+type Period = 'today' | 'week' | 'month' | 'year';
+
+interface OwnerTeamRow {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  marked: string | null;
+  wasLate: boolean;
+  onLeave: boolean;
+  checkedInAt: string | null;
+  openLeads: number;
+  callsToday: number;
+  callsPerDay: number[];
+  deskMax: number | null;
+  deskName: string | null;
+  overdue: number;
+  lastSeenAt: string | null;
+}
+
 interface OwnerHome {
   role: 'owner';
   me: { name: string; firstName: string };
   now: string;
-  needsYou: Array<{ kind: string; text: string; n: number; action: string; to: string }>;
-  teamToday: { inOffice: number; late: number; outside: number; absent: number; closed: boolean };
-  todayNumbers: Record<string, number>;
-  teamRightNow: Array<{
-    id: string; name: string; photoUrl: string | null; marked: string | null;
-    openLeads: number; callsToday: number; lastSeenAt: string | null;
+  clock: string;
+  period: Period;
+  needsYou: Array<{
+    kind: string; text: string; sub: string | null; n: number;
+    action: string; to: string; waitMinutes: number | null;
   }>;
+  teamToday: {
+    inOffice: number; late: number; outside: number; leave: number;
+    absent: number; closed: boolean;
+  };
+  todayNumbers: Record<string, number>;
+  work: {
+    calls: number; callsPrevious: number; meetings: number; units: number;
+    lastUnit: { agent: string | null; project: string | null; valueAed: number | null } | null;
+    newLeadsToday: number; newLeadsYesterday: number;
+    firstContactMinutes: number | null;
+  };
+  hours: Array<{ hour: number; calls: number; future: boolean }>;
+  nowAcross: number | null;
+  bestHour: number | null;
+  pipeline: {
+    total: number; open: number;
+    stages: Array<{ key: string; label: string; tone: string; n: number; pct: number }>;
+    lost: { n: number; pct: number };
+  };
+  teamRightNow: OwnerTeamRow[];
+  desks: Array<{ name: string; maxOpenLeads: number | null }>;
+  watch: {
+    overdue: { n: number; who: Array<{ name: string; n: number }> };
+    noNextStep: number;
+    transfers: { n: number; needApproval: number };
+    taps: { n: number; unanswered: number };
+    cold: number;
+  };
+  latestLeads: Array<{
+    id: string; name: string | null; phone: string | null; project: string | null;
+    stage: string; agent: string | null; isVip: boolean; createdAt: string;
+  }>;
+  vipGiven: {
+    total: number;
+    rows: Array<{
+      id: string; leadId: string; name: string | null; agent: string;
+      project: string | null; givenAt: string; deadlineAt: string | null;
+      acceptedAt: string | null; firstCallAt: string | null; returnedAt: string | null;
+      stage: string;
+    }>;
+  };
   freeLeads: number;
   banners: Array<{ id: string; title: string; body: string | null; linkUrl: string | null }>;
   unread: number;
@@ -114,14 +173,22 @@ interface OwnerHome {
 type HomeData = AgentHome | OwnerHome;
 
 export function V2Home() {
-  const home = useAsync<HomeData>(() => api.get('/api/v2/home'), []);
+  /*
+   * The owner's period switch is a different answer from the server, not a
+   * filter in the browser: the window decides which calls, meetings and units
+   * are counted, and counting them here would mean shipping a year of rows to
+   * draw four numbers. An agent's day has no period, so the parameter costs
+   * them nothing.
+   */
+  const [period, setPeriod] = useState<Period>('today');
+  const home = useAsync<HomeData>(() => api.get(`/api/v2/home?period=${period}`), [period]);
 
   if (home.error) return <ErrorNote>{home.error}</ErrorNote>;
   if (!home.data) return <Spinner />;
 
   return home.data.role === 'agent'
     ? <MyDay home={home.data} reload={home.reload} />
-    : <OwnerDay home={home.data} />;
+    : <OwnerDay home={home.data} period={period} onPeriod={setPeriod} />;
 }
 
 /* ── greeting ──────────────────────────────────────────────────────────── */
@@ -972,33 +1039,83 @@ function AiLine({ home }: { home: AgentHome }) {
 /**
  * One icon per kind of thing waiting on the owner.
  *
- * The same six the dashboard's brief uses, because they are the same six
- * rows: a lead late in one place and late in the other should not wear two
- * different faces.
+ * `owner-home.html`'s own six: a crown on the VIP row, the swap arrows on a
+ * transfer, the tray on Incoming, a calendar on leave, the warning triangle on
+ * somebody absent and the flag on a bug. Five identical lines of text is a
+ * list nobody reads down.
  */
 const NEEDS_ICON: Record<string, IconName> = {
-  vip_late: 'alert-triangle',
-  waiting: 'inbox',
+  vip_late: 'crown',
   transfer: 'repeat',
+  waiting: 'inbox',
   leave: 'calendar-days',
-  absent: 'user-x',
+  absent: 'alert-triangle',
   bug: 'alert-circle',
 };
 
-function OwnerDay({ home }: { home: OwnerHome }) {
+const PERIODS: Array<{ key: Period; label: string }> = [
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year', label: 'Year' },
+];
+
+/** What the calls card calls itself, by window. */
+const CALLS_TITLE: Record<Period, string> = {
+  today: 'Calls today',
+  week: 'Calls this week',
+  month: 'Calls this month',
+  year: 'Calls this year',
+};
+
+/** What the delta is measured against, in the design's own words. */
+const AGAINST: Record<Period, string> = {
+  today: 'vs yesterday',
+  week: 'vs last week',
+  month: 'vs the month before',
+  year: 'vs last year',
+};
+
+const STAGE_WORD: Record<string, string> = {
+  new_lead: 'New',
+  attempted_contact: 'Called',
+  engaged_qualified: 'Interested',
+  appointment_scheduled: 'Meeting',
+  deal_sent: 'Offer',
+  won: 'Won',
+  lost: 'Lost',
+};
+
+/**
+ * The owner's home — `design/web/owner-home.html`, every block of it.
+ *
+ * The one rule over the top of the drawing: **no number here is invented.**
+ * Where the design shows a figure this database cannot produce, the block
+ * says what it is waiting for or is left out, and `docs/v2/questions-owner.md`
+ * names the missing field. The first screen of the owner's morning is the
+ * worst possible place to be confidently wrong.
+ */
+function OwnerDay({ home, period, onPeriod }: {
+  home: OwnerHome; period: Period; onPeriod: (period: Period) => void;
+}) {
   const n = home.todayNumbers;
   const isPhone = useIsPhone();
   return (
     <div className="v2-home p-owner-home">
-      <h1 className="v2-hi">
-        {greet(home.now)}, {home.me.firstName}
-        <span>{home.now}</span>
-      </h1>
+      {/* The computer page's title is the shell's; the phone's is its own
+          greeting, which is how `OwnerHome.dc.html` opens. */}
+      {isPhone && (
+        <h1 className="v2-hi">
+          {greet(home.now)}, {home.me.firstName}
+          <span>{home.now}</span>
+        </h1>
+      )}
 
       {/* `OwnerHome.dc.html` gives the first action a card of its own, with
           the line that says what it does, and puts the other two in a row
-          under it. Three equal buttons is the computer layout. */}
-      {isPhone ? (
+          under it. The computer page keeps its three as the design's
+          Shortcuts card, at the foot of the right-hand column. */}
+      {isPhone && (
         <>
           <Link className="v2-a-bigact" to="/v2/leads/new">
             <span className="v2-a-bigact-ic"><Icon name="plus" /></span>
@@ -1015,152 +1132,872 @@ function OwnerDay({ home }: { home: OwnerHome }) {
             </Link>
           </div>
         </>
-      ) : (
-        <div className="v2-owner-acts">
-          <Link className="d-btn d-primary" to="/v2/leads/new"><Icon name="plus" />Add a lead and give it</Link>
-          <Link className="d-btn" to="/v2/import"><Icon name="upload" />Import Excel</Link>
-          <Link className="d-btn" to="/v2/incoming"><Icon name="inbox" />Incoming · {home.freeLeads}</Link>
+      )}
+
+      {/* The period switch and the live stamp — the design's own top bar.
+          It moves the calls card and the meetings-and-units card only. */}
+      {!isPhone && (
+        <div className="d-filters">
+          <div className="d-seg" role="tablist" aria-label="Period">
+            {PERIODS.map((one) => (
+              <button
+                key={one.key}
+                type="button"
+                role="tab"
+                aria-selected={period === one.key}
+                className={period === one.key ? 'd-on' : undefined}
+                onClick={() => onPeriod(one.key)}
+              >
+                {one.label}
+              </button>
+            ))}
+          </div>
+          <span className="d-grow" />
+          <span className="v2-live-stamp">Live · {home.clock}</span>
         </div>
       )}
 
-      <div className="d-bento">
-        <section className="d-card d-c-7" aria-label="Needs you now">
-          <div className="d-card-head"><h3>Needs you now</h3></div>
-          {home.needsYou.length === 0
-            ? (
-              <p className="v2-none">
-                Nothing is waiting on you. No unowned leads, no transfer to approve,
-                no leave to answer.
-              </p>
-            )
-            : home.needsYou.map((row) => (
-              /* `OwnerHome.dc.html` gives every row an icon of its own: five
-                 identical lines of text is a list nobody reads down. */
-              <div className="d-srow" key={row.kind}>
-                {isPhone && (
-                  <span className="d-card-icon v2-a-need-ic">
-                    <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
-                  </span>
-                )}
-                <div className="d-grow">
-                  <b>{row.n} {row.text}</b>
-                </div>
-                <Link className="d-btn d-xs" to={row.to}>{row.action}</Link>
+      <OwnerAiLine home={home} />
+
+      {/* ── row 1: the hero, the calls, and two small tiles ─────────────── */}
+      <div className={isPhone ? 'd-bento' : 'd-bento d-row1'}>
+        <NeedsYou rows={home.needsYou} isPhone={isPhone} />
+        {!isPhone && <CallsToday home={home} period={period} />}
+
+        <div className={isPhone ? 'd-stack d-c-12' : 'd-stack d-c-3'}>
+          <section className="d-card d-mini" aria-label="New leads">
+            <div className="d-card-head d-mb-0">
+              <h3>New leads</h3>
+              <span className="d-card-icon"><Icon name="users" /></span>
+            </div>
+            <div className="d-stat-row">
+              <Link className="d-num" to="/v2/leads?tab=new">{home.work.newLeadsToday}</Link>
+              <Delta
+                n={home.work.newLeadsToday - home.work.newLeadsYesterday}
+                note="vs yesterday"
+              />
+            </div>
+            <Link className="d-card-link" to="/v2/incoming">
+              <span className={home.freeLeads > 0 ? 'd-dot d-red' : 'd-dot d-green'} />
+              <b className={home.freeLeads > 0 ? 'd-t-red' : 'd-t-green'}>
+                {home.freeLeads > 0
+                  ? `${home.freeLeads} ${home.freeLeads === 1 ? 'waits' : 'wait'} in Incoming`
+                  : 'Incoming is empty'}
+              </b>
+              <Icon name="arrow-right" />
+            </Link>
+          </section>
+
+          <section className="d-card d-mini" aria-label="Meetings and units">
+            <div className="d-card-head d-mb-0">
+              <h3>Meetings and units</h3>
+              <span className="d-card-icon"><Icon name="calendar-days" /></span>
+            </div>
+            <div className="d-duo">
+              <Link className="d-stat" to="/v2/calendar">
+                <b className="d-num">{home.work.meetings}</b>
+                <span className="d-label">Meetings booked</span>
+              </Link>
+              <Link className="d-stat" to="/v2/wall">
+                <b className="d-num">{home.work.units}</b>
+                <span className="d-label">
+                  {home.work.units === 1 ? 'Unit booked' : 'Units booked'}
+                </span>
+              </Link>
+            </div>
+            <Link className="d-card-link" to="/v2/wall">
+              {home.work.lastUnit?.agent && (
+                <Avatar name={home.work.lastUnit.agent} size={20} />
+              )}
+              <span>{unitNote(home.work.lastUnit, home.work.units)}</span>
+            </Link>
+          </section>
+        </div>
+      </div>
+
+      {/* The calls card is the whole width of a phone, under the two tiles —
+          nine hour columns and a hero number will not share 390px. */}
+      {isPhone && <CallsToday home={home} period={period} />}
+
+      {/* ── row 2: the pipeline strip ───────────────────────────────────── */}
+      <section className="d-card d-mt-16 v2-stage-card" aria-label="Pipeline">
+        <div className="v2-stage-side">
+          <h3>Pipeline</h3>
+          <span className="d-small d-muted">
+            <Link to="/v2/leads?tab=all">
+              <b className="d-ink-2">{home.pipeline.total.toLocaleString()}</b> leads
+            </Link>
+            {' · '}
+            <Link to="/v2/leads?tab=all">{home.pipeline.open.toLocaleString()} open</Link>
+          </span>
+          <Link className="d-card-link d-mt-4" to="/v2/pipeline">
+            Open pipeline <Icon name="arrow-right" />
+          </Link>
+        </div>
+        <div className="d-pstrip">
+          {home.pipeline.stages.map((stage) => (
+            <Link
+              className={`d-pstage d-${stage.tone}`}
+              key={stage.key}
+              style={{ '--g': Math.max(stage.n, 1) } as React.CSSProperties}
+              to={`/v2/pipeline?stage=${stage.key}`}
+            >
+              <span className="d-nm">{stage.label}</span>
+              <span className="d-ct"><b>{stage.n.toLocaleString()}</b><span>{stage.pct}%</span></span>
+              <i />
+            </Link>
+          ))}
+          <Link className="d-pstage d-lost" to="/v2/leads?tab=lost">
+            <span className="d-nm">Lost · kept apart</span>
+            <span className="d-ct">
+              <b>{home.pipeline.lost.n.toLocaleString()}</b><span>{home.pipeline.lost.pct}%</span>
+            </span>
+            <i />
+          </Link>
+        </div>
+      </section>
+
+      {/* ── row 3: the team, the watch list and the shortcuts ───────────── */}
+      <div className="d-bento d-mt-16">
+        <TeamRightNow home={home} isPhone={isPhone} />
+
+        <div className="d-stack d-c-4">
+          <section className="d-card" aria-label="Watch list">
+            <div className="d-card-head d-mb-0">
+              <h3>Watch list</h3>
+              <Link className="d-card-link" to="/v2/dashboard">
+                Full dashboard <Icon name="arrow-right" />
+              </Link>
+            </div>
+            <Watch
+              to="/v2/leads?tab=overdue"
+              title="Follow-ups overdue"
+              note={home.watch.overdue.who.length > 0
+                ? home.watch.overdue.who.map((one) => `${one.n} with ${one.name}`).join(' · ')
+                : 'Nobody is late on a promise'}
+              n={home.watch.overdue.n}
+              red
+              first
+            />
+            <Watch
+              to="/v2/leads?tab=no_next_step"
+              title="No next step"
+              note="Leads with nothing planned"
+              n={home.watch.noNextStep}
+            />
+            <Watch
+              to="/v2/transfers"
+              title="Transfers today"
+              note={home.watch.transfers.needApproval > 0
+                ? `${home.watch.transfers.needApproval} ${home.watch.transfers.needApproval === 1 ? 'waits' : 'wait'} for your approval`
+                : 'None waiting for you'}
+              n={home.watch.transfers.n}
+            />
+            <Watch
+              to="/v2/messaging"
+              title="WhatsApp taps"
+              note={home.watch.taps.unanswered > 0
+                ? `${home.watch.taps.unanswered} with no “What happened?”`
+                : 'Every one has an answer'}
+              n={home.watch.taps.n}
+            />
+            <Watch
+              to="/v2/leads?tab=overdue"
+              title="Going cold"
+              note="No contact for 7 days"
+              n={home.watch.cold}
+            />
+          </section>
+
+          <section className="d-card v2-dash-more" aria-label="Shortcuts">
+            <Link className="d-shortcut" to="/v2/leads/new">
+              <Icon name="crown" />
+              <span className="d-grow">Add a lead and give it</span>
+              <Icon name="arrow-right" />
+            </Link>
+            <Link className="d-shortcut" to="/v2/import">
+              <Icon name="upload" />
+              <span className="d-grow">Import Excel</span>
+              <Icon name="arrow-right" />
+            </Link>
+            <Link className="d-shortcut" to="/v2/incoming">
+              <Icon name="inbox" />
+              <span className="d-grow">Incoming</span>
+              {home.freeLeads > 0 && <span className="d-badge d-red">{home.freeLeads}</span>}
+              <Icon name="arrow-right" />
+            </Link>
+          </section>
+        </div>
+      </div>
+
+      {/* ── below the fold: the newest leads, and the VIP ones given out ── */}
+      <div className="d-bento d-mt-32">
+        <section className="d-card d-c-7" aria-label="Latest leads">
+          <div className="d-card-head">
+            <h3>Latest leads</h3>
+            <Link className="d-card-link" to="/v2/leads?tab=all">
+              All {home.pipeline.total.toLocaleString()} leads <Icon name="arrow-right" />
+            </Link>
+          </div>
+          {home.latestLeads.length === 0
+            ? <p className="v2-none">No lead has arrived yet.</p>
+            : isPhone ? (
+              <div className="d-divide">
+                {home.latestLeads.map((lead) => (
+                  <Link className="d-list-row" key={lead.id} to={`/v2/leads/${lead.id}`}>
+                    <Avatar name={lead.name ?? '?'} />
+                    <span className="d-grow">
+                      <b className="d-bold">
+                        {lead.name ?? 'Unnamed lead'}
+                        {lead.isVip && <span className="d-vip-tag">VIP</span>}
+                      </b>
+                      <div className="d-small d-muted d-truncate">
+                        {[lead.project, lead.agent ?? 'Incoming'].filter(Boolean).join(' · ')}
+                      </div>
+                    </span>
+                    <span className="d-t-sub">{at(lead.createdAt)}</span>
+                  </Link>
+                ))}
               </div>
-            ))}
+            ) : (
+              <table className="d-table">
+                <thead>
+                  <tr>
+                    <th>Name</th><th>Project</th><th>Stage</th><th>Agent</th>
+                    <th className="d-t-right">Added</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {home.latestLeads.map((lead) => (
+                    <tr key={lead.id}>
+                      <td>
+                        <Link to={`/v2/leads/${lead.id}`}>
+                          <span className="d-t-main">{lead.name ?? 'Unnamed lead'}</span>
+                          {lead.isVip && <span className="d-vip-tag"> VIP</span>}
+                        </Link>
+                        <div className="d-t-sub" dir="ltr">{lead.phone ?? 'No number'}</div>
+                      </td>
+                      <td>{lead.project ?? <span className="d-muted">No project</span>}</td>
+                      <td>
+                        <span className={`d-chip d-stage-${toneOf(lead.stage)}`}>
+                          {STAGE_WORD[lead.stage] ?? lead.stage}
+                        </span>
+                      </td>
+                      <td>
+                        {lead.agent
+                          ? (
+                            <span className="d-person">
+                              <Avatar name={lead.agent} size={26} />
+                              {lead.agent}
+                            </span>
+                          )
+                          : <Link className="d-chip d-red d-pip" to="/v2/incoming">Incoming</Link>}
+                      </td>
+                      <td className="d-t-right d-t-sub">{at(lead.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
         </section>
 
-        <section className="d-card d-c-5" aria-label="Team today">
+        <section className="d-card d-c-5" aria-label="VIP leads I gave">
           <div className="d-card-head">
-            <h3>Team today</h3>
-            <Link className="d-card-link" to="/v2/attendance">Attendance <Icon name="arrow-right" /></Link>
+            <h3>VIP leads I gave</h3>
+            <Link className="d-card-link" to="/v2/vip">
+              See all {home.vipGiven.total} <Icon name="arrow-right" />
+            </Link>
           </div>
-          {home.teamToday.closed
-            ? <p className="v2-none">The office is closed today.</p>
+          {home.vipGiven.rows.length === 0
+            ? (
+              <p className="v2-none">
+                You have not handed anybody a VIP lead yet. Mark one VIP when you add it and
+                it shows here with its clock.
+              </p>
+            )
             : (
-              <div className="d-mini-stats">
-                <Link to="/v2/attendance"><b>{home.teamToday.inOffice}</b>In office</Link>
-                <Link className={home.teamToday.late > 0 ? 'd-red' : ''} to="/v2/attendance">
-                  <b>{home.teamToday.late}</b>Late
-                </Link>
-                <Link to="/v2/attendance"><b>{home.teamToday.outside}</b>Outside</Link>
-                <Link className={home.teamToday.absent > 0 ? 'd-red' : ''} to="/v2/attendance">
-                  <b>{home.teamToday.absent}</b>Not marked
-                </Link>
+              <div className="d-divide">
+                {home.vipGiven.rows.map((row) => (
+                  <Link
+                    className="d-list-row d-vip-row"
+                    key={row.id}
+                    to={`/v2/leads/${row.leadId}`}
+                  >
+                    <Avatar name={row.name ?? '?'} />
+                    <span className="d-grow">
+                      <b className="d-bold">{row.name ?? 'Unnamed lead'}</b>
+                      <div className="d-small d-muted d-truncate">
+                        <VipLine row={row} />
+                      </div>
+                    </span>
+                    <VipChip row={row} />
+                  </Link>
+                ))}
               </div>
             )}
         </section>
       </div>
 
-      {/* `OwnerHome.dc.html` names this block before it starts counting. */}
-      {isPhone && <p className="v2-a-sectionlabel">TODAY IN NUMBERS</p>}
-
-      <div className="d-bento">
-        <Tile to="/v2/leads?tab=new" label="New leads today" n={n.newLeads ?? 0} note="came in today" />
-        {/* `owner-home.html` sends this one to Team live, which is where the
-            same clicks are broken down by hour and by agent. */}
-        <Tile to="/v2/team-live" label="Calls today" n={n.calls ?? 0} note={`${n.whatsapp ?? 0} WhatsApp · ${n.telegram ?? 0} Telegram`} />
-        <Tile to="/v2/calendar" label="Meetings today" n={n.meetings ?? 0} note="in the calendar" />
-        <Tile to="/v2/leads?tab=all" label="Units booked today" n={n.unitsBooked ?? 0} note="moved to Won" />
-      </div>
-
-      <div className="d-bento">
-        <Tile to="/v2/leads?tab=overdue" label="Follow-ups overdue" n={n.overdue ?? 0}
-          note={(n.overdue ?? 0) > 0 ? 'past their time' : 'all on time'} urgent={(n.overdue ?? 0) > 0} />
-        <Tile to="/v2/leads?tab=no_next_step" label="No next step" n={n.noNextStep ?? 0}
-          note="nobody coming back to them" urgent={(n.noNextStep ?? 0) > 0} />
-        <Link className="d-card d-c-6 d-tile d-click" to="/v2/dashboard">
-          <span className="d-label">The full dashboard</span>
-          <div className="d-stat-row"><span className="d-state">Sources, agents, the funnel and the money</span></div>
-          <Icon name="arrow-up-right" />
-        </Link>
-      </div>
-
-      <section className="d-card" aria-label="Team right now">
-        <div className="d-card-head">
-          <h3>Team right now</h3>
-          <Link className="d-card-link" to="/v2/team">Team <Icon name="arrow-right" /></Link>
-        </div>
-        {/*
-          * Five columns at 390px put "Calls today" and "Last seen" off the
-          * right-hand edge with nothing to say they were there. The phone
-          * reads each person as a row instead, which is how every other list
-          * in the phone design works.
-          */}
-        {isPhone ? (
-          <>
-            <div className="v2-a-live-head">
-              <span className="v2-a-live-name">Agent</span>
-              <span>Open</span><span>Calls</span><span>Seen</span>
-            </div>
-            {home.teamRightNow.map((row) => (
-              <div className="v2-a-live-row" key={row.id}>
-                <Avatar name={row.name} src={row.photoUrl ?? undefined} size={30} />
-                <span className="v2-a-live-name">
-                  {row.name}
-                  <em>
-                    {row.marked === 'office' ? 'In office'
-                      : row.marked === 'outside' ? 'Outside' : 'Not marked'}
-                  </em>
-                </span>
-                <span>{row.openLeads}</span>
-                <span>{row.callsToday}</span>
-                <span>{row.lastSeenAt ? at(row.lastSeenAt) : '—'}</span>
-              </div>
-            ))}
-          </>
-        ) : (
-        <table className="v2-table">
-          <thead>
-            <tr><th>Who</th><th>Today</th><th>Open leads</th><th>Calls today</th><th>Last seen</th></tr>
-          </thead>
-          <tbody>
-            {home.teamRightNow.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <span className="d-person">
-                    <Avatar name={row.name} src={row.photoUrl ?? undefined} />
-                    <span className="d-who"><b>{row.name}</b></span>
-                  </span>
-                </td>
-                <td>
-                  {row.marked === 'office' ? <span className="d-chip d-green">In office</span>
-                    : row.marked === 'outside' ? <span className="d-chip d-blue">Outside</span>
-                      : <span className="d-chip">Not marked</span>}
-                </td>
-                <td>{row.openLeads}</td>
-                <td>{row.callsToday}</td>
-                <td>{row.lastSeenAt ? at(row.lastSeenAt) : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        )}
-      </section>
-
       {home.banners.length > 0 && <Banners banners={home.banners} phone={isPhone} />}
     </div>
   );
+}
+
+/**
+ * The black hero — "Needs you now".
+ *
+ * The design's own: the count, "Only you can do these", the oldest wait, and
+ * one row per thing with an icon, a name, a reason and a button. When nothing
+ * is waiting it turns into the All clear card rather than an empty list,
+ * which is `.d-clear` in the design's stylesheet and is why the empty state is
+ * markup rather than a `return null`.
+ */
+function NeedsYou({ rows, isPhone }: {
+  rows: OwnerHome['needsYou']; isPhone: boolean;
+}) {
+  const waits = rows
+    .map((row) => row.waitMinutes)
+    .filter((one): one is number => one !== null);
+  const oldest = waits.length > 0 ? Math.max(...waits) : null;
+
+  return (
+    <section
+      className={rows.length === 0
+        ? 'd-card d-hero d-c-5 d-id-needs d-clear'
+        : 'd-card d-hero d-c-5 d-id-needs'}
+      aria-label="Needs you now"
+    >
+      <div className="d-hero-top d-row d-gap-16">
+        <b className="d-num-hero">{rows.length}</b>
+        <div className="d-grow">
+          <h2 className="v2-owner-hero-h">Needs you now</h2>
+          <p className="d-muted d-small">Only you can do these</p>
+        </div>
+        {!isPhone && (
+          <span className="d-hero-chip">
+            {oldest === null ? 'No one is waiting' : `Oldest waits ${gap(oldest)}`}
+          </span>
+        )}
+      </div>
+
+      <div className="d-arows">
+        {rows.map((row) => (
+          <div className="d-arow" key={`${row.kind}-${row.to}`}>
+            <span className={row.kind === 'vip_late' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
+              <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
+            </span>
+            <Link className="d-arow-txt" to={row.to}>
+              <b>
+                {row.kind === 'vip_late' && <span className="d-vip-tag">VIP</span>}
+                {row.text}
+              </b>
+              {row.sub && <span className="d-s">{row.sub}</span>}
+            </Link>
+            <Link className="d-btn d-sm d-on-dark d-primary" to={row.to}>{row.action}</Link>
+          </div>
+        ))}
+      </div>
+
+      <div className="d-all-clear">
+        <span className="d-ic"><Icon name="check" size={32} /></span>
+        <b>All clear</b>
+        <p>Nothing waits for you. New things show up here first.</p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Calls, by the hour, with a "now" marker.
+ *
+ * The bars are always today, whatever the period switch says — the design
+ * puts "Bars: today by hour" in its own foot for exactly that reason. The
+ * number above them is the window's. A column later than this hour is drawn
+ * as an empty slot rather than a zero, because nobody has had the chance yet.
+ */
+function CallsToday({ home, period }: { home: OwnerHome; period: Period }) {
+  const biggest = Math.max(1, ...home.hours.map((one) => one.calls));
+  const move = percent(home.work.calls, home.work.callsPrevious);
+
+  return (
+    <section className="d-card d-c-4" aria-label="Calls">
+      <div className="d-card-head">
+        <h3>{CALLS_TITLE[period]}</h3>
+        <Link className="d-card-link" to="/v2/team-live">
+          Team live <Icon name="arrow-right" />
+        </Link>
+      </div>
+
+      <div className="d-calls-top">
+        <Link className="d-num-hero" to="/v2/team-live">
+          {home.work.calls.toLocaleString()}
+        </Link>
+        <div className="d-calls-side">
+          <span>
+            <span className={move.dir}>{move.word} {AGAINST[period]}</span>
+          </span>
+          <Link to="/v2/messaging">
+            {period !== 'today' && 'Today: '}
+            <b>{home.todayNumbers.whatsapp ?? 0}</b> WhatsApp
+            {' · '}
+            <b>{home.todayNumbers.telegram ?? 0}</b> Telegram
+          </Link>
+        </div>
+      </div>
+
+      <div
+        className="d-bars d-id-calls-bars"
+        style={{ '--max': biggest } as React.CSSProperties}
+      >
+        {home.hours.map((one) => {
+          const classes = ['d-bar-col'];
+          if (one.future) classes.push('d-future');
+          else {
+            if (home.bestHour !== null && one.hour === home.bestHour) classes.push('d-best');
+            if (one.hour === thisHour(home.hours)) classes.push('d-now');
+          }
+          return (
+            <div
+              className={classes.join(' ')}
+              key={one.hour}
+              title={`${one.calls} ${one.calls === 1 ? 'call' : 'calls'} at ${clockOf(one.hour)}`}
+            >
+              <div className="d-bar-track">
+                {one.future
+                  ? <i />
+                  : <i style={{ '--v': one.calls } as React.CSSProperties} data-val={one.calls} />}
+              </div>
+              <span className="d-bar-lab">{String(one.hour).padStart(2, '0')}</span>
+            </div>
+          );
+        })}
+        {home.nowAcross !== null && (
+          <div
+            className="d-bars-now"
+            style={{ '--x': `${(home.nowAcross * 100).toFixed(1)}%` } as React.CSSProperties}
+          >
+            <span>now</span>
+          </div>
+        )}
+      </div>
+
+      <div className="d-card-foot">
+        <Icon name="zap" />
+        {period !== 'today' && <span>Bars: today by hour&nbsp;·&nbsp;</span>}
+        <span>
+          {home.work.firstContactMinutes === null
+            ? 'No first answer recorded yet'
+            : <>First contact: <b className="d-t-green">{home.work.firstContactMinutes} min</b> median</>}
+        </span>
+        <span className="d-right">
+          {home.bestHour === null
+            ? 'No calls yet today'
+            : <>Best hour <b className="d-ink-2">{clockOf(home.bestHour)}</b></>}
+        </span>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Team right now — the attendance bar, then everybody, problems first.
+ *
+ * Six columns: who, where, when they came in, calls today with a week behind
+ * them, their open leads against the desk maximum, and what is overdue. The
+ * order comes from the server, which puts the people who need something at
+ * the top; an owner reads down until the rows stop being interesting.
+ */
+function TeamRightNow({ home, isPhone }: { home: OwnerHome; isPhone: boolean }) {
+  const t = home.teamToday;
+  const bands: Array<{ key: string; colour: string; word: string; n: number }> = [
+    { key: 'office', colour: 'd-green', word: 'In office', n: t.inOffice },
+    { key: 'late', colour: 'd-amber', word: 'Late', n: t.late },
+    { key: 'outside', colour: 'd-blue', word: 'Outside', n: t.outside },
+    { key: 'leave', colour: 'd-violet', word: 'Leave', n: t.leave },
+    { key: 'absent', colour: 'd-red', word: 'Absent', n: t.absent },
+  ];
+  const marked = bands.reduce((sum, one) => sum + one.n, 0);
+
+  return (
+    <section className="d-card d-c-8" aria-label="Team right now">
+      <div className="d-card-head">
+        <h3>Team right now</h3>
+        <Link className="d-card-link" to="/v2/attendance">
+          Attendance <Icon name="arrow-right" />
+        </Link>
+      </div>
+
+      {t.closed
+        ? <p className="v2-none">The office is closed today.</p>
+        : marked === 0
+          ? <p className="v2-none">Nobody is asked to check in today.</p>
+          : (
+            <div className="d-att-head">
+              <div className="d-segbar d-tall">
+                {bands.filter((band) => band.n > 0).map((band) => (
+                  <Link
+                    key={band.key}
+                    className={band.colour}
+                    style={{ '--v': band.n } as React.CSSProperties}
+                    to={`/v2/attendance?show=${band.key}`}
+                    aria-label={`${band.n} ${band.word.toLowerCase()}`}
+                  />
+                ))}
+              </div>
+              <div className="d-legend">
+                {bands.map((band) => (
+                  <Link key={band.key} to={`/v2/attendance?show=${band.key}`}>
+                    <span className={`d-dot ${band.colour}`} />
+                    <b>{band.n}</b> {band.word}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+      {isPhone ? (
+        <>
+          <div className="v2-a-live-head">
+            <span className="v2-a-live-name">Agent</span>
+            <span>Open</span><span>Calls</span><span>Due</span>
+          </div>
+          {home.teamRightNow.map((row) => (
+            <Link className="v2-a-live-row" key={row.id} to={`/v2/team/${row.id}`}>
+              <Avatar name={row.name} src={row.photoUrl ?? undefined} size={30} />
+              <span className="v2-a-live-name">
+                {row.name}
+                <em>{whereWord(row)}</em>
+              </span>
+              <span>{row.openLeads}</span>
+              <span>{row.callsToday}</span>
+              <span>{row.overdue}</span>
+            </Link>
+          ))}
+        </>
+      ) : (
+        <table className="d-table d-compact d-id-team">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Status</th>
+              <th>In</th>
+              <th>Calls today · 7 days</th>
+              <th>Open · desk max</th>
+              <th className="d-t-right">Overdue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {home.teamRightNow.map((row) => {
+              const over = row.deskMax !== null && row.openLeads > row.deskMax;
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <Link className="d-person" to={`/v2/team/${row.id}`}>
+                      <Avatar name={row.name} src={row.photoUrl ?? undefined} size={26} />
+                      <span className="d-who"><b>{row.name}</b></span>
+                    </Link>
+                  </td>
+                  <td>
+                    <span className={`d-chip d-att-${whereKey(row)}`}>{whereWord(row)}</span>
+                  </td>
+                  <td className="d-t-mono">{row.checkedInAt ?? '–'}</td>
+                  <td>
+                    <Link className="d-cell-bar" to="/v2/team-live">
+                      <b className={row.callsToday === 0 ? 'd-muted' : undefined}>
+                        {row.callsToday}
+                      </b>
+                      <Spark days={row.callsPerDay} label={`${row.name}: calls over seven days`} />
+                    </Link>
+                  </td>
+                  <td>
+                    <Link
+                      className="d-cell-bar"
+                      to={`/v2/leads?tab=all&agent=${row.id}`}
+                      title={row.deskMax === null
+                        ? `${row.openLeads} open · no desk maximum set`
+                        : `${row.openLeads} of ${row.deskMax} · ${row.deskName}`}
+                    >
+                      <b className={over ? 'd-t-red' : undefined}>{row.openLeads}</b>
+                      {row.deskMax === null
+                        ? <span className="d-small d-muted">no max</span>
+                        : (
+                          <span
+                            className={over ? 'd-bar d-load d-red' : 'd-bar d-load'}
+                            style={{
+                              '--v': `${Math.min(100, (row.openLeads / row.deskMax) * 80).toFixed(0)}%`,
+                              '--max': '80%',
+                            } as React.CSSProperties}
+                          >
+                            <i />
+                          </span>
+                        )}
+                    </Link>
+                  </td>
+                  <td className="d-t-right">
+                    {row.overdue > 0
+                      ? (
+                        <Link className="d-overdue" to={`/v2/leads?tab=overdue&agent=${row.id}`}>
+                          {row.overdue}
+                        </Link>
+                      )
+                      : <span className="d-muted">0</span>}
+                  </td>
+                </tr>
+              );
+            })}
+            {home.teamRightNow.length === 0 && (
+              <tr><td colSpan={6}><span className="d-small d-muted">No agents yet.</span></td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+
+      <div className="d-card-foot">
+        <Icon name="info" />
+        <span>
+          Problems first. The small line on each bar is the desk maximum
+          {home.desks.length > 0
+            ? `: ${home.desks.map((desk) => `${desk.name} ${desk.maxOpenLeads}`).join(' · ')}.`
+            : '. No desk has one set yet.'}
+        </span>
+        <Link className="d-card-link v2-dash-right" to="/v2/settings/desks">
+          Desks <Icon name="arrow-right" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+/** One row of the watch list. */
+function Watch({ to, title, note, n, red, first }: {
+  to: string; title: string; note: string; n: number; red?: boolean; first?: boolean;
+}) {
+  return (
+    <Link className={first ? 'd-watch d-mt-8' : 'd-watch'} to={to}>
+      <span className="d-grow">
+        <b>{title}</b>
+        <span>{note}</span>
+      </span>
+      <b className={red && n > 0 ? 'd-n d-red' : 'd-n'}>{n.toLocaleString()}</b>
+      <Icon name="chevron-right" />
+    </Link>
+  );
+}
+
+/**
+ * The one line at the top, written from the figures already on the page.
+ *
+ * Not asked of a model: this is the sentence most likely to be read and least
+ * likely to be checked, so it must never be the thing that invents something.
+ * When nothing stands out it says so rather than reaching.
+ */
+function OwnerAiLine({ home }: { home: OwnerHome }) {
+  const said = useMemo((): { text: string; to: string | null; link: string | null } => {
+    const vip = home.needsYou.find((row) => row.kind === 'vip_late');
+    if (vip) {
+      return {
+        text: `${vip.text}. `,
+        link: 'Give it to somebody who can call now',
+        to: '/v2/incoming',
+      };
+    }
+    if (home.freeLeads > 0) {
+      return {
+        text: `${home.freeLeads} ${home.freeLeads === 1 ? 'lead has' : 'leads have'} nobody on them. `,
+        link: 'Give them out',
+        to: '/v2/incoming',
+      };
+    }
+    if (home.watch.overdue.n > 0) {
+      const worst = home.watch.overdue.who[0];
+      return {
+        text: `${home.watch.overdue.n} follow-ups are past their time`
+          + `${worst ? `, ${worst.n} of them with ${worst.name}` : ''}. `,
+        link: 'See what is late',
+        to: '/v2/leads?tab=overdue',
+      };
+    }
+    if (home.work.calls > home.work.callsPrevious && home.work.callsPrevious > 0) {
+      const move = percent(home.work.calls, home.work.callsPrevious);
+      return {
+        text: `Calls are ${move.word} ${AGAINST[home.period]}, and nothing is waiting on you. `,
+        link: null,
+        to: null,
+      };
+    }
+    if (home.watch.cold > 0) {
+      return {
+        text: `${home.watch.cold} leads have had no contact for a week. `,
+        link: 'Move them before they are lost',
+        to: '/v2/dashboard',
+      };
+    }
+    return { text: 'Nothing is waiting on you and nothing is overdue.', link: null, to: null };
+  }, [home]);
+
+  return (
+    <div className="d-ai-line d-fade-in">
+      <span className="d-ai-tag"><Icon name="sparkles" size={14} />Homes AI</span>
+      <p>
+        {said.text}
+        {said.link && said.to && <Link to={said.to}>{said.link}</Link>}
+      </p>
+      <Link className="d-btn d-sm d-ghost" to="/v2/ai">
+        Ask Homes AI <Icon name="arrow-right" size={14} />
+      </Link>
+    </div>
+  );
+}
+
+/* ── the owner's small pieces ──────────────────────────────────────────── */
+
+/** "4 vs yesterday", up or down, the design's own pill. */
+function Delta({ n, note }: { n: number; note: string }) {
+  if (n === 0) return <span className="d-delta">same {note}</span>;
+  return (
+    <span className={n > 0 ? 'd-delta d-up' : 'd-delta d-down'}>
+      {Math.abs(n)} {note}
+    </span>
+  );
+}
+
+/**
+ * A week of calls as a line.
+ *
+ * Inline SVG because that is what `.d-spark` styles: `stroke` on a polyline,
+ * a filled path behind it and a dot at the end. A flat week draws a flat line
+ * rather than nothing, which is the honest picture of a quiet week.
+ */
+function Spark({ days, label }: { days: number[]; label: string }) {
+  const W = 72;
+  const H = 22;
+  if (days.length < 2) return <svg className="d-spark" viewBox={`0 0 ${W} ${H}`} aria-hidden />;
+
+  const top = Math.max(...days);
+  const low = Math.min(...days);
+  const span = top - low || 1;
+  const points = days.map((value, i) => [
+    (i / (days.length - 1)) * (W - 6) + 3,
+    H - 4 - ((value - low) / span) * (H - 8),
+  ] as const);
+  const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const last = points[points.length - 1] as readonly [number, number];
+
+  return (
+    <svg
+      className={top === 0 ? 'd-spark d-flat' : 'd-spark'}
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={label}
+      focusable={false}
+    >
+      <path d={`M${line.replace(/ /g, ' L')} L${W - 3},${H} L3,${H} Z`} />
+      <polyline points={line} vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0].toFixed(1)} cy={last[1].toFixed(1)} r="2.4" />
+    </svg>
+  );
+}
+
+/** What became of a VIP lead the owner handed out. */
+function VipChip({ row }: { row: OwnerHome['vipGiven']['rows'][number] }) {
+  if (row.returnedAt) return <span className="d-chip d-red d-pip">Came back</span>;
+  if (row.stage === 'won') return <span className="d-chip d-stage-won">Won</span>;
+  if (row.firstCallAt) {
+    return (
+      <span className={`d-chip d-stage-${toneOf(row.stage)}`}>
+        {STAGE_WORD[row.stage] ?? 'Called'}
+      </span>
+    );
+  }
+  if (row.acceptedAt) return <span className="d-chip d-green">Accepted</span>;
+  return <span className="d-chip d-amber d-pip">Waiting</span>;
+}
+
+/** The line under a VIP lead's name: who has it, when, and what is left. */
+function VipLine({ row }: { row: OwnerHome['vipGiven']['rows'][number] }) {
+  const left = useCountdown(row.firstCallAt || row.returnedAt ? null : row.deadlineAt);
+  const given = `${row.agent} · given ${at(row.givenAt)}`;
+  if (row.returnedAt) return <>{given} · not called</>;
+  if (row.firstCallAt) {
+    return <>{given}{row.project ? ` · ${row.project}` : ''}</>;
+  }
+  if (!row.deadlineAt) return <>{given} · no time limit</>;
+  return <>{given} · <span className="d-cd">{left.text}</span> left to call</>;
+}
+
+/* ── small helpers the owner's day needs ───────────────────────────────── */
+
+/** "12% up", "the same" — a move between two counts, in words. */
+function percent(now: number, before: number): { word: string; dir: string } {
+  if (before === 0) {
+    if (now === 0) return { word: 'none yet', dir: 'd-delta' };
+    return { word: 'all new', dir: 'd-delta d-up' };
+  }
+  const move = Math.round(((now - before) / before) * 100);
+  if (move === 0) return { word: 'the same', dir: 'd-delta' };
+  return {
+    word: `${Math.abs(move)}%`,
+    dir: move > 0 ? 'd-delta d-up' : 'd-delta d-down',
+  };
+}
+
+/** "10:00", from the hour number. */
+const clockOf = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
+
+/** The last hour that has started, which the design paints orange. */
+function thisHour(hours: OwnerHome['hours']): number | null {
+  const done = hours.filter((one) => !one.future);
+  return done.length === 0 ? null : (done[done.length - 1] as { hour: number }).hour;
+}
+
+/** Which of the five attendance colours somebody is wearing. */
+function whereKey(row: OwnerTeamRow): string {
+  if (row.marked === 'office') return row.wasLate ? 'late' : 'office';
+  if (row.marked === 'outside') return 'outside';
+  if (row.onLeave) return 'leave';
+  return 'absent';
+}
+
+function whereWord(row: OwnerTeamRow): string {
+  if (row.marked === 'office') {
+    return row.wasLate ? `Late${row.checkedInAt ? ` · ${row.checkedInAt}` : ''}` : 'In office';
+  }
+  if (row.marked === 'outside') return 'Outside';
+  if (row.onLeave) return 'On leave';
+  return 'Not marked in';
+}
+
+/** The stage's colour class, which the design keys off the stage's own name. */
+function toneOf(stage: string): string {
+  const tone: Record<string, string> = {
+    new_lead: 'new',
+    attempted_contact: 'called',
+    engaged_qualified: 'interested',
+    appointment_scheduled: 'meeting',
+    deal_sent: 'offer',
+    won: 'won',
+    lost: 'lost',
+  };
+  return tone[stage] ?? 'new';
+}
+
+/**
+ * The line under "Meetings and units".
+ *
+ * The newest deal in the window, named. Money only when the deal carries a
+ * value — a unit booked with no figure on it says so rather than showing a
+ * zero that reads as a free flat.
+ */
+function unitNote(
+  last: OwnerHome['work']['lastUnit'], units: number,
+): string {
+  if (units === 0) return 'No unit booked in this period';
+  if (!last) return `${units} booked`;
+  const parts = [last.agent, last.project].filter(Boolean) as string[];
+  if (last.valueAed !== null) {
+    parts.push(`AED ${(last.valueAed / 1_000_000).toFixed(1)}M`);
+  }
+  return parts.length > 0 ? parts.join(' · ') : `${units} booked`;
 }
 
 /* ── small shared helpers ──────────────────────────────────────────────── */

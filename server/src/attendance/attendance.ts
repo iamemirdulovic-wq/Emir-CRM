@@ -18,6 +18,7 @@ import { DUBAI_OFFSET_MINUTES } from '../routing/hours.js';
 import {
   attendanceSettings, isOfficeIp, type AttendanceSettings,
 } from './settings.js';
+import { countedAgentSql } from '../users/counting.js';
 
 export type AttendanceKind = 'office' | 'outside';
 
@@ -221,16 +222,21 @@ export async function attendanceMonth(
   }));
 
   /*
-   * Everybody who is asked to check in: Emir's answer was "everybody except
-   * me", so the owner is left out along with the service account. A
-   * deactivated person stays out too — their past days are history, not a
-   * row of absences growing every morning.
+   * Everybody who is asked to check in.
+   *
+   * Emir's first answer was "everybody except me", and that is what this read
+   * — which quietly put the **admin** in the register as somebody being
+   * measured on turning up, and made this screen's headcount disagree with
+   * the dashboard's. Settled on 13 Nov: the register is the agents and their
+   * managers, one rule for the whole CRM (`users/counting.ts`). A deactivated
+   * person stays out too — their past days are history, not a row of absences
+   * growing every morning.
    */
   const people = await query<{
     id: string; name: string; role: string; photo_url: string | null;
   }>(
     `SELECT id, name, role, photo_url FROM users
-      WHERE is_active = 1 AND role NOT IN ('automation', 'owner')
+      WHERE is_active = 1 AND ${countedAgentSql('role')}
       ORDER BY name`,
     [],
     exec,

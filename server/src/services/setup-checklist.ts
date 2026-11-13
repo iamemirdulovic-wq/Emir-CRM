@@ -19,6 +19,7 @@ import { getPool, queryOne, type Executor } from '../db/client.js';
 import { secret } from '../config/secrets.js';
 import { env } from '../config/env.js';
 import { attendanceSettings } from '../attendance/settings.js';
+import { AI_NAME } from '../ai/name.js';
 
 export interface SetupItem {
   key: 'email' | 'whatsapp' | 'push' | 'ai' | 'attendance';
@@ -102,7 +103,7 @@ export async function setupChecklist(exec: Executor = getPool()): Promise<SetupC
     },
     {
       key: 'ai',
-      title: 'Emir AI',
+      title: AI_NAME,
       consequence: 'Every question comes back as an error, for everyone.',
       ready: geminiKey,
       to: '/settings?tab=ai',

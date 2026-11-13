@@ -332,10 +332,44 @@ export async function awardXp(input: {
   return { awarded: result.affectedRows > 0, points: result.affectedRows > 0 ? decision.points : 0 };
 }
 
+/**
+ * The window Best of Homes is counted over.
+ *
+ * It lives here because the ranking and the viewer's own total have to be the
+ * same window or the screen contradicts itself, which is exactly what it did:
+ * the table counted thirty days and the "you are 1st" chip counted all time,
+ * so the same person read 377 in one place and 418 in the other. One constant,
+ * used by both.
+ */
+export const BOARD_DAYS = 30;
+
+/** Somebody's points, all time. */
 export async function pointsFor(userId: string, exec: Executor = getPool()): Promise<number> {
   const row = await queryOne<{ total: number }>(
     'SELECT COALESCE(SUM(points), 0) AS total FROM xp_events WHERE user_id = ?',
     [userId],
+    exec,
+  );
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Somebody's points over the last `days` days — the figure the leaderboard
+ * ranks on, read for one person.
+ *
+ * Counted on `created_at`, not `earned_on`, because that is the column the
+ * board's own join uses and a row's date is set by the award rather than by
+ * the day it is read back.
+ */
+export async function pointsSince(
+  userId: string,
+  days: number = BOARD_DAYS,
+  exec: Executor = getPool(),
+): Promise<number> {
+  const row = await queryOne<{ total: number }>(
+    `SELECT COALESCE(SUM(points), 0) AS total FROM xp_events
+      WHERE user_id = ? AND created_at > DATE_SUB(NOW(3), INTERVAL ? DAY)`,
+    [userId, Math.max(1, Math.floor(days))],
     exec,
   );
   return Number(row?.total ?? 0);

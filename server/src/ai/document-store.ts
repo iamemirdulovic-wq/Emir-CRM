@@ -1,5 +1,5 @@
 /**
- * Holding a document on disk while Emir AI reads it.
+ * Holding a document on disk while Homes AI reads it.
  *
  * The limit went from 14 MB to 400 MB at the owner's request, and the way the
  * file was handled did not survive that change. Every byte was buffered in

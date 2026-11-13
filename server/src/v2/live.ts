@@ -4,6 +4,7 @@ import type { SessionUser } from '../auth/sessions.js';
 import { dubaiDay, dubaiMinutes } from '../attendance/attendance.js';
 import { attendanceSettings } from '../attendance/settings.js';
 import { DAY_END, DAY_START, DUBAI, TODAY } from './dubai.js';
+import { countedAgentSql } from '../users/counting.js';
 
 /**
  * What the team is doing right now.
@@ -182,12 +183,15 @@ export async function teamLive(user: SessionUser, at: Date = new Date()): Promis
              AND t.tapped_at < DATE_SUB(NOW(3), INTERVAL 1 DAY))     AS telegram`,
       [...calls.params, ...taps.params, ...taps.params],
     ),
-    /* Everybody who works leads. The owner is left out of the table for the
-       same reason attendance leaves them out: nobody is measuring them. */
+    /* Everybody who works leads: the agents and their managers, by the one
+       rule in `users/counting.ts`. The owner and the admin are left out for
+       the same reason attendance leaves them out — nobody is measuring them,
+       and a floor of eleven that reads thirteen on one screen is a figure
+       the owner cannot use. */
     query<{ id: string; name: string; photoUrl: string | null }>(
       `SELECT u.id, u.name, u.photo_url AS photoUrl
          FROM users u
-        WHERE u.is_active = 1 AND u.role IN ('agent','manager') AND ${people.sql}
+        WHERE u.is_active = 1 AND ${countedAgentSql()} AND ${people.sql}
         ORDER BY u.name ASC`,
       people.params,
     ),
@@ -201,7 +205,7 @@ export async function teamLive(user: SessionUser, at: Date = new Date()): Promis
          FROM call_logs cl
          JOIN users u ON u.id = cl.user_id
          LEFT JOIN attendance a ON a.user_id = cl.user_id AND a.on_date = ${TODAY}
-        WHERE ${calls.sql} AND cl.not_checked_in = 1
+        WHERE ${calls.sql} AND ${countedAgentSql()} AND cl.not_checked_in = 1
           AND cl.started_at >= ${DAY_START} AND cl.started_at < ${DAY_END}
         GROUP BY cl.user_id, u.name
         ORDER BY n DESC, u.name ASC`,

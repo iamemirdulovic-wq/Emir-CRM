@@ -1,5 +1,5 @@
 /**
- * What Emir AI knows about this brokerage.
+ * What Homes AI knows about this brokerage.
  *
  * The owner writes this once in Settings and it is put in front of the model on
  * every request. That is grounding, not training: the model is never reshaped,

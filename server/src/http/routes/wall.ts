@@ -7,9 +7,11 @@ import {
 import { notFound } from '../../lib/errors.js';
 import { execute, query, queryOne } from '../../db/client.js';
 import {
-  addComment, createPost, deletePost, feed, giveKudos, kudosLeft, pinPost, pointsFor, toggleReaction,
+  addComment, BOARD_DAYS, createPost, deletePost, feed, giveKudos, kudosLeft, pinPost,
+  pointsSince, toggleReaction,
 } from '../../wall/wall.js';
 import { levelFromPoints, streakFrom } from '../../wall/xp.js';
+import { countedAgentSql } from '../../users/counting.js';
 import { findWallMedia, saveWallMedia, WALL_IMAGE_TYPES } from '../../wall/media.js';
 import { decodeFilename } from './tasks.js';
 import { rateLimit } from '../middleware/rate-limit.js';
@@ -305,13 +307,17 @@ wallRouter.get(
 
     /* photo_url on both, so every list of people on this screen shows the
        same faces. Without it the leaderboard drew initials beside a panel
-       drawing photographs of the same five people. */
+       drawing photographs of the same five people.
+
+       The roster is the agents and their managers, one rule for the whole CRM
+       (`users/counting.ts`). It used to be everybody but the service account,
+       which ranked the owner and the admin among their own agents. */
     const board = await query<{ id: string; name: string; photo_url: string | null; points: number }>(
       `SELECT u.id, u.name, u.photo_url, COALESCE(SUM(x.points), 0) AS points
          FROM users u
          LEFT JOIN xp_events x ON x.user_id = u.id
-          AND x.created_at > DATE_SUB(NOW(3), INTERVAL 30 DAY)
-        WHERE u.is_active = 1 AND u.role <> 'automation'
+          AND x.created_at > DATE_SUB(NOW(3), INTERVAL ${BOARD_DAYS} DAY)
+        WHERE u.is_active = 1 AND ${countedAgentSql()}
         GROUP BY u.id, u.name, u.photo_url
         ORDER BY points DESC, u.name
         LIMIT 10`,
@@ -325,7 +331,20 @@ wallRouter.get(
         ORDER BY u.name LIMIT 20`,
     );
 
-    const myPoints = await pointsFor(user.id);
+    /*
+     * The viewer's own points, over the same window the board above ranks on.
+     *
+     * This was `pointsFor`, which is all time, and Best of Homes then printed
+     * two different numbers for the same person on the same screen — 418 in
+     * the "you are 1st" chip against 377 in the ranking table (the owner,
+     * 13 Nov). The page says "last 30 days" in three places, so thirty days
+     * is what every figure on it means, the level bar included: it prints
+     * this number against `level.next`, and feeding it an all-time level
+     * would simply move the contradiction rather than fix it. The open
+     * question — whether a level should be able to fall when somebody has a
+     * quiet month — is in `docs/v2/questions-bugs.md`.
+     */
+    const myPoints = await pointsSince(user.id, BOARD_DAYS);
 
     /* The days this person did something, for the streak. */
     const days = await query<{ day: string }>(

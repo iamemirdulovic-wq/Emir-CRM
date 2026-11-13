@@ -14,6 +14,7 @@ import { logger, errorContext } from '../lib/logger.js';
 import { notify } from '../messaging/notify.js';
 import { autoPost, awardXp, pointsFor } from './wall.js';
 import { BADGES, badgesFor, type BadgeStats } from '../profiles/badges.js';
+import { countedAgentSql } from '../users/counting.js';
 
 /** A deal closed. The one post nobody minds seeing. */
 export async function postDealWon(opportunityId: string): Promise<void> {
@@ -205,6 +206,10 @@ async function badgeStatsFor(userId: string): Promise<BadgeStats> {
  * One post, naming up to three people, with what they actually did rather
  * than a score. "Most points" means nothing to anybody; "closed two deals"
  * does.
+ *
+ * The agents and their managers, by the one rule in `users/counting.ts`. It
+ * used to be everybody but the service account, so an owner who closed a deal
+ * himself could take his own floor's Monday post.
  */
 export async function postBestOfWeek(now: Date = new Date()): Promise<string | null> {
   const { weekOf } = await import('./xp.js');
@@ -219,7 +224,7 @@ export async function postBestOfWeek(now: Date = new Date()): Promise<string | n
             SUM(CASE WHEN x.rule = 'meeting_happened' THEN 1 ELSE 0 END) AS meetings
        FROM users u
        JOIN xp_events x ON x.user_id = u.id
-      WHERE u.is_active = 1 AND u.role <> 'automation'
+      WHERE u.is_active = 1 AND ${countedAgentSql()}
         AND x.earned_on >= ? AND x.earned_on < DATE_ADD(?, INTERVAL 7 DAY)
       GROUP BY u.id, u.name
       HAVING points > 0

@@ -135,7 +135,7 @@ libraryRouter.delete(
 );
 
 /**
- * Emir AI looks a developer up from their website or name.
+ * Homes AI looks a developer up from their website or name.
  *
  * Rate-limited with the document reader rather than separately: both cost
  * money per call and both are pressed from the same two screens.
@@ -237,7 +237,7 @@ libraryRouter.get(
   }),
 );
 
-/* ── Emir AI reads a developer file ─────────────────────────────────────── */
+/* ── Homes AI reads a developer file ─────────────────────────────────────── */
 
 const EXTRACT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -311,7 +311,7 @@ libraryRouter.post(
 );
 
 /**
- * Emir AI writes the project's description from the facts already entered.
+ * Homes AI writes the project's description from the facts already entered.
  *
  * Grounded on purpose: it is given only what is on the form, and told to use
  * nothing else. A description is the one place a model will happily invent a

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAedShort, maskPhone, plural } from './format.js';
+import { formatAedShort, formatDateTime, formatTime, maskPhone, plural } from './format.js';
 
 /**
  * The short budget appears on the pipeline card, in Incoming and on the
@@ -69,6 +69,57 @@ describe('hiding the middle of a phone number', () => {
     expect(maskPhone(null)).toBe('—');
     expect(maskPhone(undefined)).toBe('—');
     expect(maskPhone('')).toBe('—');
+  });
+});
+
+/**
+ * Times are 24-hour, everywhere.
+ *
+ * This file formatted with `en-AE` and nothing else, on the belief — written
+ * down in `i18n.ts` — that the AE tag means "day first and 24-hour". It is day
+ * first. It is **12-hour**, so the inbox read "06:40 PM" and every timestamp
+ * beside a message with it (Emir, 13 Nov). The tag is kept, because day-first
+ * and the Arabic numerals are right; the clock is now stated rather than
+ * assumed.
+ *
+ * Fixed instants in UTC, read back in Dubai, which is UTC+4 all year.
+ */
+describe('the clock', () => {
+  /* 18:40 Dubai — the hour the owner saw printed as "06:40 PM". */
+  const evening = new Date('2026-11-12T14:40:00Z');
+
+  it('writes the evening as 18:40, not 6:40 PM', () => {
+    expect(formatTime(evening)).toBe('18:40');
+  });
+
+  it('writes it the same way inside a date', () => {
+    expect(formatDateTime(evening)).toContain('18:40');
+  });
+
+  it('never says AM or PM', () => {
+    expect(formatTime(evening)).not.toMatch(/[ap]\.?m/i);
+    expect(formatDateTime(evening)).not.toMatch(/[ap]\.?m/i);
+  });
+
+  /* Half past midnight is 00:30, never 24:30 — the other way this can be got
+     wrong, and the one an hourCycle of h24 would introduce. */
+  it('writes the small hours with a leading zero', () => {
+    expect(formatTime(new Date('2026-11-12T20:30:00Z'))).toBe('00:30');
+  });
+
+  it('shows Dubai time whatever clock the reader is on', () => {
+    /* 23:10 UTC is 03:10 the next morning in Dubai, and the date has to move
+       with it or a message lands on the wrong day. */
+    const late = new Date('2026-11-12T23:10:00Z');
+    expect(formatTime(late)).toBe('03:10');
+    expect(formatDateTime(late)).toContain('13 Nov');
+  });
+
+  it('says nothing rather than "Invalid Date"', () => {
+    expect(formatTime(null)).toBe('');
+    expect(formatTime('not a date')).toBe('');
+    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime('not a date')).toBe('—');
   });
 });
 

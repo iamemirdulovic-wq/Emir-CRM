@@ -11,6 +11,7 @@ import { newId } from '../lib/ids.js';
 import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 import { writeAudit, SYSTEM_ACTOR, type AuditActor } from '../audit/audit.js';
+import { assignmentTitle } from './why.js';
 import {
   distribute, overloaded,
   type AssignableLead, type AssignmentCandidate, type DistributionInput, type DistributionPlan,
@@ -187,7 +188,7 @@ export async function applyPlan(
     await execute(
       `INSERT INTO activities (id, contact_id, opportunity_id, user_id, type, title, body, created_at)
        VALUES (?, ?, ?, ?, 'lead.assigned', ?, ?, NOW(3))`,
-      [newId(), before.contact_id, opportunityId, actor.userId, `Assigned by ${reason}`, null],
+      [newId(), before.contact_id, opportunityId, actor.userId, assignmentTitle(reason), null],
       exec,
     );
     await writeAudit(

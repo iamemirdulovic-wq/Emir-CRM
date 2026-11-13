@@ -1,5 +1,5 @@
 /**
- * What Emir AI is allowed to look at when someone asks it a question.
+ * What Homes AI is allowed to look at when someone asks it a question.
  *
  * Every tool here is **read-only** and **scoped to the person asking**. That
  * second part is the whole design: an agent asking "which leads should I call

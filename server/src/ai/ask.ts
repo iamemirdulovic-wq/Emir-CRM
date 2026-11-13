@@ -1,5 +1,5 @@
 /**
- * Ask Emir AI.
+ * Ask Homes AI.
  *
  * The assistant on every CRM screen. It answers from the CRM's own data by
  * calling the read-only tools in `ask-tools.ts` — it has no other way to reach
@@ -25,11 +25,12 @@ import { logger } from '../lib/logger.js';
 import { cachedModels, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
 import { runTool, TOOLS, type Asker } from './ask-tools.js';
+import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** How many times the model may call a tool before it has to answer. */
 const MAX_TOOL_ROUNDS = 4;
 
-const INSTRUCTION = `You are Emir AI, the assistant inside a Dubai and Abu Dhabi off-plan real
+const INSTRUCTION = `You are ${AI_NAME}, the assistant inside a Dubai and Abu Dhabi off-plan real
 estate CRM. You are talking to someone who works at the brokerage.
 
 You answer from the CRM's own data. Use the tools to look things up — you cannot know anything
@@ -74,9 +75,11 @@ export async function ask(
   history: { role: 'user' | 'assistant'; body: string }[] = [],
 ): Promise<AskResult> {
   const apiKey = await secret('GEMINI_API_KEY');
-  if (!apiKey) throw badRequest('Emir AI is not connected yet. Ask your admin to add the key in Settings.');
+  if (!apiKey) {
+    throw badRequest(`${AI_NAME} is not connected yet. Ask your admin to add the key in ${AI_SETTINGS}.`);
+  }
   if (!(await withinCap())) {
-    throw badRequest("This month's AI budget is used up. It can be raised in Settings → Emir AI.");
+    throw badRequest(`This month\u2019s AI budget is used up. It can be raised in ${AI_SETTINGS}.`);
   }
 
   const available = await cachedModels(apiKey);
@@ -121,7 +124,7 @@ export async function ask(
 
     if (calls.length === 0) {
       const answer = (result.text ?? '').trim();
-      if (!answer) throw badRequest('Emir AI did not answer. Try asking again.');
+      if (!answer) throw badRequest(`${AI_NAME} did not answer. Try asking again.`);
       return { answer, toolsUsed, model };
     }
 
@@ -147,5 +150,5 @@ export async function ask(
     contents.push({ role: 'user', parts: responses });
   }
 
-  throw badRequest('Emir AI could not settle on an answer. Try asking more simply.');
+  throw badRequest(`${AI_NAME} could not settle on an answer. Try asking more simply.`);
 }

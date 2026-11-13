@@ -30,9 +30,27 @@ describe('where a number is from', () => {
 });
 
 describe('what time it is there', () => {
-  it('is twelve-hour, because the card exists to save a sum', () => {
+  /*
+   * 24-hour, everywhere, Emir on 13 Nov. This clock was deliberately
+   * twelve-hour (his own instruction of 10 Nov) and it was the only time in
+   * the CRM that was, so a lead page showed "3:00 PM" on the client's clock
+   * next to a follow-up at 15:30 on ours. One clock beats one saved sum.
+   */
+  it('is twenty-four hour, like every other time in the CRM', () => {
     const at = new Date('2026-11-12T11:00:00Z'); // 15:00 in Dubai
-    expect(clockIn('Asia/Dubai', at)?.time).toBe('3:00 PM');
+    expect(clockIn('Asia/Dubai', at)?.time).toBe('15:00');
+  });
+
+  it('writes the small hours with a leading zero, not as 24:xx', () => {
+    const at = new Date('2026-11-12T20:30:00Z'); // 00:30 in Dubai
+    expect(clockIn('Asia/Dubai', at)?.time).toBe('00:30');
+  });
+
+  it('never says AM or PM', () => {
+    const at = new Date('2026-11-12T11:00:00Z');
+    for (const zone of ['Asia/Dubai', 'Europe/London', 'Asia/Kolkata', 'America/New_York']) {
+      expect(clockIn(zone, at)?.time).not.toMatch(/[ap]\.?m/i);
+    }
   });
 
   it('says how far from Dubai they are', () => {
@@ -60,8 +78,9 @@ describe('whether now is a decent hour', () => {
     const advice = whenToCall(clockIn('Asia/Dubai', at), 'Asia/Dubai');
 
     expect(advice?.ok).toBe(false);
-    expect(advice?.line).toContain('9:00 AM');
+    expect(advice?.line).toContain('09:00');
     expect(advice?.line, 'never the current minute').not.toContain(':41');
+    expect(advice?.line, '24-hour, like the rest of the CRM').not.toMatch(/[ap]\.?m/i);
   });
 
   it('keeps half-hour zones honest', () => {

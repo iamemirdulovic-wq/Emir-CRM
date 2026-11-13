@@ -5,7 +5,9 @@ import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireRole,
 } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rate-limit.js';
-import { agentHome, ownerHome, type Home } from '../../v2/home.js';
+import {
+  agentHome, ownerHome, HOME_PERIODS, type Home, type HomePeriod,
+} from '../../v2/home.js';
 import { acceptVip, refuseVip } from '../../v2/vip.js';
 import {
   answerTap, callQueue, CALL_OUTCOMES, finishCall, logTap, startCall, TAP_RESULTS,
@@ -62,6 +64,12 @@ import { teamLive } from '../../v2/live.js';
 import { createDesk, deleteDesk, listDesks, updateDesk } from '../../v2/desks.js';
 import { notify } from '../../messaging/notify.js';
 import { listLibrary } from '../../services/project-library.js';
+import {
+  ASKED_BY, createPlan, deletePlan, movePlan, openReceipt, PLAN_KINDS, PLAN_RESULTS,
+  planFor, saveReceipt, savePlanResult,
+} from '../../v2/meetings.js';
+import { contentDisposition, decodeFilename } from './tasks.js';
+import { env } from '../../config/env.js';
 
 /**
  * The v2 screens' own endpoints.
@@ -97,15 +105,22 @@ function networkIp(req: Request): string | null {
  * An agent gets their day; an owner gets the company's. Which one is decided
  * here from the session, never from a query parameter — there is no way to
  * ask for the owner's figures as an agent.
+ *
+ * `?period=` moves the owner's calls and meetings-and-units cards and nothing
+ * else. An unknown period reads as today rather than failing, because the only
+ * way to send one is to type it into the address.
  */
 v2Router.get(
   '/home',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
     const ip = networkIp(req);
+    const asked = String(req.query.period ?? 'today');
+    const period = (HOME_PERIODS as readonly string[]).includes(asked)
+      ? (asked as HomePeriod) : 'today';
     const home: Home = user.role === 'agent'
       ? await agentHome(user, ip)
-      : await ownerHome(user, ip);
+      : await ownerHome(user, ip, period);
     res.json(home);
   }),
 );
@@ -446,11 +461,19 @@ v2Router.get(
     const [tasks, meetings] = await Promise.all([
       tasksInRange(user.id, visible, { from, to, scope: scope === 'mine' ? 'mine' : 'team' }),
       query<Record<string, unknown>>(
-        `SELECT m.id, m.opportunity_id AS opportunityId, m.kind, m.title, m.starts_at AS startsAt,
+        `SELECT m.id, m.opportunity_id AS opportunityId, m.contact_id AS contactId,
+                m.kind, m.title, m.starts_at AS startsAt,
                 m.ends_at AS endsAt, m.all_day AS allDay, m.place, m.result, m.interest,
-                c.full_name AS who, c.phone_e164 AS phone, u.name AS agent
+                m.result_note AS resultNote, m.result_by AS resultBy,
+                m.reminder_minutes AS reminderMinutes,
+                m.booked_unit AS bookedUnit, m.booked_price_aed AS bookedPriceAed,
+                m.booked_paid_aed AS bookedPaidAed, m.receipt_name AS receiptName,
+                m.user_id AS userId,
+                c.full_name AS who, c.phone_e164 AS phone, u.name AS agent,
+                o.project_name AS project, o.unit_type AS unitType
            FROM meetings m
            LEFT JOIN contacts c ON c.id = m.contact_id
+           LEFT JOIN opportunities o ON o.id = m.opportunity_id
            JOIN users u ON u.id = m.user_id
           WHERE m.deleted_at IS NULL AND ${fence.sql}
             AND m.starts_at < ? AND m.ends_at > ?
@@ -467,6 +490,7 @@ v2Router.get(
       meetings: meetings.map((m) => ({
         id: String(m.id),
         opportunityId: (m.opportunityId as string | null) ?? null,
+        contactId: (m.contactId as string | null) ?? null,
         kind: String(m.kind),
         title: (m.title as string | null) ?? null,
         startsAt: m.startsAt,
@@ -474,10 +498,26 @@ v2Router.get(
         allDay: Number(m.allDay ?? 0) === 1,
         place: (m.place as string | null) ?? null,
         result: (m.result as string | null) ?? null,
+        resultNote: (m.resultNote as string | null) ?? null,
+        /* Who asked to move it, or who cancelled. */
+        resultBy: (m.resultBy as string | null) ?? null,
         interest: (m.interest as string | null) ?? null,
+        reminderMinutes: m.reminderMinutes === null || m.reminderMinutes === undefined
+          ? null : Number(m.reminderMinutes),
+        bookedUnit: (m.bookedUnit as string | null) ?? null,
+        bookedPriceAed: m.bookedPriceAed === null || m.bookedPriceAed === undefined
+          ? null : Number(m.bookedPriceAed),
+        bookedPaidAed: m.bookedPaidAed === null || m.bookedPaidAed === undefined
+          ? null : Number(m.bookedPaidAed),
+        /* Whether a booking form is on file. The file itself is served, with
+           its own permission check, by `/meetings/:id/receipt`. */
+        receiptName: (m.receiptName as string | null) ?? null,
         who: (m.who as string | null) ?? null,
         phone: (m.phone as string | null) ?? null,
+        wants: [m.project, m.unitType].filter(Boolean).join(' · ') || null,
         agent: String(m.agent),
+        /* Whose plan it is, so the screen knows if it may be changed. */
+        mine: String(m.userId) === user.id,
       })),
     });
   }),
@@ -486,81 +526,162 @@ v2Router.get(
 const meetingSchema = z.object({
   opportunityId: z.string().max(36).nullable().optional(),
   contactId: z.string().max(36).nullable().optional(),
-  kind: z.enum(['meeting', 'site_visit', 'call', 'follow_up', 'team']).default('meeting'),
+  kind: z.enum(PLAN_KINDS).default('meeting'),
   title: z.string().max(160).nullable().optional(),
   startsAt: z.string().min(10).max(40),
   endsAt: z.string().min(10).max(40),
+  /* A plan that runs over several days. `endsAt` is then the midnight after
+     the last day, so the window query returns it on every day it covers. */
+  allDay: z.boolean().optional(),
   place: z.string().max(200).nullable().optional(),
+  reminderMinutes: z.number().int().min(0).max(1440).nullable().optional(),
 });
 
-/** Put something in the diary. It is always yours; there is no "for" field. */
+/**
+ * Put something in the diary. It is always yours; there is no "for" field.
+ *
+ * The two rules the screen also applies, applied here so they are real: a
+ * meeting, a site visit or a call belongs to a lead, and nothing can be
+ * planned in the past. A refusal names the field that is wrong.
+ */
 v2Router.post(
   '/meetings',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
     const input = meetingSchema.parse(req.body);
-    if (Date.parse(input.endsAt) <= Date.parse(input.startsAt)) {
-      throw badRequest('It has to finish after it starts.');
-    }
-
-    const id = newId();
-    await execute(
-      `INSERT INTO meetings
-         (id, opportunity_id, contact_id, user_id, kind, title, starts_at, ends_at, place, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id, input.opportunityId ?? null, input.contactId ?? null, user.id, input.kind,
-        input.title ?? null, new Date(input.startsAt), new Date(input.endsAt),
-        input.place ?? null, user.id,
-      ],
-    );
-    await writeAudit({
-      actor: actorFrom(req), action: 'meeting.added', entityType: 'meeting', entityId: id,
-      after: input,
-    });
+    const id = await createPlan(actorFrom(req), user, input);
     res.status(201).json({ id });
   }),
 );
 
+const movedSchema = z.object({
+  startsAt: z.string().min(10).max(40),
+  endsAt: z.string().min(10).max(40),
+});
+
+/**
+ * "Change day or time".
+ *
+ * The one thing the calendar could not do: a plan was writable once and then
+ * frozen, so a viewing moved by an hour had to be deleted -- which it also
+ * could not be -- and planned again.
+ */
+v2Router.patch(
+  '/meetings/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = movedSchema.parse(req.body);
+    await movePlan(actorFrom(req), currentUser(req), String(req.params.id), input);
+    res.json({ saved: true });
+  }),
+);
+
+/** Delete a plan. Soft: the lead's history still says it was planned. */
+v2Router.delete(
+  '/meetings/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    await deletePlan(actorFrom(req), currentUser(req), String(req.params.id));
+    res.json({ deleted: true });
+  }),
+);
+
+/* ── the booking form, which an owner checks before a deal counts ──────── */
+
+/**
+ * The body is the file itself, with its name in a header -- the same shape
+ * every other upload in the CRM uses, so there is no multipart parser and no
+ * buffering a whole request twice.
+ */
+v2Router.post(
+  '/meetings/:id/receipt',
+  rateLimit({
+    max: 60,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `meeting-receipt:${currentUser(req).id}`,
+    message: 'Too many uploads in a short time. Please wait a few minutes.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const id = String(req.params.id);
+    /* Checked before a byte is read, so a file for somebody else's plan is
+       refused rather than uploaded and then rejected. */
+    await planFor(user, id);
+
+    const contentType = (req.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    const limit = env().MAX_ATTACHMENT_MB * 1024 * 1024;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > limit) {
+        throw badRequest(`That file is larger than the ${env().MAX_ATTACHMENT_MB} MB limit.`);
+      }
+      chunks.push(chunk as Buffer);
+    }
+
+    const saved = await saveReceipt(actorFrom(req), user, id, {
+      filename: decodeFilename(req.get('x-filename')),
+      contentType,
+      body: Buffer.concat(chunks),
+    });
+    res.status(201).json(saved);
+  }),
+);
+
+/** The booking form back again. Never served statically: it is a client's. */
+v2Router.get(
+  '/meetings/:id/receipt',
+  asyncHandler(async (req: Request, res: Response) => {
+    const file = await openReceipt(currentUser(req), String(req.params.id));
+    res.setHeader('Content-Type', file.contentType);
+    if (file.bytes > 0) res.setHeader('Content-Length', String(file.bytes));
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(file.inline ? 'inline' : 'attachment', file.name),
+    );
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    file.stream.pipe(res);
+  }),
+);
+
 const resultSchema = z.object({
-  result: z.enum(['showed', 'no_show', 'rescheduled', 'booked', 'cancelled']),
+  result: z.enum(PLAN_RESULTS),
   note: z.string().max(500).nullable().optional(),
   interest: z.enum(['hot', 'warm', 'cold']).nullable().optional(),
+  /** Who asked: "Moved it" and "Cancelled" both need an answer. */
+  by: z.enum(ASKED_BY).nullable().optional(),
+  /** Where "Moved it" moves it to. The plan moves; it does not finish. */
+  movedTo: movedSchema.nullable().optional(),
+  /** The next thing in the diary. Required after "They came". */
+  next: z.object({
+    kind: z.enum(PLAN_KINDS),
+    title: z.string().max(160).nullable().optional(),
+    startsAt: z.string().min(10).max(40),
+    endsAt: z.string().min(10).max(40),
+    place: z.string().max(200).nullable().optional(),
+  }).nullable().optional(),
+  /** What they booked. Required after "They booked", receipt included. */
+  booked: z.object({
+    unit: z.string().trim().min(1).max(80),
+    priceAed: z.number().int().min(1).max(10_000_000_000),
+    paidAed: z.number().int().min(0).max(10_000_000_000),
+  }).nullable().optional(),
 });
 
 /**
  * How the meeting went.
  *
- * Asked for rather than assumed: a meeting in the diary with no result is the
- * single thing an owner cannot read a week later, and "it happened" is not
- * the same as "they came".
+ * Five answers, and each one asks for something: how interested and what is
+ * next, the new day and time, who cancelled, the unit and the receipt. The
+ * endpoint used to take a single word and drop the rest on the floor, so a
+ * week later nobody could say what any meeting had produced.
  */
 v2Router.patch(
   '/meetings/:id/result',
   asyncHandler(async (req: Request, res: Response) => {
-    const user = currentUser(req);
     const input = resultSchema.parse(req.body);
-    const id = String(req.params.id);
-
-    const meeting = await queryOne<{ user_id: string }>(
-      'SELECT user_id FROM meetings WHERE id = ? AND deleted_at IS NULL', [id],
-    );
-    if (!meeting) throw notFound('That meeting is no longer there.');
-    if (meeting.user_id !== user.id && user.role === 'agent') {
-      throw forbidden('That is somebody else’s meeting.');
-    }
-
-    await execute(
-      `UPDATE meetings
-          SET result = ?, result_note = ?, interest = ?, result_at = NOW(3)
-        WHERE id = ?`,
-      [input.result, input.note ?? null, input.interest ?? null, id],
-    );
-    await writeAudit({
-      actor: actorFrom(req), action: 'meeting.result', entityType: 'meeting', entityId: id,
-      after: input,
-    });
-    res.json({ saved: true });
+    res.json(await savePlanResult(
+      actorFrom(req), currentUser(req), String(req.params.id), input,
+    ));
   }),
 );
 
@@ -988,8 +1109,20 @@ v2Router.post(
   '/dashboard/move',
   requireRole('owner', 'admin'),
   asyncHandler(async (req: Request, res: Response) => {
-    const body = z.object({ userId: z.string().min(1).max(36) }).parse(req.body);
-    res.json(await movePool(actorFrom(req), body.userId));
+    const body = z.object({
+      userId: z.string().min(1).max(36),
+      /* The Move dialog's three choices. Absent means Incoming, which is
+         what the button did before the dialog existed. */
+      to: z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('pool') }),
+        z.object({ kind: z.literal('agent'), userId: z.string().min(1).max(36) }),
+        z.object({
+          kind: z.literal('share'),
+          userIds: z.array(z.string().min(1).max(36)).min(1).max(50),
+        }),
+      ]).optional(),
+    }).parse(req.body);
+    res.json(await movePool(actorFrom(req), body.userId, body.to ?? { kind: 'pool' }));
   }),
 );
 

@@ -1,7 +1,7 @@
 /**
  * Pulling the photographs out of a developer's brochure.
  *
- * Emir AI reads the brochure's *words* — the name, the prices, the payment
+ * Homes AI reads the brochure's *words* — the name, the prices, the payment
  * plan. The pictures were left behind, so after dropping a 40-page brochure
  * full of renders the owner still had a project card with no photograph on it
  * and had to go and find the images by hand.

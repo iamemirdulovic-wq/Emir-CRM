@@ -3,6 +3,7 @@ import { newId } from '../lib/ids.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { TODAY } from './dubai.js';
+import { countedAgentSql } from '../users/counting.js';
 
 /**
  * Desks: a group of agents with one number on it.
@@ -86,7 +87,7 @@ export async function listDesks(): Promise<DeskList> {
       `SELECT u.id AS userId, u.name, u.photo_url AS photoUrl, u.languages,
               ${OPEN_LEADS} AS openLeads, ${TODAYS_KIND} AS markedToday
          FROM users u
-        WHERE u.is_active = 1 AND u.role IN ('agent', 'manager')
+        WHERE u.is_active = 1 AND ${countedAgentSql()}
         ORDER BY u.name`,
     ),
   ]);

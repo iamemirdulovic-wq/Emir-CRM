@@ -1,7 +1,7 @@
 /**
  * Reading a developer's document into a project.
  *
- * This is what the design means by "Emir AI can build the whole project from
+ * This is what the design means by "Homes AI can build the whole project from
  * one file". A brokerage receives a sales offer, a brochure or a price list as
  * a PDF; typing it into eighteen boxes is the reason a project library stays
  * empty, so the document is sent to Gemini and comes back as fields.
@@ -29,6 +29,7 @@ import { deleteFromGemini, INLINE_THRESHOLD_BYTES, uploadToGemini } from './gemi
 import { readDocument, readWholeDocument, type StoredDocument } from './document-store.js';
 import { extractPdfImagesFromFile } from './pdf-images.js';
 import { badRequest } from '../lib/errors.js';
+import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** A unit row with every optional field present, so callers need no guards. */
 function fillNulls(unit: {
@@ -157,9 +158,9 @@ export async function extractProject(
   userId: string | null,
 ): Promise<ExtractResult> {
   const apiKey = await secret('GEMINI_API_KEY');
-  if (!apiKey) throw badRequest('Emir AI is not connected yet. Add the key in Settings → Emir AI.');
+  if (!apiKey) throw badRequest(`${AI_NAME} is not connected yet. Add the key in ${AI_SETTINGS}.`);
   if (!(await withinCap())) {
-    throw badRequest("This month's AI budget is used up. Raise it in Settings → Emir AI.");
+    throw badRequest(`This month\u2019s AI budget is used up. Raise it in ${AI_SETTINGS}.`);
   }
 
   /*
@@ -264,10 +265,12 @@ export async function extractProject(
 
   const { text: raw, model } = answer;
 
-  if (!raw) throw badRequest('Emir AI read the document but returned nothing. Try again.');
+  if (!raw) throw badRequest(`${AI_NAME} read the document but returned nothing. Try again.`);
 
   const parsed = safeParse(raw);
-  if (!parsed) throw badRequest('Emir AI could not make sense of that document. Try another file, or type it in.');
+  if (!parsed) {
+    throw badRequest(`${AI_NAME} could not make sense of that document. Try another file, or type it in.`);
+  }
 
   return {
     extracted: parsed,

@@ -4,7 +4,9 @@ import { visibleUserIds } from '../auth/scope.js';
 import { leadTabCounts, type LeadCounts } from '../leads/counts.js';
 import { dayState, type DayState } from '../attendance/attendance.js';
 import { attendanceSettings } from '../attendance/settings.js';
-import { DAY_END, DAY_START, TODAY } from './dubai.js';
+import { DAY_END, DAY_START, DUBAI, TODAY } from './dubai.js';
+import { STAGE_STRIP } from './dashboard.js';
+import { countedAgentSql } from '../users/counting.js';
 
 /**
  * Everything the home screen shows, in one answer.
@@ -95,26 +97,123 @@ export interface AgentHome {
   banners: Array<{ id: string; title: string; body: string | null; linkUrl: string | null }>;
 }
 
+/**
+ * The four windows the owner's home switches between.
+ *
+ * It moves the calls card and the meetings-and-units card and nothing else,
+ * exactly as `owner-home.html` does. How many leads exist, what stage they
+ * are in and who is in the office are facts about now; an owner who picks
+ * "Year" and watches the pipeline change has been told something untrue.
+ */
+export const HOME_PERIODS = ['today', 'week', 'month', 'year'] as const;
+export type HomePeriod = (typeof HOME_PERIODS)[number];
+
+const PERIOD_DAYS: Record<HomePeriod, number> = { today: 1, week: 7, month: 30, year: 365 };
+
+/** One column of the "Calls today" chart: a Dubai hour. */
+export interface HomeHour {
+  hour: number;
+  calls: number;
+  /** Later today, drawn as an empty slot rather than a zero. */
+  future: boolean;
+}
+
+export interface OwnerTeamRow {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  marked: string | null;
+  wasLate: boolean;
+  onLeave: boolean;
+  /** When they marked themselves in, Dubai "HH:MM", or null. */
+  checkedInAt: string | null;
+  openLeads: number;
+  callsToday: number;
+  /** Seven days of calls, oldest first, for the trend line. */
+  callsPerDay: number[];
+  /** The desk's agreed maximum open leads, when they are on one. */
+  deskMax: number | null;
+  deskName: string | null;
+  overdue: number;
+  lastSeenAt: Date | null;
+}
+
 export interface OwnerHome {
   role: 'owner';
   me: { name: string; firstName: string };
   now: string;
+  /** Dubai "HH:MM", for the "Live ·" stamp beside the period switch. */
+  clock: string;
+  period: HomePeriod;
   needsYou: Array<{
     kind: 'vip_late' | 'leave' | 'absent' | 'waiting' | 'transfer' | 'bug';
+    /** The whole headline, counts and names already in it. */
     text: string;
+    /** The line under it, which says who and since when. */
+    sub: string | null;
     n: number;
     action: string;
     to: string;
+    /** How long this has been waiting, for the hero's "Oldest waits" chip. */
+    waitMinutes: number | null;
   }>;
-  teamToday: { inOffice: number; late: number; outside: number; absent: number; closed: boolean };
+  teamToday: {
+    inOffice: number; late: number; outside: number; leave: number;
+    absent: number; closed: boolean;
+  };
   todayNumbers: {
     newLeads: number; calls: number; whatsapp: number; telegram: number;
     meetings: number; unitsBooked: number; overdue: number; noNextStep: number;
   };
-  teamRightNow: Array<{
-    id: string; name: string; photoUrl: string | null; marked: string | null;
-    openLeads: number; callsToday: number; lastSeenAt: Date | null;
+  /** Calls, meetings and units — the three the period switch moves. */
+  work: {
+    calls: number;
+    callsPrevious: number;
+    meetings: number;
+    units: number;
+    /** The newest deal in the window, for the line under the two numbers. */
+    lastUnit: { agent: string | null; project: string | null; valueAed: number | null } | null;
+    /** New leads is "today" on every period, as the design has it. */
+    newLeadsToday: number;
+    newLeadsYesterday: number;
+    /** Median minutes from a lead arriving to its first answer, over the window. */
+    firstContactMinutes: number | null;
+  };
+  /** Today by Dubai hour, whatever the period — the design says so in its foot. */
+  hours: HomeHour[];
+  /** Where "now" falls across the chart, 0–1, for the dashed marker. */
+  nowAcross: number | null;
+  bestHour: number | null;
+  pipeline: {
+    total: number;
+    open: number;
+    stages: Array<{ key: string; label: string; tone: string; n: number; pct: number }>;
+    lost: { n: number; pct: number };
+  };
+  teamRightNow: OwnerTeamRow[];
+  /** The desks and their agreed maximums, named in the table's foot. */
+  desks: Array<{ name: string; maxOpenLeads: number | null }>;
+  watch: {
+    overdue: { n: number; who: Array<{ name: string; n: number }> };
+    noNextStep: number;
+    transfers: { n: number; needApproval: number };
+    taps: { n: number; unanswered: number };
+    cold: number;
+  };
+  latestLeads: Array<{
+    id: string; name: string | null; phone: string | null; project: string | null;
+    stage: string; agent: string | null; isVip: boolean; note: string | null;
+    createdAt: Date;
   }>;
+  vipGiven: {
+    total: number;
+    rows: Array<{
+      id: string; leadId: string; name: string | null; agent: string;
+      project: string | null; givenAt: Date; deadlineAt: Date | null;
+      acceptedAt: Date | null; firstCallAt: Date | null; returnedAt: Date | null;
+      stage: string;
+    }>;
+  };
   freeLeads: number;
   banners: Array<{ id: string; title: string; body: string | null; linkUrl: string | null }>;
   unread: number;
@@ -387,13 +486,145 @@ export async function agentHome(user: SessionUser, seenIp: string | null): Promi
   };
 }
 
-export async function ownerHome(user: SessionUser, seenIp: string | null): Promise<OwnerHome> {
+
+/* ── the owner's home ──────────────────────────────────────────────────── */
+
+/** The window, and the one before it, as SQL. Dubai midnights, never NOW(). */
+function homeWindow(period: HomePeriod): { from: string; to: string; prevFrom: string; prevTo: string } {
+  const days = PERIOD_DAYS[period];
+  return {
+    from: `DATE_SUB(${DAY_START}, INTERVAL ${days - 1} DAY)`,
+    to: DAY_END,
+    prevFrom: `DATE_SUB(${DAY_START}, INTERVAL ${days * 2 - 1} DAY)`,
+    prevTo: `DATE_SUB(${DAY_START}, INTERVAL ${days - 1} DAY)`,
+  };
+}
+
+/** Dubai's wall clock as minutes past its midnight. */
+function dubaiMinutesNow(at: Date = new Date()): number {
+  const dubai = new Date(at.getTime() + 4 * 3_600_000);
+  return dubai.getUTCHours() * 60 + dubai.getUTCMinutes();
+}
+
+/**
+ * The hours the "Calls today" chart draws.
+ *
+ * The office's own opening hours, so the chart is the working day the team
+ * recognises rather than a fixed 09–17 that is right in no country. An hour
+ * with calls outside those hours is still drawn — somebody working late is
+ * exactly what an owner wants to see — and this hour is always in range.
+ *
+ * The same shape as the one Team live uses, deliberately: the two screens
+ * draw the same day and must not disagree about which hours it has.
+ */
+function homeHourRange(
+  open: number | null, close: number | null, counted: number[], nowHour: number,
+): number[] {
+  let first = open ?? 9;
+  let last = close ?? 18;
+  for (const hour of counted) {
+    if (hour < first) first = hour;
+    if (hour > last) last = hour;
+  }
+  if (nowHour > last) last = nowHour;
+  if (nowHour < first) first = nowHour;
+  if (last - first > 15) first = last - 15;
+  const out: number[] = [];
+  for (let hour = first; hour <= last; hour += 1) out.push(hour);
+  return out;
+}
+
+/** The median of a list of numbers, or null when there is nothing to take it of. */
+function middle(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? (sorted[mid] as number)
+    : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
+}
+
+/** "14:55", from minutes past a Dubai midnight. */
+function hhmm(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** A date as Dubai's clock reads it, or null. */
+function clockOf(at: Date | null): string | null {
+  if (!at) return null;
+  const dubai = new Date(new Date(at).getTime() + 4 * 3_600_000);
+  return `${String(dubai.getUTCHours()).padStart(2, '0')}:${String(dubai.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/** How many whole minutes ago, never negative. */
+function minutesSince(at: Date | null | undefined): number | null {
+  if (!at) return null;
+  const mins = Math.floor((Date.now() - new Date(at).getTime()) / 60_000);
+  return mins < 0 ? 0 : mins;
+}
+
+/** "3 days", "42 min" — a length of time somebody would say out loud. */
+function spoken(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60 * 24) {
+    const hours = Math.round(minutes / 60);
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  const days = Math.round(minutes / (60 * 24));
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
+/** "18–20 Nov", the way the leave rows read. */
+function dayRange(from: string, to: string): string {
+  const short = (value: string): string => {
+    const at = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+    return `${at.getUTCDate()} ${at.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })}`;
+  };
+  const a = short(from);
+  const b = short(to);
+  if (a === b) return a;
+  /* "18–20 Nov" when both are in the same month, "30 Nov – 2 Dec" otherwise. */
+  const monthA = a.slice(a.indexOf(' ') + 1);
+  const monthB = b.slice(b.indexOf(' ') + 1);
+  return monthA === monthB ? `${a.slice(0, a.indexOf(' '))}–${b}` : `${a} – ${b}`;
+}
+
+const STAGE_WORD: Record<string, string> = {
+  new_lead: 'New',
+  attempted_contact: 'Called',
+  engaged_qualified: 'Interested',
+  appointment_scheduled: 'Meeting',
+  deal_sent: 'Offer',
+  won: 'Won',
+  lost: 'Lost',
+};
+
+/**
+ * The owner's home — `design/web/owner-home.html`.
+ *
+ * One request for the whole screen, and every figure on it is a query. Where
+ * the design draws something this database does not record, the block is left
+ * out rather than filled with a plausible number: see `docs/v2/questions-
+ * owner.md` for the list and what each one is waiting for.
+ */
+export async function ownerHome(
+  user: SessionUser,
+  seenIp: string | null,
+  period: HomePeriod = 'today',
+): Promise<OwnerHome> {
   const visible = await visibleUserIds(user);
   const mine = visible === null ? null : visible;
   const today = await dayState(user.id, seenIp);
+  const w = homeWindow(period);
+  const settings = await attendanceSettings();
 
   const [
-    team, todayRow, counts, free, vipLate, leave, transfers, bugs, unread, bannerRows,
+    team, todayRow, workRow, counts, free, vipLateRows, leaveRows, transferRows, bugRow,
+    unread, bannerRows, stageRows, totalsRow, callHours, leaveToday, deskRows, deskMaxRows,
+    sparkRows, answerRows, waitingRows, overdueBy, tapRow, coldRow, latestRows,
+    vipGivenRows, vipGivenTotal, lastUnitRow,
   ] = await Promise.all([
     /*
      * Who is where, and what they have done today. One query over the team
@@ -402,16 +633,20 @@ export async function ownerHome(user: SessionUser, seenIp: string | null): Promi
      */
     query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url AS photoUrl, a.kind AS marked, a.was_late AS wasLate,
+              a.marked_at AS markedAt,
               (SELECT COUNT(*) FROM opportunities o
                 WHERE o.owner_user_id = u.id AND o.status = 'open' AND o.deleted_at IS NULL)
                 AS openLeads,
+              (SELECT COUNT(*) FROM opportunities o
+                WHERE o.owner_user_id = u.id AND o.status = 'open' AND o.deleted_at IS NULL
+                  AND o.next_step_at IS NOT NULL AND o.next_step_at < NOW(3)) AS overdue,
               (SELECT COUNT(*) FROM call_logs cl
                 WHERE cl.user_id = u.id
                   AND cl.started_at >= ${DAY_START} AND cl.started_at < ${DAY_END}) AS callsToday,
               (SELECT MAX(ac.created_at) FROM activities ac WHERE ac.user_id = u.id) AS lastSeenAt
          FROM users u
          LEFT JOIN attendance a ON a.user_id = u.id AND a.on_date = ${TODAY}
-        WHERE u.is_active = 1 AND u.role IN ('agent','manager')
+        WHERE u.is_active = 1 AND ${countedAgentSql()}
         ORDER BY u.name ASC`,
     ),
     queryOne<Record<string, number>>(
@@ -419,6 +654,10 @@ export async function ownerHome(user: SessionUser, seenIp: string | null): Promi
          (SELECT COUNT(*) FROM opportunities
            WHERE deleted_at IS NULL
              AND created_at >= ${DAY_START} AND created_at < ${DAY_END}) AS newLeads,
+         (SELECT COUNT(*) FROM opportunities
+           WHERE deleted_at IS NULL
+             AND created_at >= DATE_SUB(${DAY_START}, INTERVAL 1 DAY)
+             AND created_at < DATE_SUB(NOW(3), INTERVAL 1 DAY)) AS newLeadsYesterday,
          (SELECT COUNT(*) FROM call_logs
            WHERE started_at >= ${DAY_START} AND started_at < ${DAY_END}) AS calls,
          (SELECT COUNT(*) FROM message_taps
@@ -435,73 +674,419 @@ export async function ownerHome(user: SessionUser, seenIp: string | null): Promi
              AND stage_changed_at >= ${DAY_START} AND stage_changed_at < ${DAY_END})
            AS unitsBooked`,
     ),
+    /* The three the period switch moves, and the window before for the delta. */
+    queryOne<Record<string, number | null>>(
+      `SELECT
+         (SELECT COUNT(*) FROM call_logs
+           WHERE started_at >= ${w.from} AND started_at < ${w.to}) AS calls,
+         (SELECT COUNT(*) FROM call_logs
+           WHERE started_at >= ${w.prevFrom} AND started_at < ${w.prevTo}) AS callsPrevious,
+         (SELECT COUNT(*) FROM meetings
+           WHERE deleted_at IS NULL
+             AND starts_at >= ${w.from} AND starts_at < ${w.to}) AS meetings,
+         (SELECT COUNT(*) FROM opportunities
+           WHERE status = 'won' AND deleted_at IS NULL
+             AND stage_changed_at >= ${w.from} AND stage_changed_at < ${w.to}) AS units`,
+    ),
     leadTabCounts(mine),
     queryOne<{ n: number }>(
       `SELECT COUNT(*) AS n FROM opportunities
         WHERE status = 'open' AND owner_user_id IS NULL AND deleted_at IS NULL`,
     ),
-    queryOne<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM vip_handoffs
-        WHERE first_call_at IS NULL AND returned_at IS NULL AND refused_at IS NULL
-          AND deadline_at IS NOT NULL AND deadline_at < NOW(3)`,
+    /*
+     * VIP leads past their deadline, named. The design's row reads "VIP Omar
+     * Khan is not called · Bassam had 30 min · now back in Incoming", and a
+     * row that says "1 VIP lead not called in time" is a row nobody can act
+     * on without opening another screen first.
+     */
+    query<Record<string, unknown>>(
+      `SELECT v.id, v.opportunity_id AS leadId, v.deadline_at AS deadlineAt,
+              v.call_within_minutes AS within, c.full_name AS name,
+              o.project_name AS project, o.owner_user_id AS ownerUserId,
+              u.name AS agent
+         FROM vip_handoffs v
+         JOIN opportunities o ON o.id = v.opportunity_id AND o.deleted_at IS NULL
+         JOIN contacts c ON c.id = o.contact_id
+         JOIN users u ON u.id = v.given_to
+        WHERE v.first_call_at IS NULL AND v.returned_at IS NULL AND v.refused_at IS NULL
+          AND v.deadline_at IS NOT NULL AND v.deadline_at < NOW(3)
+          AND o.status = 'open'
+        ORDER BY v.deadline_at ASC
+        LIMIT 20`,
     ),
-    queryOne<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM leave_requests WHERE status = 'pending'",
+    query<Record<string, unknown>>(
+      `SELECT l.id, l.from_date AS fromDate, l.to_date AS toDate, l.kind,
+              l.created_at AS createdAt, u.name
+         FROM leave_requests l
+         JOIN users u ON u.id = l.user_id
+        WHERE l.status = 'pending'
+        ORDER BY l.created_at ASC
+        LIMIT 20`,
     ),
-    queryOne<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM lead_transfers WHERE status = 'needs_approval'",
+    query<Record<string, unknown>>(
+      `SELECT t.id, t.requested_at AS requestedAt, t.status, o.stage_key AS stage,
+              c.full_name AS leadName, f.name AS fromName, g.name AS toName
+         FROM lead_transfers t
+         JOIN opportunities o ON o.id = t.opportunity_id AND o.deleted_at IS NULL
+         JOIN contacts c ON c.id = o.contact_id
+         JOIN users f ON f.id = t.from_user_id
+         JOIN users g ON g.id = t.to_user_id
+        WHERE t.status IN ('pending','needs_approval')
+          AND t.requested_at >= DATE_SUB(${DAY_START}, INTERVAL 1 DAY)
+        ORDER BY t.requested_at ASC
+        LIMIT 20`,
     ),
-    queryOne<{ n: number }>(
+    queryOne<Record<string, unknown>>(
       /* 'new' and 'planned' are the two unresolved states in the enum;
          'fixed' and 'declined' are both answered. */
-      `SELECT COUNT(*) AS n FROM feedback_tickets
-        WHERE status IN ('new','planned') AND blocking = 1`,
-    ).catch(() => ({ n: 0 })),
+      `SELECT f.id, f.body, f.created_at AS createdAt, u.name,
+              (SELECT COUNT(*) FROM feedback_tickets x
+                WHERE x.status IN ('new','planned') AND x.blocking = 1) AS n
+         FROM feedback_tickets f
+         JOIN users u ON u.id = f.user_id
+        WHERE f.status IN ('new','planned') AND f.blocking = 1
+        ORDER BY f.created_at ASC
+        LIMIT 1`,
+    ).catch(() => null),
     unreadCount(user.id),
     banners(),
+    query<{ stage_key: string; n: number }>(
+      `SELECT stage_key, COUNT(*) AS n
+         FROM opportunities
+        WHERE deleted_at IS NULL
+        GROUP BY stage_key`,
+    ),
+    queryOne<Record<string, number>>(
+      `SELECT
+         SUM(deleted_at IS NULL) AS all_,
+         SUM(deleted_at IS NULL AND status = 'open') AS open_,
+         SUM(deleted_at IS NULL AND status = 'lost') AS lost_
+         FROM opportunities`,
+    ),
+    /* Today's calls by Dubai hour, for the bars and the "now" marker. */
+    query<{ hour: number; n: number }>(
+      `SELECT HOUR(CONVERT_TZ(started_at, '+00:00', ${DUBAI})) AS hour, COUNT(*) AS n
+         FROM call_logs
+        WHERE started_at >= ${DAY_START} AND started_at < ${DAY_END}
+        GROUP BY hour`,
+    ),
+    query<{ user_id: string; to_date: string }>(
+      `SELECT user_id, DATE_FORMAT(to_date, '%Y-%m-%d') AS to_date
+         FROM leave_requests
+        WHERE status = 'approved' AND from_date <= ${TODAY} AND to_date >= ${TODAY}`,
+    ),
+    query<{ name: string; max_open_leads: number | null }>(
+      `SELECT name, max_open_leads FROM desks
+        WHERE is_active = 1 AND max_open_leads IS NOT NULL
+        ORDER BY max_open_leads DESC, name ASC`,
+    ),
+    /* Each agent's desk maximum. Somebody on two desks is held to the lower
+       of the two, which is the only reading that cannot promise too much. */
+    query<{ user_id: string; name: string; max_open_leads: number | null }>(
+      `SELECT dm.user_id, d.name, d.max_open_leads
+         FROM desk_members dm
+         JOIN desks d ON d.id = dm.desk_id AND d.is_active = 1
+        WHERE d.max_open_leads IS NOT NULL
+        ORDER BY d.max_open_leads ASC`,
+    ),
+    query<{ user_id: string; on_date: string; n: number }>(
+      `SELECT user_id,
+              DATE_FORMAT(CONVERT_TZ(started_at, '+00:00', ${DUBAI}), '%Y-%m-%d') AS on_date,
+              COUNT(*) AS n
+         FROM call_logs
+        WHERE started_at >= DATE_SUB(${DAY_START}, INTERVAL 6 DAY)
+        GROUP BY user_id, on_date`,
+    ),
+    /* How long the first answer took, over the window's new leads. */
+    query<{ seconds: number }>(
+      `SELECT TIMESTAMPDIFF(SECOND, created_at, first_response_at) AS seconds
+         FROM opportunities
+        WHERE deleted_at IS NULL AND first_response_at IS NOT NULL
+          AND created_at >= ${w.from} AND created_at < ${w.to}`,
+    ),
+    /* The free leads, oldest first: the Incoming row names the first three. */
+    query<Record<string, unknown>>(
+      `SELECT o.id, o.created_at AS createdAt, o.is_vip AS isVip, c.full_name AS name
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+        WHERE o.status = 'open' AND o.owner_user_id IS NULL AND o.deleted_at IS NULL
+        ORDER BY o.created_at ASC
+        LIMIT 5`,
+    ),
+    /* Who the overdue follow-ups sit with — "3 with Bassam · 3 with Shan". */
+    query<{ name: string; n: number }>(
+      `SELECT u.name, COUNT(*) AS n
+         FROM opportunities o
+         JOIN users u ON u.id = o.owner_user_id
+        WHERE o.status = 'open' AND o.deleted_at IS NULL
+          AND o.next_step_at IS NOT NULL AND o.next_step_at < NOW(3)
+        GROUP BY u.id, u.name
+        ORDER BY n DESC, u.name ASC
+        LIMIT 3`,
+    ),
+    queryOne<{ n: number; open_: number }>(
+      `SELECT COUNT(*) AS n, SUM(answered_at IS NULL) AS open_
+         FROM message_taps
+        WHERE app = 'whatsapp'
+          AND tapped_at >= ${DAY_START} AND tapped_at < ${DAY_END}`,
+    ),
+    queryOne<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM opportunities
+        WHERE status = 'open' AND deleted_at IS NULL
+          AND (last_contact_at IS NULL
+               OR last_contact_at < DATE_SUB(NOW(3), INTERVAL 7 DAY))`,
+    ),
+    /* The newest leads, for the table below the fold. */
+    query<Record<string, unknown>>(
+      `SELECT o.id, c.full_name AS name, c.phone_e164 AS phone, o.project_name AS project,
+              o.stage_key AS stage, o.is_vip AS isVip, o.created_at AS createdAt,
+              u.name AS agent
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+         LEFT JOIN users u ON u.id = o.owner_user_id
+        WHERE o.deleted_at IS NULL
+        ORDER BY o.created_at DESC
+        LIMIT 6`,
+    ),
+    /* The VIP leads this owner gave out, newest first. */
+    query<Record<string, unknown>>(
+      `SELECT v.id, v.opportunity_id AS leadId, v.created_at AS givenAt,
+              v.deadline_at AS deadlineAt, v.accepted_at AS acceptedAt,
+              v.first_call_at AS firstCallAt, v.returned_at AS returnedAt,
+              c.full_name AS name, o.project_name AS project, o.stage_key AS stage,
+              u.name AS agent
+         FROM vip_handoffs v
+         JOIN opportunities o ON o.id = v.opportunity_id AND o.deleted_at IS NULL
+         JOIN contacts c ON c.id = o.contact_id
+         JOIN users u ON u.id = v.given_to
+        WHERE v.given_by = ?
+        ORDER BY v.created_at DESC
+        LIMIT 5`,
+      [user.id],
+    ),
+    queryOne<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM vip_handoffs WHERE given_by = ?', [user.id],
+    ),
+    queryOne<Record<string, unknown>>(
+      `SELECT u.name AS agent, o.project_name AS project, o.deal_value_aed AS valueAed
+         FROM opportunities o
+         LEFT JOIN users u ON u.id = o.owner_user_id
+        WHERE o.status = 'won' AND o.deleted_at IS NULL
+          AND o.stage_changed_at >= ${w.from} AND o.stage_changed_at < ${w.to}
+        ORDER BY o.stage_changed_at DESC
+        LIMIT 1`,
+    ),
   ]);
 
-  const rows = team.map((r) => ({
-    id: String(r.id),
-    name: String(r.name),
-    photoUrl: (r.photoUrl as string | null) ?? null,
-    marked: (r.marked as string | null) ?? null,
-    wasLate: Number(r.wasLate ?? 0) === 1,
-    openLeads: Number(r.openLeads),
-    callsToday: Number(r.callsToday),
-    lastSeenAt: (r.lastSeenAt as Date | null) ?? null,
+  const onLeave = new Map(leaveToday.map((r) => [String(r.user_id), String(r.to_date)]));
+
+  /* The lowest maximum of the desks somebody sits on. */
+  const deskOf = new Map<string, { name: string; max: number }>();
+  for (const row of deskMaxRows) {
+    const key = String(row.user_id);
+    if (deskOf.has(key)) continue;
+    if (row.max_open_leads === null) continue;
+    deskOf.set(key, { name: String(row.name), max: Number(row.max_open_leads) });
+  }
+
+  /* A week of calls per agent, from the one query above. */
+  const byUser = new Map<string, Map<string, number>>();
+  for (const r of sparkRows) {
+    const key = String(r.user_id);
+    if (!byUser.has(key)) byUser.set(key, new Map());
+    byUser.get(key)?.set(String(r.on_date), Number(r.n));
+  }
+  const dubaiToday = new Date(Date.now() + 4 * 3_600_000);
+  const week = Array.from({ length: 7 }, (_, i) => new Date(
+    dubaiToday.getTime() - (6 - i) * 86_400_000,
+  ).toISOString().slice(0, 10));
+
+  const rows: OwnerTeamRow[] = team.map((r) => {
+    const id = String(r.id);
+    const desk = deskOf.get(id) ?? null;
+    const theirs = byUser.get(id);
+    return {
+      id,
+      name: String(r.name),
+      photoUrl: (r.photoUrl as string | null) ?? null,
+      marked: (r.marked as string | null) ?? null,
+      wasLate: Number(r.wasLate ?? 0) === 1,
+      onLeave: onLeave.has(id),
+      checkedInAt: clockOf((r.markedAt as Date | null) ?? null),
+      openLeads: Number(r.openLeads),
+      callsToday: Number(r.callsToday),
+      callsPerDay: week.map((d) => theirs?.get(d) ?? 0),
+      deskMax: desk?.max ?? null,
+      deskName: desk?.name ?? null,
+      overdue: Number(r.overdue ?? 0),
+      lastSeenAt: (r.lastSeenAt as Date | null) ?? null,
+    };
+  });
+
+  /*
+   * Problems first, which is the order the design's own table is built in:
+   * absent, late, on leave, outside, then everybody in the office with the
+   * busiest at the top. An owner reads down until the rows stop being
+   * interesting, so the rows that need them must be at the top.
+   */
+  const trouble = (row: OwnerTeamRow): number => {
+    if (!today.closed && row.marked === null && !row.onLeave) return 0;
+    if (row.marked === 'office' && row.wasLate) return 1;
+    if (row.onLeave) return 2;
+    if (row.marked === 'outside') return 3;
+    return 4;
+  };
+  rows.sort((a, b) => trouble(a) - trouble(b)
+    || b.callsToday - a.callsToday
+    || a.name.localeCompare(b.name));
+
+  /* ── the hour chart ─────────────────────────────────────────────────── */
+
+  const minutesNow = dubaiMinutesNow();
+  const nowHour = Math.floor(minutesNow / 60);
+  const day = dubaiToday.getUTCDay();
+  const closedToday = settings.closedDays.includes(day);
+  const open = closedToday ? null : Number((day === 6 ? settings.satStart : settings.start).slice(0, 2));
+  const close = closedToday ? null : Number((day === 6 ? settings.satEnd : settings.end).slice(0, 2));
+  const counted = new Map(callHours.map((r) => [Number(r.hour), Number(r.n)]));
+  const hourList = homeHourRange(open, close, [...counted.keys()], nowHour);
+  const hours: HomeHour[] = hourList.map((hour) => ({
+    hour,
+    calls: counted.get(hour) ?? 0,
+    future: hour > nowHour,
   }));
+  const firstHour = hourList[0];
+  const lastHour = hourList[hourList.length - 1];
+  const nowAcross = firstHour === undefined || lastHour === undefined || lastHour < firstHour
+    ? null
+    : Math.min(1, Math.max(0, (minutesNow - firstHour * 60) / ((lastHour - firstHour + 1) * 60)));
+  const done = hours.filter((one) => !one.future && one.calls > 0);
+  const bestHour = done.length === 0
+    ? null
+    : done.reduce((top, one) => (one.calls > top.calls ? one : top), done[0] as HomeHour).hour;
+
+  /* ── the pipeline strip ─────────────────────────────────────────────── */
+
+  const byStage = new Map(stageRows.map((r) => [String(r.stage_key), Number(r.n)]));
+  const live = STAGE_STRIP.reduce((sum, s) => sum + (byStage.get(s.key) ?? 0), 0);
+  const lostN = Number(totalsRow?.lost_ ?? 0);
+  const everything = Number(totalsRow?.all_ ?? 0);
+
+  /* ── what needs the owner, named ────────────────────────────────────── */
 
   const needsYou: OwnerHome['needsYou'] = [];
   const add = (
     kind: OwnerHome['needsYou'][number]['kind'],
-    n: number, text: string, action: string, to: string,
-  ) => { if (n > 0) needsYou.push({ kind, n, text, action, to }); };
+    n: number, text: string, sub: string | null, action: string, to: string,
+    waitMinutes: number | null,
+  ) => { if (n > 0) needsYou.push({ kind, n, text, sub, action, to, waitMinutes }); };
 
-  add('vip_late', Number(vipLate?.n ?? 0),
-    'VIP lead not called in time', 'Give again', '/v2/incoming');
-  add('waiting', Number(free?.n ?? 0),
-    'leads waiting to be given out', 'Give', '/v2/incoming');
-  add('transfer', Number(transfers?.n ?? 0),
-    'lead transfers need your approval', 'Approve', '/v2/transfers');
-  add('leave', Number(leave?.n ?? 0),
-    'leave requests to answer', 'Answer', '/v2/attendance');
-  const absent = rows.filter((r) => r.marked === null).length;
-  if (!today.closed) {
-    add('absent', absent, 'nobody has marked them in today', 'See', '/v2/attendance');
+  const vipLate = vipLateRows[0];
+  if (vipLate) {
+    const others = vipLateRows.length - 1;
+    const had = vipLate.within === null || vipLate.within === undefined
+      ? null : Number(vipLate.within);
+    add(
+      'vip_late', vipLateRows.length,
+      `VIP ${String(vipLate.name ?? 'lead')} is not called`
+        + (others > 0 ? ` · and ${others} more` : ''),
+      `${String(vipLate.agent)} had ${had === null ? 'no time limit' : `${had} min`}`
+        + (vipLate.ownerUserId === null ? ' · now back in Incoming' : ' · still with them'),
+      'Give again', '/v2/incoming',
+      minutesSince(vipLate.deadlineAt as Date | null),
+    );
   }
-  add('bug', Number(bugs?.n ?? 0),
-    'blocking problems reported', 'Open', '/v2/settings');
+
+  const approval = transferRows.filter((r) => String(r.status) === 'needs_approval');
+  const firstTransfer = approval[0];
+  if (firstTransfer) {
+    add(
+      'transfer', approval.length,
+      approval.length === 1
+        ? 'Transfer needs your approval'
+        : `${approval.length} transfers need your approval`,
+      `${String(firstTransfer.leadName ?? 'A lead')} · ${String(firstTransfer.fromName)} → `
+        + `${String(firstTransfer.toName)} · stage `
+        + `${STAGE_WORD[String(firstTransfer.stage)] ?? String(firstTransfer.stage)}`,
+      'Approve', '/v2/transfers',
+      minutesSince(firstTransfer.requestedAt as Date | null),
+    );
+  }
+
+  const freeN = Number(free?.n ?? 0);
+  if (freeN > 0) {
+    const oldest = minutesSince(waitingRows[0]?.createdAt as Date | null);
+    const named = waitingRows.slice(0, 3).map((r, i) => {
+      const name = String(r.name ?? 'Unnamed lead');
+      return i === 0 && oldest !== null ? `${name} waits ${spoken(oldest)}` : name;
+    });
+    add(
+      'waiting', freeN,
+      freeN === 1 ? '1 lead waits in Incoming' : `${freeN} leads wait in Incoming`,
+      named.join(' · ') || null,
+      'Give', '/v2/incoming',
+      oldest,
+    );
+  }
+
+  if (leaveRows.length > 0) {
+    add(
+      'leave', leaveRows.length,
+      leaveRows.length === 1 ? '1 leave request' : `${leaveRows.length} leave requests`,
+      leaveRows.slice(0, 3).map((r) => `${String(r.name)} `
+        + dayRange(String(r.fromDate), String(r.toDate))).join(' · '),
+      'Answer', '/v2/attendance',
+      minutesSince(leaveRows[0]?.createdAt as Date | null),
+    );
+  }
+
+  const missing = rows.filter((r) => r.marked === null && !r.onLeave);
+  if (!today.closed && missing.length > 0) {
+    const one = missing[0] as OwnerTeamRow;
+    add(
+      'absent', missing.length,
+      missing.length === 1
+        ? `${one.name} is absent`
+        : `${missing.length} agents have not marked themselves in`,
+      missing.length === 1
+        ? `No check-in, no leave · ${one.openLeads} open ${one.openLeads === 1 ? 'lead' : 'leads'}`
+        : missing.map((r) => r.name).slice(0, 4).join(' · '),
+      'See', '/v2/attendance',
+      null,
+    );
+  }
+
+  const bugs = Number(bugRow?.n ?? 0);
+  if (bugs > 0) {
+    const said = String(bugRow?.body ?? '').replace(/\s+/g, ' ').trim();
+    add(
+      'bug', bugs,
+      bugs === 1
+        ? `Bug blocks ${String(bugRow?.name ?? 'an agent')}'s work`
+        : `${bugs} bugs block the team's work`,
+      said ? `${said.slice(0, 70)}${said.length > 70 ? '…' : ''}` : null,
+      'Open', '/v2/settings/feedback',
+      minutesSince(bugRow?.createdAt as Date | null),
+    );
+  }
+
+  const answered = answerRows.map((r) => Number(r.seconds)).filter((n) => n >= 0);
+  const firstContact = middle(answered);
+
+  const absent = rows.filter((r) => r.marked === null && !r.onLeave).length;
 
   return {
     role: 'owner',
     me: { name: user.name, firstName: firstName(user.name) },
     now: dubaiNow(),
+    clock: hhmm(minutesNow),
+    period,
     needsYou,
     teamToday: {
       inOffice: rows.filter((r) => r.marked === 'office' && !r.wasLate).length,
       late: rows.filter((r) => r.marked === 'office' && r.wasLate).length,
       outside: rows.filter((r) => r.marked === 'outside').length,
+      leave: rows.filter((r) => r.onLeave).length,
       absent: today.closed ? 0 : absent,
       closed: today.closed,
     },
@@ -515,8 +1100,87 @@ export async function ownerHome(user: SessionUser, seenIp: string | null): Promi
       overdue: counts.overdue,
       noNextStep: counts.no_next_step,
     },
-    teamRightNow: rows.map(({ wasLate, ...rest }) => rest),
-    freeLeads: Number(free?.n ?? 0),
+    work: {
+      calls: Number(workRow?.calls ?? 0),
+      callsPrevious: Number(workRow?.callsPrevious ?? 0),
+      meetings: Number(workRow?.meetings ?? 0),
+      units: Number(workRow?.units ?? 0),
+      lastUnit: lastUnitRow
+        ? {
+          agent: (lastUnitRow.agent as string | null) ?? null,
+          project: (lastUnitRow.project as string | null) ?? null,
+          valueAed: lastUnitRow.valueAed === null || lastUnitRow.valueAed === undefined
+            ? null : Number(lastUnitRow.valueAed),
+        }
+        : null,
+      newLeadsToday: Number(todayRow?.newLeads ?? 0),
+      newLeadsYesterday: Number(todayRow?.newLeadsYesterday ?? 0),
+      firstContactMinutes: firstContact === null ? null : Math.round(firstContact / 60),
+    },
+    hours,
+    nowAcross,
+    bestHour,
+    pipeline: {
+      total: everything,
+      open: Number(totalsRow?.open_ ?? 0),
+      stages: STAGE_STRIP.map((s) => {
+        const n = byStage.get(s.key) ?? 0;
+        return {
+          key: s.key,
+          label: s.label,
+          tone: s.tone,
+          n,
+          pct: live === 0 ? 0 : Math.round((n / live) * 1000) / 10,
+        };
+      }),
+      lost: {
+        n: lostN,
+        pct: everything === 0 ? 0 : Math.round((lostN / everything) * 1000) / 10,
+      },
+    },
+    teamRightNow: rows,
+    desks: deskRows.map((r) => ({
+      name: String(r.name),
+      maxOpenLeads: r.max_open_leads === null ? null : Number(r.max_open_leads),
+    })),
+    watch: {
+      overdue: {
+        n: counts.overdue,
+        who: overdueBy.map((r) => ({ name: String(r.name), n: Number(r.n) })),
+      },
+      noNextStep: counts.no_next_step,
+      transfers: { n: transferRows.length, needApproval: approval.length },
+      taps: { n: Number(tapRow?.n ?? 0), unanswered: Number(tapRow?.open_ ?? 0) },
+      cold: Number(coldRow?.n ?? 0),
+    },
+    latestLeads: latestRows.map((r) => ({
+      id: String(r.id),
+      name: (r.name as string | null) ?? null,
+      phone: (r.phone as string | null) ?? null,
+      project: (r.project as string | null) ?? null,
+      stage: String(r.stage),
+      agent: (r.agent as string | null) ?? null,
+      isVip: Number(r.isVip ?? 0) === 1,
+      note: null,
+      createdAt: r.createdAt as Date,
+    })),
+    vipGiven: {
+      total: Number(vipGivenTotal?.n ?? 0),
+      rows: vipGivenRows.map((r) => ({
+        id: String(r.id),
+        leadId: String(r.leadId),
+        name: (r.name as string | null) ?? null,
+        agent: String(r.agent),
+        project: (r.project as string | null) ?? null,
+        givenAt: r.givenAt as Date,
+        deadlineAt: (r.deadlineAt as Date | null) ?? null,
+        acceptedAt: (r.acceptedAt as Date | null) ?? null,
+        firstCallAt: (r.firstCallAt as Date | null) ?? null,
+        returnedAt: (r.returnedAt as Date | null) ?? null,
+        stage: String(r.stage),
+      })),
+    },
+    freeLeads: freeN,
     banners: bannerRows,
     unread,
   };

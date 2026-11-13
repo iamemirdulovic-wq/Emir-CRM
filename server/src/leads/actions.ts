@@ -26,9 +26,56 @@ export type LeadAction = (typeof LEAD_ACTIONS)[number];
 export const PROBLEM_REASONS = [
   'wrong_number', 'not_reachable', 'budget_too_low', 'not_decision_maker', 'other',
 ] as const;
+
+/**
+ * Why a deal died.
+ *
+ * The first six are `design/web/lead.html`'s own six chips, in its order. Two
+ * of them — `not_into_offplan` and `is_broker` — were simply missing, so an
+ * agent whose buyer only wanted a ready flat, or who turned out to be another
+ * broker, had nothing to pick and reached for "Other". Both are the two most
+ * useful answers an owner can get out of this list, because one is a project
+ * problem and the other is a lead-source problem.
+ *
+ * `not_reachable` and `changed_plans` stay on the end. They are not on the
+ * design's chip row any more, but the dialler still offers them and leads
+ * already carry them, so dropping them from the list would make an existing
+ * reason unwritable — the exact fault being fixed here, in reverse.
+ */
 export const LOST_REASONS = [
-  'bought_elsewhere', 'budget_too_low', 'just_browsing', 'not_reachable', 'changed_plans', 'other',
+  'bought_elsewhere', 'budget_too_low', 'just_browsing', 'not_into_offplan', 'is_broker', 'other',
+  'not_reachable', 'changed_plans',
 ] as const;
+
+/**
+ * The nearest of `opportunities.lost_reason`'s own five ENUM values.
+ *
+ * That column is an ENUM written in January and MySQL here runs with
+ * STRICT_TRANS_TABLES, so writing anything outside it raises error 1265 and
+ * rolls the whole Lost back. Marking a lead Lost for any reason but "bought
+ * somewhere else" has been failing in the live CRM ever since the newer list
+ * was written. Migration 0038 adds `lost_reason_v2` for the agent's own
+ * answer; this keeps the old column filled so the lost-reasons report and
+ * Contact 360 go on meaning something.
+ */
+const LEGACY_LOST_REASON: Record<string, string> = {
+  bought_elsewhere: 'bought_elsewhere',
+  budget_too_low: 'budget_mismatch',
+  budget_mismatch: 'budget_mismatch',
+  just_browsing: 'not_interested',
+  not_into_offplan: 'not_interested',
+  is_broker: 'invalid',
+  other: 'not_interested',
+  not_reachable: 'unresponsive',
+  unresponsive: 'unresponsive',
+  changed_plans: 'not_interested',
+  not_interested: 'not_interested',
+  invalid: 'invalid',
+};
+
+/** What was signed when a unit was booked. `design/web/lead.html`'s three. */
+export const WON_SIGNED = ['booking_form', 'reservation_agreement', 'spa'] as const;
+export type WonSigned = (typeof WON_SIGNED)[number];
 
 export type NextStepType = 'call' | 'whatsapp' | 'email' | 'meeting' | 'viewing' | 'other';
 
@@ -44,9 +91,14 @@ export interface ActionInput {
   meetingAt?: string | null;
   meetingKind?: string | null;
   meetingWhere?: string | null;
-  /** Won carries what was actually sold. */
+  /** Won carries what was actually sold, and for how much. */
   wonProject?: string | null;
   wonUnit?: string | null;
+  /** The price, in whole dirhams. */
+  wonPriceAed?: number | null;
+  /** What the buyer has handed over so far. Never more than the price. */
+  wonPaidAed?: number | null;
+  wonSigned?: WonSigned | null;
 }
 
 export interface ActionResult {
@@ -112,6 +164,18 @@ export async function runLeadAction(
   if ((input.action === 'problem' || input.action === 'lost') && !input.reason) {
     throw Object.assign(new Error('A reason is required'), { status: 400 });
   }
+  /*
+   * Checked here as well as in the dialog. A deposit larger than the price is
+   * a typo every time, and once it is in the row it is in the owner's month,
+   * the wall post and whatever Books does with it later.
+   */
+  if (input.action === 'won' && input.wonPriceAed != null && input.wonPaidAed != null
+    && input.wonPaidAed > input.wonPriceAed) {
+    throw Object.assign(
+      new Error('Paid now cannot be more than the price.'),
+      { status: 400 },
+    );
+  }
 
   const before = await queryOne<{
     id: string; contact_id: string; stage_key: string; status: string;
@@ -157,8 +221,12 @@ export async function runLeadAction(
       args.push(move.status);
     }
     if (input.action === 'lost') {
-      sets.push('lost_reason = ?');
-      args.push(input.reason ?? 'not_interested');
+      const chosenReason = input.reason ?? 'not_interested';
+      /* The agent's own answer, and the nearest value the old ENUM column
+         can hold. Writing the agent's answer straight into `lost_reason`
+         is what has been throwing 1265 and losing the whole Lost. */
+      sets.push('lost_reason_v2 = ?', 'lost_reason = ?');
+      args.push(chosenReason, LEGACY_LOST_REASON[chosenReason] ?? 'not_interested');
       if (input.note) {
         sets.push('lost_note = ?');
         args.push(input.note.slice(0, 500));
@@ -184,6 +252,27 @@ export async function runLeadAction(
       if (input.wonProject) {
         sets.push('project_name = COALESCE(project_name, ?)');
         args.push(input.wonProject);
+      }
+      /*
+       * The money. The design's Won dialog is a deal record, not a tick box:
+       * without the price nothing downstream — the wall post, the owner's
+       * month, the commission that follows it — has a number to work from.
+       */
+      if (input.wonUnit) {
+        sets.push('won_unit = ?');
+        args.push(input.wonUnit.slice(0, 80));
+      }
+      if (input.wonPriceAed != null) {
+        sets.push('deal_value_aed = ?');
+        args.push(input.wonPriceAed);
+      }
+      if (input.wonPaidAed != null) {
+        sets.push('won_paid_aed = ?');
+        args.push(input.wonPaidAed);
+      }
+      if (input.wonSigned) {
+        sets.push('won_signed = ?');
+        args.push(input.wonSigned);
       }
     }
 
@@ -250,6 +339,14 @@ export async function runLeadAction(
           stageKey: move.stage ?? before.stage_key,
           status: move.status ?? before.status,
           reason: input.reason ?? null,
+          ...(input.action === 'won'
+            ? {
+              unit: input.wonUnit ?? null,
+              priceAed: input.wonPriceAed ?? null,
+              paidNowAed: input.wonPaidAed ?? null,
+              signed: input.wonSigned ?? null,
+            }
+            : {}),
         },
       },
       tx,
@@ -311,7 +408,13 @@ const TITLE: Record<LeadAction, (input: ActionInput) => string> = {
   meeting: (input) => `${input.meetingKind ?? 'Meeting'} booked`,
   problem: (input) => `Problem — ${human(input.reason)}`,
   lost: (input) => `Lost — ${human(input.reason)}`,
-  won: (input) => `Won${input.wonUnit ? ` — unit ${input.wonUnit}` : ''}`,
+  won: (input) => [
+    'Won',
+    input.wonUnit ? `unit ${input.wonUnit}` : null,
+    input.wonPriceAed != null ? `AED ${input.wonPriceAed.toLocaleString('en-US')}` : null,
+    input.wonPaidAed != null ? `paid now AED ${input.wonPaidAed.toLocaleString('en-US')}` : null,
+    input.wonSigned ? input.wonSigned.replace(/_/g, ' ') : null,
+  ].filter(Boolean).join(' — '),
 };
 
 /** What the toast says. Short, and in the agent's own words. */

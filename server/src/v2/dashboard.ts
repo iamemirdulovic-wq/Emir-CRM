@@ -27,8 +27,10 @@ import { query, queryOne } from '../db/client.js';
 import type { SessionUser } from '../auth/sessions.js';
 import { DAY_END, DAY_START, TODAY } from './dubai.js';
 import { dayState } from '../attendance/attendance.js';
-import { runBulkAction } from '../lists/store.js';
+import { assign } from '../assignment/apply.js';
+import { badRequest } from '../lib/errors.js';
 import type { AuditActor } from '../audit/audit.js';
+import { countedAgentSql } from '../users/counting.js';
 
 export const PERIODS = ['today', 'week', 'month', 'year'] as const;
 export type Period = (typeof PERIODS)[number];
@@ -72,6 +74,38 @@ export interface AgentRow {
   /** Open leads and overdue follow-ups are facts about now. */
   open: number;
   overdue: number;
+  /** The desk's agreed maximum open leads, when they are on one. */
+  deskMax: number | null;
+  deskName: string | null;
+}
+
+/**
+ * One row of the morning brief.
+ *
+ * `design/web/dashboard.html` draws three: an agent on leave whose leads have
+ * nobody, an agent over their desk maximum, and the leads nobody has touched.
+ * Each carries its own reason on the line underneath — not the button's word,
+ * which is what made the card read "Move 31 / Move 31".
+ */
+export interface BriefRow {
+  kind: 'leave' | 'overload' | 'untouched';
+  text: string;
+  sub: string;
+  action: string;
+  to: string;
+  /** Set when the row's button opens the Move dialog. */
+  move: { userId: string; name: string; leads: number } | null;
+}
+
+/** Somebody who could be given leads, for the Move dialog's picker. */
+export interface Assignable {
+  userId: string;
+  name: string;
+  openLeads: number;
+  /** 'office' | 'outside' | 'leave' | 'absent'. */
+  where: string;
+  /** People on leave or absent cannot be chosen — the design says so. */
+  canTake: boolean;
 }
 
 export interface ColdAgent {
@@ -125,6 +159,12 @@ export interface FullDashboard {
   };
   agents: AgentRow[];
   cold: { total: number; agents: ColdAgent[] };
+  /** The morning brief's three rows, each with its own reason. */
+  brief: BriefRow[];
+  /** The desks and their agreed maximums, for the Open column's foot. */
+  desks: Array<{ name: string; maxOpenLeads: number | null }>;
+  /** Who the Move dialog may offer. */
+  assignable: Assignable[];
 }
 
 /**
@@ -168,7 +208,7 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
 
   const [
     totalsRow, workRow, stageRows, dayRows, projectRows, sourceRows,
-    team, leaveRows, coldRow, answerRows,
+    team, leaveRows, coldRow, answerRows, deskRows, deskMaxRows,
   ] = await Promise.all([
     /*
      * The totals, in one pass. `open` and `untouched` are counted here rather
@@ -270,12 +310,13 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
                   AND o.next_step_at IS NOT NULL AND o.next_step_at < NOW(3)) AS overdue
          FROM users u
          LEFT JOIN attendance a ON a.user_id = u.id AND a.on_date = ${TODAY}
-        WHERE u.is_active = 1 AND u.role IN ('agent','manager')
+        WHERE u.is_active = 1 AND ${countedAgentSql()}
         ORDER BY calls DESC, u.name ASC`,
     ),
-    /* Who is on approved leave today. */
-    query<{ user_id: string }>(
-      `SELECT user_id FROM leave_requests
+    /* Who is on approved leave today, and the day they are back. */
+    query<{ user_id: string; to_date: string }>(
+      `SELECT user_id, DATE_FORMAT(to_date, '%Y-%m-%d') AS to_date
+         FROM leave_requests
         WHERE status = 'approved' AND from_date <= ${TODAY} AND to_date >= ${TODAY}`,
     ),
     queryOne<{ n: number }>(
@@ -294,9 +335,39 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
         WHERE deleted_at IS NULL AND first_response_at IS NOT NULL
           AND created_at >= ${w.from} AND created_at < ${w.to}`,
     ),
+    /* The desks the Open column measures against, named in its foot. */
+    query<{ name: string; max_open_leads: number | null }>(
+      `SELECT name, max_open_leads FROM desks
+        WHERE is_active = 1 AND max_open_leads IS NOT NULL
+        ORDER BY max_open_leads DESC, name ASC`,
+    ),
+    /* Each agent's desk maximum. Somebody on two desks is held to the lower
+       of the two, which is the only reading that cannot promise too much. */
+    query<{ user_id: string; name: string; max_open_leads: number | null }>(
+      `SELECT dm.user_id, d.name, d.max_open_leads
+         FROM desk_members dm
+         JOIN desks d ON d.id = dm.desk_id AND d.is_active = 1
+        WHERE d.max_open_leads IS NOT NULL
+        ORDER BY d.max_open_leads ASC`,
+    ),
   ]);
 
   const onLeave = new Set(leaveRows.map((r) => String(r.user_id)));
+  /* "Back Thursday" — the day after the last day of leave, named. */
+  const leaveBack = new Map(leaveRows.map((r) => {
+    const last = new Date(`${String(r.to_date).slice(0, 10)}T00:00:00Z`);
+    const back = new Date(last.getTime() + 86_400_000);
+    return [String(r.user_id), back.toLocaleDateString('en-GB', {
+      weekday: 'long', timeZone: 'UTC',
+    })] as const;
+  }));
+
+  const deskOf = new Map<string, { name: string; max: number }>();
+  for (const row of deskMaxRows) {
+    const key = String(row.user_id);
+    if (deskOf.has(key) || row.max_open_leads === null) continue;
+    deskOf.set(key, { name: String(row.name), max: Number(row.max_open_leads) });
+  }
 
   const rows: AgentRow[] = team.map((r) => ({
     userId: String(r.id),
@@ -311,6 +382,8 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
     callsPerDay: [],
     open: Number(r.open_ ?? 0),
     overdue: Number(r.overdue ?? 0),
+    deskMax: deskOf.get(String(r.id))?.max ?? null,
+    deskName: deskOf.get(String(r.id))?.name ?? null,
   }));
 
   /* A week of calls per agent, one query for the whole team. */
@@ -388,10 +461,84 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
 
   const absent = rows.filter((r) => r.marked === null && !r.onLeave).length;
 
+  /*
+   * The morning brief — the design's own three rows.
+   *
+   * Each one is a problem somebody has to decide about, and each carries its
+   * reason on the line underneath. Rows that are not true today are simply
+   * absent: an empty brief says nothing needs a decision, which is a thing
+   * worth saying.
+   */
+  const brief: BriefRow[] = [];
+  const away = rows
+    .filter((r) => r.onLeave && r.open > 0)
+    .sort((a, b) => b.open - a.open)[0];
+  if (away) {
+    const back = leaveBack.get(away.userId) ?? null;
+    brief.push({
+      kind: 'leave',
+      text: `${away.name} is on leave · ${away.open} ${away.open === 1 ? 'lead has' : 'leads have'} nobody`,
+      sub: `${back ? `Back ${back}` : 'On leave'}`
+        + (away.overdue > 0
+          ? ` · ${away.overdue} follow-${away.overdue === 1 ? 'up is' : 'ups are'} already overdue`
+          : ' · no follow-up is overdue yet'),
+      action: `Move ${away.open}`,
+      to: `/v2/team/${away.userId}`,
+      move: { userId: away.userId, name: away.name, leads: away.open },
+    });
+  }
+  const over = rows
+    .filter((r) => r.deskMax !== null && r.open > (r.deskMax ?? 0))
+    .sort((a, b) => (b.open - (b.deskMax ?? 0)) - (a.open - (a.deskMax ?? 0)))[0];
+  if (over) {
+    brief.push({
+      kind: 'overload',
+      text: `${over.name} has ${over.open} leads · maximum is ${over.deskMax}`,
+      sub: `${over.deskName ?? 'Their desk'}`
+        + (over.overdue > 0 ? ` · ${over.overdue} follow-ups overdue` : ' · nothing overdue'),
+      action: 'View',
+      to: `/v2/team/${over.userId}`,
+      move: null,
+    });
+  }
+  const untouched = Number(totalsRow?.untouched ?? 0);
+  if (untouched > 0) {
+    brief.push({
+      kind: 'untouched',
+      text: `${untouched} ${untouched === 1 ? 'lead is' : 'leads are'} not touched yet`,
+      sub: 'Nobody has called or messaged them since they arrived',
+      action: 'View',
+      to: '/v2/leads?tab=new',
+      move: null,
+    });
+  }
+
+  /* Who the Move dialog may offer, fewest open leads first. */
+  const assignable: Assignable[] = [...rows]
+    .sort((a, b) => a.open - b.open || a.name.localeCompare(b.name))
+    .map((r) => {
+      const where = r.onLeave ? 'leave'
+        : r.marked === 'outside' ? 'outside'
+          : r.marked === 'office' ? 'office' : 'absent';
+      return {
+        userId: r.userId,
+        name: r.name,
+        openLeads: r.open,
+        where,
+        canTake: where !== 'leave' && where !== 'absent',
+      };
+    });
+
   return {
     period,
     days: DAYS[period],
     now: dubaiNow(),
+    brief,
+    desks: deskRows.map((r) => ({
+      name: String(r.name),
+      maxOpenLeads: r.max_open_leads === null ? null : Number(r.max_open_leads),
+    })),
+    assignable,
     totals: {
       all: everything,
       open: Number(totalsRow?.open_ ?? 0),
@@ -465,39 +612,89 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
 }
 
 /**
- * Take every open lead off one agent and put it back in Incoming.
+ * Where the leads go when an owner presses "Move".
  *
- * This is the design's "Move 31" button on the Going cold card, and it is the
- * one thing on this screen that changes anything. Emir's case for it, 10 Nov:
- * an agent goes on leave with thirty-one leads and nobody can reach any of
- * them until he notices. The button is on the card that notices.
+ * `design/web/dashboard.html` offers three and no more: share them equally
+ * between the agents in the office, give them all to one person, or put them
+ * back in Incoming where anybody may take one. "People on leave or absent
+ * cannot be chosen" is the dialog's own hint and is enforced here as well,
+ * because a hint in a dialog is not a rule.
+ */
+export type MoveTo =
+  | { kind: 'pool' }
+  | { kind: 'agent'; userId: string }
+  | { kind: 'share'; userIds: string[] };
+
+/**
+ * Take every open lead off one agent and give them somewhere else.
  *
- * It does not pick the next agent. The leads go to the pool, where the owner
- * gives them out — which is the same rule the five-minute bounce follows, and
- * for the same reason: the owner chose that agent once and the CRM should not
- * choose the next one for him.
+ * This is the design's "Move 31" button, on the Going cold card and on the
+ * morning brief. Emir's case for it, 10 Nov: an agent goes on leave with
+ * thirty-one leads and nobody can reach any of them until he notices. The
+ * button is on the card that notices.
  *
  * Reuses the bulk machinery rather than writing its own UPDATE, so one audit
  * row, one set of rules, and the lead assignment history stays straight.
+ * Incoming stays the default, because the owner chose that agent once and the
+ * CRM should not choose the next one for him unless he says so.
  */
 export async function movePool(
   actor: AuditActor,
   userId: string,
-): Promise<{ moved: number; name: string | null }> {
+  to: MoveTo = { kind: 'pool' },
+): Promise<{ moved: number; name: string | null; to: string }> {
   const who = await queryOne<{ name: string }>(
     'SELECT name FROM users WHERE id = ?', [userId],
   );
-  const contacts = await query<{ contact_id: string }>(
-    `SELECT DISTINCT contact_id FROM opportunities
+  const leads = await query<{ id: string }>(
+    `SELECT id FROM opportunities
       WHERE owner_user_id = ? AND status = 'open' AND deleted_at IS NULL`,
     [userId],
   );
-  if (contacts.length === 0) return { moved: 0, name: who?.name ?? null };
 
-  const result = await runBulkAction(
-    actor,
-    contacts.map((r) => String(r.contact_id)),
-    { kind: 'assign', method: 'pool', userId: null, teamId: null } as never,
-  );
-  return { moved: result.affected, name: who?.name ?? null };
+  /* Nobody on leave or absent, and never back to the person it came from. */
+  let taking: Array<{ id: string; name: string }> = [];
+  if (to.kind !== 'pool') {
+    const asked = new Set(to.kind === 'agent' ? [to.userId] : to.userIds);
+    const ok = await query<{ id: string; name: string }>(
+      `SELECT u.id, u.name
+         FROM users u
+         JOIN attendance a ON a.user_id = u.id AND a.on_date = ${TODAY}
+        WHERE u.is_active = 1 AND ${countedAgentSql()}
+          AND u.id <> ?
+          AND u.id NOT IN (
+            SELECT user_id FROM leave_requests
+             WHERE status = 'approved' AND from_date <= ${TODAY} AND to_date >= ${TODAY})`,
+      [userId],
+    );
+    taking = ok
+      .filter((r) => asked.has(String(r.id)))
+      .map((r) => ({ id: String(r.id), name: String(r.name) }));
+    if (taking.length === 0) {
+      throw badRequest(
+        'Nobody you chose can take leads today. People on leave or absent cannot be chosen.',
+      );
+    }
+  }
+
+  const where = to.kind === 'pool' ? 'Incoming'
+    : taking.length === 1 ? (taking[0] as { name: string }).name
+      : `${taking.length} agents`;
+
+  if (leads.length === 0) return { moved: 0, name: who?.name ?? null, to: where };
+
+  /*
+   * `assign` rather than `runBulkAction`: the share needs `userIds`, which the
+   * bulk action's shape cannot carry, and without it `split_even` quietly
+   * means the whole floor rather than the people who were ticked.
+   */
+  const result = await assign(actor, {
+    method: to.kind === 'pool' ? 'pool' : taking.length === 1 ? 'agent' : 'split_even',
+    userId: taking.length === 1 ? (taking[0] as { id: string }).id : null,
+    teamId: null,
+    userIds: taking.length > 0 ? taking.map((one) => one.id) : null,
+    opportunityIds: leads.map((r) => String(r.id)),
+    reason: `moved off ${who?.name ?? 'an agent'} from the dashboard`,
+  });
+  return { moved: result.assigned + result.pooled, name: who?.name ?? null, to: where };
 }

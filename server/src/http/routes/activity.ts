@@ -14,6 +14,7 @@ import { doNowCards, greet, allClearMessage } from '../../activity/do-now.js';
 import { notFound } from '../../lib/errors.js';
 import { buildOwnerSummary } from '../../activity/owner-summary.js';
 import { gatherSummaryNumbers, yesterdayInDubai } from '../../activity/send-owner-summary.js';
+import { countedAgentSql } from '../../users/counting.js';
 
 /**
  * Who is working, and what the person looking should do next.
@@ -243,7 +244,12 @@ activityRouter.get(
         : { sql: `u.id IN (${visible.map(() => '?').join(',')})`, params: visible };
 
     /* One row per person, from their most recent session — a colleague with
-       three tabs open is one person working, not three. */
+       three tabs open is one person working, not three.
+
+       The floor, not the whole company: this had no role filter at all, so
+       Team live listed the owner among his own agents and its headcount
+       disagreed with every other screen's. One rule, in
+       `users/counting.ts`. */
     const rows = await query<LiveRow>(
       `SELECT u.id AS user_id, u.name, u.role, u.availability,
               s.device_label, s.city, s.country, s.current_path, s.last_seen_at
@@ -253,7 +259,7 @@ activityRouter.get(
             WHERE s2.user_id = u.id AND s2.expires_at > NOW(3)
             ORDER BY s2.last_seen_at DESC LIMIT 1
          )
-        WHERE u.is_active = 1 AND ${fence.sql}
+        WHERE u.is_active = 1 AND ${countedAgentSql()} AND ${fence.sql}
         ORDER BY s.last_seen_at DESC`,
       fence.params,
     );

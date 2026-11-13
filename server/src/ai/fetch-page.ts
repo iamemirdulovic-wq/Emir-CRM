@@ -1,5 +1,5 @@
 /**
- * Fetching a developer's project page so Emir AI can read it.
+ * Fetching a developer's project page so Homes AI can read it.
  *
  * This exists because "Paste a link" did nothing. The link was handed to
  * Gemini as a sentence — "read the page at this address" — and Gemini has no

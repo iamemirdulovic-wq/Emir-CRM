@@ -165,12 +165,14 @@ export function originOf(phoneE164: string | null | undefined): Origin | null {
 
 export interface LocalClock {
   /**
-   * "3:05 PM" where they are.
+   * "15:05" where they are.
    *
-   * Twelve hour, not twenty-four. Emir, 10 Nov 2026: "should be 12 hours
-   * time, is like not 16 17 18, like should be 3 a.m. 4 p.m. 12 p.m." An
-   * agent glancing at a card reads 3 PM without converting; 15:00 is one
-   * small sum, and the card exists precisely so nobody has to do sums.
+   * Twenty-four hour. It was twelve — Emir, 10 Nov 2026: "should be 12 hours
+   * time, is like not 16 17 18" — and on 13 Nov he reversed it: the CRM is
+   * 24-hour everywhere, and this clock was the one place that was not, which
+   * put "3:05 PM" on My Day, My leads, the lead page and the dialler beside
+   * follow-up times written 15:05. One clock on a screen is worth more than
+   * the saved sum.
    */
   time: string;
   /** 0–23 there, for deciding whether now is a decent hour. */
@@ -185,13 +187,15 @@ export interface LocalClock {
 export function clockIn(timeZone: string | null, now: Date = new Date()): LocalClock | null {
   if (!timeZone) return null;
   try {
-    /* Read the 24-hour value for the arithmetic, show the 12-hour one. */
+    /* The hour on its own, for the arithmetic below. */
     const hour = Number(new Intl.DateTimeFormat('en-GB', {
       timeZone, hour: '2-digit', hour12: false,
     }).format(now).slice(0, 2));
 
-    const time = new Intl.DateTimeFormat('en-US', {
-      timeZone, hour: 'numeric', minute: '2-digit', hour12: true,
+    /* 24-hour, like every other time in the CRM. `en-GB` rather than `en-AE`:
+       the AE tag quietly means 12-hour, which is the bug this is fixing. */
+    const time = new Intl.DateTimeFormat('en-GB', {
+      timeZone, hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(now);
 
     /*
@@ -269,8 +273,9 @@ export function whenToCall(clock: LocalClock | null, timeZone: string | null): C
         timeZone, minute: '2-digit',
       }).format(at));
       const onTheHour = new Date(at.getTime() - theirMinute * 60_000);
-      const yours = new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric', minute: '2-digit', hour12: true,
+      /* 24-hour, like the rest of the CRM: "call after 09:00 Dubai time". */
+      const yours = new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit', minute: '2-digit', hour12: false,
       }).format(onTheHour);
       const early = clock.hour < CALL_FROM;
       return {

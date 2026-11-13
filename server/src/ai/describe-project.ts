@@ -16,6 +16,7 @@ import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
 import { cachedModels, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
+import { AI_NAME, AI_SETTINGS } from './name.js';
 
 export const REWRITE_TONES = ['plain', 'shorter', 'luxury', 'investor', 'family'] as const;
 export type RewriteTone = (typeof REWRITE_TONES)[number];
@@ -83,9 +84,9 @@ function factSheet(input: DescribeInput): string {
 
 export async function describeProject(input: DescribeInput, userId: string | null): Promise<string> {
   const apiKey = await secret('GEMINI_API_KEY');
-  if (!apiKey) throw badRequest('Emir AI is not connected yet. Add the key in Settings → Emir AI.');
+  if (!apiKey) throw badRequest(`${AI_NAME} is not connected yet. Add the key in ${AI_SETTINGS}.`);
   if (!(await withinCap())) {
-    throw badRequest("This month's AI budget is used up. Raise it in Settings → Emir AI.");
+    throw badRequest(`This month\u2019s AI budget is used up. Raise it in ${AI_SETTINGS}.`);
   }
 
   const facts = factSheet(input);
@@ -127,6 +128,6 @@ export async function describeProject(input: DescribeInput, userId: string | nul
   });
 
   const description = (text ?? '').trim().replace(/^["'“]|["'”]$/g, '');
-  if (!description) throw badRequest('Emir AI returned nothing. Try again.');
+  if (!description) throw badRequest(`${AI_NAME} returned nothing. Try again.`);
   return description;
 }

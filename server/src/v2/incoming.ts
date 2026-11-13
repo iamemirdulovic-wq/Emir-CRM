@@ -3,6 +3,7 @@ import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { notify } from '../messaging/notify.js';
 import type { SessionUser } from '../auth/sessions.js';
+import { countedAgentSql } from '../users/counting.js';
 
 /**
  * Incoming: the leads nobody is working on.
@@ -102,7 +103,7 @@ export async function agentsWithLoad(): Promise<Array<{
        FROM users u
        LEFT JOIN attendance a ON a.user_id = u.id
             AND a.on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
-      WHERE u.is_active = 1 AND u.role IN ('agent','manager')
+      WHERE u.is_active = 1 AND ${countedAgentSql()}
       ORDER BY openLeads ASC, u.name ASC`,
   );
   return rows.map((r) => ({

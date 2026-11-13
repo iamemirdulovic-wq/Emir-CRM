@@ -53,7 +53,7 @@ const envSchema = z.object({
    * actually happens. See lib/crypto.ts.
    *
    * Outside the application folder by default, because when it sat inside it
-   * every deploy generated a new key and the owner found Emir AI disconnected
+   * every deploy generated a new key and the owner found Homes AI disconnected
    * again. See config/state.ts.
    */
   KEY_FILE: z.string().default(() => defaultKeyFile()),

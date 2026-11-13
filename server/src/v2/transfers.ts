@@ -5,6 +5,9 @@ import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { notify } from '../messaging/notify.js';
 import { recordAssignment } from '../routing/assignments.js';
 import type { SessionUser } from '../auth/sessions.js';
+import { countedAgentSql } from '../users/counting.js';
+import { dubaiDay, dubaiMinutes, startFor } from '../attendance/attendance.js';
+import { attendanceSettings, type AttendanceSettings } from '../attendance/settings.js';
 
 /**
  * Handing a lead to a colleague.
@@ -355,41 +358,169 @@ export async function cancelTransfer(
   return { cancelled: true };
 }
 
+export interface CouldTakeIt {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  openLeads: number;
+  /** The languages this person actually speaks, as their profile lists them. */
+  languages: string[];
+  /** `attendance.kind` for today: office, outside, or nothing yet. */
+  markedToday: string | null;
+  /** True when today's check-in landed after the grace minutes. */
+  wasLate: boolean;
+  /** How many minutes after the shift started, for "Late · 24 min". */
+  lateMinutes: number | null;
+  /** When they said they would be back, if they are out right now. */
+  backBy: string | null;
+  onLeave: boolean;
+  /** Deals won this month, Dubai's month. */
+  dealsThisMonth: number;
+  /** Median seconds from being given a lead to touching it, last 90 days. */
+  replySeconds: number | null;
+  /** The desk's ceiling on open leads, where the person is on a desk. */
+  maxOpenLeads: number | null;
+}
+
 /**
  * Who to offer it to, best first.
  *
  * "Best" is the design's order and not a score: people who can take it right
  * now, then whoever is holding the fewest leads. Somebody on leave is not
  * offered at all.
+ *
+ * Three things this used to get wrong, all of which the owner saw:
+ *
+ *  - **`u.locale AS language`.** That is which language the CRM's own buttons
+ *    are in, not what the person speaks. With one locale in the office every
+ *    row came back saying "en", so the language chips had one entry and the
+ *    panel hid them altogether — on the one screen whose first question is
+ *    "who speaks Russian". The real answer is `agent_profiles.languages`,
+ *    which the profile page writes, falling back to `users.languages`, which
+ *    the Users screen writes. `/api/v2/team` already read it that way; this
+ *    did not.
+ *  - **No status.** The design puts a chip on every card — In office, Late ·
+ *    24 min, Outside until 16:00 — because "who can take it now" is the
+ *    question, and a name with a number beside it does not answer it.
+ *  - **No deals and no reply time.** They are the two figures that say
+ *    whether handing this person a lead is a good idea.
  */
-export async function whoCouldTakeIt(exceptUserId: string): Promise<Array<{
-  id: string; name: string; photoUrl: string | null; openLeads: number;
-  language: string | null; markedToday: string | null; onLeave: boolean;
-}>> {
+export async function whoCouldTakeIt(exceptUserId: string): Promise<CouldTakeIt[]> {
   const rows = await query<Record<string, unknown>>(
-    `SELECT u.id, u.name, u.photo_url AS photoUrl, u.locale AS language,
-            a.kind AS markedToday,
+    `SELECT u.id, u.name, u.photo_url AS photoUrl,
+            p.languages AS profileLanguages, u.languages AS userLanguages,
+            a.kind AS markedToday, a.was_late AS wasLate, a.marked_at AS markedAt,
+            MIN(t.back_by) AS backBy,
+            MIN(d.max_open_leads) AS maxOpenLeads,
+            r.reply_seconds AS replySeconds,
             (SELECT COUNT(*) FROM opportunities o
               WHERE o.owner_user_id = u.id AND o.status = 'open' AND o.deleted_at IS NULL)
               AS openLeads,
+            /* Won this month, counted over Dubai's month: the server runs on
+               UTC and a deal closed at 02:00 on the 1st belongs to the new
+               month for the person who closed it. */
+            (SELECT COUNT(*) FROM opportunities o
+              WHERE o.owner_user_id = u.id AND o.status = 'won' AND o.deleted_at IS NULL
+                AND o.closed_at >= CONVERT_TZ(
+                      DATE_FORMAT(CONVERT_TZ(NOW(3), '+00:00', '+04:00'), '%Y-%m-01'),
+                      '+04:00', '+00:00'))
+              AS dealsThisMonth,
             EXISTS (SELECT 1 FROM leave_requests l
                      WHERE l.user_id = u.id AND l.status = 'approved'
                        AND DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
                            BETWEEN l.from_date AND l.to_date) AS onLeave
        FROM users u
+       LEFT JOIN agent_profiles p ON p.user_id = u.id
        LEFT JOIN attendance a ON a.user_id = u.id
             AND a.on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
-      WHERE u.is_active = 1 AND u.role IN ('agent','manager') AND u.id <> ?
+       LEFT JOIN outside_trips t ON t.user_id = u.id
+            AND t.on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
+            AND t.returned_at IS NULL
+       LEFT JOIN desk_members dm ON dm.user_id = u.id
+       LEFT JOIN desks d ON d.id = dm.desk_id AND d.is_active = 1
+       /*
+        * How long this person usually takes to pick a lead up. The median,
+        * not the average: one lead answered three days late drags a mean into
+        * uselessness and says nothing about the usual day. The same measure
+        * as the profile page's own speed-to-lead figure.
+        */
+       LEFT JOIN (
+         SELECT owner_user_id, AVG(secs) AS reply_seconds FROM (
+           SELECT o.owner_user_id,
+                  TIMESTAMPDIFF(SECOND, o.assigned_at, o.first_touch_at) AS secs,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY o.owner_user_id
+                    ORDER BY TIMESTAMPDIFF(SECOND, o.assigned_at, o.first_touch_at)
+                  ) AS seat,
+                  COUNT(*) OVER (PARTITION BY o.owner_user_id) AS n
+             FROM opportunities o
+            WHERE o.assigned_at IS NOT NULL AND o.first_touch_at IS NOT NULL
+              AND o.first_touch_at >= o.assigned_at
+              AND o.assigned_at > DATE_SUB(NOW(3), INTERVAL 90 DAY)
+              AND o.deleted_at IS NULL
+         ) walk
+          WHERE seat IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2))
+          GROUP BY owner_user_id
+       ) r ON r.owner_user_id = u.id
+      WHERE u.is_active = 1 AND ${countedAgentSql()} AND u.id <> ?
+      /* One row per person: the desk and trip joins can each match more. */
+      GROUP BY u.id, u.name, u.photo_url, p.languages, u.languages,
+               a.kind, a.was_late, a.marked_at, r.reply_seconds
       ORDER BY onLeave ASC, (a.kind IS NULL) ASC, openLeads ASC, u.name ASC`,
     [exceptUserId],
   );
+
+  /* How late is late. The office's own start time, so the chip says the same
+     thing the attendance register says. */
+  const office = await attendanceSettings();
+
   return rows.map((r) => ({
     id: String(r.id),
     name: String(r.name),
     photoUrl: (r.photoUrl as string | null) ?? null,
     openLeads: Number(r.openLeads),
-    language: (r.language as string | null) ?? null,
+    languages: readLanguages(r.profileLanguages ?? r.userLanguages),
     markedToday: (r.markedToday as string | null) ?? null,
+    wasLate: Number(r.wasLate ?? 0) === 1,
+    lateMinutes: Number(r.wasLate ?? 0) === 1 && r.markedAt
+      ? minutesLate(new Date(r.markedAt as string), office)
+      : null,
+    backBy: r.backBy ? new Date(r.backBy as string).toISOString() : null,
     onLeave: Number(r.onLeave ?? 0) === 1,
+    dealsThisMonth: Number(r.dealsThisMonth ?? 0),
+    replySeconds: r.replySeconds === null || r.replySeconds === undefined
+      ? null
+      : Math.round(Number(r.replySeconds)),
+    maxOpenLeads: r.maxOpenLeads === null || r.maxOpenLeads === undefined
+      ? null
+      : Number(r.maxOpenLeads),
   }));
+}
+
+/** Minutes after the shift started, or null when the office keeps no hours. */
+function minutesLate(markedAt: Date, office: AttendanceSettings): number | null {
+  const start = startFor(dubaiDay(markedAt), office);
+  if (start === null) return null;
+  const late = dubaiMinutes(markedAt) - start;
+  return late > 0 ? late : null;
+}
+
+/**
+ * A language list that may be JSON or may be comma-separated.
+ *
+ * `agent_profiles.languages` has been written both ways over the life of this
+ * app, and a screen that throws on the older shape is a screen that works
+ * until somebody opens an old profile. `routes/v2.ts` reads it the same way.
+ */
+function readLanguages(value: unknown): string[] {
+  const tidy = (list: unknown[]) => list.map(String).map((one) => one.trim()).filter(Boolean);
+  if (Array.isArray(value)) return tidy(value);
+  if (typeof value !== 'string' || value.trim() === '') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) return tidy(parsed);
+  } catch {
+    /* Not JSON, so the older comma-separated form. */
+  }
+  return value.split(',').map((part) => part.trim()).filter(Boolean);
 }

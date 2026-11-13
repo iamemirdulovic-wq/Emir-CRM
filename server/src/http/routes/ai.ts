@@ -1,5 +1,5 @@
 /**
- * Emir AI: what it knows, what it has cost, and a box to try it in.
+ * Homes AI: what it knows, what it has cost, and a box to try it in.
  *
  * Owner, admin and managers may edit the knowledge — the owner's decision. It
  * changes what every agent's AI says, which is why it is not open to agents and
@@ -21,6 +21,7 @@ import {
 } from '../../ai/features.js';
 import { aiProvider } from '../../ai/index.js';
 import { ask } from '../../ai/ask.js';
+import { AI_NAME } from '../../ai/name.js';
 import { env } from '../../config/env.js';
 import { encryptionReady } from '../../lib/crypto.js';
 import { badRequest } from '../../lib/errors.js';
@@ -243,7 +244,7 @@ aiRouter.post(
 );
 
 /**
- * Ask Emir AI a question about the CRM.
+ * Ask Homes AI a question about the CRM.
  *
  * Open to everyone signed in, not just managers: an agent asking "which of my
  * leads should I call first?" is the point of it. What they get back is fenced
@@ -302,11 +303,11 @@ aiRouter.post(
     } catch (err) {
       const canFixIt = user.role === 'owner' || user.role === 'admin';
       if (canFixIt) throw err;
-      logger.warn('Emir AI failed for an agent', {
+      logger.warn('Homes AI failed for an agent', {
         userId: user.id, ...errorContext(err),
       });
       throw badRequest(
-        'Emir AI is not switched on yet. Nothing you did — the office has to finish '
+        `${AI_NAME} is not switched on yet. Nothing you did — the office has to finish `
         + 'setting it up. Everything else in the CRM works as normal.',
       );
     }
@@ -404,7 +405,7 @@ aiRouter.post(
 
     const knowledge = await buildKnowledge(body.feature, body.language);
     const system = [
-      'You are Emir AI, the assistant inside a Dubai and Abu Dhabi off-plan real estate CRM.',
+      `You are ${AI_NAME}, the assistant inside a Dubai and Abu Dhabi off-plan real estate CRM.`,
       'Answer as this brokerage would, using what you are told below about them.',
       knowledge,
     ].join('\n\n');

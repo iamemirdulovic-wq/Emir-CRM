@@ -13,8 +13,15 @@ import { isLeadTab, TABS, LEAD_TABS, type LeadTab } from '../../leads/tabs.js';
 import { leadTabCounts } from '../../leads/counts.js';
 import { contact360 } from '../../services/contacts.js';
 import {
-  LEAD_ACTIONS, LOST_REASONS, PROBLEM_REASONS, runLeadAction,
+  LEAD_ACTIONS, LOST_REASONS, PROBLEM_REASONS, WON_SIGNED, runLeadAction,
 } from '../../leads/actions.js';
+import {
+  PAYMENTS, PURPOSES, TIMELINES, WANT_CHOICES, fieldHistory, updateWants,
+} from '../../leads/wants.js';
+import {
+  FILE_FOLDERS, FOLDER_LABELS, filesForContact, isFileFolder,
+} from '../../leads/note-files.js';
+import { addNote } from '../../leads/notes.js';
 
 /**
  * My Leads: the screen an agent lives in.
@@ -73,8 +80,25 @@ function buildFilters(params: z.infer<typeof listSchema>, visible: string[] | nu
     where.push('o.source = ?');
     args.push(params.source);
   }
+  /*
+   * The project filter, matched on the letters and digits alone.
+   *
+   * `o.project_name` is free text — it arrives from a Meta form, an import
+   * column, an agent typing, and the library's own name — so an exact `=`
+   * against it is a filter that can return nothing while the list plainly
+   * shows leads on that project. "Sei Saadiyat" and "Sei  Saadiyat" are the
+   * same project to everybody except `=`.
+   *
+   * Stripping everything but letters and digits also makes the slugs the
+   * dashboards link with work: `?project=valia` finds "Valia", and
+   * `?project=sei-saadiyat` finds "Sei Saadiyat". `design/web/all-leads.html`
+   * does the same thing, in `slug()`, for the same reason.
+   */
   if (params.project) {
-    where.push('o.project_name = ?');
+    where.push(
+      "LOWER(REGEXP_REPLACE(COALESCE(o.project_name,''), '[^a-zA-Z0-9]', ''))"
+      + " = LOWER(REGEXP_REPLACE(?, '[^a-zA-Z0-9]', ''))",
+    );
     args.push(params.project);
   }
   if (params.band) {
@@ -105,6 +129,12 @@ const SELECT = `
          o.budget_min_aed, o.budget_max_aed, o.lead_score, o.score_band, o.score_reason,
          o.next_step_type, o.next_step_at, o.next_step_note, o.last_contact_at,
          o.no_answer_count, o.created_at, o.owner_user_id, o.unit_type, o.preferred_location,
+         /* The three lines of "What the client wants" that were never sent:
+            the columns have existed since the first migration. */
+         o.purpose, o.payment_method, o.timeline, o.budget_band,
+         /* The deal, for a lead that is Won. Recorded by the Won dialog and
+            worth nothing if the page cannot show it back. */
+         o.deal_value_aed, o.won_paid_aed, o.won_signed, o.won_unit, o.lost_reason_v2,
          /* v2: the VIP tag on a row, and the lead that came back. Added to
             the existing shape rather than a second endpoint -- one list, one
             query, whichever version is asking. */
@@ -265,6 +295,46 @@ myLeadsRouter.get(
   }),
 );
 
+/**
+ * The projects to put in the project filter.
+ *
+ * Not the library — the projects the leads in front of this person are
+ * actually on. The screen filled the dropdown from `/api/projects` and then
+ * matched it against `opportunities.project_name`, so it offered library rows
+ * no lead carries (pick one, get nothing) and offered the same name twice
+ * whenever the library held it twice, which it can: `projects.name` has no
+ * unique key, only `slug`. That is the "Sei Saadiyat, twice" the owner saw.
+ *
+ * Grouped on the letters and digits alone, exactly as the filter matches, so
+ * "Sei Saadiyat" and "Sei  saadiyat" are one option with one count — and
+ * every option in the list has at least one lead behind it by construction.
+ * `MAX(name)` picks one spelling to show; `n` is the real number.
+ *
+ * Registered above `/:id`, like `/counts`: Express matches in declaration
+ * order and `/:id` would swallow it for ever, silently.
+ */
+myLeadsRouter.get(
+  '/projects',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const visible = await visibleUserIds(user);
+    const scope = ownerPredicate('o.owner_user_id', visible);
+
+    const items = await query<{ name: string; n: number }>(
+      `SELECT MAX(o.project_name) AS name, COUNT(*) AS n
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+        WHERE o.deleted_at IS NULL AND ${scope.sql}
+          AND o.project_name IS NOT NULL AND TRIM(o.project_name) <> ''
+        GROUP BY LOWER(REGEXP_REPLACE(o.project_name, '[^a-zA-Z0-9]', ''))
+        ORDER BY name`,
+      scope.params,
+    );
+
+    res.json({ items: items.map((one) => ({ name: one.name, leads: Number(one.n) })) });
+  }),
+);
+
 const actionSchema = z.object({
   action: z.enum(LEAD_ACTIONS),
   reason: z.string().max(60).nullable().optional(),
@@ -279,6 +349,14 @@ const actionSchema = z.object({
   meetingWhere: z.string().max(200).nullable().optional(),
   wonProject: z.string().max(160).nullable().optional(),
   wonUnit: z.string().max(60).nullable().optional(),
+  /*
+   * The money on a Won deal. Whole dirhams, never a float, and never more
+   * than the price for the amount paid — checked again in `runLeadAction`,
+   * because a deposit larger than the price is a typo every time.
+   */
+  wonPriceAed: z.number().int().min(0).max(10_000_000_000).nullable().optional(),
+  wonPaidAed: z.number().int().min(0).max(10_000_000_000).nullable().optional(),
+  wonSigned: z.enum(WON_SIGNED).nullable().optional(),
 });
 
 /**
@@ -381,6 +459,143 @@ myLeadsRouter.post(
     const digest = await refreshNotesDigest(opportunityId, { force: true });
     const brief = await leadBrief(opportunityId);
     res.json({ ...brief, refreshed: digest !== null });
+  }),
+);
+
+/* ── "What the client wants": click a line to edit ────────────────────── */
+
+const wantsSchema = z.object({
+  project: z.string().max(160).nullable().optional(),
+  unit: z.string().max(64).nullable().optional(),
+  /* Free text, on purpose: an agent writes "2M", "1.5–2M" or "needs a
+     mortgage first", and `parseBudget` reads a figure out of it where there
+     is one and keeps their words where there is not. */
+  budget: z.string().max(120).nullable().optional(),
+  purpose: z.enum(PURPOSES).optional(),
+  timeline: z.enum(TIMELINES).optional(),
+  payment: z.enum(PAYMENTS).optional(),
+  language: z.string().max(12).nullable().optional(),
+});
+
+/**
+ * The seven lines in the right-hand column, which the design makes editable
+ * in place and the build had read-only.
+ *
+ * The three enum lines are offered as choices the column can actually hold —
+ * `WANT_CHOICES` is sent to the screen rather than written there twice, so a
+ * choice on the page is never one the database will refuse.
+ */
+myLeadsRouter.patch(
+  '/:id/wants',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    const parsed = wantsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw badRequest('That is not something this lead can say.', parsed.error.issues);
+    }
+    const result = await updateWants(actorFrom(req), opportunityId, parsed.data);
+    res.json({
+      ...result,
+      said: result.changed.length === 0
+        ? 'Nothing changed.'
+        : `${result.changed.join(', ')} changed`,
+    });
+  }),
+);
+
+/** What the choices are, for the three lines that are not free text. */
+myLeadsRouter.get(
+  '/wants/choices',
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(WANT_CHOICES);
+  }),
+);
+
+/**
+ * The change history on the Info tab — "Rocky changed Budget · 1.5M → 2M".
+ *
+ * `audit_log` has held every one of these rows since the first week; there
+ * was simply no endpoint that served one record's history.
+ */
+myLeadsRouter.get(
+  '/:id/history',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    res.json({ items: await fieldHistory(opportunityId) });
+  }),
+);
+
+/* ── Files ─────────────────────────────────────────────────────────────── */
+
+/**
+ * The Files tab.
+ *
+ * Files live on a note, which is the right place for them — a photo keeps the
+ * words that came with it — but the lead page needs them as one list with
+ * folders over it, which is what `note_files.contact_id` was put there for.
+ */
+myLeadsRouter.get(
+  '/:id/files',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    const lead = await queryOne<{ contact_id: string }>(
+      'SELECT contact_id FROM opportunities WHERE id = ? AND deleted_at IS NULL',
+      [opportunityId],
+    );
+    if (!lead) throw notFound('That lead no longer exists.');
+
+    const items = await filesForContact(lead.contact_id);
+    res.json({
+      items,
+      folders: FILE_FOLDERS.map((key) => ({
+        key,
+        label: FOLDER_LABELS[key],
+        count: items.filter((one) => one.folder === key).length,
+      })),
+    });
+  }),
+);
+
+/**
+ * Adding a file from the Files tab: "+ Photo", "+ Booking form",
+ * "+ ID or passport".
+ *
+ * A file has to hang off a note, so one is written for it saying where it
+ * came from. That keeps the file in the timeline as well as in the folder,
+ * and means nothing on this lead is a file nobody can account for.
+ *
+ * The bytes go up through `POST /api/notes/item/:noteId/files`, which already
+ * knows the size limit, the allowed types and how to put a file on disk. This
+ * endpoint makes the note and hands the id back.
+ */
+const fileNoteSchema = z.object({
+  folder: z.enum(FILE_FOLDERS),
+  filename: z.string().max(255).optional(),
+});
+
+myLeadsRouter.post(
+  '/:id/files/note',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    const body = fileNoteSchema.parse(req.body);
+    const lead = await queryOne<{ contact_id: string }>(
+      'SELECT contact_id FROM opportunities WHERE id = ? AND deleted_at IS NULL',
+      [opportunityId],
+    );
+    if (!lead) throw notFound('That lead no longer exists.');
+
+    const folder = isFileFolder(body.folder) ? body.folder : 'other';
+    const note = await addNote(actorFrom(req), {
+      contactId: lead.contact_id,
+      opportunityId,
+      type: 'general',
+      body: [FOLDER_LABELS[folder], body.filename].filter(Boolean).join(' · '),
+    });
+    res.status(201).json({ noteId: note.id, folder });
   }),
 );
 

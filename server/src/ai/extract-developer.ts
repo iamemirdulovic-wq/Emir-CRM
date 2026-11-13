@@ -18,6 +18,7 @@ import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
 import { cachedModels, rankModels, resolveModel } from './models.js';
 import { callGemini, candidateNames } from './call-gemini.js';
+import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** Trimmed to the lengths POST /api/library/developers already accepts. */
 const capped = (max: number) => z.string().transform((value) => value.trim().slice(0, max));
@@ -77,9 +78,9 @@ export async function extractDeveloper(
   userId: string | null,
 ): Promise<ExtractDeveloperResult> {
   const apiKey = await secret('GEMINI_API_KEY');
-  if (!apiKey) throw badRequest('Emir AI is not connected yet. Add the key in Settings → Emir AI.');
+  if (!apiKey) throw badRequest(`${AI_NAME} is not connected yet. Add the key in ${AI_SETTINGS}.`);
   if (!(await withinCap())) {
-    throw badRequest("This month's AI budget is used up. Raise it in Settings → Emir AI.");
+    throw badRequest(`This month\u2019s AI budget is used up. Raise it in ${AI_SETTINGS}.`);
   }
 
   const available = await cachedModels(apiKey);
@@ -108,10 +109,10 @@ export async function extractDeveloper(
     },
   });
 
-  if (!raw) throw badRequest('Emir AI returned nothing. Try again, or type the details in.');
+  if (!raw) throw badRequest(`${AI_NAME} returned nothing. Try again, or type the details in.`);
 
   const extracted = safeParseDeveloper(raw);
-  if (!extracted) throw badRequest("Emir AI could not make sense of that. Type the details in instead.");
+  if (!extracted) throw badRequest(`${AI_NAME} could not make sense of that. Type the details in instead.`);
 
   return { extracted, filled: filledDeveloperFields(extracted), model };
 }
