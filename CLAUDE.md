@@ -844,6 +844,20 @@ Every page in `design/web/` now has an address under `/v2/*` — 48 routes, and
 got. Two of them had never been built at all until 13 Nov: the owner's full
 dashboard (`/v2/dashboard`) and Team live (`/v2/team-live`).
 
+**The phone version is built** (13 Nov). Under 768px the v2 screens are the
+59 phone prototypes in `design/screens/`, not the computer pages made
+smaller: a floating bottom bar that hides itself on the four full-attention
+screens, every dialog a bottom sheet with a grab handle and swipe-to-close,
+cards that rise in, a header each screen names and gives one action, and the
+check-in gate on the dial button so it covers every screen rather than one.
+`docs/v2/phone-screens.md` marks all 59 Done / Partly / Not done with the
+reason for each gap; `docs/v2/phone-shell.md` is the reading of the
+prototypes the shell was built from; `docs/v2/phone-build-brief.md` is the
+method; `docs/v2/phone-proof/` holds one picture per screen — prototype,
+build, build in dark. The questions the build could not answer are in
+`docs/v2/phone-questions-{a,b,c,d}.md`, and what changed on the computer as
+a result is in `docs/v2/computer-pages.md`.
+
 **Not built: Emir Books.** It was taken out of scope for this build and no part
 of it is wired up — there is no CRM | Books switcher, and `web/src/styles/books.css`
 exists but is deliberately **not imported**. Do not treat it as half-finished;
