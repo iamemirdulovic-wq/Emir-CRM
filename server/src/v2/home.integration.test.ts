@@ -363,6 +363,39 @@ describeWithDb('home', () => {
     expect(watch.transfers).toMatchObject({ n: 0, needApproval: 0 });
   });
 
+  /**
+   * "Transfers today" means today.
+   *
+   * The hero still has to see an approval asked for yesterday evening — it
+   * needs the owner this morning — so the two figures are counted off the
+   * same rows with different windows, and this is the line that pins it.
+   */
+  it('counts transfers today as today, while the hero still sees yesterday’s', async () => {
+    const boss = await createTestUser({ role: 'owner' });
+    const from = await createTestUser({ role: 'agent', name: 'Rocky' });
+    const to = await createTestUser({ role: 'agent', name: 'Yuliia' });
+    const lead = await aLead(from.id, { name: 'Omar Khalil' });
+
+    await execute(
+      `INSERT INTO lead_transfers
+         (id, opportunity_id, from_user_id, to_user_id, reason, status, requested_at)
+       VALUES (?, ?, ?, ?, 'leave', 'needs_approval',
+               DATE_SUB(DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), INTERVAL 2 HOUR))`,
+      [newId(), lead.id, from.id, to.id],
+    );
+
+    const home = await get(await signIn(base, boss));
+    const watch = home.watch as Record<string, Record<string, unknown>>;
+    const row = (home.needsYou as Array<Record<string, unknown>>)
+      .find((one) => one.kind === 'transfer');
+
+    expect(watch.transfers?.n, 'asked for before midnight, so not today').toBe(0);
+    expect(watch.transfers?.needApproval, 'still waiting on the owner').toBe(1);
+    expect(String(row?.sub), 'the row names the lead and both people')
+      .toContain('Omar Khalil');
+    expect(String(row?.sub)).toContain('Rocky → Yuliia');
+  });
+
   /** The two cards below the fold. */
   it('sends the newest leads and the VIP leads this owner gave out', async () => {
     const boss = await createTestUser({ role: 'owner', name: 'Emir' });

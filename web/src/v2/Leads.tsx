@@ -818,14 +818,22 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           </div>
         )}
         <span className="d-grow" />
-        <div className="v2-leadlist-links">
-          <Link className="d-btn d-sm d-ghost" to="/v2/incoming">
-            <Icon name="inbox" />Free leads
-          </Link>
-          <Link className="d-btn d-sm d-ghost" to="/v2/pipeline">
-            <Icon name="kanban" />Pipeline
-          </Link>
-        </div>
+        {/*
+          * The agent's two links. They are not on the owner's screen in the
+          * design and they were on it here: "Free leads" is where an agent
+          * claims work, and an owner arriving on their own book being offered
+          * it is the clearest sign they are looking at the wrong screen.
+          */}
+        {!book && (
+          <div className="v2-leadlist-links">
+            <Link className="d-btn d-sm d-ghost" to="/v2/incoming">
+              <Icon name="inbox" />Free leads
+            </Link>
+            <Link className="d-btn d-sm d-ghost" to="/v2/pipeline">
+              <Icon name="kanban" />Pipeline
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* The strip that starts the day. Only over the Today tab, which is the

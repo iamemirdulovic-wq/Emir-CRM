@@ -202,7 +202,7 @@ export interface OwnerHome {
   };
   latestLeads: Array<{
     id: string; name: string | null; phone: string | null; project: string | null;
-    stage: string; agent: string | null; isVip: boolean; note: string | null;
+    stage: string; agent: string | null; isVip: boolean;
     createdAt: Date;
   }>;
   vipGiven: {
@@ -723,6 +723,11 @@ export async function ownerHome(
         ORDER BY l.created_at ASC
         LIMIT 20`,
     ),
+    /*
+     * Transfers in the air. Two days rather than one, because an approval
+     * asked for yesterday evening still needs the owner this morning — the
+     * watch list's "today" is counted off `requestedAt` below.
+     */
     query<Record<string, unknown>>(
       `SELECT t.id, t.requested_at AS requestedAt, t.status, o.stage_key AS stage,
               c.full_name AS leadName, f.name AS fromName, g.name AS toName
@@ -734,7 +739,7 @@ export async function ownerHome(
         WHERE t.status IN ('pending','needs_approval')
           AND t.requested_at >= DATE_SUB(${DAY_START}, INTERVAL 1 DAY)
         ORDER BY t.requested_at ASC
-        LIMIT 20`,
+        LIMIT 50`,
     ),
     queryOne<Record<string, unknown>>(
       /* 'new' and 'planned' are the two unresolved states in the enum;
@@ -1073,6 +1078,12 @@ export async function ownerHome(
   const answered = answerRows.map((r) => Number(r.seconds)).filter((n) => n >= 0);
   const firstContact = middle(answered);
 
+  /* "Transfers today" means today, whatever the hero is still showing. */
+  const startOfDay = new Date(dubaiToday.toISOString().slice(0, 10) + 'T00:00:00Z').getTime()
+    - 4 * 3_600_000;
+  const transfersToday = transferRows
+    .filter((r) => new Date(r.requestedAt as Date).getTime() >= startOfDay).length;
+
   const absent = rows.filter((r) => r.marked === null && !r.onLeave).length;
 
   return {
@@ -1149,7 +1160,7 @@ export async function ownerHome(
         who: overdueBy.map((r) => ({ name: String(r.name), n: Number(r.n) })),
       },
       noNextStep: counts.no_next_step,
-      transfers: { n: transferRows.length, needApproval: approval.length },
+      transfers: { n: transfersToday, needApproval: approval.length },
       taps: { n: Number(tapRow?.n ?? 0), unanswered: Number(tapRow?.open_ ?? 0) },
       cold: Number(coldRow?.n ?? 0),
     },
@@ -1161,7 +1172,6 @@ export async function ownerHome(
       stage: String(r.stage),
       agent: (r.agent as string | null) ?? null,
       isVip: Number(r.isVip ?? 0) === 1,
-      note: null,
       createdAt: r.createdAt as Date,
     })),
     vipGiven: {
