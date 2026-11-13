@@ -260,6 +260,14 @@ interface PreviewNote {
   edited_at: string | null; created_at: string; deleted: boolean;
 }
 
+/*
+ * What the preview has done to the generated plans. The calendar builds its
+ * plans from scratch on every read, so without these a moved plan would jump
+ * back and a deleted one would reappear the moment the screen refreshed.
+ */
+const planMoves = new Map<string, { startsAt: string; endsAt: string }>();
+const planGone = new Set<string>();
+
 const NOTE_STORE: Record<string, PreviewNote[]> = {};
 
 function previewNotes(contactId: string): PreviewNote[] {
@@ -1825,7 +1833,14 @@ const ROUTES: Route[] = [
   }) },
   { method: 'POST', pattern: /^\/api\/v2\/transfers\/([^/]+)\/(answer|approve|cancel)$/, handler: () => ({ ok: true }) },
 
-  /* The calendar window: tasks and meetings together, as one answer. */
+  /*
+   * The calendar window: tasks and meetings together, as one answer.
+   *
+   * The plans are generated fresh on every call, so moving or deleting one
+   * would come straight back on the next read. `planMoves` and `planGone`
+   * below hold what the preview has done to them, which is the whole point of
+   * a preview: the buttons have to actually do something.
+   */
   { method: 'GET', pattern: /^\/api\/v2\/calendar$/, handler: ({ query }) => {
     const from = new Date(query.get('from') ?? Date.now());
     const to = new Date(query.get('to') ?? Date.now());
@@ -1842,27 +1857,76 @@ const ROUTES: Route[] = [
     const meetings = [0, 2, 5, 9].map((offset, i) => {
       const starts = new Date(Date.now() + (offset - 2) * 86_400_000);
       starts.setHours(16, 0, 0, 0);
+      const id = `mt-${i}`;
+      const moved = planMoves.get(id);
+      const lead = LEADS[i % LEADS.length]!;
       return {
-        id: `mt-${i}`,
-        opportunityId: LEADS[i % LEADS.length]!.id,
+        id,
+        opportunityId: lead.id,
+        contactId: lead.contactId,
         kind: i % 2 === 0 ? 'site_visit' : 'meeting',
         title: i % 2 === 0 ? 'Site visit' : 'Meeting at the office',
-        startsAt: starts.toISOString(),
-        endsAt: new Date(starts.getTime() + 3_600_000).toISOString(),
+        startsAt: moved?.startsAt ?? starts.toISOString(),
+        endsAt: moved?.endsAt ?? new Date(starts.getTime() + 3_600_000).toISOString(),
         allDay: false,
         place: i % 2 === 0 ? 'Emaar Beachfront sales centre' : 'Office',
         result: offset < 2 ? 'showed' : null,
+        resultNote: null,
+        resultBy: null,
         interest: null,
-        who: LEADS[i % LEADS.length]!.name,
-        phone: LEADS[i % LEADS.length]!.phone,
+        reminderMinutes: null,
+        bookedProject: null,
+        bookedUnit: null,
+        bookedPriceAed: null,
+        bookedPaidAed: null,
+        receiptName: null,
+        /* The real one counts this lead's own no-shows, for the sentence the
+           no-show form offers to send. */
+        noShows: i % 3,
+        who: lead.name,
+        phone: lead.phone,
+        wants: [lead.project, lead.unitType].filter(Boolean).join(' · ') || null,
         agent: USERS[1]?.name ?? 'Rocky',
+        /* Whose plan it is. Everything here belongs to whoever is looking,
+           so the change and delete buttons show. */
+        mine: true,
       };
-    }).filter((m) => new Date(m.startsAt) >= from && new Date(m.startsAt) < to);
+    })
+      .filter((m) => !planGone.has(m.id))
+      .filter((m) => new Date(m.startsAt) >= from && new Date(m.startsAt) < to);
 
     return { from: from.toISOString(), to: to.toISOString(), tasks, meetings };
   } },
   { method: 'POST', pattern: /^\/api\/v2\/meetings$/, handler: () => ({ id: `mt-${Date.now()}` }) },
-  { method: 'PATCH', pattern: /^\/api\/v2\/meetings\/([^/]+)\/result$/, handler: () => ({ saved: true }) },
+  /* Change the day or time. The screen re-reads the window straight after,
+     so the move has to be remembered or it springs back. */
+  { method: 'PATCH', pattern: /^\/api\/v2\/meetings\/([^/]+)$/, handler: ({ params, body }) => {
+    const sent = (body ?? {}) as { startsAt?: string; endsAt?: string };
+    if (sent.startsAt && sent.endsAt) {
+      planMoves.set(params[0]!, { startsAt: sent.startsAt, endsAt: sent.endsAt });
+    }
+    return { saved: true };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/v2\/meetings\/([^/]+)$/, handler: ({ params }) => {
+    planGone.add(params[0]!);
+    return { deleted: true };
+  } },
+  /* The booking form. The real one stores the file; here only its name
+     matters, because that is all the screen shows afterwards. */
+  { method: 'POST', pattern: /^\/api\/v2\/meetings\/([^/]+)\/receipt$/, handler: () => ({
+    name: 'receipt.pdf', contentType: 'application/pdf', bytes: 182_400,
+  }) },
+  { method: 'PATCH', pattern: /^\/api\/v2\/meetings\/([^/]+)\/result$/, handler: ({ body }) => {
+    const sent = (body ?? {}) as { result?: string; next?: unknown };
+    /* "Booked a unit" moves the lead to Won; "Showed up" with a next step
+       makes a second plan. Both are things the screen says out loud. */
+    return {
+      saved: true,
+      nextPlanId: sent.next ? `mt-${Date.now()}` : null,
+      leadMoved: sent.result === 'booked',
+      leadNote: sent.result === 'booked' ? 'Moved to Won · Reserved' : null,
+    };
+  } },
 
   /* Attendance: my own sixty days, and the team grid for an owner. */
   { method: 'GET', pattern: /^\/api\/v2\/attendance\/me$/, handler: () => {
