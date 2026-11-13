@@ -33,9 +33,15 @@ ALTER TABLE meetings
   -- (client / me). One column, because it is one question.
   ADD COLUMN result_by ENUM('client','me','developer') NULL AFTER result_at,
 
+  -- Which project they booked in. Usually the lead's own project, but not
+  -- always: a client walks into a sales centre for Valia and reserves in The
+  -- Archive next door, and the lead's `project_name` is what they asked about
+  -- first. Both are worth keeping.
+  ADD COLUMN booked_project VARCHAR(160) NULL AFTER result_by,
+
   -- "2BR · 1204". Free text, because it is whatever the developer's list calls
   -- it this week, and the unit may not be in our own inventory yet.
-  ADD COLUMN booked_unit VARCHAR(80) NULL AFTER result_by,
+  ADD COLUMN booked_unit VARCHAR(80) NULL AFTER booked_project,
   ADD COLUMN booked_price_aed BIGINT UNSIGNED NULL AFTER booked_unit,
   -- The booking amount handed over in the room, which is not the price.
   ADD COLUMN booked_paid_aed BIGINT UNSIGNED NULL AFTER booked_price_aed,

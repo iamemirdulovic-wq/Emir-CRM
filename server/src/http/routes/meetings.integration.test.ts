@@ -103,7 +103,7 @@ describeWithDb('plans in the diary', () => {
 
     expect(res.status).toBe(400);
     const body = await res.json() as { error: { message: string; details: { field: string } } };
-    expect(body.error.message).toBe('This day has passed. Choose today or later.');
+    expect(body.error.message).toBe('This day is in the past. Pick today or later.');
     expect(body.error.details.field, 'the refusal has to name the day').toBe('day');
   });
 

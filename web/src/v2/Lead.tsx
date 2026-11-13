@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -55,12 +55,22 @@ interface Lead {
   budget_min_aed: number | null;
   budget_max_aed: number | null;
   budget_band?: string | null;
+  /* The three lines of "What the client wants" the endpoint never sent. */
+  purpose: string | null;
+  timeline: string | null;
+  payment_method: string | null;
   source: string | null;
   owner_name: string | null;
   next_step_at: string | null;
   next_step_note: string | null;
   last_contact_at: string | null;
   created_at: string;
+  /* The deal, for a lead that is Won. */
+  deal_value_aed: number | null;
+  won_paid_aed: number | null;
+  won_signed: string | null;
+  won_unit: string | null;
+  lost_reason_v2: string | null;
 }
 
 interface Task {
@@ -71,9 +81,19 @@ interface Task {
   completed_at: string | null;
 }
 
+/** The columns of `contacts` the Info tab draws, all of which were already sent. */
+interface Person {
+  telegram?: string | null;
+  whatsapp_number?: string | null;
+  nationality?: string | null;
+  email?: string | null;
+  phone_e164?: string | null;
+  language?: string | null;
+}
+
 interface Detail {
   lead: Lead;
-  contact: Record<string, unknown>;
+  contact: Record<string, unknown> & Person;
   activities: Array<{
     id: string; type: string; title?: string | null; body: string | null;
     user_name?: string | null; created_at: string;
@@ -95,6 +115,9 @@ const STAGE_CHIP: Record<string, string> = {
 
 /** The dot beside a line of history: its glyph, and how loud it is. */
 function mark(type: string): { icon: IconName; tone: string } {
+  /* An edited field, which is a kind of row this timeline could not draw
+     because nothing on the page could make one. */
+  if (/field_edit|updated/.test(type)) return { icon: 'pencil', tone: '' };
   if (/call/.test(type)) return { icon: 'phone', tone: 'd-accent' };
   if (/whatsapp|message|tap/.test(type)) return { icon: 'message-circle', tone: 'd-green' };
   if (/email/.test(type)) return { icon: 'mail', tone: 'd-blue' };
@@ -122,14 +145,41 @@ function moment(value: string | null): string {
   return `${at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${clock}`;
 }
 
+const TAB_KEYS = ['notes', 'timeline', 'info', 'files'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
 export function V2Lead() {
   const { id = '' } = useParams();
   const { user } = useAuth();
-  const [tab, setTab] = useState<'notes' | 'timeline' | 'info' | 'files'>('timeline');
-  const [handingOver, setHandingOver] = useState(false);
-  const [doing, setDoing] = useState<LeadActionKind | null>(null);
+  /*
+   * The leads list's "⋯" menu points straight at a tab or a dialog —
+   * "Add note", "Plan a follow-up", "Transfer to another agent" — so the
+   * address carries which one. Without it those three menu items would all
+   * land on the same page and leave the agent to find the thing themselves.
+   */
+  const [params] = useSearchParams();
+  const asked = params.get('tab');
+  const [tab, setTab] = useState<TabKey>(
+    () => ((TAB_KEYS as readonly string[]).includes(asked ?? '') ? asked as TabKey : 'timeline'),
+  );
+  const [handingOver, setHandingOver] = useState(params.get('do') === 'transfer');
+  const [doing, setDoing] = useState<LeadActionKind | null>(
+    params.get('do') === 'follow_up' ? 'follow_up'
+      : params.get('do') === 'meeting' ? 'meeting'
+        : null,
+  );
   const [said, setSaid] = useState<string | null>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
+  /*
+   * The brief behind "In short". A plain read — no model call — so opening a
+   * lead is never slower for it, and it may legitimately come back with
+   * nothing to say, which is why the card below falls back to the record's
+   * own facts rather than to an empty box.
+   */
+  const brief = useAsync<Brief>(() => api.get(`/api/my-leads/${id}/brief`), [id]);
+  /* What the three menu lines may say. Sent by the server rather than written
+     here as well, so a choice on the page is one the column can hold. */
+  const choices = useAsync<Choices>(() => api.get('/api/my-leads/wants/choices'), []);
 
   /*
    * §1.4 / the audit: the shell draws the header, so this page must not draw
@@ -166,10 +216,29 @@ export function V2Lead() {
   const local = origin ? clockIn(origin.timeZone) : null;
   const advice = whenToCall(local, origin?.timeZone ?? null);
   const first = firstName(lead.full_name);
+  /* An edit writes a timeline entry and a change-history row on the server,
+     so the page is re-read rather than patched in place: the new line has to
+     appear on the timeline beside the change, which is the point of it. */
+  function afterEdit(told: string) {
+    setSaid(told);
+    detail.reload();
+    brief.reload();
+  }
+
+  /** The words for a stored enum value, from the list the server sent. */
+  function choiceLabel(field: 'purpose' | 'timeline' | 'payment', stored: string | null): string | null {
+    if (!stored) return null;
+    const found = choices.data?.[field]?.find((one) => one.value === stored);
+    if (found) return found.value === 'unknown' ? null : found.label;
+    /* Before the choices land, show the stored word rather than a blank. */
+    return stored === 'unknown' ? null : stored.replace(/_/g, ' ');
+  }
+
   const closed = lead.status === 'won' || lead.status === 'lost';
   const budget = lead.budget_min_aed || lead.budget_max_aed
     ? budgetLabel(lead.budget_min_aed, lead.budget_max_aed, lead.budget_band ?? null)
-    : null;
+    : lead.budget_band ?? null;
+  const person = detail.data.contact;
 
   return (
     <div className="v2-leadpage p-lead">
@@ -206,6 +275,10 @@ export function V2Lead() {
               )}
               {lead.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
               {lead.score_band === 'hot' && <span className="d-chip d-orange">Hot</span>}
+              {/* The design's third chip. `purpose` has been on the row since
+                  the first migration and was never sent to the screen. */}
+              {lead.purpose === 'investment' && <span className="d-chip">Investor</span>}
+              {lead.purpose === 'end_use' && <span className="d-chip">To live in</span>}
               {tags.map((one) => (
                 <span className="d-chip" key={one}>{one.replace(/^[a-z]+:/, '')}</span>
               ))}
@@ -317,21 +390,67 @@ export function V2Lead() {
             </div>
           )}
 
-          <section className={lead.next_step_at ? 'd-card d-next-card' : 'd-card d-next-card d-none'}>
-            <span className="d-card-icon d-accent v2-leadpage-flagicon"><Icon name="calendar-check" /></span>
-            <div className="d-grow">
-              <span className="d-sec-label">Next step</span>
-              <div className="d-big">{lead.next_step_note || (lead.next_step_at ? 'Follow up' : 'No next step')}</div>
-              <span className="d-small d-muted">
-                {lead.next_step_at
-                  ? moment(lead.next_step_at)
-                  : 'Plan a follow-up or a meeting so the lead does not go cold.'}
-              </span>
-            </div>
-            <button type="button" className="d-btn d-sm d-ghost" onClick={() => setDoing('follow_up')}>
-              {lead.next_step_at ? 'Change' : 'Add one'}
-            </button>
-          </section>
+          {/*
+            * A closed lead's card says what became of it rather than nagging
+            * for a next step it must not have — the design's own `won` and
+            * `lost` states. The money is what the Won dialog recorded.
+            */}
+          {lead.status === 'won'
+            ? (
+              <section className="d-card d-next-card">
+                <span className="d-card-icon d-accent v2-leadpage-flagicon"><Icon name="trophy" /></span>
+                <div className="d-grow">
+                  <span className="d-sec-label">Deal done</span>
+                  <div className="d-big">{lead.won_unit || lead.project_name || 'Unit booked'}</div>
+                  <span className="d-small d-muted">{dealLine(lead)}</span>
+                </div>
+              </section>
+            )
+            : lead.status === 'lost'
+              ? (
+                <section className="d-card d-next-card d-none">
+                  <span className="d-card-icon v2-leadpage-flagicon"><Icon name="x" /></span>
+                  <div className="d-grow">
+                    <span className="d-sec-label">Lost</span>
+                    <div className="d-big">
+                      {(lead.lost_reason_v2 ?? 'no reason given').replace(/_/g, ' ')}
+                    </div>
+                    <span className="d-small d-muted">
+                      The lead is not in your open list. Add a follow-up to try again.
+                    </span>
+                  </div>
+                </section>
+              )
+              : (
+                <section className={lead.next_step_at ? 'd-card d-next-card' : 'd-card d-next-card d-none'}>
+                  <span className="d-card-icon d-accent v2-leadpage-flagicon"><Icon name="calendar-check" /></span>
+                  <div className="d-grow">
+                    <span className="d-sec-label">Next step</span>
+                    <div className="d-big">
+                      {lead.next_step_note || (lead.next_step_at ? 'Follow up' : 'No next step')}
+                    </div>
+                    <span className="d-small d-muted">
+                      {lead.next_step_at
+                        ? moment(lead.next_step_at)
+                        : 'Plan a follow-up or a meeting so the lead does not go cold.'}
+                    </span>
+                  </div>
+                  <button type="button" className="d-btn d-sm d-ghost" onClick={() => setDoing('follow_up')}>
+                    {lead.next_step_at ? 'Change' : 'Add one'}
+                  </button>
+                </section>
+              )}
+
+          {/*
+            * "In short" — the design's second card, and the one an agent
+            * reads before they dial. It had no equivalent at all.
+            *
+            * The AI's three lines when the model has read the notes; the
+            * record's own facts when it has not, which is what the design
+            * itself falls back to for any lead but its sample one. The Homes
+            * AI chip appears only when the AI really wrote it.
+            */}
+          <InShort lead={lead} brief={brief.data ?? null} budget={budget} />
 
           <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
             <div className="d-tabs" role="tablist">
@@ -420,38 +539,33 @@ export function V2Lead() {
             )}
 
             {tab === 'info' && (
-              <dl className="d-kv">
-                <Row label="Phone" value={lead.phone_e164} />
-                <Row label="Email" value={lead.email} />
-                <Row label="Language" value={lead.language} />
-                <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
-                <Row
-                  label="Added"
-                  value={new Date(lead.created_at).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'long', year: 'numeric',
-                  })}
-                />
-                <Row
-                  label="Last spoken to"
-                  value={lead.last_contact_at ? moment(lead.last_contact_at) : 'Never'}
-                />
-              </dl>
+              <>
+                <dl className="d-kv">
+                  <Row label="Phone" value={spacedE164(lead.phone_e164 ?? '') ?? lead.phone_e164} />
+                  {/* All three are columns of `contacts` from migration 0036,
+                      sent with the record all along and drawn by nothing. */}
+                  <Row label="WhatsApp 2" value={text(person.whatsapp_number)} />
+                  <Row label="Telegram" value={text(person.telegram)} />
+                  <Row label="Email" value={lead.email} />
+                  <Row label="Nationality" value={text(person.nationality)} />
+                  <Row label="Language" value={languageName(lead.language)} />
+                  <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
+                  <Row
+                    label="Added"
+                    value={new Date(lead.created_at).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })}
+                  />
+                  <Row
+                    label="Last spoken to"
+                    value={lead.last_contact_at ? moment(lead.last_contact_at) : 'Never'}
+                  />
+                </dl>
+                <History leadId={lead.id} />
+              </>
             )}
 
-            {tab === 'files' && (
-              <div className="d-empty">
-                <span className="d-ic"><Icon name="paperclip" size={26} /></span>
-                <b>Files live on a note</b>
-                <p>
-                  A photo, a booking form or a voice note is attached to the note
-                  it belongs to, so it keeps the words that go with it. Open
-                  Notes to add one or to look at what is there.
-                </p>
-                <button type="button" className="d-btn d-sm" onClick={() => setTab('notes')}>
-                  Open Notes
-                </button>
-              </div>
-            )}
+            {tab === 'files' && <Files leadId={lead.id} onChanged={detail.reload} />}
           </section>
 
           {/* Every column of the row this lead came in on, if it came from
@@ -483,15 +597,80 @@ export function V2Lead() {
           <section className="d-card" aria-label={`What ${first} wants`}>
             <div className="d-card-head v2-leadpage-wants-head">
               <h3>What {first} wants</h3>
+              <span className="d-small d-muted">click a line to edit</span>
             </div>
+            {/*
+              * All seven lines, and every one of them editable in place —
+              * `design/web/lead.html`'s own `[data-edit]` rows. Three of them
+              * (Purpose, Timeline, Payment) were never sent to the screen,
+              * and none of the seven could be changed, so a budget somebody
+              * misheard could only be corrected by writing a note about it.
+              *
+              * The three with a fixed vocabulary are a menu rather than a
+              * text box: they are ENUM columns, and MySQL refuses a word that
+              * is not in the list rather than storing an approximation.
+              */}
             <dl className="d-kv">
-              <Row label="Project" value={lead.project_name} />
-              <Row label="Unit" value={lead.unit_type} />
-              <Row label="Budget" value={budget} />
-              <Row label="Where" value={lead.preferred_location} />
-              <Row label="Language" value={lead.language} />
+              <EditRow
+                leadId={lead.id}
+                field="project"
+                label="Project"
+                value={lead.project_name}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="unit"
+                label="Unit"
+                value={lead.unit_type}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="budget"
+                label="Budget"
+                value={budget}
+                editAs={lead.budget_band ?? budget}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="purpose"
+                label="Purpose"
+                value={choiceLabel('purpose', lead.purpose)}
+                choices={choices.data?.purpose}
+                stored={lead.purpose}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="timeline"
+                label="Timeline"
+                value={choiceLabel('timeline', lead.timeline)}
+                choices={choices.data?.timeline}
+                stored={lead.timeline}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="payment"
+                label="Payment"
+                value={choiceLabel('payment', lead.payment_method)}
+                choices={choices.data?.payment}
+                stored={lead.payment_method}
+                onSaved={afterEdit}
+              />
+              <EditRow
+                leadId={lead.id}
+                field="language"
+                label="Language"
+                value={languageName(lead.language)}
+                editAs={lead.language}
+                onSaved={afterEdit}
+              />
             </dl>
             <dl className="d-kv d-mt-12 v2-leadpage-wants-foot">
+              <Row label="Where" value={lead.preferred_location} />
               <Row label="Source" value={sourceStyle(lead.source).label} />
               <Row label="Lead #" value={`#${lead.id.slice(0, 8)}`} />
             </dl>
@@ -559,6 +738,511 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
     </div>
   );
+}
+
+/* ── What the client wants, one editable line ──────────────────────────── */
+
+/**
+ * A line that reads as text and behaves as a button.
+ *
+ * Inline rather than a class: there is no design class for it — the design's
+ * own editable line is a `<dd>` with a click handler on the row, which a
+ * keyboard cannot reach — and `v2-shell.css` belongs to another pair of hands
+ * this week.
+ */
+const PLAIN_LINE = {
+  font: 'inherit',
+  color: 'inherit',
+  background: 'none',
+  border: 0,
+  padding: 0,
+  margin: 0,
+  width: '100%',
+  textAlign: 'left',
+  cursor: 'text',
+} as const;
+
+interface Choice { value: string; label: string }
+type Choices = Record<'purpose' | 'timeline' | 'payment', Choice[]>;
+
+/**
+ * One line of "What the client wants", editable where it stands.
+ *
+ * Click it, type, press Enter. Escape puts it back. The design's own classes
+ * do the work — `[data-edit]` draws the hover "Edit" and `.d-editing` draws
+ * "Enter to save" — so this is markup rather than a widget.
+ *
+ * A line with a fixed vocabulary becomes a menu instead of a box, because the
+ * column behind it is an ENUM: a free-text purpose is not stored "nearly", it
+ * is refused outright, and the agent is told the CRM broke.
+ */
+function EditRow({ leadId, field, label, value, editAs, choices, stored, onSaved }: {
+  leadId: string;
+  field: 'project' | 'unit' | 'budget' | 'purpose' | 'timeline' | 'payment' | 'language';
+  label: string;
+  value: string | null | undefined;
+  /** What goes in the box when it is not what is shown — the budget's own words. */
+  editAs?: string | null;
+  choices?: Choice[];
+  stored?: string | null;
+  onSaved: (said: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) box.current?.focus();
+  }, [editing]);
+
+  function start() {
+    if (busy) return;
+    setDraft((editAs ?? value ?? '').toString());
+    setEditing(true);
+  }
+
+  async function save(next: string | null) {
+    setBusy(true);
+    try {
+      const result = await api.patch<{ said: string; changed: string[] }>(
+        `/api/my-leads/${leadId}/wants`,
+        { [field]: next },
+      );
+      setEditing(false);
+      if (result.changed.length > 0) onSaved(result.said);
+    } catch (problem) {
+      onSaved(problem instanceof Error ? problem.message : 'That did not save.');
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const shown = value && String(value).trim() !== '' ? value : 'Not said yet';
+
+  /* A menu line. Changing the selection is the save: there is nothing to
+     type, so waiting for an Enter would be waiting for nothing. */
+  if (choices) {
+    return (
+      <div className={editing ? 'd-kv-row d-editing' : 'd-kv-row'} data-edit>
+        <dt>{label}</dt>
+        <dd>
+          {editing
+            ? (
+              <select
+                className="d-select d-sm"
+                aria-label={label}
+                autoFocus
+                defaultValue={stored ?? 'unknown'}
+                disabled={busy}
+                onChange={(e) => { void save(e.target.value); }}
+                onBlur={() => setEditing(false)}
+              >
+                {choices.map((one) => (
+                  <option key={one.value} value={one.value}>{one.label}</option>
+                ))}
+              </select>
+            )
+            : (
+              <button type="button" style={PLAIN_LINE} onClick={start}>
+                {shown}
+              </button>
+            )}
+        </dd>
+      </div>
+    );
+  }
+
+  return (
+    <div className={editing ? 'd-kv-row d-editing' : 'd-kv-row'} data-edit>
+      <dt>{label}</dt>
+      <dd dir="auto">
+        {editing
+          ? (
+            <input
+              ref={box}
+              value={draft}
+              aria-label={label}
+              disabled={busy}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); void save(draft.trim() || null); }
+                if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+              }}
+              onBlur={() => { void save(draft.trim() || null); }}
+            />
+          )
+          : (
+            <button type="button" style={PLAIN_LINE} onClick={start}>
+              {shown}
+            </button>
+          )}
+      </dd>
+    </div>
+  );
+}
+
+/* ── In short ──────────────────────────────────────────────────────────── */
+
+interface Brief {
+  notes: { lines: string[]; watchOut: string | null; at: string | null; stale: boolean };
+  verdict: { value: string; why: string | null; source: 'ai' | 'rules'; at: string | null } | null;
+  advice: { headline: string; note: string; why: string } | null;
+}
+
+/**
+ * The card an agent reads before they dial.
+ *
+ * Two sources, and it never mixes them up. When the model has read the notes
+ * it prints its three lines and wears the Homes AI chip. When it has not —
+ * no notes yet, or AI switched off — it writes the same sentence the design
+ * writes for every lead but its sample one, out of the record's own facts,
+ * and wears no chip. A card that credits the AI for a sentence the AI did not
+ * write is the one thing this page may not do.
+ */
+function InShort({ lead, brief, budget }: { lead: Lead; brief: Brief | null; budget: string | null }) {
+  const lines = brief?.notes.lines ?? [];
+  const what = [lead.project_name, lead.unit_type, budget].filter(Boolean).join(' · ');
+  const spoke = lead.last_contact_at
+    ? `Last spoken to ${moment(lead.last_contact_at).toLowerCase()}`
+    : 'Not called yet';
+
+  return (
+    <section className="d-card d-short" aria-label="In short">
+      <div className="d-card-head d-mb-8">
+        <h3>In short</h3>
+        {lines.length > 0 && (
+          <span className="d-chip d-dark">
+            <Icon name="sparkles" size={13} />Homes AI
+          </span>
+        )}
+      </div>
+      {lines.length > 0
+        ? (
+          <>
+            {lines.map((line) => <p key={line}>{line}</p>)}
+            {brief?.notes.watchOut && (
+              <p className="d-t-amber">{brief.notes.watchOut}</p>
+            )}
+          </>
+        )
+        : (
+          <p>
+            <b>{what || 'Nothing said about what they want yet'}</b>.
+            {' '}Stage {STAGE_LABEL[lead.stage_key] ?? lead.stage_key}. {spoke}.
+            {lead.language ? ` Speaks ${languageName(lead.language)}.` : ''}
+            {lead.stage_key === 'new_lead'
+              ? ' Homes AI writes more after the first call.'
+              : ''}
+          </p>
+        )}
+      {brief?.advice && (
+        <p className="d-small d-muted">
+          Next: {brief.advice.headline.toLowerCase()} — {brief.advice.why}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/* ── The change history, on the Info tab ───────────────────────────────── */
+
+/**
+ * "Rocky changed Budget · 1.5M → 2M".
+ *
+ * `audit_log` has held every one of these rows since the first week. There
+ * was simply no endpoint that served a single record's history, so the tab
+ * could not draw it.
+ */
+function History({ leadId }: { leadId: string }) {
+  const rows = useAsync<{ items: HistoryRow[] }>(
+    () => api.get(`/api/my-leads/${leadId}/history`),
+    [leadId],
+  );
+
+  return (
+    <>
+      <h4 className="d-mt-24 d-mb-8">Change history</h4>
+      {rows.error && <p className="d-small d-muted">{rows.error}</p>}
+      {!rows.data && !rows.error && <p className="d-small d-muted">Reading the log…</p>}
+      {rows.data && rows.data.items.length === 0 && (
+        <p className="d-small d-muted">Nothing has been changed on this lead yet.</p>
+      )}
+      {rows.data && rows.data.items.length > 0 && (
+        <div className="d-divide d-small">
+          {rows.data.items.map((one) => (
+            /* The design writes this row's padding inline too. */
+            <div className="d-row" style={{ padding: '8px 0' }} key={one.id}>
+              <span className="d-grow">
+                {one.what}
+                {one.detail ? <> · <b className="d-bold">{one.detail}</b></> : null}
+              </span>
+              <span className="d-muted">{moment(one.at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface HistoryRow {
+  id: string;
+  what: string;
+  detail: string | null;
+  who: string | null;
+  at: string;
+}
+
+/* ── Files ─────────────────────────────────────────────────────────────── */
+
+interface LeadFile {
+  id: string;
+  note_id: string;
+  kind: 'file' | 'voice';
+  filename: string;
+  content_type: string;
+  byte_size: number;
+  folder: string;
+  view_count: number;
+  created_at: string;
+  added_by: string | null;
+  private: boolean;
+}
+
+interface FolderCount { key: string; label: string; count: number }
+
+/** The folder icons, in the design's order. */
+const FOLDER_ICON: Record<string, IconName> = {
+  photo: 'camera',
+  id: 'shield',
+  booking: 'file-signature',
+  whatsapp: 'message-circle',
+  receipt: 'receipt',
+  other: 'paperclip',
+};
+
+/**
+ * The Files tab, with files in it.
+ *
+ * It used to hold a paragraph explaining that files live on a note. They do —
+ * that is the right place for them, because a photo keeps the words that came
+ * with it — but the design asks for one list with folders over it, three
+ * buttons that add one, and two sentences about who can see a passport. None
+ * of that existed, and nothing classified a file at all.
+ */
+function Files({ leadId, onChanged }: { leadId: string; onChanged: () => void }) {
+  const listing = useAsync<{ items: LeadFile[]; folders: FolderCount[] }>(
+    () => api.get(`/api/my-leads/${leadId}/files`),
+    [leadId],
+  );
+  const [folder, setFolder] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const pick = useRef<HTMLInputElement>(null);
+  const into = useRef<string>('other');
+
+  const items = listing.data?.items ?? [];
+  const shown = folder ? items.filter((one) => one.folder === folder) : items;
+  /* Only the folders with something in them, plus All — the design draws four
+     and says the fifth appears "when you add the first one". */
+  const folders = (listing.data?.folders ?? []).filter(
+    (one) => one.count > 0 || one.key === 'id' || one.key === 'booking' || one.key === 'whatsapp',
+  );
+
+  function add(where: string) {
+    into.current = where;
+    setProblem(null);
+    pick.current?.click();
+  }
+
+  async function upload(file: File) {
+    setBusy(into.current);
+    setProblem(null);
+    try {
+      const made = await api.post<{ noteId: string }>(
+        `/api/my-leads/${leadId}/files/note`,
+        { folder: into.current, filename: file.name },
+      );
+      await api.upload(`/api/notes/item/${made.noteId}/files`, file, { 'X-Folder': into.current });
+      listing.reload();
+      onChanged();
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That file did not go up.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="d-folders">
+        <button
+          type="button"
+          className={folder === '' ? 'd-folder d-on' : 'd-folder'}
+          onClick={() => setFolder('')}
+        >
+          <Icon name="paperclip" size={15} />All files
+          <span>{items.length} {items.length === 1 ? 'file' : 'files'}</span>
+        </button>
+        {folders.map((one) => (
+          <button
+            key={one.key}
+            type="button"
+            className={folder === one.key ? 'd-folder d-on' : 'd-folder'}
+            onClick={() => setFolder(one.key)}
+          >
+            <Icon name={FOLDER_ICON[one.key] ?? 'paperclip'} size={15} />{one.label}
+            <span>{one.count} {one.count === 1 ? 'file' : 'files'}</span>
+          </button>
+        ))}
+      </div>
+
+      {listing.error && <ErrorNote>{listing.error}</ErrorNote>}
+
+      {shown.map((one) => (
+        <div className="d-frow" key={one.id}>
+          <span className="d-ic">
+            <Icon name={one.kind === 'voice' ? 'mic' : FOLDER_ICON[one.folder] ?? 'paperclip'} size={16} />
+          </span>
+          <div className="d-grow">
+            <b className="d-bold">{one.filename}</b>
+            <div className="d-small d-muted">
+              {[
+                FOLDER_LABEL[one.folder] ?? 'Other files',
+                `added ${moment(one.created_at).toLowerCase()}`,
+                one.added_by ? `by ${one.added_by}` : null,
+                one.view_count > 0
+                  ? `viewed ${one.view_count} ${one.view_count === 1 ? 'time' : 'times'}`
+                  : null,
+              ].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          {one.private && (
+            <span className="d-chip">
+              <Icon name="lock" size={12} />You and owners
+            </span>
+          )}
+          <a
+            className="d-btn d-xs"
+            href={`/api/notes/files/${one.id}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => window.setTimeout(() => listing.reload(), 1500)}
+          >
+            Open
+          </a>
+        </div>
+      ))}
+
+      {shown.length === 0 && (
+        <div className="d-empty">
+          <span className="d-ic"><Icon name="paperclip" size={26} /></span>
+          <b>{items.length === 0 ? 'No files yet' : 'No files in this folder'}</b>
+          <p>Payment receipts also get their own folder when you add the first one.</p>
+        </div>
+      )}
+
+      {problem && <ErrorNote>{problem}</ErrorNote>}
+
+      <div className="d-btn-row d-mt-16">
+        <button type="button" className="d-btn d-sm" disabled={busy !== null} onClick={() => add('photo')}>
+          <Icon name="plus" />{busy === 'photo' ? 'Adding…' : 'Photo'}
+        </button>
+        <button type="button" className="d-btn d-sm" disabled={busy !== null} onClick={() => add('booking')}>
+          <Icon name="plus" />{busy === 'booking' ? 'Adding…' : 'Booking form'}
+        </button>
+        <button type="button" className="d-btn d-sm" disabled={busy !== null} onClick={() => add('id')}>
+          <Icon name="plus" />{busy === 'id' ? 'Adding…' : 'ID or passport'}
+        </button>
+        <button
+          type="button"
+          className="d-btn d-sm d-ghost"
+          disabled={busy !== null}
+          onClick={() => add('other')}
+        >
+          <Icon name="upload" />{busy === 'other' ? 'Adding…' : 'Scan / upload'}
+        </button>
+      </div>
+      <p className="d-small d-muted d-mt-12">
+        <Icon name="lock" size={13} /> IDs and passports: only you and owners see them.
+        Every view is logged.
+      </p>
+
+      <input
+        ref={pick}
+        type="file"
+        accept="image/*,application/pdf"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void upload(file);
+        }}
+      />
+    </div>
+  );
+}
+
+/** The folder names, in the design's words. Kept in step with the server's. */
+const FOLDER_LABEL: Record<string, string> = {
+  photo: 'Photos',
+  id: 'Passport & ID',
+  booking: 'Booking forms',
+  whatsapp: 'WhatsApp screenshots',
+  receipt: 'Payment receipts',
+  other: 'Other files',
+};
+
+/** The deal line under "Deal done". Only figures the Won dialog recorded. */
+function dealLine(lead: Lead): string {
+  const money = (value: number | null) => (value === null
+    ? null
+    : `AED ${Number(value).toLocaleString('en-US')}`);
+  return [
+    money(lead.deal_value_aed),
+    lead.won_paid_aed === null ? null : `paid now ${money(lead.won_paid_aed)}`,
+    lead.won_signed ? lead.won_signed.replace(/_/g, ' ') : null,
+  ].filter(Boolean).join(' · ') || 'Recorded without a figure.';
+}
+
+/** A blank that is really blank, rather than the string "null". */
+function text(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const tidy = String(value).trim();
+  return tidy === '' ? null : tidy;
+}
+
+/**
+ * "en" is a code, not a language.
+ *
+ * The lead page printed the raw column. Only the languages this brokerage
+ * actually works in are named; anything else is shown as it was stored rather
+ * than guessed at.
+ */
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  ar: 'Arabic',
+  ru: 'Russian',
+  hi: 'Hindi',
+  ur: 'Urdu',
+  fa: 'Persian',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  es: 'Spanish',
+  tr: 'Turkish',
+  zh: 'Chinese',
+  pt: 'Portuguese',
+  sr: 'Serbian',
+  uk: 'Ukrainian',
+};
+
+function languageName(code: string | null): string | null {
+  const tidy = text(code);
+  if (!tidy) return null;
+  return LANGUAGE_NAMES[tidy.toLowerCase()] ?? tidy;
 }
 
 /**

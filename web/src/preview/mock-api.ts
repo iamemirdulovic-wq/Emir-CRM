@@ -1406,7 +1406,7 @@ const ROUTES: Route[] = [
    * preview where half the blocks are empty is a preview that cannot show
    * whether they work. `?as=agent` for My Day, otherwise the owner's.
    */
-  { method: 'GET', pattern: /^\/api\/v2\/home$/, handler: () => {
+  { method: 'GET', pattern: /^\/api\/v2\/home$/, handler: ({ query }) => {
     const rows = myLeadRows();
     const now = new Date();
     const dubai = new Intl.DateTimeFormat('en-GB', {
@@ -1453,37 +1453,208 @@ const ROUTES: Route[] = [
     ];
 
     if (me.role !== 'agent') {
-      const team = USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, i) => ({
-        id: u.id,
-        name: u.name,
-        photoUrl: photoOf(u.id),
-        marked: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
-        openLeads: rows.filter((r) => r.owner_name === u.name).length || 3 + i,
-        callsToday: [11, 7, 4, 0, 9][i % 5] as number,
-        lastSeenAt: new Date(now.getTime() - (i + 1) * 23 * 60_000).toISOString(),
-      }));
+      /*
+       * The team table on the owner's home, problems first — the order the
+       * server sends and the design's own: absent, late, on leave, outside,
+       * then the office with the busiest at the top.
+       */
+      const SHAPE = [
+        ['Bassam', null, false, false, null, 44, 40, 'Abu Dhabi', 0, 3],
+        ['Shan', 'office', true, false, '09:24', 57, 50, 'Arabic desk', 19, 3],
+        ['Sultan', null, false, true, null, 31, 50, 'Arabic desk', 0, 1],
+        ['Nelson', 'outside', false, false, '10:15', 9, 40, 'Abu Dhabi', 27, 0],
+        ['Talha', 'office', false, false, '08:52', 22, 60, 'Dubai off-plan', 41, 0],
+        ['Yuliia', 'office', false, false, '08:58', 18, 60, 'Dubai off-plan', 36, 1],
+        ['Olga', 'office', false, false, '09:03', 12, 60, 'Dubai off-plan', 27, 0],
+        ['Srdjan', 'office', false, false, '09:06', 16, 60, 'Dubai off-plan', 24, 0],
+        ['Tej', 'office', false, false, '09:08', 11, 60, 'Dubai off-plan', 22, 0],
+        ['Rocky', 'office', false, false, '08:55', 14, 60, 'Dubai off-plan', 18, 1],
+      ] as const;
+      const HOME_TEAM = SHAPE.map((row, i) => {
+        const calls = row[8] as number;
+        return {
+          id: `u-${i + 1}`,
+          name: row[0] as string,
+          photoUrl: null,
+          marked: row[1] as string | null,
+          wasLate: row[2] as boolean,
+          onLeave: row[3] as boolean,
+          checkedInAt: row[4] as string | null,
+          openLeads: row[5] as number,
+          callsToday: calls,
+          callsPerDay: [0.6, 0.8, 1, 0.75, 0.9, 0.85, 1]
+            .map((f) => Math.round(calls * f)),
+          deskMax: row[6] as number,
+          deskName: row[7] as string,
+          overdue: row[9] as number,
+          lastSeenAt: new Date(now.getTime() - (i + 1) * 23 * 60_000).toISOString(),
+        };
+      });
+      /*
+       * The owner's home, block by block, so the preview can be held against
+       * `design/web/owner-home.html` directly. The hour chart is built
+       * around the real Dubai clock, because the "now" marker and the empty
+       * slots after it are the half of that card worth looking at.
+       */
+      const nowHour = Number(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Dubai', hour: '2-digit', hour12: false,
+      }).format(now));
+      const nowMinute = Number(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Dubai', minute: '2-digit',
+      }).format(now));
+      const shape = [28, 46, 41, 22, 39, 38, 31, 24, 19];
+      const hours = Array.from({ length: 9 }, (_, i) => {
+        const hour = 9 + i;
+        const future = hour > nowHour;
+        return { hour, calls: future ? 0 : (shape[i] ?? 0), future };
+      });
+      const period = String(query.get('period') ?? 'today');
+      const scale = { today: 1, week: 6.1, month: 25, year: 238 }[period] ?? 1;
+      const times = (n: number) => Math.round(n * scale);
+      const minutesNow = nowHour * 60 + nowMinute;
       return {
         role: 'owner',
         me: { name: me.name, firstName: me.name.split(' ')[0] },
         now: dubai,
+        clock: `${String(nowHour).padStart(2, '0')}:${String(nowMinute).padStart(2, '0')}`,
+        period,
         needsYou: [
-          { kind: 'vip_late', n: 1, text: 'VIP lead not called in time', action: 'Give again', to: '/v2/incoming' },
-          { kind: 'waiting', n: 3, text: 'leads waiting to be given out', action: 'Give', to: '/v2/incoming' },
-          { kind: 'transfer', n: 1, text: 'lead transfers need your approval', action: 'Approve', to: '/v2/transfers' },
-          { kind: 'leave', n: 2, text: 'leave requests to answer', action: 'Answer', to: '/v2/attendance' },
+          {
+            kind: 'vip_late', n: 1,
+            text: 'Omar Khan is not called',
+            sub: 'Bassam had 30 min · now back in Incoming',
+            action: 'Give again', to: '/v2/incoming', waitMinutes: 35,
+          },
+          {
+            kind: 'transfer', n: 1,
+            text: 'Transfer needs your approval',
+            sub: 'Omar Khalil · Rocky → Yuliia · stage Meeting',
+            action: 'Approve', to: '/v2/transfers', waitMinutes: 12,
+          },
+          {
+            kind: 'waiting', n: 3,
+            text: '3 leads wait in Incoming',
+            sub: 'Lina Rahimi waits 42 min · Kevin Brooks · Omar Khan',
+            action: 'Give', to: '/v2/incoming', waitMinutes: 42,
+          },
+          {
+            kind: 'leave', n: 2,
+            text: '2 leave requests',
+            sub: 'Rocky 18–20 Nov · Shan 14 Nov',
+            action: 'Answer', to: '/v2/attendance', waitMinutes: 30,
+          },
+          {
+            kind: 'absent', n: 1,
+            text: 'Bassam is absent',
+            sub: 'No check-in, no leave · 44 open leads',
+            action: 'See', to: '/v2/attendance', waitMinutes: null,
+          },
+          {
+            kind: 'bug', n: 1,
+            text: "Bug blocks Rocky's work",
+            sub: 'Call button fails on imported leads',
+            action: 'Open', to: '/v2/settings/feedback', waitMinutes: 75,
+          },
         ],
-        teamToday: {
-          inOffice: team.filter((t) => t.marked === 'office').length,
-          late: 1,
-          outside: team.filter((t) => t.marked === 'outside').length,
-          absent: team.filter((t) => t.marked === null).length,
-          closed: false,
-        },
+        teamToday: { inOffice: 6, late: 1, outside: 1, leave: 1, absent: 1, closed: false },
         todayNumbers: {
-          newLeads: counts.new, calls: 31, whatsapp: 18, telegram: 2,
-          meetings: 3, unitsBooked: 1, overdue: counts.overdue, noNextStep: counts.no_next_step,
+          newLeads: 27, calls: 214, whatsapp: 104, telegram: 28,
+          meetings: 5, unitsBooked: 1, overdue: 9, noNextStep: 31,
         },
-        teamRightNow: team,
+        work: {
+          calls: times(214), callsPrevious: times(191),
+          meetings: times(5), units: times(1),
+          lastUnit: { agent: 'Talha', project: 'Damac Islands', valueAed: 2_900_000 },
+          newLeadsToday: 27, newLeadsYesterday: 23,
+          firstContactMinutes: 6,
+        },
+        hours,
+        nowAcross: Math.min(1, Math.max(0, (minutesNow - 9 * 60) / (9 * 60))),
+        bestHour: 10,
+        pipeline: {
+          total: 863,
+          open: 809,
+          stages: [
+            { key: 'new_lead', label: 'New', tone: 'new', n: 456, pct: 53 },
+            { key: 'attempted_contact', label: 'Called', tone: 'called', n: 214, pct: 25 },
+            { key: 'engaged_qualified', label: 'Interested', tone: 'interested', n: 96, pct: 11 },
+            { key: 'appointment_scheduled', label: 'Meeting', tone: 'meeting', n: 31, pct: 4 },
+            { key: 'deal_sent', label: 'Offer', tone: 'offer', n: 12, pct: 1.4 },
+            { key: 'won', label: 'Won', tone: 'won', n: 4, pct: 0.5 },
+          ],
+          lost: { n: 50, pct: 5.8 },
+        },
+        teamRightNow: HOME_TEAM,
+        desks: [
+          { name: 'Dubai off-plan', maxOpenLeads: 60 },
+          { name: 'Arabic desk', maxOpenLeads: 50 },
+          { name: 'Abu Dhabi', maxOpenLeads: 40 },
+        ],
+        watch: {
+          overdue: { n: 9, who: [{ name: 'Bassam', n: 3 }, { name: 'Shan', n: 3 }] },
+          noNextStep: 31,
+          transfers: { n: 2, needApproval: 1 },
+          taps: { n: 104, unanswered: 7 },
+          cold: 12,
+        },
+        latestLeads: rows.slice(0, 6).map((row, i) => ({
+          id: row.id,
+          name: row.full_name,
+          phone: row.phone_e164,
+          project: row.project_name,
+          stage: row.stage_key,
+          agent: i === 1 || i === 2 ? null : (row.owner_name ?? 'Rocky'),
+          isVip: i === 0 || i === 1,
+          createdAt: new Date(now.getTime() - (i + 1) * 37 * 60_000).toISOString(),
+        })),
+        vipGiven: {
+          total: 5,
+          rows: [
+            {
+              id: 'vh-1', leadId: rows[0]!.id, name: 'Omar Khan', agent: 'Bassam',
+              project: 'Shahrukhz',
+              givenAt: new Date(now.getTime() - 35 * 60_000).toISOString(),
+              deadlineAt: new Date(now.getTime() - 5 * 60_000).toISOString(),
+              acceptedAt: null, firstCallAt: null,
+              returnedAt: new Date(now.getTime() - 5 * 60_000).toISOString(),
+              stage: 'new_lead',
+            },
+            {
+              id: 'vh-2', leadId: rows[1]!.id, name: 'Khalid Al Mansoori', agent: 'Rocky',
+              project: 'The Archive',
+              givenAt: new Date(now.getTime() - 6 * 60_000).toISOString(),
+              deadlineAt: new Date(now.getTime() + 24 * 60_000 + 12_000).toISOString(),
+              acceptedAt: null, firstCallAt: null, returnedAt: null, stage: 'new_lead',
+            },
+            {
+              id: 'vh-3', leadId: rows[2]!.id, name: 'Daniel Rossi', agent: 'Nelson',
+              project: 'Valia',
+              givenAt: new Date(now.getTime() - 4 * 3_600_000).toISOString(),
+              deadlineAt: new Date(now.getTime() - 3 * 3_600_000).toISOString(),
+              acceptedAt: new Date(now.getTime() - 4 * 3_600_000).toISOString(),
+              firstCallAt: new Date(now.getTime() - 3.5 * 3_600_000).toISOString(),
+              returnedAt: null, stage: 'attempted_contact',
+            },
+            {
+              id: 'vh-4', leadId: rows[3]!.id, name: 'Aisha Noor', agent: 'Talha',
+              project: 'Damac Islands',
+              givenAt: new Date(now.getTime() - 2 * 86_400_000).toISOString(),
+              deadlineAt: null,
+              acceptedAt: new Date(now.getTime() - 2 * 86_400_000).toISOString(),
+              firstCallAt: new Date(now.getTime() - 2 * 86_400_000).toISOString(),
+              returnedAt: null, stage: 'appointment_scheduled',
+            },
+            {
+              id: 'vh-5', leadId: rows[4]!.id, name: 'Elena Kuznetsova', agent: 'Yuliia',
+              project: 'Damac Islands',
+              givenAt: new Date(now.getTime() - 5 * 86_400_000).toISOString(),
+              deadlineAt: null,
+              acceptedAt: new Date(now.getTime() - 5 * 86_400_000).toISOString(),
+              firstCallAt: new Date(now.getTime() - 5 * 86_400_000).toISOString(),
+              returnedAt: null, stage: 'deal_sent',
+            },
+          ],
+        },
         freeLeads: 3,
         banners,
         unread: 2,

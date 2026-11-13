@@ -626,4 +626,44 @@
   .v2.v2-phone .p-find > .d-sr > .d-small { text-align: center; }
   /* "Enter opens the first result" is advice for a keyboard. */
   .v2.v2-phone .p-find .d-sr-box kbd { display: none; }
+
+  /* ══ The plan sheets ════════════════════════════════════════════════════
+   *
+   * Three sheets came with the eight faults the owner found: the new-plan
+   * form, the plan itself, and "How did it go?". All three are the design's
+   * two-column dialogs, and `.v2 .d-two` at this width loses to the ported
+   * `.v2 .p-calendar .d-two` — three classes against two — so every pair of
+   * fields stayed side by side at 390px. That is the trap CLAUDE.md names;
+   * the `p-*` class has to be repeated here to win it.
+   */
+  .v2.v2-phone .p-calendar .d-two { grid-template-columns: minmax(0, 1fr); }
+
+  /* Five answers, one under the other, as `Calendar.dc.html` draws them. Two
+     columns puts a bold label and a sub-line in 160px. */
+  .v2.v2-phone .p-calendar .d-res-grid { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-calendar .d-res-grid .d-opt:last-child { grid-column: auto; }
+  .v2.v2-phone .p-calendar .d-res-grid .d-opt { min-height: 56px; }
+
+  /* The booking form's drop zone, and the message a no-show gets. */
+  .v2.v2-phone .p-calendar .d-upl { min-height: 56px; }
+  .v2.v2-phone .p-calendar .d-msg-box { font-size: 13px; }
+
+  /* "Runs for several days" and its 2-to-5 chips: the switch keeps its own
+     line, the chips take the next one, rather than the two sharing 358px. */
+  .v2.v2-phone .p-calendar .d-dialog-body > .d-row { flex-wrap: wrap; row-gap: 10px; }
+  .v2.v2-phone .p-calendar .d-dialog-body > .d-row > .d-chips { flex: 1 1 100%; }
+
+  /* A plan that runs over several days is a dot in a phone month cell like
+     any other plan. The band's square corners and its -8px margins are for
+     a 180px computer cell; `.v2 .d-cal-day .d-cal-ev` makes the dot and
+     loses to the ported `.v2 .p-calendar .d-cal-ev.d-band`, so the dot came
+     out as a 5px square hanging out of the cell. */
+  .v2.v2-phone .p-calendar .d-cal-day .d-cal-ev.d-band {
+    border-radius: 50%; margin: 0 1.5px;
+  }
+
+  /* The word a finished plan wears in the day list — Showed up, No-show,
+     Cancelled — next to a title that may be long. The chip keeps its size
+     and the title gives way, rather than the chip wrapping to its own line. */
+  .v2.v2-phone .p-calendar .d-plan-row > .d-chip { flex: none; font-size: 11px; }
 }

@@ -18,7 +18,7 @@ describe('a plan cannot be put in the past', () => {
     const problem = pastProblem(new Date('2026-11-10T06:00:00Z'), NOW);
     expect(problem).toEqual({
       field: 'day',
-      message: 'This day has passed. Choose today or later.',
+      message: 'This day is in the past. Pick today or later.',
     });
   });
 

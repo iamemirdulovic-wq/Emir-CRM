@@ -17,14 +17,49 @@ import { Icon } from '../design/index.js';
 
 export type LeadActionKind = 'follow_up' | 'meeting' | 'won' | 'lost';
 
+/**
+ * The design's six, in its order and its words.
+ *
+ * "Not into off-plan" and "Is a broker, not a buyer" were missing from the
+ * server's own list, so an agent whose buyer only wanted a ready flat, or who
+ * turned out to be another broker, had nothing to pick and reached for
+ * "Other" — losing the two answers an owner can act on. Worse, five of the
+ * six the build did offer could not be written at all: see
+ * `server/migrations/0038_lead_screens.sql`.
+ */
 const LOST_REASONS = [
-  { key: 'bought_elsewhere', label: 'Bought somewhere else' },
+  { key: 'bought_elsewhere', label: 'Bought elsewhere' },
   { key: 'budget_too_low', label: 'Budget too low' },
-  { key: 'just_browsing', label: 'Only looking' },
-  { key: 'not_reachable', label: 'Never reachable' },
-  { key: 'changed_plans', label: 'Changed their plans' },
-  { key: 'other', label: 'Something else' },
+  { key: 'just_browsing', label: 'Just browsing' },
+  { key: 'not_into_offplan', label: 'Not into off-plan' },
+  { key: 'is_broker', label: 'Is a broker, not a buyer' },
+  { key: 'other', label: 'Other' },
 ];
+
+/** What the buyer signed. `design/web/lead.html`'s three chips. */
+const SIGNED = [
+  { key: 'booking_form', label: 'Booking form' },
+  { key: 'reservation_agreement', label: 'Reservation agreement' },
+  { key: 'spa', label: 'SPA' },
+] as const;
+
+type Signed = (typeof SIGNED)[number]['key'];
+
+/**
+ * Read a price out of what somebody typed.
+ *
+ * Digits only, and nothing invented: "2,000,000" and "2000000" are the same
+ * price, and anything with a letter in it is not a price at all.
+ */
+export function readAmount(text: string): number | null {
+  const tidy = text.trim();
+  if (tidy === '') return null;
+  if (/[^\d,.\s]/.test(tidy)) return null;
+  const digits = tidy.replace(/[,\s]/g, '');
+  const value = Number(digits);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.round(value);
+}
 
 /** The design's four when-chips, and what each one means in real time. */
 const WHEN = [
@@ -65,9 +100,11 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
   const [where, setWhere] = useState('Our office');
   const [reason, setReason] = useState<string | null>(null);
   const [note, setNote] = useState('');
-  const [project, setProject] = useState('');
   const [unit, setUnit] = useState('');
-  const [sure, setSure] = useState(false);
+  const [price, setPrice] = useState('');
+  const [paid, setPaid] = useState('');
+  const [signed, setSigned] = useState<Signed | null>(null);
+  const [proof, setProof] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
@@ -75,18 +112,23 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
   const picked = when === 'pick' ? new Date(at) : whenMeans(when);
   const timeIsPast = Number.isNaN(picked.getTime()) || picked.getTime() <= Date.now();
 
+  /* The money, read out of what was typed. Nothing is guessed: a box with a
+     word in it is not a price, and `readAmount` says so by answering null. */
+  const priceAed = readAmount(price);
+  const paidAed = readAmount(paid);
+  const priceBad = price.trim() === '' || priceAed === null;
+  const paidBad = paid.trim() === '' || paidAed === null
+    || (priceAed !== null && paidAed > priceAed);
+
   const ready = kind === 'lost' ? reason !== null && (reason !== 'other' || note.trim().length >= 5)
     /*
-     * The unit is asked for, not required.
-     *
-     * `lead.html` marks it with a star, and the rebuild carried that across —
-     * but it was optional before, and a unit number is not always in the
-     * agent's hand at the moment the client says yes. Blocking Won on it means
-     * the stage is wrong until somebody chases a number down, and a Won that
-     * cannot be recorded is the most expensive thing on this screen. Asked for
-     * in the label; `docs/decisions-to-confirm.md` §14 puts it to Emir.
+     * Won is a deal record, and every line of it is required — the design is
+     * explicit about the last one: "Attach the booking form or a receipt.
+     * Without it the deal is not counted." The build asked for a project, a
+     * unit and a tick box, so a Won carried no money at all and nothing
+     * downstream had a number to work from.
      */
-    : kind === 'won' ? sure
+    : kind === 'won' ? unit.trim() !== '' && !priceBad && !paidBad && signed !== null && proof !== null
       : kind === 'meeting' ? !timeIsPast && where.trim() !== ''
         : !timeIsPast && about.trim() !== '';
 
@@ -111,10 +153,19 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
         body.meetingWhere = where.trim() || null;
         body.nextStep = { type: 'meeting', at: picked.toISOString(), note: `${label} · ${where.trim()}` };
       } else if (kind === 'won') {
+        /*
+         * The paperwork goes up first. "Without it the deal is not counted",
+         * so a Won that could not keep its booking form is a Won that must
+         * not be recorded — and a file attached to a lead that then failed to
+         * close is visible on the Files tab rather than lost.
+         */
+        if (proof) await attachProof(opportunityId, proof);
         body.action = 'won';
         body.note = note.trim() || null;
-        body.wonProject = project.trim() || null;
         body.wonUnit = unit.trim() || null;
+        body.wonPriceAed = priceAed;
+        body.wonPaidAed = paidAed;
+        body.wonSigned = signed;
       } else {
         body.action = 'lost';
         body.reason = reason;
@@ -273,43 +324,106 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
           )}
 
           {kind === 'won' && (
-            <>
-              <div className="d-form-grid">
-                <div className="d-field">
-                  <label htmlFor="won-project">Project</label>
-                  <input
-                    className="d-input"
-                    id="won-project"
-                    value={project}
-                    placeholder="The Archive"
-                    onChange={(e) => setProject(e.target.value)}
-                  />
-                </div>
-                <div className="d-field">
-                  <label htmlFor="won-unit">Unit</label>
-                  <input
-                    className="d-input"
-                    id="won-unit"
-                    value={unit}
-                    placeholder="2BR · unit 1204"
-                    onChange={(e) => setUnit(e.target.value)}
-                  />
-                </div>
-                <div className="d-field d-full">
-                  <label htmlFor="won-note">Anything worth remembering</label>
-                  <input
-                    className="d-input"
-                    id="won-note"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                </div>
+            <div className="d-form-grid">
+              <div className={`${bad(unit.trim() === '')} d-full`}>
+                <label htmlFor="won-unit">Unit <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  id="won-unit"
+                  value={unit}
+                  placeholder="The Archive · 2BR · unit 1204"
+                  onChange={(e) => setUnit(e.target.value)}
+                />
+                <span className="d-error">Write the unit.</span>
               </div>
-              <label className="d-check">
-                <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
-                Yes — they bought it.
-              </label>
-            </>
+
+              <div className={bad(priceBad)}>
+                <label htmlFor="won-price">Price, AED <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  id="won-price"
+                  inputMode="numeric"
+                  value={price}
+                  placeholder="2,000,000"
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+                <span className="d-error">Write the price in digits.</span>
+              </div>
+
+              <div className={bad(paidBad)}>
+                <label htmlFor="won-paid">Paid now, AED <span className="d-req">*</span></label>
+                <input
+                  className="d-input"
+                  id="won-paid"
+                  inputMode="numeric"
+                  value={paid}
+                  placeholder="200,000"
+                  onChange={(e) => setPaid(e.target.value)}
+                />
+                <span className="d-error">
+                  {paid.trim() === ''
+                    ? 'Write how much was paid now.'
+                    : 'Paid now cannot be more than the price.'}
+                </span>
+              </div>
+
+              <div className={`${bad(signed === null)} d-full`}>
+                <span className="d-field-label">
+                  What was signed <span className="d-t-accent">*</span>
+                </span>
+                <div className="d-chips">
+                  {SIGNED.map((one) => (
+                    <button
+                      key={one.key}
+                      type="button"
+                      className={signed === one.key ? 'd-chip-opt d-on' : 'd-chip-opt'}
+                      onClick={() => setSigned(one.key)}
+                    >
+                      {one.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="d-error">Choose what was signed.</span>
+              </div>
+
+              <div className={`${bad(proof === null)} d-full`}>
+                <span className="d-field-label">
+                  Booking form or receipt <span className="d-t-accent">*</span>
+                </span>
+                {/* A real file, kept on the lead's Files tab in the Booking
+                    forms folder — not the prototype's toggle. */}
+                <label className={proof ? 'd-attach d-ok' : 'd-attach'}>
+                  <Icon name={proof ? 'check' : 'upload'} />
+                  <span className="d-grow" style={{ textAlign: 'left' }}>
+                    {proof
+                      ? `${proof.name} · attached`
+                      : 'Attach the booking form or the payment receipt'}
+                  </span>
+                  <span className="d-chip">PDF or photo</span>
+                  {/* Hidden rather than styled: the row above is the control,
+                      and a second native file button inside it reads as a bug. */}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={(e) => setProof(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <span className="d-error">
+                  Attach the booking form or a receipt. Without it the deal is not counted.
+                </span>
+              </div>
+
+              <div className="d-field d-full">
+                <label htmlFor="won-note">Anything worth remembering</label>
+                <input
+                  className="d-input"
+                  id="won-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </div>
+            </div>
           )}
 
           {kind === 'lost' && (
@@ -334,7 +448,7 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
                 <label htmlFor="lost-note">
                   Note{' '}
                   <span className="d-muted">
-                    {reason === 'other' ? '· needed for “Something else”' : '· optional'}
+                    {reason === 'other' ? '· needed for “Other”' : '· optional'}
                   </span>
                 </label>
                 <textarea
@@ -343,7 +457,7 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 />
-                <span className="d-error">With “Something else”, write at least 5 letters.</span>
+                <span className="d-error">With “Other”, write at least 5 letters.</span>
               </div>
             </>
           )}
@@ -380,7 +494,10 @@ const TITLE: Record<LeadActionKind, string> = {
 const SUB: Record<LeadActionKind, string> = {
   follow_up: 'it becomes the next step on this lead',
   meeting: 'the stage becomes Meeting',
-  won: 'fill the deal in',
+  /* The design also promises "+300 points" here. Nothing awards points for a
+     Won, so saying so would be the one thing this screen may never do; see
+     `docs/v2/questions-leads.md`. */
+  won: 'fill the deal. It is posted on the Team wall',
   lost: 'choose one reason, and the lead leaves your open list',
 };
 
@@ -390,6 +507,23 @@ const DO: Record<LeadActionKind, string> = {
   won: 'Save as Won',
   lost: 'Mark as lost',
 };
+
+/**
+ * Put the booking form on the lead, in the Booking forms folder.
+ *
+ * A file has to hang off a note — that is where files live, so a photo keeps
+ * the words that came with it — so the server writes one for it and hands the
+ * note's id back. Two calls, both of which must succeed before the deal is
+ * recorded: a Won with no paperwork is not counted, and a Won that claims
+ * paperwork it did not keep is worse.
+ */
+async function attachProof(opportunityId: string, file: File): Promise<void> {
+  const made = await api.post<{ noteId: string; folder: string }>(
+    `/api/my-leads/${opportunityId}/files/note`,
+    { folder: 'booking', filename: file.name },
+  );
+  await api.upload(`/api/notes/item/${made.noteId}/files`, file, { 'X-Folder': 'booking' });
+}
 
 /** What each when-chip means, in real time. */
 function whenMeans(key: WhenKey): Date {

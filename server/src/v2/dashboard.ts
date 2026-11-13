@@ -506,7 +506,7 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
     brief.push({
       kind: 'untouched',
       text: `${untouched} ${untouched === 1 ? 'lead is' : 'leads are'} not touched yet`,
-      sub: 'Nobody has called or messaged them since they arrived',
+      sub: 'Nobody has called or messaged them yet',
       action: 'View',
       to: '/v2/leads?tab=new',
       move: null,

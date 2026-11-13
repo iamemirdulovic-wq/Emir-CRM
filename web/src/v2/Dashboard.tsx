@@ -61,6 +61,25 @@ interface AgentRow {
   callsPerDay: number[];
   open: number;
   overdue: number;
+  deskMax: number | null;
+  deskName: string | null;
+}
+
+interface BriefRow {
+  kind: 'leave' | 'overload' | 'untouched';
+  text: string;
+  sub: string;
+  action: string;
+  to: string;
+  move: { userId: string; name: string; leads: number } | null;
+}
+
+interface Assignable {
+  userId: string;
+  name: string;
+  openLeads: number;
+  where: string;
+  canTake: boolean;
 }
 
 interface ColdAgent {
@@ -101,6 +120,9 @@ interface Dash {
   };
   agents: AgentRow[];
   cold: { total: number; agents: ColdAgent[] };
+  brief: BriefRow[];
+  desks: Array<{ name: string; maxOpenLeads: number | null }>;
+  assignable: Assignable[];
 }
 
 /**
@@ -116,18 +138,6 @@ interface Insight {
   source: string;
 }
 
-interface NeedsYou {
-  kind: string;
-  text: string;
-  n: number;
-  action: string;
-  to: string;
-}
-
-interface OwnerHome {
-  needsYou?: NeedsYou[];
-}
-
 type Period = 'today' | 'week' | 'month' | 'year';
 
 const PERIODS: Array<{ key: Period; label: string; against: string }> = [
@@ -137,15 +147,48 @@ const PERIODS: Array<{ key: Period; label: string; against: string }> = [
   { key: 'year', label: 'Year', against: 'vs the year before' },
 ];
 
-/** The icon tile beside each row of the brief, by what the row is about. */
-const NEEDS_ICON: Record<string, IconName> = {
-  vip_late: 'alert-triangle',
-  waiting: 'inbox',
-  transfer: 'repeat',
-  leave: 'calendar-days',
-  absent: 'user-x',
-  bug: 'alert-circle',
+/**
+ * The icon tile beside each row of the brief.
+ *
+ * `dashboard.html`'s own three: the warning triangle on somebody away, the
+ * people on somebody carrying too much, and the clock on leads nobody has
+ * touched.
+ */
+const BRIEF_ICON: Record<BriefRow['kind'], IconName> = {
+  leave: 'alert-triangle',
+  overload: 'users',
+  untouched: 'clock',
 };
+
+/** What the team card calls itself, by window. */
+const TEAM_TITLE: Record<Period, string> = {
+  today: 'Team today',
+  week: 'Team this week',
+  month: 'Team this month',
+  year: 'Team this year',
+};
+
+/**
+ * The five states of a day, in the design's order and its colours.
+ *
+ * Each one also names the filter it opens attendance on, so the bar and the
+ * legend lead somewhere rather than to the whole month.
+ */
+const BANDS: Array<{
+  key: string; colour: string; word: string; of: (t: Dash['teamToday']) => number;
+}> = [
+  { key: 'office', colour: 'd-green', word: 'In office', of: (t) => t.inOffice },
+  { key: 'late', colour: 'd-amber', word: 'Late', of: (t) => t.late },
+  { key: 'outside', colour: 'd-blue', word: 'Outside', of: (t) => t.outside },
+  { key: 'leave', colour: 'd-violet', word: 'Leave', of: (t) => t.leave },
+  { key: 'absent', colour: 'd-red', word: 'Absent', of: (t) => t.absent },
+];
+
+/** Where an owner may send one agent's open leads. */
+type MoveTo =
+  | { kind: 'pool' }
+  | { kind: 'agent'; userId: string }
+  | { kind: 'share'; userIds: string[] };
 
 /** The source names agents use, for the Sources card. */
 const SOURCE_LABEL: Record<string, string> = {
@@ -169,6 +212,20 @@ function Delta({ n, note }: { n: number; note?: string }) {
   return (
     <span className={n > 0 ? 'd-delta d-up' : 'd-delta d-down'}>
       {Math.abs(n)}{note ? ` ${note}` : ''}
+    </span>
+  );
+}
+
+/** The same pill, as a percentage of what came before. */
+function Pct({ now, before, note }: { now: number; before: number; note: string }) {
+  if (before === 0) {
+    return <span className="d-delta">{now === 0 ? `nothing ${note}` : `nothing ${note}`}</span>;
+  }
+  const move = Math.round(((now - before) / before) * 100);
+  if (move === 0) return <span className="d-delta">the same {note}</span>;
+  return (
+    <span className={move > 0 ? 'd-delta d-up' : 'd-delta d-down'}>
+      {Math.abs(move)}% {note}
     </span>
   );
 }
@@ -199,36 +256,83 @@ export function V2Dashboard() {
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin';
   const [period, setPeriod] = useState<Period>('today');
-  const [moving, setMoving] = useState<string | null>(null);
-  const [asked, setAsked] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
   const [moved, setMoved] = useState<string[]>([]);
+  /* Who the Move dialog is open about, or null when it is shut. */
+  const [movingWho, setMovingWho] = useState<{ userId: string; name: string; leads: number } | null>(null);
   const toast = useToast();
 
   const got = useAsync<Dash>(() => api.get(`/api/v2/dashboard?period=${period}`), [period]);
-  /* The brief's two halves. Neither is required for the page to be useful, so
-     both are read separately and the card simply shows less if one is quiet. */
+  /* The line at the top of the brief. The card is useful without it, so it is
+     read separately and simply shows less when it is quiet. */
   const insight = useAsync<Insight>(() => api.get('/api/activity/insight'), []);
-  const home = useAsync<OwnerHome>(() => api.get('/api/v2/home'), []);
 
-  async function move(row: ColdAgent) {
-    setMoving(row.userId);
+  async function move(
+    who: { userId: string; name: string; leads: number },
+    to: MoveTo,
+  ) {
+    setMoving(true);
     try {
-      const answer = await api.post<{ moved: number; name: string | null }>(
-        '/api/v2/dashboard/move', { userId: row.userId },
+      const answer = await api.post<{ moved: number; name: string | null; to: string }>(
+        '/api/v2/dashboard/move', { userId: who.userId, to },
       );
-      setMoved((was) => [...was, row.userId]);
+      setMoved((was) => [...was, who.userId]);
+      setMovingWho(null);
       toast(
         answer.moved === 0
-          ? `${row.name} has no open leads to move.`
-          : `${answer.moved} ${answer.moved === 1 ? 'lead' : 'leads'} went back to Incoming.`,
+          ? `${who.name} has no open leads to move.`
+          : `${answer.moved} ${answer.moved === 1 ? 'lead' : 'leads'} moved from ${who.name} `
+            + `to ${answer.to}${to.kind === 'pool' ? ' · free for every agent' : ''}.`,
       );
       got.reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Those leads did not move.');
     } finally {
-      setMoving(null);
-      setAsked(null);
+      setMoving(false);
     }
+  }
+
+  /**
+   * The Totals card's Download button.
+   *
+   * A CSV of what is on the screen, built in the browser from the figures
+   * already loaded — nothing is asked of the server and nothing is rounded on
+   * the way out, so the file and the page always agree.
+   */
+  function download(d: Dash) {
+    const lines: string[][] = [
+      ['Homes CRM — dashboard', d.now],
+      ['Period', period],
+      [],
+      ['All leads', String(d.totals.all)],
+      ['Open', String(d.totals.open)],
+      ['Lost', String(d.totals.lost)],
+      ['Untouched', String(d.totals.untouched)],
+      ['New today', String(d.totals.newToday)],
+      ['Call clicks', String(d.work.calls)],
+      ['Meetings booked', String(d.work.meetings)],
+      ['Units booked', String(d.work.units)],
+      [],
+      ['Stage', 'Leads', 'Share'],
+      ...d.stages.map((s) => [s.label, String(s.n), `${s.pct}%`]),
+      ['Lost', String(d.lost.n), `${d.lost.pct}%`],
+      [],
+      ['Agent', 'Calls', 'Meetings', 'Units', 'Open', 'Desk max', 'Overdue'],
+      ...d.agents.map((a) => [
+        a.name, String(a.calls), String(a.meetings), String(a.units),
+        String(a.open), a.deskMax === null ? '' : String(a.deskMax), String(a.overdue),
+      ]),
+    ];
+    const csv = lines
+      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dashboard-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast(`Saved as ${link.download}.`);
   }
 
   /*
@@ -265,12 +369,9 @@ export function V2Dashboard() {
    *
    * The design's hero is a fixed 336px (`.d-row1 {grid-template-rows:336px}`)
    * and three rows is what fits. A fourth is drawn half-height with its text
-   * cut off, which looks like a bug rather than a list. So the work that needs
-   * a decision comes first, and the counted lines fill whatever is left.
+   * cut off, which looks like a bug rather than a list.
    */
-  const needsYou = (home.data?.needsYou ?? []).slice(0, 3);
-  const spare = Math.max(0, 3 - Math.max(needsYou.length, 1));
-  const extraLines = (insight.data?.lines ?? []).slice(1, 1 + spare);
+  const brief = (d?.brief ?? []).slice(0, 3);
 
   return (
     <div className="p-dashboard">
@@ -317,11 +418,11 @@ export function V2Dashboard() {
                   ? insight.data.lines[0]?.text
                   : `${count(d.work.calls)} calls and ${count(d.work.meetings)} meetings `
                     + `${period === 'today' ? 'today' : `in the ${period}`}.`}
-                {needsYou.length > 0 && (
+                {brief.length > 0 && (
                   <>
                     {' '}
                     <em>
-                      {needsYou.length} {needsYou.length === 1 ? 'thing needs' : 'things need'} a
+                      {brief.length} {brief.length === 1 ? 'thing needs' : 'things need'} a
                       decision.
                     </em>
                   </>
@@ -329,37 +430,43 @@ export function V2Dashboard() {
               </p>
 
               <div className="d-arows">
-                {needsYou.map((row) => (
+                {brief.map((row) => (
                   <div className="d-arow" key={`${row.kind}-${row.to}`}>
-                    <span className={row.kind === 'vip_late' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
-                      <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
+                    <span className={row.kind === 'leave' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
+                      <Icon name={BRIEF_ICON[row.kind]} />
                     </span>
                     <Link className="d-arow-txt" to={row.to}>
-                      <b>{row.n} {row.text}</b>
-                      <span className="d-s">{row.action}</span>
+                      <b>{row.text}</b>
+                      {/* The reason the row is here, not the button's own
+                          word — which is what made the card read
+                          "Move 31 / Move 31". */}
+                      <span className="d-s">{row.sub}</span>
                     </Link>
-                    <Link className="d-btn d-sm d-on-dark" to={row.to}>{row.action}</Link>
+                    {row.move
+                      ? (
+                        <button
+                          type="button"
+                          className="d-btn d-sm d-on-dark d-primary"
+                          onClick={() => setMovingWho(row.move)}
+                        >
+                          {row.action}
+                        </button>
+                      )
+                      : <Link className="d-btn d-sm d-on-dark" to={row.to}>{row.action}</Link>}
                   </div>
                 ))}
-                {needsYou.length === 0 && (
+                {brief.length === 0 && (
                   <div className="d-arow">
                     <span className="d-arow-ic"><Icon name="check" /></span>
                     <span className="d-arow-txt">
-                      <b>Nothing is waiting on you</b>
+                      <b>Nothing needs a decision</b>
                       <span className="d-s">
-                        No VIP is late, no lead is unclaimed and no transfer needs approval
+                        Nobody is away with leads stranded, nobody is over their desk maximum
+                        and every lead has been touched
                       </span>
                     </span>
                   </div>
                 )}
-                {extraLines.map((line) => (
-                  <div className="d-arow" key={line.text}>
-                    <span className={line.kind === 'problem' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
-                      <Icon name={line.kind === 'problem' ? 'circle-alert' : 'bar-chart-3'} />
-                    </span>
-                    <span className="d-arow-txt"><b>{line.text}</b></span>
-                  </div>
-                ))}
               </div>
             </section>
 
@@ -369,6 +476,9 @@ export function V2Dashboard() {
                 <span className="d-small d-muted">
                   Calls, meetings and units: <b className="d-ink-2">{period}</b>
                 </span>
+                <button type="button" className="d-btn d-xs" onClick={() => download(d)}>
+                  <Icon name="download" />Download
+                </button>
               </div>
 
               <div className="d-tot">
@@ -395,7 +505,7 @@ export function V2Dashboard() {
                       {count(d.totals.untouched)}
                     </Link>
                   </div>
-                  <span className="d-label">Never contacted</span>
+                  <span className="d-label">Untouched</span>
                 </div>
                 <div className="d-stat">
                   <div className="d-stat-row">
@@ -408,7 +518,7 @@ export function V2Dashboard() {
 
               <div className="d-ptiles">
                 <Link className="d-ptile" to="/v2/messaging">
-                  <span className="d-k">Calls made</span>
+                  <span className="d-k">Call clicks</span>
                   <b className="d-num-sm">{count(d.work.calls)}</b>
                   <Delta n={d.work.calls - d.work.callsPrevious} note={against} />
                 </Link>
@@ -424,15 +534,22 @@ export function V2Dashboard() {
                     {d.work.unitsValueAed ? money(d.work.unitsValueAed) : 'no value recorded'}
                   </span>
                 </Link>
-                <div className="d-ptile">
-                  <span className="d-k">Answered in 2 h</span>
+                <div
+                  className="d-ptile"
+                  title={d.work.touchedIn2hPct === null
+                    ? 'No lead has arrived in this period yet'
+                    : `${Math.round((d.work.touchedIn2hPct / 100) * d.work.touchedIn2hOf)} of the `
+                      + `${count(d.work.touchedIn2hOf)} new leads in this period got a call or a `
+                      + 'message inside 2 hours'}
+                >
+                  <span className="d-k">Touched in 2 h</span>
                   <b className="d-num-sm">
                     {d.work.touchedIn2hPct === null ? '—' : `${d.work.touchedIn2hPct}%`}
                   </b>
                   <span className="d-s">
                     {d.work.firstAnswerMinutes === null
                       ? `of ${count(d.work.touchedIn2hOf)} new leads`
-                      : <>First answer <b className="d-t-green">{d.work.firstAnswerMinutes} min</b></>}
+                      : <>First click <b className="d-t-green">{d.work.firstAnswerMinutes} min</b></>}
                   </span>
                 </div>
               </div>
@@ -443,7 +560,7 @@ export function V2Dashboard() {
           <section className="d-card d-mt-16 v2-dash-stages" aria-label="Leads by stage">
             <div className="v2-dash-stages-head">
               <h3>By stage</h3>
-              <span className="d-small d-muted">Open a stage to see its leads</span>
+              <span className="d-small d-muted">Click a stage to open its list</span>
               <Link className="d-card-link d-mt-4" to="/v2/pipeline">
                 Open pipeline <Icon name="arrow-right" />
               </Link>
@@ -478,10 +595,10 @@ export function V2Dashboard() {
               </div>
               <div className="d-stat-row">
                 <b className="d-num">{count(d.perDay.total)}</b>
-                <Delta
-                  n={d.perDay.total - d.perDay.previous}
-                  note="vs the 14 days before"
-                />
+                {/* A percentage, as the design writes it: "9% vs the 14 days
+                    before". A bare count of twenty-one says nothing about
+                    whether a fortnight was good. */}
+                <Pct now={d.perDay.total} before={d.perDay.previous} note="vs the 14 days before" />
               </div>
               <div
                 className="d-bars d-id-days"
@@ -531,7 +648,10 @@ export function V2Dashboard() {
                     </div>
                     <b>{count(project.n)}</b>
                     <span className="d-sub">
-                      {project.won > 0 ? `${project.won} won` : '—'}
+                      {/* "launching" is the design's own word for a project
+                          that has leads and no deal yet — a dash reads as a
+                          missing figure rather than a true nought. */}
+                      {project.won > 0 ? `${project.won} won` : 'launching'}
                     </span>
                   </div>
                 ))}
@@ -575,26 +695,34 @@ export function V2Dashboard() {
           <div className="d-bento d-mt-16">
             <section className="d-card d-c-8" aria-label="Team today">
               <div className="d-card-head">
-                <h3>Team today</h3>
+                <h3>{TEAM_TITLE[period]}</h3>
                 <Link className="d-card-link" to="/v2/attendance">
                   Attendance <Icon name="arrow-right" />
                 </Link>
               </div>
 
+              {/* Each band and each legend entry carries `?show=`, so a
+                  click opens attendance already filtered to the people it
+                  counted rather than to everybody. */}
               <div className="d-att-head">
                 <div className="d-segbar d-tall">
-                  <Link className="d-green" style={{ ['--v' as string]: String(d.teamToday.inOffice) }} to="/v2/attendance" aria-label={`${d.teamToday.inOffice} in office`} />
-                  <Link className="d-amber" style={{ ['--v' as string]: String(d.teamToday.late) }} to="/v2/attendance" aria-label={`${d.teamToday.late} late`} />
-                  <Link className="d-blue" style={{ ['--v' as string]: String(d.teamToday.outside) }} to="/v2/attendance" aria-label={`${d.teamToday.outside} outside`} />
-                  <Link className="d-violet" style={{ ['--v' as string]: String(d.teamToday.leave) }} to="/v2/attendance" aria-label={`${d.teamToday.leave} on leave`} />
-                  <Link className="d-red" style={{ ['--v' as string]: String(d.teamToday.absent) }} to="/v2/attendance" aria-label={`${d.teamToday.absent} not marked`} />
+                  {BANDS.filter((band) => band.of(d.teamToday) > 0).map((band) => (
+                    <Link
+                      key={band.key}
+                      className={band.colour}
+                      style={{ ['--v' as string]: String(band.of(d.teamToday)) }}
+                      to={`/v2/attendance?show=${band.key}`}
+                      aria-label={`${band.of(d.teamToday)} ${band.word.toLowerCase()}`}
+                    />
+                  ))}
                 </div>
                 <div className="d-legend">
-                  <span><span className="d-dot d-green" /><b>{d.teamToday.inOffice}</b> In office</span>
-                  <span><span className="d-dot d-amber" /><b>{d.teamToday.late}</b> Late</span>
-                  <span><span className="d-dot d-blue" /><b>{d.teamToday.outside}</b> Outside</span>
-                  <span><span className="d-dot d-violet" /><b>{d.teamToday.leave}</b> Leave</span>
-                  <span><span className="d-dot d-red" /><b>{d.teamToday.absent}</b> Not marked</span>
+                  {BANDS.map((band) => (
+                    <Link key={band.key} to={`/v2/attendance?show=${band.key}`}>
+                      <span className={`d-dot ${band.colour}`} />
+                      <b>{band.of(d.teamToday)}</b> {band.word}
+                    </Link>
+                  ))}
                 </div>
               </div>
 
@@ -641,11 +769,11 @@ export function V2Dashboard() {
                 <thead>
                   <tr>
                     <th>Agent</th>
-                    <th>Where</th>
+                    <th>Status</th>
                     <th>Calls {period === 'today' ? 'today' : `this ${period}`} · 7 days</th>
                     <th className="d-t-right">Meetings</th>
                     <th className="d-t-right">Units</th>
-                    <th className="d-t-right">Open</th>
+                    <th className="d-t-right">Open · desk max</th>
                     <th className="d-t-right">Overdue</th>
                   </tr>
                 </thead>
@@ -658,7 +786,9 @@ export function V2Dashboard() {
                           <span>{row.name}</span>
                         </Link>
                       </td>
-                      <td>{whereWord(row)}</td>
+                      <td>
+                        <span className={`d-chip d-att-${whereKey(row)}`}>{whereWord(row)}</span>
+                      </td>
                       <td>
                         <span className="d-cell-bar">
                           <b>{count(row.calls)}</b>
@@ -667,11 +797,32 @@ export function V2Dashboard() {
                       </td>
                       <td className="d-t-right">{count(row.meetings)}</td>
                       <td className="d-t-right">{count(row.units)}</td>
-                      <td className="d-t-right">{count(row.open)}</td>
+                      <td className="d-t-right">
+                        {/* The desk maximum as the small line on the bar, and
+                            the figure red once it is past. A plain number says
+                            nothing about whether it is too many. */}
+                        <Link
+                          className={row.open > (row.deskMax ?? Infinity)
+                            ? 'd-overdue' : undefined}
+                          to={`/v2/leads?tab=all&agent=${row.userId}`}
+                          title={row.deskMax === null
+                            ? 'No desk maximum set'
+                            : `Desk maximum ${row.deskMax} · ${row.deskName}`}
+                        >
+                          {count(row.open)}
+                        </Link>
+                      </td>
                       <td className="d-t-right">
                         {row.overdue > 0
-                          ? <b className="d-t-red">{count(row.overdue)}</b>
-                          : row.overdue}
+                          ? (
+                            <Link
+                              className="d-overdue"
+                              to={`/v2/leads?tab=overdue&agent=${row.userId}`}
+                            >
+                              {count(row.overdue)}
+                            </Link>
+                          )
+                          : <span className="d-muted">0</span>}
                       </td>
                     </tr>
                   ))}
@@ -716,38 +867,41 @@ export function V2Dashboard() {
                 </div>
 
                 <div className="d-divide d-mt-8">
-                  {d.cold.agents.map((row) => (
-                    <div className="d-cold-row" key={row.userId}>
-                      <Avatar name={row.name} />
-                      <span className="d-grow">
-                        <b>{row.name}{whereSuffix(row)}</b>
-                        <span>
-                          {count(row.leads)} open · {count(row.cold)} cold
+                  {d.cold.agents.map((row) => {
+                    /*
+                     * Move is offered for somebody who is away — on leave, or
+                     * not marked in — and not for somebody at their desk who
+                     * simply has too many. The design draws it that way, and
+                     * it is right: an agent who is here can work their own
+                     * list, and taking it off them is a conversation first.
+                     */
+                    const away = row.onLeave || row.marked === null;
+                    return (
+                      <div className="d-cold-row" key={row.userId}>
+                        <Avatar name={row.name} />
+                        <span className="d-grow">
+                          <b>{row.name}{whereSuffix(row)}</b>
+                          <span>
+                            {count(row.leads)} open · {count(row.cold)} cold
+                          </span>
                         </span>
-                      </span>
-                      {moved.includes(row.userId) ? (
-                        <span className="d-small d-muted">moved</span>
-                      ) : asked === row.userId ? (
-                        <button
-                          type="button"
-                          className="d-btn d-sm d-dark"
-                          disabled={moving === row.userId}
-                          onClick={() => move(row)}
-                        >
-                          {moving === row.userId ? 'Moving…' : `Yes, move ${row.leads}`}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="d-btn d-sm"
-                          onClick={() => setAsked(row.userId)}
-                        >
-                          Move {row.leads}
-                        </button>
-                      )}
-                      <Link className="d-btn d-sm" to={`/v2/team/${row.userId}`}>View</Link>
-                    </div>
-                  ))}
+                        {moved.includes(row.userId)
+                          ? <span className="d-small d-muted">moved</span>
+                          : away && (
+                            <button
+                              type="button"
+                              className="d-btn d-sm d-dark"
+                              onClick={() => setMovingWho({
+                                userId: row.userId, name: row.name, leads: row.leads,
+                              })}
+                            >
+                              Move {row.leads}
+                            </button>
+                          )}
+                        <Link className="d-btn d-sm" to={`/v2/team/${row.userId}`}>View</Link>
+                      </div>
+                    );
+                  })}
                   {d.cold.agents.length === 0 && (
                     <span className="d-small d-muted">
                       Nobody is sitting on a cold lead. Rare, and worth saying.
@@ -758,8 +912,8 @@ export function V2Dashboard() {
                 <div className="d-card-foot">
                   <Icon name="info" />
                   <span>
-                    Moving sends that person&rsquo;s open leads back to Incoming for you to give
-                    out. It never picks the next agent.
+                    Notes and history go with the leads. Moving is offered for somebody who is
+                    away; an agent at their desk keeps their own list.
                   </span>
                 </div>
               </section>
@@ -777,15 +931,154 @@ export function V2Dashboard() {
                 </Link>
                 <Link className="d-shortcut" to="/v2/activity">
                   <Icon name="shield" />
-                  <span className="d-grow">Who did what</span>
+                  <span className="d-grow">Team activity</span>
                   <Icon name="arrow-right" />
                 </Link>
               </section>
             </div>
           </div>
+
+          {movingWho && (
+            <MoveDialog
+              who={movingWho}
+              agents={d.assignable}
+              busy={moving}
+              onClose={() => setMovingWho(null)}
+              onMove={(to) => void move(movingWho, to)}
+            />
+          )}
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * "Move leads" — the design's own dialog, and the only thing on this screen
+ * that changes anything.
+ *
+ * Three choices and no more: share them equally between the agents who are in
+ * today, give them all to one person, or put them back in Incoming where
+ * anybody may take one. People on leave or absent are not offered, and the
+ * server refuses them again — a hint in a dialog is not a rule.
+ *
+ * It asks twice. Thirty-one leads changing hands is not something to do by
+ * brushing the screen.
+ */
+function MoveDialog({ who, agents, busy, onClose, onMove }: {
+  who: { userId: string; name: string; leads: number };
+  agents: Assignable[];
+  busy: boolean;
+  onClose: () => void;
+  onMove: (to: MoveTo) => void;
+}) {
+  const [choice, setChoice] = useState<'share' | 'one' | 'pool'>('share');
+  const free = agents.filter((one) => one.canTake && one.userId !== who.userId);
+  const [one, setOne] = useState<string>(free[0]?.userId ?? '');
+  const [sure, setSure] = useState(false);
+
+  const each = free.length === 0 ? 0 : Math.ceil(who.leads / free.length);
+  /* Nobody is in today, so sharing is not a thing that can happen. */
+  const canShare = free.length > 0;
+  const to: MoveTo = choice === 'pool' ? { kind: 'pool' }
+    : choice === 'one' ? { kind: 'agent', userId: one }
+      : { kind: 'share', userIds: free.map((row) => row.userId) };
+  const ready = choice === 'pool' || (choice === 'one' ? one !== '' : canShare);
+
+  return (
+    <>
+      <div className="d-scrim d-show" onClick={onClose} aria-hidden />
+      <div className="d-dialog d-open" role="dialog" aria-label="Move leads">
+        <div className="d-dialog-head">
+          <div className="d-grow">
+            <h3>Move {who.leads} {who.leads === 1 ? 'lead' : 'leads'} from {who.name}</h3>
+            <p>Notes and history go with them. VIP leads stay where they are.</p>
+          </div>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        <div className="d-dialog-body">
+          <div className="d-opt-list">
+            <button
+              type="button"
+              className={choice === 'share' ? 'd-opt d-on' : 'd-opt'}
+              disabled={!canShare}
+              onClick={() => { setChoice('share'); setSure(false); }}
+            >
+              <span className="d-card-icon"><Icon name="users" /></span>
+              <span className="d-grow">
+                <b className="d-bold">
+                  Share equally · {free.length} {free.length === 1 ? 'agent' : 'agents'} in today
+                </b>
+                <div className="d-small d-muted">
+                  {canShare
+                    ? `About ${each} ${each === 1 ? 'lead' : 'leads'} each · fewest open leads first`
+                    : 'Nobody has marked themselves in today'}
+                </div>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={choice === 'one' ? 'd-opt d-on' : 'd-opt'}
+              disabled={free.length === 0}
+              onClick={() => { setChoice('one'); setSure(false); }}
+            >
+              <span className="d-card-icon"><Icon name="user" /></span>
+              <span className="d-grow">
+                <b className="d-bold">One agent</b>
+                <div className="d-small d-muted">You choose who gets all of them</div>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={choice === 'pool' ? 'd-opt d-on' : 'd-opt'}
+              onClick={() => { setChoice('pool'); setSure(false); }}
+            >
+              <span className="d-card-icon"><Icon name="inbox" /></span>
+              <span className="d-grow">
+                <b className="d-bold">Incoming</b>
+                <div className="d-small d-muted">Free leads · any agent can take one</div>
+              </span>
+            </button>
+          </div>
+
+          {choice === 'one' && (
+            <div className="d-field">
+              <label htmlFor="v2-move-agent">Agent</label>
+              <select
+                id="v2-move-agent"
+                className="d-select"
+                value={one}
+                onChange={(e) => { setOne(e.target.value); setSure(false); }}
+              >
+                {free.map((row) => (
+                  <option key={row.userId} value={row.userId}>
+                    {row.name} · {row.openLeads} open{row.where === 'outside' ? ' · outside' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="d-hint">People on leave or absent cannot be chosen.</span>
+            </div>
+          )}
+        </div>
+
+        <div className="d-dialog-foot">
+          <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="d-btn d-primary"
+            disabled={!ready || busy}
+            onClick={() => { if (sure) onMove(to); else setSure(true); }}
+          >
+            {busy ? 'Moving…'
+              : sure ? `Tap again to move ${who.leads}`
+                : `Move ${who.leads} ${who.leads === 1 ? 'lead' : 'leads'}`}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -794,12 +1087,20 @@ function whereWord(row: { marked: string | null; wasLate: boolean; onLeave: bool
   if (row.onLeave) return 'On leave';
   if (row.marked === 'outside') return 'Outside';
   if (row.marked === 'office') return row.wasLate ? 'Late' : 'In office';
-  return 'Not marked';
+  return 'Absent';
+}
+
+/** Which of the design's five attendance colours that is. */
+function whereKey(row: { marked: string | null; wasLate: boolean; onLeave: boolean }): string {
+  if (row.marked === 'office') return row.wasLate ? 'late' : 'office';
+  if (row.marked === 'outside') return 'outside';
+  if (row.onLeave) return 'leave';
+  return 'absent';
 }
 
 /** The same, as a tail on a name: "Sultan · on leave". */
 function whereSuffix(row: { marked: string | null; onLeave: boolean }): string {
   if (row.onLeave) return ' · on leave';
-  if (row.marked === null) return ' · not marked in';
+  if (row.marked === null) return ' · absent';
   return '';
 }

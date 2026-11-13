@@ -211,6 +211,42 @@ describeWithDb('workflows (integration)', () => {
     expect(result.assignmentReason).toBe('sticky_owner');
   });
 
+  /*
+   * What the lead's history says about all of that.
+   *
+   * It used to be built out of the routing code's own word, so an agent and
+   * the owner read "Assigned by sticky_owner" and "Assigned by language and
+   * project" on the timeline. Emir, 13 Nov: that phrase goes. The reason
+   * itself is still recorded in `meta`, which is what the reports read, so
+   * only the sentence changed.
+   */
+  it('says why a lead came back in words, not in code names', async () => {
+    await createTestUser({ role: 'agent', name: 'Only Agent' });
+
+    const first = await arriveLead();
+    await runWorkflowA({ opportunityId: first.opportunityId, contactId: first.contactId });
+    await execute(`UPDATE opportunities SET status = 'won' WHERE id = ?`, [first.opportunityId]);
+
+    const second = await arriveLead({ project: 'Damac Lagoons' });
+    await runWorkflowA({ opportunityId: second.opportunityId, contactId: second.contactId });
+
+    const activity = await queryOne<{ title: string; meta: unknown }>(
+      `SELECT title, meta FROM activities
+        WHERE opportunity_id = ? AND type = 'lead.assigned'
+        ORDER BY created_at DESC LIMIT 1`,
+      [second.opportunityId],
+    );
+    expect(activity?.title).toBe('Back to the agent who dealt with them before');
+    expect(activity?.title).not.toMatch(/assigned by|_/i);
+
+    /* The machine-readable reason is untouched, so every report still reads
+       what it read before. */
+    const meta = typeof activity?.meta === 'string'
+      ? JSON.parse(activity.meta) as { reason?: string }
+      : (activity?.meta as { reason?: string } | null);
+    expect(meta?.reason).toBe('sticky_owner');
+  });
+
   it('queues the lead and alerts managers when nobody is available', async () => {
     await createTestUser({ role: 'agent', availability: 'off' });
     const ingested = await arriveLead();

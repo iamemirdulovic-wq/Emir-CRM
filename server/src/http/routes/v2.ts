@@ -466,9 +466,15 @@ v2Router.get(
                 m.ends_at AS endsAt, m.all_day AS allDay, m.place, m.result, m.interest,
                 m.result_note AS resultNote, m.result_by AS resultBy,
                 m.reminder_minutes AS reminderMinutes,
+                m.booked_project AS bookedProject,
                 m.booked_unit AS bookedUnit, m.booked_price_aed AS bookedPriceAed,
                 m.booked_paid_aed AS bookedPaidAed, m.receipt_name AS receiptName,
                 m.user_id AS userId,
+                /* How many times this lead has not turned up, all of them, so
+                   the no-show form can say "No-show 2" and mean it. */
+                (SELECT COUNT(*) FROM meetings x
+                  WHERE x.opportunity_id = m.opportunity_id
+                    AND x.result = 'no_show' AND x.deleted_at IS NULL) AS noShows,
                 c.full_name AS who, c.phone_e164 AS phone, u.name AS agent,
                 o.project_name AS project, o.unit_type AS unitType
            FROM meetings m
@@ -504,6 +510,7 @@ v2Router.get(
         interest: (m.interest as string | null) ?? null,
         reminderMinutes: m.reminderMinutes === null || m.reminderMinutes === undefined
           ? null : Number(m.reminderMinutes),
+        bookedProject: (m.bookedProject as string | null) ?? null,
         bookedUnit: (m.bookedUnit as string | null) ?? null,
         bookedPriceAed: m.bookedPriceAed === null || m.bookedPriceAed === undefined
           ? null : Number(m.bookedPriceAed),
@@ -512,6 +519,7 @@ v2Router.get(
         /* Whether a booking form is on file. The file itself is served, with
            its own permission check, by `/meetings/:id/receipt`. */
         receiptName: (m.receiptName as string | null) ?? null,
+        noShows: Number(m.noShows ?? 0),
         who: (m.who as string | null) ?? null,
         phone: (m.phone as string | null) ?? null,
         wants: [m.project, m.unitType].filter(Boolean).join(' · ') || null,
@@ -661,6 +669,7 @@ const resultSchema = z.object({
   }).nullable().optional(),
   /** What they booked. Required after "They booked", receipt included. */
   booked: z.object({
+    project: z.string().max(160).nullable().optional(),
     unit: z.string().trim().min(1).max(80),
     priceAed: z.number().int().min(1).max(10_000_000_000),
     paidAed: z.number().int().min(0).max(10_000_000_000),

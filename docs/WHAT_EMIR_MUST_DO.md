@@ -85,3 +85,34 @@ screenshots, so treat them as public:
 - **the database password**
 
 `SETUP_NEEDED.md` sections 1 and 2, about 10 minutes each.
+
+---
+
+## Where the new Google key goes — about 5 minutes
+
+*Added 13 Nov. The "Homes AI" error you are seeing is the key, not the AI.
+The old one was in a screenshot, so it has to be replaced anyway.*
+
+1. Get a new key at **https://aistudio.google.com/apikey**, in the Google
+   project that has **billing on** — the paid tier is what keeps your clients'
+   messages out of Google's training data.
+2. **Check Hostinger first.** hPanel → Websites → crm.homes.me → Advanced →
+   Node.js → **Environment variables**. If there is a `GEMINI_API_KEY` there,
+   **that one wins over anything you type in the CRM** — so either paste the
+   new key there and **Restart**, or delete the line and use step 3. One
+   place, not both; this is the trap.
+3. Otherwise put it in the CRM: open **crm.homes.me/settings?tab=ai** →
+   *Connect* → paste the key → press **Connect**. No restart, nothing in
+   Hostinger. It asks Google straight away and tells you on the screen
+   whether Google answered, and Google's own words if it did not.
+4. The same panel then lists the models your key is actually allowed to use.
+   Pick a **"lite"** one — cheapest, and plenty for everything here.
+5. Check it took: **Settings → Health**. The row is called **Homes AI**, and
+   it turns green when a key is saved and answering.
+
+**Heads up on step 3:** the key box is on the older settings page. The new
+**Settings → Homes AI** screen has the monthly budget and what the AI is
+allowed to do, but no key box yet — that is mine to finish, not yours.
+
+**Never put the key in chat or a screenshot.** Paste it straight into the
+CRM or into Hostinger.

@@ -17,6 +17,7 @@ import { cancelTasksForClosedLead } from '../services/tasks.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { recordFirstAction } from '../routing/assignments.js';
 import { logger, errorContext } from '../lib/logger.js';
+import { badRequest, notFound } from '../lib/errors.js';
 
 export const LEAD_ACTIONS = [
   'call', 'whatsapp', 'no_answer', 'call_back', 'interested', 'meeting', 'problem', 'lost', 'won',
@@ -162,7 +163,11 @@ export async function runLeadAction(
   input: ActionInput,
 ): Promise<ActionResult> {
   if ((input.action === 'problem' || input.action === 'lost') && !input.reason) {
-    throw Object.assign(new Error('A reason is required'), { status: 400 });
+    /* `badRequest`, not a bare Error with a `status` on it: only an AppError
+       reaches the client as a 400, and anything else is logged as a crash and
+       answered "Internal server error". An agent pressing Lost with no reason
+       was being told the CRM had broken. */
+    throw badRequest('Choose a reason first.');
   }
   /*
    * Checked here as well as in the dialog. A deposit larger than the price is
@@ -171,10 +176,7 @@ export async function runLeadAction(
    */
   if (input.action === 'won' && input.wonPriceAed != null && input.wonPaidAed != null
     && input.wonPaidAed > input.wonPriceAed) {
-    throw Object.assign(
-      new Error('Paid now cannot be more than the price.'),
-      { status: 400 },
-    );
+    throw badRequest('Paid now cannot be more than the price.');
   }
 
   const before = await queryOne<{
@@ -187,7 +189,7 @@ export async function runLeadAction(
        FROM opportunities WHERE id = ? AND deleted_at IS NULL`,
     [input.opportunityId],
   );
-  if (!before) throw Object.assign(new Error('That lead no longer exists'), { status: 404 });
+  if (!before) throw notFound('That lead no longer exists.');
 
   const move = MOVES[input.action];
   const noAnswerCount = input.action === 'no_answer' ? before.no_answer_count + 1 : before.no_answer_count;

@@ -18,15 +18,22 @@ interface Route {
 
 /** The team, with the design's own names and figures. */
 const AGENTS = [
-  { name: 'Talha', marked: 'office', wasLate: false, onLeave: false, calls: 42, meetings: 2, units: 1, open: 48, overdue: 0 },
-  { name: 'Rocky Khan', marked: 'office', wasLate: false, onLeave: false, calls: 38, meetings: 1, units: 0, open: 44, overdue: 1 },
-  { name: 'Yuliia', marked: 'office', wasLate: false, onLeave: false, calls: 31, meetings: 1, units: 0, open: 39, overdue: 0 },
-  { name: 'Olga', marked: 'outside', wasLate: false, onLeave: false, calls: 27, meetings: 0, units: 0, open: 35, overdue: 2 },
-  { name: 'Shan', marked: 'office', wasLate: true, onLeave: false, calls: 24, meetings: 1, units: 0, open: 57, overdue: 3 },
-  { name: 'Tej', marked: 'office', wasLate: false, onLeave: false, calls: 21, meetings: 0, units: 0, open: 31, overdue: 0 },
-  { name: 'Nelson', marked: 'office', wasLate: false, onLeave: false, calls: 18, meetings: 0, units: 0, open: 29, overdue: 1 },
-  { name: 'Bassam', marked: null, wasLate: false, onLeave: false, calls: 0, meetings: 0, units: 0, open: 44, overdue: 4 },
-  { name: 'Sultan', marked: null, wasLate: false, onLeave: true, calls: 0, meetings: 0, units: 0, open: 31, overdue: 1 },
+  { name: 'Talha', marked: 'office', wasLate: false, onLeave: false, calls: 42, meetings: 2, units: 1, open: 48, overdue: 0, deskMax: 60, deskName: 'Dubai off-plan', checkedInAt: '08:52' },
+  { name: 'Rocky Khan', marked: 'office', wasLate: false, onLeave: false, calls: 38, meetings: 1, units: 0, open: 44, overdue: 1, deskMax: 60, deskName: 'Dubai off-plan', checkedInAt: '08:55' },
+  { name: 'Yuliia', marked: 'office', wasLate: false, onLeave: false, calls: 31, meetings: 1, units: 0, open: 39, overdue: 0, deskMax: 60, deskName: 'Dubai off-plan', checkedInAt: '08:58' },
+  { name: 'Olga', marked: 'outside', wasLate: false, onLeave: false, calls: 27, meetings: 0, units: 0, open: 35, overdue: 2, deskMax: 60, deskName: 'Dubai off-plan', checkedInAt: '09:03' },
+  { name: 'Shan', marked: 'office', wasLate: true, onLeave: false, calls: 24, meetings: 1, units: 0, open: 57, overdue: 3, deskMax: 50, deskName: 'Arabic desk', checkedInAt: '09:24' },
+  { name: 'Tej', marked: 'office', wasLate: false, onLeave: false, calls: 21, meetings: 0, units: 0, open: 31, overdue: 0, deskMax: 60, deskName: 'Dubai off-plan', checkedInAt: '09:08' },
+  { name: 'Nelson', marked: 'office', wasLate: false, onLeave: false, calls: 18, meetings: 0, units: 0, open: 29, overdue: 1, deskMax: 40, deskName: 'Abu Dhabi', checkedInAt: '10:15' },
+  { name: 'Bassam', marked: null, wasLate: false, onLeave: false, calls: 0, meetings: 0, units: 0, open: 44, overdue: 4, deskMax: 40, deskName: 'Abu Dhabi', checkedInAt: null },
+  { name: 'Sultan', marked: null, wasLate: false, onLeave: true, calls: 0, meetings: 0, units: 0, open: 31, overdue: 1, deskMax: 50, deskName: 'Arabic desk', checkedInAt: null },
+];
+
+/** The desks the Open column measures against, named in its foot. */
+const DESKS = [
+  { name: 'Dubai off-plan', maxOpenLeads: 60 },
+  { name: 'Arabic desk', maxOpenLeads: 50 },
+  { name: 'Abu Dhabi', maxOpenLeads: 40 },
 ];
 
 /** A week of calls that looks like a week, not a sawtooth. */
@@ -100,6 +107,43 @@ const DASH = {
       { userId: 'u-5', name: 'Shan', marked: 'office', onLeave: false, leads: 57, cold: 3 },
     ],
   },
+  /* The morning brief's three rows, each with its own reason — the design's
+     own words, so the preview can be held against `dashboard.html`. */
+  brief: [
+    {
+      kind: 'leave',
+      text: 'Sultan is on leave · 31 leads have nobody',
+      sub: 'Back Thursday · 1 follow-up is already overdue',
+      action: 'Move 31',
+      to: '/v2/team/u-9',
+      move: { userId: 'u-9', name: 'Sultan', leads: 31 },
+    },
+    {
+      kind: 'overload',
+      text: 'Shan has 57 leads · maximum is 50',
+      sub: 'Arabic desk · 3 follow-ups overdue',
+      action: 'View',
+      to: '/v2/team/u-5',
+      move: null,
+    },
+    {
+      kind: 'untouched',
+      text: '86 leads are not touched yet',
+      sub: 'Nobody has called or messaged them yet',
+      action: 'View',
+      to: '/v2/leads?tab=new',
+      move: null,
+    },
+  ],
+  desks: DESKS,
+  assignable: AGENTS.map((a, i) => ({
+    userId: `u-${i + 1}`,
+    name: a.name,
+    openLeads: a.open,
+    where: a.onLeave ? 'leave' : a.marked === 'outside' ? 'outside'
+      : a.marked === 'office' ? 'office' : 'absent',
+    canTake: !a.onLeave && a.marked !== null,
+  })).sort((a, b) => a.openLeads - b.openLeads),
 };
 
 export const DASHBOARD_ROUTES: Route[] = [
@@ -137,7 +181,15 @@ export const DASHBOARD_ROUTES: Route[] = [
     pattern: /^\/api\/v2\/dashboard\/move$/,
     handler: ({ body }) => {
       const who = DASH.cold.agents.find((a) => a.userId === body.userId);
-      return { moved: who?.leads ?? 0, name: who?.name ?? null };
+      const to = body.to as { kind?: string; userId?: string; userIds?: string[] } | undefined;
+      const named = DASH.assignable.find((a) => a.userId === to?.userId)?.name;
+      return {
+        moved: who?.leads ?? 31,
+        name: who?.name ?? 'Sultan',
+        to: to?.kind === 'agent' ? named ?? 'one agent'
+          : to?.kind === 'share' ? `${to.userIds?.length ?? 0} agents`
+            : 'Incoming',
+      };
     },
   },
   {

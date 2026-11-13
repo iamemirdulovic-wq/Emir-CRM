@@ -1098,73 +1098,218 @@ const STAGE_WORD: Record<string, string> = {
 function OwnerDay({ home, period, onPeriod }: {
   home: OwnerHome; period: Period; onPeriod: (period: Period) => void;
 }) {
-  const n = home.todayNumbers;
   const isPhone = useIsPhone();
+
+  /*
+   * Two drawings, not one scaled down. `owner-home.html` is the computer page
+   * — a twelve-column bento, a fixed-height hero, nine hour columns and a
+   * six-column table. `OwnerHome.dc.html` is the phone, and it asks for a
+   * different screen: the greeting, three actions, the same six things that
+   * need the owner, the team, the day's numbers, and a way into the full
+   * dashboard. Neither is a worse version of the other.
+   */
+  return isPhone
+    ? <OwnerPhone home={home} />
+    : <OwnerComputer home={home} period={period} onPeriod={onPeriod} />;
+}
+
+/* ── the owner's home on a phone — `design/screens/OwnerHome.dc.html` ───── */
+
+function OwnerPhone({ home }: { home: OwnerHome }) {
+  const n = home.todayNumbers;
+  const t = home.teamToday;
   return (
     <div className="v2-home p-owner-home">
-      {/* The computer page's title is the shell's; the phone's is its own
-          greeting, which is how `OwnerHome.dc.html` opens. */}
-      {isPhone && (
-        <h1 className="v2-hi">
-          {greet(home.now)}, {home.me.firstName}
-          <span>{home.now}</span>
-        </h1>
-      )}
+      <h1 className="v2-hi">
+        {greet(home.now)}, {home.me.firstName}
+        <span>{home.now}</span>
+      </h1>
 
-      {/* `OwnerHome.dc.html` gives the first action a card of its own, with
-          the line that says what it does, and puts the other two in a row
-          under it. The computer page keeps its three as the design's
-          Shortcuts card, at the foot of the right-hand column. */}
-      {isPhone && (
-        <>
-          <Link className="v2-a-bigact" to="/v2/leads/new">
-            <span className="v2-a-bigact-ic"><Icon name="plus" /></span>
-            <span className="d-grow">
-              <b>Add a lead and give it</b>
-              <span>Type it once, pick the agent, mark it VIP</span>
-            </span>
-            <Icon name="chevron-right" />
-          </Link>
-          <div className="v2-a-acts2">
-            <Link className="v2-a-act2" to="/v2/import"><Icon name="upload" />Import Excel</Link>
-            <Link className="v2-a-act2" to="/v2/incoming">
-              <Icon name="inbox" />Incoming · {home.freeLeads}
+      {/* The first action gets a card of its own with the line that says what
+          it does; the other two share a row under it. */}
+      <Link className="v2-a-bigact" to="/v2/leads/new">
+        <span className="v2-a-bigact-ic"><Icon name="plus" /></span>
+        <span className="d-grow">
+          <b>Add a lead and give it</b>
+          <span>Type it once, pick the agent, mark it VIP</span>
+        </span>
+        <Icon name="chevron-right" />
+      </Link>
+      <div className="v2-a-acts2">
+        <Link className="v2-a-act2" to="/v2/import"><Icon name="upload" />Import Excel</Link>
+        <Link className="v2-a-act2" to="/v2/incoming">
+          <Icon name="inbox" />Incoming · {home.freeLeads}
+        </Link>
+      </div>
+
+      <div className="d-bento">
+        <section className="d-card d-c-7" aria-label="Needs you now">
+          <div className="d-card-head"><h3>Needs you now</h3></div>
+          {home.needsYou.length === 0
+            ? (
+              <p className="v2-none">
+                Nothing is waiting on you. No unowned leads, no transfer to approve,
+                no leave to answer.
+              </p>
+            )
+            : home.needsYou.map((row) => (
+              <div className="d-srow" key={`${row.kind}-${row.to}`}>
+                <span className="d-card-icon v2-a-need-ic">
+                  <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
+                </span>
+                <div className="d-grow">
+                  <b>{row.text}</b>
+                  {/* The reason, which is what makes the row worth a tap:
+                      "Bassam had 30 min · now back in Incoming". */}
+                  {row.sub && <span>{row.sub}</span>}
+                </div>
+                <Link className="d-btn d-xs" to={row.to}>{row.action}</Link>
+              </div>
+            ))}
+        </section>
+
+        <section className="d-card d-c-5" aria-label="Team today">
+          <div className="d-card-head">
+            <h3>Team today</h3>
+            <Link className="d-card-link" to="/v2/attendance">
+              Attendance <Icon name="arrow-right" />
             </Link>
           </div>
-        </>
-      )}
+          {t.closed
+            ? <p className="v2-none">The office is closed today.</p>
+            : (
+              <div className="d-mini-stats">
+                <Link to="/v2/attendance?show=office"><b>{t.inOffice}</b>In office</Link>
+                <Link className={t.late > 0 ? 'd-red' : ''} to="/v2/attendance?show=late">
+                  <b>{t.late}</b>Late
+                </Link>
+                <Link to="/v2/attendance?show=outside"><b>{t.outside}</b>Outside</Link>
+                {/* The design's fourth tile is "Absent / leave", because at
+                    390px five will not fit and the two are one question. */}
+                <Link
+                  className={t.absent > 0 ? 'd-red' : ''}
+                  to={`/v2/attendance?show=${t.absent > 0 ? 'absent' : 'leave'}`}
+                >
+                  <b>{t.absent + t.leave}</b>Absent / leave
+                </Link>
+              </div>
+            )}
+        </section>
+      </div>
 
-      {/* The period switch and the live stamp — the design's own top bar.
-          It moves the calls card and the meetings-and-units card only. */}
-      {!isPhone && (
-        <div className="d-filters">
-          <div className="d-seg" role="tablist" aria-label="Period">
-            {PERIODS.map((one) => (
-              <button
-                key={one.key}
-                type="button"
-                role="tab"
-                aria-selected={period === one.key}
-                className={period === one.key ? 'd-on' : undefined}
-                onClick={() => onPeriod(one.key)}
-              >
-                {one.label}
-              </button>
-            ))}
+      <p className="v2-a-sectionlabel">TODAY IN NUMBERS</p>
+
+      <div className="d-bento">
+        <Tile to="/v2/leads?tab=new" label="New leads today" n={n.newLeads ?? 0} note="came in today" />
+        <Tile
+          to="/v2/team-live"
+          label="Calls today"
+          n={n.calls ?? 0}
+          note={`${n.whatsapp ?? 0} WhatsApp · ${n.telegram ?? 0} Telegram`}
+        />
+        <Tile to="/v2/calendar" label="Meetings today" n={n.meetings ?? 0} note="in the calendar" />
+        <Tile
+          to="/v2/wall"
+          label="Units booked today"
+          n={n.unitsBooked ?? 0}
+          note={unitNote(home.work.lastUnit, home.work.units)}
+        />
+      </div>
+
+      <div className="d-bento">
+        <Tile
+          to="/v2/leads?tab=overdue"
+          label="Follow-ups overdue"
+          n={n.overdue ?? 0}
+          note={(n.overdue ?? 0) > 0 ? 'past their time' : 'all on time'}
+          urgent={(n.overdue ?? 0) > 0}
+        />
+        <Tile
+          to="/v2/leads?tab=no_next_step"
+          label="No next step"
+          n={n.noNextStep ?? 0}
+          note="nobody coming back to them"
+          urgent={(n.noNextStep ?? 0) > 0}
+        />
+        <Link className="d-card d-c-6 d-tile d-click" to="/v2/dashboard">
+          <span className="d-label">The full dashboard</span>
+          <div className="d-stat-row">
+            <span className="d-state">Sources, agents, the funnel and the money</span>
           </div>
-          <span className="d-grow" />
-          <span className="v2-live-stamp">Live · {home.clock}</span>
+          <Icon name="arrow-up-right" />
+        </Link>
+      </div>
+
+      <section className="d-card" aria-label="Team right now">
+        <div className="d-card-head">
+          <h3>Team right now</h3>
+          <Link className="d-card-link" to="/v2/team">Team <Icon name="arrow-right" /></Link>
         </div>
-      )}
+        {/*
+          * Six columns at 390px put the last cell off the right-hand edge with
+          * nothing to say it was there. Each person is a row instead, which is
+          * how every other list in the phone design works.
+          */}
+        <div className="v2-a-live-head">
+          <span className="v2-a-live-name">Agent</span>
+          <span>Open</span><span>Calls</span><span>Due</span>
+        </div>
+        {home.teamRightNow.map((row) => (
+          <Link className="v2-a-live-row" key={row.id} to={`/v2/team/${row.id}`}>
+            <Avatar name={row.name} src={row.photoUrl ?? undefined} size={30} />
+            <span className="v2-a-live-name">
+              {row.name}
+              <em>{whereWord(row)}</em>
+            </span>
+            <span>{row.openLeads}</span>
+            <span>{row.callsToday}</span>
+            <span>{row.overdue}</span>
+          </Link>
+        ))}
+      </section>
+
+      {home.banners.length > 0 && <Banners banners={home.banners} phone />}
+    </div>
+  );
+}
+
+/* ── the owner's home on a computer — `design/web/owner-home.html` ──────── */
+
+function OwnerComputer({ home, period, onPeriod }: {
+  home: OwnerHome; period: Period; onPeriod: (period: Period) => void;
+}) {
+  return (
+    <div className="v2-home p-owner-home">
+      {/* The page's title is the shell's. The design opens on its own top bar:
+          the period switch, which moves the calls card and the meetings-and-
+          units card and nothing else, and the live stamp. */}
+      <div className="d-filters">
+        <div className="d-seg" role="tablist" aria-label="Period">
+          {PERIODS.map((one) => (
+            <button
+              key={one.key}
+              type="button"
+              role="tab"
+              aria-selected={period === one.key}
+              className={period === one.key ? 'd-on' : undefined}
+              onClick={() => onPeriod(one.key)}
+            >
+              {one.label}
+            </button>
+          ))}
+        </div>
+        <span className="d-grow" />
+        <span className="v2-live-stamp">Live · {home.clock}</span>
+      </div>
 
       <OwnerAiLine home={home} />
 
-      {/* ── row 1: the hero, the calls, and two small tiles ─────────────── */}
-      <div className={isPhone ? 'd-bento' : 'd-bento d-row1'}>
-        <NeedsYou rows={home.needsYou} isPhone={isPhone} />
-        {!isPhone && <CallsToday home={home} period={period} />}
+      {/* ── row 1: the hero, the calls, and two small cards ─────────────── */}
+      <div className="d-bento d-row1">
+        <NeedsYou rows={home.needsYou} />
+        <CallsToday home={home} period={period} />
 
-        <div className={isPhone ? 'd-stack d-c-12' : 'd-stack d-c-3'}>
+        <div className="d-stack d-c-3">
           <section className="d-card d-mini" aria-label="New leads">
             <div className="d-card-head d-mb-0">
               <h3>New leads</h3>
@@ -1215,10 +1360,6 @@ function OwnerDay({ home, period, onPeriod }: {
         </div>
       </div>
 
-      {/* The calls card is the whole width of a phone, under the two tiles —
-          nine hour columns and a hero number will not share 390px. */}
-      {isPhone && <CallsToday home={home} period={period} />}
-
       {/* ── row 2: the pipeline strip ───────────────────────────────────── */}
       <section className="d-card d-mt-16 v2-stage-card" aria-label="Pipeline">
         <div className="v2-stage-side">
@@ -1243,7 +1384,9 @@ function OwnerDay({ home, period, onPeriod }: {
               to={`/v2/pipeline?stage=${stage.key}`}
             >
               <span className="d-nm">{stage.label}</span>
-              <span className="d-ct"><b>{stage.n.toLocaleString()}</b><span>{stage.pct}%</span></span>
+              <span className="d-ct">
+                <b>{stage.n.toLocaleString()}</b><span>{stage.pct}%</span>
+              </span>
               <i />
             </Link>
           ))}
@@ -1259,7 +1402,7 @@ function OwnerDay({ home, period, onPeriod }: {
 
       {/* ── row 3: the team, the watch list and the shortcuts ───────────── */}
       <div className="d-bento d-mt-16">
-        <TeamRightNow home={home} isPhone={isPhone} />
+        <TeamRightNow home={home} />
 
         <div className="d-stack d-c-4">
           <section className="d-card" aria-label="Watch list">
@@ -1289,7 +1432,8 @@ function OwnerDay({ home, period, onPeriod }: {
               to="/v2/transfers"
               title="Transfers today"
               note={home.watch.transfers.needApproval > 0
-                ? `${home.watch.transfers.needApproval} ${home.watch.transfers.needApproval === 1 ? 'waits' : 'wait'} for your approval`
+                ? `${home.watch.transfers.needApproval} `
+                  + `${home.watch.transfers.needApproval === 1 ? 'waits' : 'wait'} for your approval`
                 : 'None waiting for you'}
               n={home.watch.transfers.n}
             />
@@ -1301,6 +1445,12 @@ function OwnerDay({ home, period, onPeriod }: {
                 : 'Every one has an answer'}
               n={home.watch.taps.n}
             />
+            {/*
+              * "Going cold" is leads with no contact for seven days. The leads
+              * list has no tab of its own for them yet, so this opens the
+              * overdue list, which is the nearest true thing — see
+              * `docs/v2/questions-owner.md`.
+              */}
             <Watch
               to="/v2/leads?tab=overdue"
               title="Going cold"
@@ -1341,25 +1491,7 @@ function OwnerDay({ home, period, onPeriod }: {
           </div>
           {home.latestLeads.length === 0
             ? <p className="v2-none">No lead has arrived yet.</p>
-            : isPhone ? (
-              <div className="d-divide">
-                {home.latestLeads.map((lead) => (
-                  <Link className="d-list-row" key={lead.id} to={`/v2/leads/${lead.id}`}>
-                    <Avatar name={lead.name ?? '?'} />
-                    <span className="d-grow">
-                      <b className="d-bold">
-                        {lead.name ?? 'Unnamed lead'}
-                        {lead.isVip && <span className="d-vip-tag">VIP</span>}
-                      </b>
-                      <div className="d-small d-muted d-truncate">
-                        {[lead.project, lead.agent ?? 'Incoming'].filter(Boolean).join(' · ')}
-                      </div>
-                    </span>
-                    <span className="d-t-sub">{at(lead.createdAt)}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
+            : (
               <table className="d-table">
                 <thead>
                   <tr>
@@ -1373,7 +1505,7 @@ function OwnerDay({ home, period, onPeriod }: {
                       <td>
                         <Link to={`/v2/leads/${lead.id}`}>
                           <span className="d-t-main">{lead.name ?? 'Unnamed lead'}</span>
-                          {lead.isVip && <span className="d-vip-tag"> VIP</span>}
+                          {lead.isVip && <> <span className="d-vip-tag">VIP</span></>}
                         </Link>
                         <div className="d-t-sub" dir="ltr">{lead.phone ?? 'No number'}</div>
                       </td>
@@ -1438,7 +1570,7 @@ function OwnerDay({ home, period, onPeriod }: {
         </section>
       </div>
 
-      {home.banners.length > 0 && <Banners banners={home.banners} phone={isPhone} />}
+      {home.banners.length > 0 && <Banners banners={home.banners} />}
     </div>
   );
 }
@@ -1452,9 +1584,7 @@ function OwnerDay({ home, period, onPeriod }: {
  * which is `.d-clear` in the design's stylesheet and is why the empty state is
  * markup rather than a `return null`.
  */
-function NeedsYou({ rows, isPhone }: {
-  rows: OwnerHome['needsYou']; isPhone: boolean;
-}) {
+function NeedsYou({ rows }: { rows: OwnerHome['needsYou'] }) {
   const waits = rows
     .map((row) => row.waitMinutes)
     .filter((one): one is number => one !== null);
@@ -1470,14 +1600,13 @@ function NeedsYou({ rows, isPhone }: {
       <div className="d-hero-top d-row d-gap-16">
         <b className="d-num-hero">{rows.length}</b>
         <div className="d-grow">
-          <h2 className="v2-owner-hero-h">Needs you now</h2>
+          {/* The design sizes this one heading by hand, as an inline style. */}
+          <h2 style={{ fontSize: 20 }}>Needs you now</h2>
           <p className="d-muted d-small">Only you can do these</p>
         </div>
-        {!isPhone && (
-          <span className="d-hero-chip">
-            {oldest === null ? 'No one is waiting' : `Oldest waits ${gap(oldest)}`}
-          </span>
-        )}
+        <span className="d-hero-chip">
+          {oldest === null ? 'No one is waiting' : `Oldest waits ${waited(oldest)}`}
+        </span>
       </div>
 
       <div className="d-arows">
@@ -1493,7 +1622,15 @@ function NeedsYou({ rows, isPhone }: {
               </b>
               {row.sub && <span className="d-s">{row.sub}</span>}
             </Link>
-            <Link className="d-btn d-sm d-on-dark d-primary" to={row.to}>{row.action}</Link>
+            {/* Only the VIP row is the filled button, as the design has it:
+                six orange buttons in a column is six things shouting. */}
+            <Link
+              className={row.kind === 'vip_late'
+                ? 'd-btn d-sm d-on-dark d-primary' : 'd-btn d-sm d-on-dark'}
+              to={row.to}
+            >
+              {row.action}
+            </Link>
           </div>
         ))}
       </div>
@@ -1607,7 +1744,7 @@ function CallsToday({ home, period }: { home: OwnerHome; period: Period }) {
  * order comes from the server, which puts the people who need something at
  * the top; an owner reads down until the rows stop being interesting.
  */
-function TeamRightNow({ home, isPhone }: { home: OwnerHome; isPhone: boolean }) {
+function TeamRightNow({ home }: { home: OwnerHome }) {
   const t = home.teamToday;
   const bands: Array<{ key: string; colour: string; word: string; n: number }> = [
     { key: 'office', colour: 'd-green', word: 'In office', n: t.inOffice },
@@ -1655,27 +1792,7 @@ function TeamRightNow({ home, isPhone }: { home: OwnerHome; isPhone: boolean }) 
             </div>
           )}
 
-      {isPhone ? (
-        <>
-          <div className="v2-a-live-head">
-            <span className="v2-a-live-name">Agent</span>
-            <span>Open</span><span>Calls</span><span>Due</span>
-          </div>
-          {home.teamRightNow.map((row) => (
-            <Link className="v2-a-live-row" key={row.id} to={`/v2/team/${row.id}`}>
-              <Avatar name={row.name} src={row.photoUrl ?? undefined} size={30} />
-              <span className="v2-a-live-name">
-                {row.name}
-                <em>{whereWord(row)}</em>
-              </span>
-              <span>{row.openLeads}</span>
-              <span>{row.callsToday}</span>
-              <span>{row.overdue}</span>
-            </Link>
-          ))}
-        </>
-      ) : (
-        <table className="d-table d-compact d-id-team">
+      <table className="d-table d-compact d-id-team">
           <thead>
             <tr>
               <th>Agent</th>
@@ -1748,9 +1865,8 @@ function TeamRightNow({ home, isPhone }: { home: OwnerHome; isPhone: boolean }) 
             {home.teamRightNow.length === 0 && (
               <tr><td colSpan={6}><span className="d-small d-muted">No agents yet.</span></td></tr>
             )}
-          </tbody>
-        </table>
-      )}
+        </tbody>
+      </table>
 
       <div className="d-card-foot">
         <Icon name="info" />
@@ -1964,7 +2080,18 @@ function whereWord(row: OwnerTeamRow): string {
   }
   if (row.marked === 'outside') return 'Outside';
   if (row.onLeave) return 'On leave';
-  return 'Not marked in';
+  return 'Absent';
+}
+
+/**
+ * How long the oldest thing has waited.
+ *
+ * Minutes while minutes still mean something — the design writes "Oldest
+ * waits 75 min" and that is more use to an owner than "1 hour" — and the
+ * spoken form once a bug report has been sitting for days.
+ */
+function waited(minutes: number): string {
+  return minutes < 120 ? `${minutes} min` : gap(minutes);
 }
 
 /** The stage's colour class, which the design keys off the stage's own name. */

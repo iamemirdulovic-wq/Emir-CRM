@@ -7,6 +7,9 @@ import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
 import { useCheckIn } from './check-in.js';
+import {
+  clock, dayKey, nextFreeSlot, pastProblem, slots, withSlot, type Occupied,
+} from './plan-rules.js';
 
 /**
  * Tasks and follow-ups.
@@ -164,6 +167,28 @@ export function V2Tasks() {
     }
     return map;
   }, [open.data, done.data]);
+
+  /*
+   * What is already in the diary, in the shape the shared rules read.
+   *
+   * It is what makes a new task open at the next free time rather than at a
+   * hard-coded ten o'clock — which is where every new task used to land,
+   * however full ten o'clock already was.
+   */
+  const taken = useMemo<Occupied[]>(
+    () => [...(open.data?.items ?? []), ...(done.data?.items ?? [])].map((task) => {
+      const at = new Date(task.due_at);
+      return {
+        id: task.id,
+        title: task.title,
+        at,
+        until: new Date(at.getTime() + 30 * 60_000),
+        allDay: false,
+        done: Boolean(task.completed_at),
+      };
+    }),
+    [open.data, done.data],
+  );
 
   const chosen = byDay.get(day) ?? [];
   const todo = chosen.filter((task) => !task.completed_at);
@@ -535,6 +560,7 @@ export function V2Tasks() {
       {adding && (
         <NewTask
           day={day}
+          taken={taken}
           onClose={() => setAdding(false)}
           onMade={() => { setAdding(false); open.reload(); toast('Task added'); }}
         />
@@ -543,6 +569,7 @@ export function V2Tasks() {
       {editing && (
         <NewTask
           day={day}
+          taken={taken}
           task={editing}
           onClose={() => setEditing(null)}
           onMade={() => { setEditing(null); open.reload(); done.reload(); toast('Saved'); }}
@@ -918,28 +945,64 @@ function FollowUps({
 
 /* ── making one ────────────────────────────────────────────────────────── */
 
+/**
+ * Making a task, or changing one.
+ *
+ * Three things the owner found wrong with it, all in `design/web/tasks.html`:
+ *
+ *  - It opened at a hard-coded **10:00**, whatever was already at ten. It
+ *    opens at the next free time now, the way the design does.
+ *  - A **past time on today** produced the *day's* sentence — "This day is in
+ *    the past" — printed under the **title** field. The day's sentence belongs
+ *    under Day, and a time that has gone has its own: "This time has passed.
+ *    It is 14:55 now."
+ *  - The time was the browser's own box, which can show AM/PM. The design uses
+ *    a quarter-hour list, 24-hour, which is how this office reads a time.
+ */
 function NewTask({
-  day, task, onClose, onMade,
-}: { day: string; task?: Task; onClose: () => void; onMade: () => void }) {
+  day, taken, task, onClose, onMade,
+}: {
+  day: string;
+  taken: Occupied[];
+  task?: Task;
+  onClose: () => void;
+  onMade: () => void;
+}) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [type, setType] = useState<Task['type']>(task?.type ?? 'call');
-  const [on, setOn] = useState(task ? dayKey(new Date(task.due_at)) : day);
-  const [at, setAt] = useState(task ? clock(new Date(task.due_at)) : '10:00');
+  const [on, setOn] = useState(() => {
+    if (task) return dayKey(new Date(task.due_at));
+    const today = dayKey(new Date());
+    return day < today ? today : day;
+  });
+  const [at, setAt] = useState(() => (
+    task ? clock(new Date(task.due_at)) : nextFreeSlot(day < dayKey(new Date()) ? dayKey(new Date()) : day, taken)
+  ));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
+  const [shown, setShown] = useState(false);
 
-  /* The design's own refusals, in its own words. The build checked only that
-     the title was two characters long. */
-  const why = title.trim().length < 2 ? 'Write what must be done.'
-    : on.length !== 10 ? 'Pick a day.'
-      : at.length < 4 ? 'Pick the time.'
-        : !task && new Date(`${on}T${at}:00`).getTime() < Date.now() - 60_000
-          ? 'This day is in the past. Pick today or later.'
-          : null;
+  const today = dayKey(new Date());
+  const times = useMemo(() => withSlot(slots(), at), [at]);
+
+  /*
+   * The design's own refusals, each under the field it is about.
+   *
+   * A task already in the past is left alone: an overdue task being renamed
+   * must not be refused for being overdue, which is exactly when somebody is
+   * most likely to be editing it.
+   */
+  const wasPast = task ? new Date(task.due_at).getTime() < Date.now() : false;
+  const past = wasPast ? null : pastProblem(on, at);
+  const titleProblem = title.trim().length < 2 ? 'Write what you need to do.' : null;
+  const dayProblem = past?.field === 'day' ? past.message : null;
+  const timeProblem = !at
+    ? (type === 'meeting' ? 'A meeting needs a time.' : 'Pick the time.')
+    : past?.field === 'time' ? past.message : null;
+  const why = titleProblem ?? dayProblem ?? timeProblem;
 
   async function save() {
-    setTouched(true);
+    setShown(true);
     if (why) return;
     setBusy(true);
     setProblem(null);
@@ -974,16 +1037,16 @@ function NewTask({
         <div className="d-panel-body d-col d-gap-16">
           <p className="d-small d-muted">A task is for you. It shows on My Day on its day.</p>
 
-          <div className="d-field">
-            <label>What do you need to do? <span className="d-req">*</span></label>
+          <div className={shown && titleProblem ? 'd-field d-invalid' : 'd-field'}>
+            <label htmlFor="v2-task-title">What do you need to do? <span className="d-req">*</span></label>
             <input
+              id="v2-task-title"
               className="d-input"
               value={title}
-              aria-label="What do you need to do?"
               placeholder="Send the floor plan to Dave"
               onChange={(e) => setTitle(e.target.value)}
             />
-            {touched && why && <span className="v2-field-error">{why}</span>}
+            <span className="d-error">{titleProblem}</span>
           </div>
 
           <div className="d-field">
@@ -1003,15 +1066,32 @@ function NewTask({
           </div>
 
           <div className="d-two">
-            <div className="d-field">
-              <label>Day <span className="d-req">*</span></label>
-              <input className="d-input" type="date" value={on} aria-label="Day"
-                onChange={(e) => setOn(e.target.value)} />
+            <div className={shown && dayProblem ? 'd-field d-invalid' : 'd-field'}>
+              <label htmlFor="v2-task-day">Day <span className="d-req">*</span></label>
+              <input
+                id="v2-task-day"
+                className="d-input"
+                type="date"
+                value={on}
+                /* The browser's own floor, so a past day is not even offered.
+                   An overdue task keeps its own day until somebody moves it. */
+                {...(wasPast ? {} : { min: today })}
+                onChange={(e) => setOn(e.target.value)}
+              />
+              <span className="d-error">{dayProblem}</span>
             </div>
-            <div className="d-field">
-              <label>Time</label>
-              <input className="d-input" type="time" value={at} aria-label="Time"
-                onChange={(e) => setAt(e.target.value)} />
+            <div className={shown && timeProblem ? 'd-field d-invalid' : 'd-field'}>
+              <label htmlFor="v2-task-time">Time</label>
+              <select
+                id="v2-task-time"
+                className="d-select"
+                value={at}
+                onChange={(e) => setAt(e.target.value)}
+              >
+                <option value="">Time…</option>
+                {times.map((one) => <option key={one} value={one}>{one}</option>)}
+              </select>
+              <span className="d-error">{timeProblem}</span>
             </div>
           </div>
 
@@ -1021,7 +1101,7 @@ function NewTask({
           <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
           <span className="d-grow" />
           <button type="button" className="d-btn d-primary" disabled={busy} onClick={save}>
-            {busy ? 'Saving…' : task ? 'Save changes' : 'Add the task'}
+            {busy ? 'Saving…' : task ? 'Save the change' : 'Save the task'}
           </button>
         </div>
       </aside>
@@ -1031,13 +1111,8 @@ function NewTask({
 
 /* ── dates ─────────────────────────────────────────────────────────────── */
 
-function dayKey(at: Date): string {
-  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
-}
-
-function clock(at: Date): string {
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
-}
+/* `dayKey` and `clock` come from `plan-rules.ts`, which the calendar reads
+   too: one answer to "which day is this" on both screens. */
 
 /** "since 11:00", "in 2 h", "Tue 09:30" — whichever says most. */
 function whenWords(at: Date): string {

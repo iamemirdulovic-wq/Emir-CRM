@@ -22,6 +22,7 @@ import {
   FILE_FOLDERS, FOLDER_LABELS, filesForContact, isFileFolder,
 } from '../../leads/note-files.js';
 import { addNote } from '../../leads/notes.js';
+import { MOVE_LIMIT, moveLeads } from '../../leads/move.js';
 
 /**
  * My Leads: the screen an agent lives in.
@@ -459,6 +460,69 @@ myLeadsRouter.post(
     const digest = await refreshNotesDigest(opportunityId, { force: true });
     const brief = await leadBrief(opportunityId);
     res.json({ ...brief, refreshed: digest !== null });
+  }),
+);
+
+/* ── Moving several leads at once ─────────────────────────────────────── */
+
+const moveSchema = z.object({
+  moves: z.array(z.object({
+    id: z.string().min(1).max(36),
+    /* Null is Incoming — the free-leads queue any agent can claim from. */
+    toUserId: z.string().min(1).max(36).nullable(),
+  })).min(1).max(MOVE_LIMIT),
+});
+
+/**
+ * The "Move N leads" panel's own endpoint.
+ *
+ * One request for the whole batch, and it answers with where every lead came
+ * from — which is what makes the design's Undo possible: the browser sends
+ * the inverse list straight back here.
+ *
+ * Manager and up. An agent cannot give their leads away from this screen;
+ * that is what a transfer request is for, and it has its own rules.
+ */
+myLeadsRouter.post(
+  '/move',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    if (user.role === 'agent') {
+      throw badRequest('Only a manager or an owner can move leads. Ask for a transfer instead.');
+    }
+    const body = moveSchema.parse(req.body);
+    const visible = await visibleUserIds(user);
+    res.json(await moveLeads(actorFrom(req), visible, body.moves));
+  }),
+);
+
+/**
+ * Every id behind the filters, for "Select all 863".
+ *
+ * The design's bar offers to select the whole list rather than the page, and
+ * a move needs the ids to do it. Capped at the same number one press may
+ * move, so the screen can say plainly when the list is larger than that
+ * instead of half-moving it.
+ */
+myLeadsRouter.get(
+  '/ids',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const params = listSchema.parse(req.query);
+    const tab: LeadTab = isLeadTab(params.tab) ? params.tab : 'all';
+    const visible = await visibleUserIds(user);
+    const { where, args } = buildFilters(params, visible);
+    const definition = TABS[tab];
+
+    const rows = await query<{ id: string }>(
+      `SELECT o.id FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+        WHERE ${[definition.where, ...where].join(' AND ')}
+        ORDER BY ${definition.orderBy}
+        LIMIT ${MOVE_LIMIT}`,
+      args,
+    );
+    res.json({ ids: rows.map((one) => one.id), limit: MOVE_LIMIT });
   }),
 );
 

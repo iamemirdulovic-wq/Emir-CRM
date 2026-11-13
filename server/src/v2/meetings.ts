@@ -102,7 +102,7 @@ export function pastProblem(startsAt: Date, now: Date = new Date()): FieldProble
     return { field: 'day', message: 'Choose a day.' };
   }
   if (dubaiDayKey(startsAt) < dubaiDayKey(now)) {
-    return { field: 'day', message: 'This day has passed. Choose today or later.' };
+    return { field: 'day', message: 'This day is in the past. Pick today or later.' };
   }
   if (startsAt.getTime() < now.getTime() - SKEW_MS) {
     return { field: 'time', message: `This time has passed. It is ${dubaiClock(now)} now.` };
@@ -315,7 +315,7 @@ export type ResultInput = {
   /** The next thing in the diary. Required after "They came". */
   next?: NextPlan | null;
   /** What they booked. Required after "They booked". */
-  booked?: { unit: string; priceAed: number; paidAed: number } | null;
+  booked?: { project?: string | null; unit: string; priceAed: number; paidAed: number } | null;
 };
 
 export type ResultSaved = {
@@ -399,10 +399,11 @@ export async function savePlanResult(
       await execute(
         `UPDATE meetings
             SET result = ?, result_note = ?, interest = ?, result_by = ?, result_at = NOW(3),
-                booked_unit = ?, booked_price_aed = ?, booked_paid_aed = ?
+                booked_project = ?, booked_unit = ?, booked_price_aed = ?, booked_paid_aed = ?
           WHERE id = ?`,
         [
           input.result, input.note ?? null, input.interest ?? null, input.by ?? null,
+          input.booked?.project?.trim() || null,
           input.booked?.unit.trim() ?? null,
           input.booked?.priceAed ?? null,
           input.booked?.paidAed ?? null,

@@ -4,7 +4,8 @@ import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
-import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
+import { Avatar, Spinner, ErrorNote, budgetLabel, useToast } from '../design/ui.js';
+import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
 import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, originOf } from '../lib/dialling.js';
@@ -61,8 +62,22 @@ function useIsPhone(): boolean {
   return phone;
 }
 
-/** The tab strip, in the design's order. `hot` is a chip, not a tab. */
-const TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
+/**
+ * The tab strip. Two of them, because there are two screens here.
+ *
+ * `my-leads.html` is the agent's working list and opens on Today. The owner's
+ * `all-leads.html` has no Today and no New at all — their screen is the whole
+ * book, and the tab beside All is "Going cold". The build left the agent's
+ * tabs on the owner's page and opened them on Today, so an owner pressing
+ * "All leads" in the sidebar landed on a call list of the handful of leads
+ * they personally hold, with "Start calling" and "Free leads" on it. Their
+ * 863 were behind the All tab, and so were the agent filter and the Agent
+ * column. That is the first thing the owner reported.
+ *
+ * `hot` is a chip over All rather than a tab, which is how the dashboards
+ * link to it.
+ */
+const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'today', label: 'Today' },
   { key: 'new', label: 'New' },
   { key: 'overdue', label: 'Overdue', red: true },
@@ -72,10 +87,22 @@ const TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'all', label: 'All' },
 ];
 
+const OWNER_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
+  { key: 'all', label: 'All' },
+  { key: 'cold', label: 'Going cold' },
+  { key: 'overdue', label: 'Overdue', red: true },
+  { key: 'no_next_step', label: 'No next step' },
+  { key: 'vip', label: 'VIP' },
+  { key: 'lost', label: 'Lost' },
+];
+
 export type TabKey =
-  | 'today' | 'new' | 'hot' | 'overdue' | 'no_next_step' | 'vip' | 'lost' | 'all';
+  | 'today' | 'new' | 'hot' | 'cold' | 'overdue' | 'no_next_step' | 'vip' | 'lost' | 'all';
 
 const PAGE = 50;
+
+/** What one press of "Move N leads" may carry. The server's own ceiling. */
+const MOVE_LIMIT = 200;
 
 /** The six stages, as the design's neutral pills. */
 const STAGE_LABEL: Record<string, string> = {
@@ -132,6 +159,18 @@ interface Person {
   name: string;
   role: string;
   is_active: number;
+}
+
+/** One row of the "Move to" list — `/api/v2/transfers/who`. */
+interface Taker {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  openLeads: number;
+  languages: string[];
+  markedToday: string | null;
+  onLeave: boolean;
+  maxOpenLeads: number | null;
 }
 
 /**
@@ -230,8 +269,14 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * still opens on Today, so only the phone changes; see
    * `docs/v2/phone-questions-a.md` §4, which is still open.
    */
+  /*
+   * Whose screen this is. An owner, an admin or a manager holds everybody's
+   * leads, so their screen is the whole book and it opens on it — on the
+   * computer as well as on the phone, which is the fault the owner found.
+   */
   const owns = user ? user.role !== 'agent' : false;
-  const firstTab: TabKey = isPhone && owns ? 'all' : 'today';
+  const firstTab: TabKey = owns ? 'all' : 'today';
+  const tabs = owns ? OWNER_TABS : AGENT_TABS;
   const tab = (fixedTab ?? (params.get('tab') as TabKey) ?? firstTab) as TabKey;
   const [search, setSearch] = useState('');
   /* Rows fetched by "Show more", tied to the query they belong to: a different
@@ -253,6 +298,20 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const [moving, setMoving] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [moved, setMoved] = useState<Record<string, string>>({});
+  /*
+   * The computer's own three controls, which only ever existed in the phone
+   * branch and so could not be reached on a computer at all: the row menu,
+   * the 480px side panel a row click opens, and "select the whole list"
+   * rather than the page.
+   */
+  const [menuAt, setMenuAt] = useState<{ row: Row; x: number; y: number } | null>(null);
+  const [panelFor, setPanelFor] = useState<Row | null>(null);
+  const [wholeList, setWholeList] = useState<string[] | null>(null);
+  /* The second tap on "Move N leads to X". The design asks twice for this one
+     because it is the one action on the screen that moves somebody else's
+     work. */
+  const [armed, setArmed] = useState(false);
+  const toast = useToast();
   /* On a phone the seven pills do not fit, so the strip scrolls. Landing on
      All with "Today, New, Overdue" on screen reads as the wrong tab being
      open, so the one that is open is brought into view. */
@@ -266,7 +325,13 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   /* The All tab is the whole book, so it is the wide screen with the agent in
      it. Hot arrives from the dashboard; the design shows it as a chip over
      All rather than a tab of its own. */
-  const wide = tab === 'all' || tab === 'hot';
+  /*
+   * `owns` is in here because an owner's screen is the wide one on every tab,
+   * not only on All. Without it an owner pressing "Going cold" dropped back
+   * to the agent's narrow table — no Agent column, no tick boxes — which is
+   * the same fault in a different place.
+   */
+  const wide = owns || tab === 'all' || tab === 'hot';
   const isAgent = user?.role === 'agent';
   /* The whole book, not one person's share of it. */
   const book = wide && !isAgent;
@@ -285,14 +350,30 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
   const leads = useAsync<ListResponse>(() => api.get(`/api/my-leads?${qs}`), [qs]);
   const counts = useAsync<Record<string, number>>(() => api.get('/api/my-leads/counts'), []);
-  const projects = useAsync<{ items: Array<{ id: string; name: string }> }>(
-    () => api.get('/api/projects?includeUnverified=1'), [],
+  /*
+   * The projects the leads are actually on — not the library.
+   *
+   * This control used to be filled from `/api/projects`, which lists the
+   * project library. `projects.name` has no unique key (only `slug`), so a
+   * project entered twice appeared twice — that is the "Sei Saadiyat, twice"
+   * the owner saw — and a library project nobody has enquired about was an
+   * option that returned nothing. Both halves are now one query over the
+   * leads themselves, grouped the same way the filter matches.
+   */
+  const projects = useAsync<{ items: Array<{ name: string; leads: number }> }>(
+    () => api.get('/api/my-leads/projects'), [],
   );
   /* Who to narrow by. Only the wide screen has the control, and an agent never
      sees it — they only ever hold their own leads. */
   const people = useAsync<{ items: Person[] }>(
     () => (wide && !isAgent ? api.get('/api/users') : Promise.resolve({ items: [] })),
     [wide, isAgent],
+  );
+  /* Who a lead may be moved to, with their open-lead counts and whether they
+     are in today — the "Move to" list the design draws. */
+  const takerList = useAsync<{ items: Taker[] }>(
+    () => (isAgent ? Promise.resolve({ items: [] }) : api.get('/api/v2/transfers/who')),
+    [isAgent],
   );
 
   /* Re-run when the counts land: they widen every pill, so a strip centred
@@ -385,7 +466,15 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     action: { icon: 'plus', label: 'Add lead', to: '/v2/leads/new' },
   });
 
-  const chosen = Object.keys(picked).filter((id) => picked[id]);
+  /*
+   * What is ticked. `wholeList` is the design's "Select all 863": the ids
+   * behind the filters rather than the ids on the page.
+   */
+  const chosen = wholeList ?? Object.keys(picked).filter((id) => picked[id]);
+  const onPage = rows.filter((row) => picked[row.id] === true).length;
+  const allOnPage = rows.length > 0 && onPage === rows.length;
+  /** The leads the Move panel is about, where they are on this page. */
+  const chosenRows = rows.filter((row) => chosen.includes(row.id));
 
   /** The design's own result line: what you are looking at, and in what order. */
   const order = tab === 'today' || tab === 'overdue'
@@ -397,36 +486,104 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       ? `${rows.length} shown of ${total.toLocaleString()}${order}`
       : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
 
+  /**
+   * The people a lead may be given to, in the design's order: whoever can
+   * take it right now first, then whoever is holding the fewest. The server
+   * orders it that way and counts the open leads, which is the number the
+   * design puts on each row — `/api/users` knows neither.
+   */
+  const takers = takerList.data?.items ?? [];
+
+  function openMove(ids: string[], to: string | null | undefined = undefined) {
+    if (ids.length === 0) return;
+    setPicked(Object.fromEntries(ids.map((id) => [id, true])));
+    setWholeList(ids.length > rows.length ? ids : null);
+    setMoveTo(to === undefined ? null : to);
+    setArmed(false);
+    setMoveError(null);
+    setMoveOpen(true);
+  }
+
+  /**
+   * The move itself, and the way back out of it.
+   *
+   * One request for the batch, which answers with where each lead came from —
+   * so Undo is the same request with the list inverted. It used to be one
+   * HTTP call per lead from here with no way to undo any of them.
+   */
   async function doMove() {
-    if (!moveTo || chosen.length === 0) return;
+    if (chosen.length === 0) return;
+    /* The design asks twice: the first press arms the button and changes its
+       words, the second one does it. */
+    if (!armed) { setArmed(true); return; }
+
     setMoving(true);
     setMoveError(null);
-    const who = (people.data?.items ?? []).find((one) => one.id === moveTo);
+    const who = takers.find((one) => one.id === moveTo);
+    const label = moveTo ? who?.name ?? 'the agent' : 'Incoming';
     try {
-      /*
-       * One call per lead: the server has `POST /api/pipeline/opportunities/
-       * :id/reassign` and no bulk endpoint, and a reassign writes an activity
-       * and an audit row per lead, which is what the owner wants anyway.
-       */
-      for (const id of chosen) {
-        // eslint-disable-next-line no-await-in-loop -- sequential on purpose: a
-        // burst of twenty parallel reassigns is a denial of service on our own box.
-        await api.post(`/api/pipeline/opportunities/${id}/reassign`, { toUserId: moveTo });
-      }
+      const result = await api.post<{
+        moved: Array<{ id: string; fromUserId: string | null; fromName: string | null }>;
+        skipped: number;
+        said: string;
+      }>('/api/my-leads/move', {
+        moves: chosen.map((id) => ({ id, toUserId: moveTo })),
+      });
+
       setMoved((was) => {
         const next = { ...was };
-        for (const id of chosen) next[id] = who?.name ?? 'the agent';
+        for (const one of result.moved) next[one.id] = label;
         return next;
       });
       setMoveOpen(false);
       setSelecting(false);
       setPicked({});
+      setWholeList(null);
       setMoveTo(null);
+      setArmed(false);
       leads.reload();
+      counts.reload();
+
+      const back = result.moved.map((one) => ({ id: one.id, toUserId: one.fromUserId }));
+      toast(
+        result.skipped > 0 ? `${result.said} · ${result.skipped} skipped` : result.said,
+        back.length > 0
+          ? {
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                void api.post('/api/my-leads/move', { moves: back })
+                  .then(() => {
+                    setMoved({});
+                    leads.reload();
+                    counts.reload();
+                    toast('Move undone · the leads are back where they were');
+                  })
+                  .catch(() => toast('That could not be undone. Move them back by hand.'));
+              },
+            },
+          }
+          : undefined,
+      );
     } catch (problem) {
       setMoveError(problem instanceof Error ? problem.message : 'That did not go through.');
+      setArmed(false);
     } finally {
       setMoving(false);
+    }
+  }
+
+  /** "Select all 863": the ids behind the filters, not the ids on the page. */
+  async function selectWholeList() {
+    try {
+      const got = await api.get<{ ids: string[]; limit: number }>(`/api/my-leads/ids?${qs}`);
+      setWholeList(got.ids);
+      setPicked(Object.fromEntries(got.ids.map((id) => [id, true])));
+      if (got.ids.length < total) {
+        toast(`The first ${got.ids.length} are selected — one press moves at most ${got.limit}.`);
+      }
+    } catch {
+      toast('That list could not be selected. Try the page instead.');
     }
   }
 
@@ -472,7 +629,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
         {!fixedTab && (
           <div ref={tabStrip} className="v2-a-chips" role="tablist">
-            {TABS.map((one) => {
+            {tabs.map((one) => {
               const on = !search.trim() && tab === one.key;
               const n = counts.data?.[one.key];
               return (
@@ -585,18 +742,26 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                 </button>
               </div>
               <div className="d-dialog-body v2-a-targets">
-                {(people.data?.items ?? [])
-                  .filter((one) => one.is_active === 1 && one.role !== 'accountant')
-                  .map((one) => (
-                    <button
-                      key={one.id}
-                      type="button"
-                      className={moveTo === one.id ? 'v2-a-target v2-a-target-on' : 'v2-a-target'}
-                      onClick={() => setMoveTo(one.id)}
-                    >
-                      {one.name}
-                    </button>
-                  ))}
+                {/* Incoming first, then whoever is holding the fewest — the
+                    same list and the same order as the computer's panel. */}
+                <button
+                  type="button"
+                  className={moveTo === null ? 'v2-a-target v2-a-target-on' : 'v2-a-target'}
+                  onClick={() => { setMoveTo(null); setArmed(false); }}
+                >
+                  Incoming · free leads
+                </button>
+                {takers.map((one) => (
+                  <button
+                    key={one.id}
+                    type="button"
+                    disabled={one.onLeave}
+                    className={moveTo === one.id ? 'v2-a-target v2-a-target-on' : 'v2-a-target'}
+                    onClick={() => { setMoveTo(one.id); setArmed(false); }}
+                  >
+                    {one.name} · {one.openLeads} open
+                  </button>
+                ))}
               </div>
               {moveError && <ErrorNote>{moveError}</ErrorNote>}
               <div className="d-dialog-foot">
@@ -606,9 +771,11 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   disabled={moving}
                   onClick={doMove}
                 >
-                  {moveTo
-                    ? `Move to ${(people.data?.items ?? []).find((o) => o.id === moveTo)?.name ?? 'them'} · notify them`
-                    : 'Pick who gets them'}
+                  {moving
+                    ? 'Moving…'
+                    : armed
+                      ? `Tap again · move ${chosen.length} to ${moveTo ? takers.find((o) => o.id === moveTo)?.name ?? 'them' : 'Incoming'}`
+                      : `Move to ${moveTo ? takers.find((o) => o.id === moveTo)?.name ?? 'them' : 'Incoming'} · notify them`}
                 </button>
               </div>
             </div>
@@ -627,7 +794,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             className={wide ? 'd-tabs d-pills d-lead-tabs' : 'd-tabs d-pills'}
             role="tablist"
           >
-            {TABS.map((one) => {
+            {tabs.map((one) => {
               const on = tab === one.key;
               const n = counts.data?.[one.key];
               return (
@@ -725,7 +892,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
         >
           <option value="">Project: all</option>
           {(projects.data?.items ?? []).map((one) => (
-            <option key={one.id} value={one.name}>{one.name}</option>
+            <option key={one.name} value={one.name}>{one.name} · {one.leads}</option>
           ))}
         </select>
 
@@ -762,10 +929,61 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
       {leads.data && (
         <div className="d-table-wrap">
+          {/*
+            * "All 50 leads on this page are selected. Select all 863."
+            * Only once the page is full of ticks, and only when there is more
+            * behind the filters than is on screen.
+            */}
+          {book && allOnPage && total > rows.length && (
+            <div className="d-sel-all">
+              {wholeList
+                ? (
+                  <>
+                    All <b>{wholeList.length.toLocaleString()}</b> leads in this list are selected.
+                    {' '}
+                    <button type="button" onClick={() => setWholeList(null)}>
+                      Select only this page
+                    </button>
+                  </>
+                )
+                : (
+                  <>
+                    All <b>{rows.length.toLocaleString()}</b> leads on this page are selected.
+                    {' '}
+                    <button type="button" onClick={selectWholeList}>
+                      Select all {Math.min(total, MOVE_LIMIT).toLocaleString()}
+                    </button>
+                  </>
+                )}
+            </div>
+          )}
+
           {rows.length > 0 && (
             <table className="d-table d-sticky d-id-leads">
               <thead>
                 <tr>
+                  {book && (
+                    <th className="d-t-check">
+                      <label className="d-check">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all on this page"
+                          checked={allOnPage}
+                          ref={(box) => {
+                            /* Half-ticked when some of the page is: the design's
+                               own indeterminate state, which `d-check` styles. */
+                            if (box) box.indeterminate = onPage > 0 && !allOnPage;
+                          }}
+                          onChange={(e) => {
+                            setWholeList(null);
+                            setPicked(e.target.checked
+                              ? Object.fromEntries(rows.map((row) => [row.id, true]))
+                              : {});
+                          }}
+                        />
+                      </label>
+                    </th>
+                  )}
                   <th>Lead</th>
                   <th>Phone</th>
                   <th>Project</th>
@@ -784,6 +1002,15 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                     row={row}
                     wide={wide}
                     showOwner={wide && !isAgent}
+                    selectable={book}
+                    picked={picked[row.id] === true}
+                    movedTo={moved[row.id] ?? null}
+                    onTick={(on) => {
+                      setWholeList(null);
+                      setPicked((was) => ({ ...was, [row.id]: on }));
+                    }}
+                    onOpen={() => setPanelFor(row)}
+                    onMenu={(x, y) => setMenuAt({ row, x, y })}
                   />
                 ))}
               </tbody>
@@ -793,19 +1020,34 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           {rows.length === 0 && (
             <div className="d-empty">
               <span className="d-ic"><Icon name="users" size={26} /></span>
-              <b>{leads.data.empty.title}</b>
+              <b>
+                {chips.length > 0 || search.trim()
+                  ? 'No lead fits these filters'
+                  : leads.data.empty.title}
+              </b>
               <p>
                 {chips.length > 0 || search.trim()
-                  ? 'Nothing matches. Clear the filters, or try another name.'
+                  ? 'Take one filter away, or clear them all.'
                   : leads.data.empty.hint}
               </p>
-              <Link className="d-btn d-sm" to="/v2/leads/new"><Icon name="plus" />Add a new lead</Link>
+              {chips.length > 0 || search.trim()
+                ? (
+                  <button type="button" className="d-btn d-sm" onClick={clearAll}>
+                    Clear all filters
+                  </button>
+                )
+                : (
+                  <Link className="d-btn d-sm" to="/v2/leads/new">
+                    <Icon name="plus" />Add a new lead
+                  </Link>
+                )}
             </div>
           )}
 
           {rows.length > 0 && (
             <div className="d-table-foot">
               <span>1–{rows.length.toLocaleString()} of {total.toLocaleString()}</span>
+              <span className="d-small d-muted">· {PAGE} per page</span>
               <span className="d-grow" />
               {rows.length < total && (
                 <button type="button" className="d-btn d-xs" onClick={showMore} disabled={loadingMore}>
@@ -816,8 +1058,241 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           )}
         </div>
       )}
+
+      {/*
+        * The dark bar. It rises from the bottom once anything is ticked, which
+        * is the design's way of keeping the two bulk actions off the screen
+        * until they mean something.
+        */}
+      {book && (
+        <div className={chosen.length > 0 ? 'd-bulkbar d-show' : 'd-bulkbar'}>
+          <b>{chosen.length.toLocaleString()} selected</b>
+          <button
+            type="button"
+            className="d-btn d-sm d-on-dark d-primary"
+            onClick={() => openMove(chosen)}
+          >
+            <Icon name="repeat" />Move to agent
+          </button>
+          <button
+            type="button"
+            className="d-btn d-sm d-on-dark"
+            onClick={() => openMove(chosen, null)}
+          >
+            <Icon name="inbox" />Move to Incoming
+          </button>
+          <button
+            type="button"
+            className="d-btn d-sm d-on-dark"
+            onClick={() => { setPicked({}); setWholeList(null); }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* The row "⋯" menu. Positioned where the button is, like the design's. */}
+      {menuAt && (
+        <>
+          {/* An invisible sheet so the next click anywhere closes the menu,
+              which is what `app.js` does for the design's own menus. */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+            onClick={() => setMenuAt(null)}
+            aria-hidden
+          />
+          <div
+            className="d-menu d-open"
+            role="menu"
+            style={{ top: menuAt.y, left: Math.max(8, menuAt.x - 220) }}
+          >
+            <Link className="d-menu-item" to={`/v2/leads/${menuAt.row.id}`} role="menuitem">
+              <Icon name="external-link" />{book ? 'Open full page' : 'Open the lead'}
+            </Link>
+            {book
+              ? (
+                <>
+                  <button
+                    type="button"
+                    className="d-menu-item"
+                    role="menuitem"
+                    onClick={() => { const { row } = menuAt; setMenuAt(null); openMove([row.id]); }}
+                  >
+                    <Icon name="repeat" />Give to another agent
+                  </button>
+                  <button
+                    type="button"
+                    className="d-menu-item"
+                    role="menuitem"
+                    onClick={() => { const { row } = menuAt; setMenuAt(null); openMove([row.id], null); }}
+                  >
+                    <Icon name="inbox" />Move to Incoming
+                  </button>
+                </>
+              )
+              : (
+                <>
+                  <Link
+                    className="d-menu-item"
+                    to={`/v2/leads/${menuAt.row.id}?tab=notes`}
+                    role="menuitem"
+                  >
+                    <Icon name="pencil" />Add note
+                  </Link>
+                  <Link
+                    className="d-menu-item"
+                    to={`/v2/leads/${menuAt.row.id}?do=follow_up`}
+                    role="menuitem"
+                  >
+                    <Icon name="clock" />Plan a follow-up
+                  </Link>
+                  <div className="d-menu-sep" />
+                  <Link
+                    className="d-menu-item"
+                    to={`/v2/leads/${menuAt.row.id}?do=transfer`}
+                    role="menuitem"
+                  >
+                    <Icon name="repeat" />Transfer to another agent
+                  </Link>
+                </>
+              )}
+          </div>
+        </>
+      )}
+
+      {/* The 480px side panel a row click opens, instead of leaving the list. */}
+      {panelFor && (
+        <LeadPanel
+          row={panelFor}
+          book={book}
+          onClose={() => setPanelFor(null)}
+          onGive={() => { const row = panelFor; setPanelFor(null); openMove([row.id]); }}
+        />
+      )}
+
+      {/* "Move N leads", which asks twice. */}
+      {moveOpen && (
+        <>
+          <div className="d-scrim d-show" onClick={() => setMoveOpen(false)} aria-hidden />
+          <aside className="d-panel d-open" aria-label="Move leads">
+            <div className="d-panel-head">
+              <h2>Move {chosen.length === 1 ? '1 lead' : `${chosen.length} leads`}</h2>
+              <button
+                type="button"
+                className="d-btn d-icon d-sm d-ghost"
+                aria-label="Close"
+                onClick={() => setMoveOpen(false)}
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="d-panel-body d-col d-gap-16">
+              <div className="d-who-list">
+                {chosenRows.slice(0, 6).map((row) => (
+                  <span className="d-chip d-lg" key={row.id}>{row.full_name ?? 'Unnamed lead'}</span>
+                ))}
+                {chosen.length > Math.min(6, chosenRows.length) && (
+                  <span className="d-chip d-lg d-dark">
+                    + {(chosen.length - Math.min(6, chosenRows.length)).toLocaleString()} more
+                  </span>
+                )}
+              </div>
+
+              <div className="d-banner">
+                <Icon name="info" />
+                <span className="d-grow">
+                  Notes and history go with them. The new agent gets one notification.
+                </span>
+              </div>
+
+              <div>
+                <div className="d-row d-mb-8">
+                  <h4 className="d-grow">Move to</h4>
+                  <span className="d-small d-muted">fewest open leads first</span>
+                </div>
+                <div className="d-opt-list">
+                  <button
+                    type="button"
+                    className={moveTo === null ? 'd-opt d-on' : 'd-opt'}
+                    onClick={() => { setMoveTo(null); setArmed(false); }}
+                  >
+                    <span className="d-card-icon"><Icon name="inbox" /></span>
+                    <span className="d-grow">
+                      <b className="d-bold">Incoming</b>
+                      <div className="d-small d-muted">Free leads · any agent can take one</div>
+                    </span>
+                  </button>
+                  {takers.map((one, i) => (
+                    <button
+                      key={one.id}
+                      type="button"
+                      disabled={one.onLeave}
+                      className={moveTo === one.id ? 'd-opt d-on' : 'd-opt'}
+                      onClick={() => { setMoveTo(one.id); setArmed(false); }}
+                    >
+                      <Avatar name={one.name} src={one.photoUrl ?? undefined} />
+                      <span className="d-grow">
+                        <b className="d-bold">{one.name}</b>
+                        {i === 0 && !one.onLeave && (
+                          <span className="d-chip d-green v2-leadtr-best">Fewest leads</span>
+                        )}
+                        <div className="d-small d-muted">
+                          {one.onLeave
+                            ? 'On leave · cannot be chosen'
+                            : one.languages.length > 0
+                              ? one.languages.join(', ')
+                              : one.markedToday === 'office' ? 'In the office'
+                                : one.markedToday === 'outside' ? 'Working outside'
+                                  : 'Not marked today'}
+                        </div>
+                      </span>
+                      <span className="d-small d-muted d-nowrap">{one.openLeads} open</span>
+                    </button>
+                  ))}
+                </div>
+                {overDesk(takers, moveTo) && (
+                  <span className="d-small d-muted">{overDesk(takers, moveTo)}</span>
+                )}
+              </div>
+
+              {moveError && <div className="d-banner d-red"><span className="d-grow">{moveError}</span></div>}
+            </div>
+            <div className="d-panel-foot">
+              <button type="button" className="d-btn d-ghost" onClick={() => setMoveOpen(false)}>
+                Cancel
+              </button>
+              <span className="d-grow" />
+              <button
+                type="button"
+                className={armed ? 'd-btn d-primary d-danger' : 'd-btn d-primary'}
+                disabled={moving}
+                onClick={doMove}
+              >
+                {moving
+                  ? 'Moving…'
+                  : armed
+                    ? `Tap again · move ${chosen.length === 1 ? '1 lead' : `${chosen.length} leads`} to ${moveTo ? takers.find((o) => o.id === moveTo)?.name ?? 'them' : 'Incoming'}`
+                    : `Move ${chosen.length === 1 ? '1 lead' : `${chosen.length} leads`} to ${moveTo ? takers.find((o) => o.id === moveTo)?.name ?? 'them' : 'Incoming'}`}
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
     </div>
   );
+}
+
+/**
+ * "Shan has 57 open leads, above the desk maximum of 50. Shan may say no."
+ *
+ * The desk's own ceiling, where the person is on a desk that sets one.
+ */
+function overDesk(takers: Taker[], moveTo: string | null): string | null {
+  if (!moveTo) return null;
+  const who = takers.find((one) => one.id === moveTo);
+  if (!who || who.maxOpenLeads === null || who.openLeads < who.maxOpenLeads) return null;
+  return `${who.name} has ${who.openLeads} open leads, above the desk maximum of `
+    + `${who.maxOpenLeads}. ${who.name} may say no.`;
 }
 
 /**
@@ -930,7 +1405,22 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
   );
 }
 
-function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner: boolean }) {
+function LeadRow({
+  row, wide, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu,
+}: {
+  row: Row;
+  wide: boolean;
+  showOwner: boolean;
+  /** The owner's book has a tick box on every row; the agent's list does not. */
+  selectable?: boolean;
+  picked?: boolean;
+  /** Set while the move's Undo is still on screen, so the row says where it went. */
+  movedTo?: string | null;
+  onTick?: (on: boolean) => void;
+  /** A row click opens the 480px panel rather than leaving the list. */
+  onOpen?: () => void;
+  onMenu?: (x: number, y: number) => void;
+}) {
   const navigate = useNavigate();
   const step = nextStep(row);
   const origin = originOf(row.phone_e164);
@@ -938,11 +1428,18 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
   const phone = row.phone_e164 ?? '';
   const to = `/v2/leads/${row.id}`;
 
-  /* The row opens the lead, and the buttons in it do their own job. Nothing is
-     remembered between rows: every link is built from this row. */
+  /*
+   * A row click opens the side panel, which is the fault the owner found: it
+   * used to navigate to the whole lead page, so looking at six leads meant
+   * six round trips through the list and six scroll positions lost.
+   *
+   * The buttons and links inside the row still do their own job, and Enter on
+   * the row still goes to the full page.
+   */
   function open(event: MouseEvent<HTMLTableRowElement>) {
     if ((event.target as HTMLElement).closest('a,button,input,label')) return;
-    navigate(to);
+    if (onOpen) onOpen();
+    else navigate(to);
   }
 
   const actions = (
@@ -963,9 +1460,26 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
           <Icon name="message-circle" />WhatsApp
         </a>
       )}
-      <Link className="d-btn d-xs d-icon" to={to} aria-label="Open the lead">
-        <Icon name="external-link" />
-      </Link>
+      {onMenu
+        ? (
+          <button
+            type="button"
+            className="d-btn d-xs d-icon"
+            aria-label="More"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              onMenu(box.right, box.bottom + 6);
+            }}
+          >
+            <Icon name="more-horizontal" />
+          </button>
+        )
+        : (
+          <Link className="d-btn d-xs d-icon" to={to} aria-label="Open the lead">
+            <Icon name="external-link" />
+          </Link>
+        )}
     </div>
   );
 
@@ -973,9 +1487,22 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
     <tr
       data-href={to}
       tabIndex={0}
+      className={picked ? 'd-selected' : undefined}
       onClick={open}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) navigate(to); }}
     >
+      {selectable && (
+        <td className="d-t-check">
+          <label className="d-check">
+            <input
+              type="checkbox"
+              aria-label={`Select ${row.full_name ?? 'this lead'}`}
+              checked={picked === true}
+              onChange={(e) => onTick?.(e.target.checked)}
+            />
+          </label>
+        </td>
+      )}
       {/* All leads writes the name straight into the cell; the working list
           puts a face beside it, because that is the list you read all day. */}
       {wide
@@ -995,7 +1522,9 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
           </td>
         )}
 
-      <td className="d-t-mono" dir="ltr">{phone || '–'}</td>
+      {/* Grouped for reading aloud. This is the column an agent dictates
+          from, and it printed `+971501234567` in one run. */}
+      <td className="d-t-mono" dir="ltr">{spacedE164(phone) ?? '–'}</td>
 
       <td>
         {row.project_name ?? '–'}
@@ -1012,12 +1541,15 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
         ? (
           <>
             {showOwner && (
-              <td>
-                {row.owner_name
+              /* `movedTo` is who it has just been given to: the row says so
+                 straight away rather than waiting for the list to come back,
+                 so the Undo in the toast is about something visible. */
+              <td className={movedTo ? 'd-pulse-row' : undefined}>
+                {(movedTo ?? row.owner_name)
                   ? (
                     <span className="d-person">
-                      <Avatar name={row.owner_name} size={26} />
-                      {row.owner_name}
+                      <Avatar name={(movedTo ?? row.owner_name) as string} size={26} />
+                      {movedTo ?? row.owner_name}
                     </span>
                   )
                   : <span className="d-chip d-red d-pip">Incoming</span>}
@@ -1069,5 +1601,219 @@ function LeadRow({ row, wide, showOwner }: { row: Row; wide: boolean; showOwner:
           </>
         )}
     </tr>
+  );
+}
+
+/**
+ * The 480px side panel a row click opens.
+ *
+ * `design/web/my-leads.html` and `all-leads.html` each draw one, and they are
+ * not the same panel: an agent's is a quick view of their own lead (the big
+ * phone number, what is owed next, the last note) and an owner's is a
+ * position report (who holds it, what is late, the last three things that
+ * happened, and a way to give it to somebody else).
+ *
+ * Both were absent from the computer entirely — a row click left the list for
+ * the whole lead page, so looking at six leads cost six round trips and six
+ * lost scroll positions. The owner reported it as fault three.
+ *
+ * It reads the lead once when it opens, which is what gives it the timeline
+ * and the notes the list rows do not carry. Nothing here invents a figure: a
+ * field the record does not hold is simply not drawn.
+ */
+function LeadPanel({ row, book, onClose, onGive }: {
+  row: Row;
+  book: boolean;
+  onClose: () => void;
+  onGive: () => void;
+}) {
+  const detail = useAsync<{
+    lead: Row & { email: string | null; language: string | null; preferred_location: string | null };
+    activities: Array<{ id: string; type: string; title?: string | null; body: string | null; created_at: string }>;
+  }>(() => api.get(`/api/my-leads/${row.id}`), [row.id]);
+  const notes = useAsync<{ items: Array<{ id: string; body: string; author_name?: string | null; created_at: string }> }>(
+    () => (book ? Promise.resolve({ items: [] }) : api.get(`/api/notes/${row.contact_id}`)),
+    [row.contact_id, book],
+  );
+
+  const step = nextStep(row);
+  const phone = row.phone_e164 ?? '';
+  const origin = originOf(phone);
+  const local = origin ? clockIn(origin.timeZone) : null;
+  const name = row.full_name ?? 'Unnamed lead';
+  const to = `/v2/leads/${row.id}`;
+  const language = detail.data?.lead.language ?? null;
+
+  /* Escape closes it, like every other panel in the design. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const actions = (
+    <div className="d-p-acts">
+      {phone
+        ? (
+          <a className="d-btn d-primary" href={`tel:${phone}`}>
+            <Icon name="phone" />Call
+          </a>
+        )
+        : <span className="d-btn d-disabled"><Icon name="phone" />No number</span>}
+      {phone && (
+        <a
+          className="d-btn"
+          href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Icon name="message-circle" />WhatsApp
+        </a>
+      )}
+      <Link className="d-btn" to={`${to}?tab=notes`}>
+        <Icon name="pencil" />Add note
+      </Link>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="d-scrim d-show" onClick={onClose} aria-hidden />
+      <aside className="d-panel d-open" aria-label="Lead">
+        <div className="d-panel-head">
+          <h2>
+            {name}
+            {row.is_vip === 1 && <> <span className="d-vip-tag">VIP</span></>}
+          </h2>
+          <Link className="d-btn d-sm" to={to}>
+            <Icon name="external-link" />Open full page
+          </Link>
+          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        <div className="d-panel-body d-col d-gap-16">
+          <div className="d-p-top">
+            <div className={book ? 'd-phone-big' : 'd-phone-xl'} dir="ltr">
+              {spacedE164(phone) ?? 'No phone number'}
+            </div>
+            <div className="d-row d-gap-8 d-wrap">
+              <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
+                {STAGE_LABEL[row.stage_key] ?? row.stage_key}
+              </span>
+              {origin && local && (
+                <span className="d-localtime">
+                  <Icon name="clock" size={13} />
+                  {origin.zoneLabel ?? origin.name} {local.time}
+                </span>
+              )}
+              <span className="d-muted d-small">
+                {row.owner_name ? `· with ${row.owner_name}` : '· in Incoming, no agent yet'}
+              </span>
+            </div>
+          </div>
+
+          {actions}
+
+          {/* What is owed. Red when it is late, which is the one thing the
+              owner is scanning this panel for. */}
+          {book
+            ? (
+              <div className={step.urgent ? 'd-banner d-red' : 'd-banner'}>
+                <Icon name="clock" />
+                <span className="d-grow">{step.text}</span>
+              </div>
+            )
+            : (
+              <div className={step.urgent ? 'd-pv-next d-red' : 'd-pv-next'}>
+                <span className="d-sec-label">Next step</span>
+                <b className="d-bold">{step.text}</b>
+              </div>
+            )}
+
+          <dl className="d-kv">
+            <PanelRow label="Project" value={row.project_name} />
+            {book
+              ? <PanelRow label="Budget" value={wanted(row) || null} />
+              : <PanelRow label="Unit · budget" value={wanted(row) || null} />}
+            {book && (
+              <PanelRow label="Agent" value={row.owner_name ?? 'Incoming'} />
+            )}
+            {!book && <PanelRow label="Speaks" value={language} />}
+            <PanelRow label="Last contact" value={whenShort(row.last_contact_at)} />
+            {book && (
+              <PanelRow
+                label="Source"
+                value={row.source ? SOURCE_STYLES[row.source]?.label ?? row.source : null}
+              />
+            )}
+            {book && <PanelRow label="Lead #" value={`#${row.id.slice(0, 8)}`} />}
+          </dl>
+
+          {/* The owner's panel ends with the last three things that happened;
+              the agent's with the last note, which is what they left for
+              themselves. */}
+          {book
+            ? (
+              <div>
+                <h4 className="d-mb-8">Latest on the timeline</h4>
+                {!detail.data && <span className="d-small d-muted">Reading the lead…</span>}
+                {detail.data && detail.data.activities.length === 0 && (
+                  <span className="d-small d-muted">Nothing has happened yet.</span>
+                )}
+                <div className="d-timeline">
+                  {(detail.data?.activities ?? []).slice(0, 3).map((one) => (
+                    <div className="d-tl-item" key={one.id}>
+                      <span className="d-tl-dot"><Icon name="circle" size={14} /></span>
+                      <div className="d-tl-body">
+                        <b>{one.title?.trim() || one.type.replace(/[._]/g, ' ')}</b>
+                        {one.body && <p>{one.body}</p>}
+                        <span className="d-tl-time">{whenShort(one.created_at)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+            : (
+              <div>
+                <span className="d-sec-label d-mb-8">Last note</span>
+                {!notes.data && <p className="d-small d-muted">Reading the notes…</p>}
+                {notes.data && (
+                  <p className="d-mt-8">
+                    {notes.data.items[0]?.body ?? 'No notes yet. Write the first one after your call.'}
+                  </p>
+                )}
+              </div>
+            )}
+        </div>
+
+        <div className="d-panel-foot">
+          {book
+            ? (
+              <button type="button" className="d-btn" onClick={onGive}>
+                <Icon name="repeat" />Give to another agent
+              </button>
+            )
+            : (
+              <Link className="d-btn" to={`${to}?do=transfer`}>
+                <Icon name="repeat" />Transfer
+              </Link>
+            )}
+          <span className="d-grow" />
+          <button type="button" className="d-btn d-ghost" onClick={onClose}>Close</button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function PanelRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="d-kv-row">
+      <dt>{label}</dt>
+      <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
+    </div>
   );
 }

@@ -193,6 +193,147 @@ describeWithDb('the full dashboard', () => {
     expect(owned[other.id], 'nobody else was touched').toBe(staying.id);
   });
 
+  /* ── the blocks `design/web/dashboard.html` draws ────────────────────── */
+
+  /**
+   * The morning brief's rows carry their reason, not the button's own word.
+   *
+   * The card used to read "Move 31 / Move 31", because the explanation line
+   * was wired to the action. The design puts the reason there: "Back Thursday
+   * · 1 follow-up is already overdue".
+   */
+  it('gives each brief row its own reason, and a Move for the agent who is away', async () => {
+    const owner = await createTestUser({ role: 'owner' });
+    const away = await createTestUser({ role: 'agent', name: 'Sultan' });
+    await aLead({ owner: away.id });
+    await aLead({ owner: away.id });
+    const today = await queryOne<{ d: string }>(
+      "SELECT DATE_FORMAT(DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), '%Y-%m-%d') AS d",
+    );
+    await execute(
+      `INSERT INTO leave_requests (id, user_id, kind, from_date, to_date, working_days, status)
+       VALUES (?, ?, 'annual', ?, ?, 1, 'approved')`,
+      [newId(), away.id, today!.d, today!.d],
+    );
+
+    const body = await (await get('/api/v2/dashboard', await signIn(base, owner))).json() as {
+      brief: Array<{
+        kind: string; text: string; sub: string; action: string;
+        move: { userId: string; leads: number } | null;
+      }>;
+    };
+
+    const leave = body.brief.find((row) => row.kind === 'leave');
+    expect(leave, 'an agent on leave with leads is the first row').toBeTruthy();
+    expect(leave?.text).toContain('Sultan');
+    expect(leave?.text).toContain('2 leads have nobody');
+    expect(leave?.sub, 'the reason, not the button’s word').not.toBe(leave?.action);
+    expect(leave?.sub).toMatch(/Back |On leave/);
+    expect(leave?.move).toMatchObject({ userId: away.id, leads: 2 });
+
+    /* The untouched row is the design's third, and it counts for real. */
+    expect(body.brief.find((row) => row.kind === 'untouched')?.text)
+      .toContain('not touched yet');
+  });
+
+  it('carries each agent’s desk maximum, and the desks for the column’s foot', async () => {
+    const owner = await createTestUser({ role: 'owner' });
+    const agent = await createTestUser({ role: 'agent', name: 'Talha' });
+    const deskId = newId();
+    await execute(
+      'INSERT INTO desks (id, name, max_open_leads) VALUES (?, ?, 60)',
+      [deskId, 'Dubai off-plan'],
+    );
+    await execute('INSERT INTO desk_members (desk_id, user_id) VALUES (?, ?)', [deskId, agent.id]);
+    await aLead({ owner: agent.id });
+
+    const body = await (await get('/api/v2/dashboard', await signIn(base, owner))).json() as {
+      agents: Array<{ name: string; deskMax: number | null; deskName: string | null }>;
+      desks: Array<{ name: string; maxOpenLeads: number | null }>;
+      assignable: Array<{ name: string; where: string; canTake: boolean }>;
+    };
+
+    expect(body.agents.find((row) => row.name === 'Talha')).toMatchObject({
+      deskMax: 60, deskName: 'Dubai off-plan',
+    });
+    expect(body.desks).toMatchObject([{ name: 'Dubai off-plan', maxOpenLeads: 60 }]);
+    /* Nobody has marked themselves in, so nobody may be given leads. */
+    expect(body.assignable.find((row) => row.name === 'Talha'))
+      .toMatchObject({ where: 'absent', canTake: false });
+  });
+
+  /**
+   * The Move dialog's three choices, and the rule under the hint.
+   *
+   * "People on leave or absent cannot be chosen" is the dialog's own line.
+   * A hint in a dialog is not a rule, so the server refuses them again.
+   */
+  it('moves one agent’s leads to one agent, and refuses somebody absent', async () => {
+    const owner = await createTestUser({ role: 'owner' });
+    const away = await createTestUser({ role: 'agent', name: 'Away' });
+    const here = await createTestUser({ role: 'agent', name: 'Here' });
+    const absent = await createTestUser({ role: 'agent', name: 'Absent' });
+    const theirs = await aLead({ owner: away.id });
+    const cookie = await signIn(base, owner);
+
+    await execute(
+      `INSERT INTO attendance (id, user_id, on_date, kind)
+       VALUES (?, ?, DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), 'office')`,
+      [newId(), here.id],
+    );
+
+    const move = (body: unknown) => fetch(`${base}/api/v2/dashboard/move`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const refused = await move({ userId: away.id, to: { kind: 'agent', userId: absent.id } });
+    expect(refused.status, 'nobody has marked Absent in today').toBe(400);
+    expect(await refused.text()).toContain('cannot be chosen');
+
+    const ok = await move({ userId: away.id, to: { kind: 'agent', userId: here.id } });
+    expect(ok.status, await ok.clone().text()).toBe(200);
+    expect(await ok.json()).toMatchObject({ moved: 1, name: 'Away', to: 'Here' });
+
+    const row = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?', [theirs.id],
+    );
+    expect(row?.owner_user_id).toBe(here.id);
+  });
+
+  it('shares leads only between the agents it was given', async () => {
+    const owner = await createTestUser({ role: 'owner' });
+    const away = await createTestUser({ role: 'agent', name: 'Away' });
+    const one = await createTestUser({ role: 'agent', name: 'One' });
+    const two = await createTestUser({ role: 'agent', name: 'Two' });
+    const three = await createTestUser({ role: 'agent', name: 'Three' });
+    for (let i = 0; i < 4; i += 1) await aLead({ owner: away.id });
+
+    for (const person of [one, two, three]) {
+      await execute(
+        `INSERT INTO attendance (id, user_id, on_date, kind)
+         VALUES (?, ?, DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), 'office')`,
+        [newId(), person.id],
+      );
+    }
+
+    const res = await fetch(`${base}/api/v2/dashboard/move`, {
+      method: 'POST',
+      headers: { cookie: await signIn(base, owner), 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: away.id, to: { kind: 'share', userIds: [one.id, two.id] } }),
+    });
+    expect(res.status, await res.clone().text()).toBe(200);
+    expect(await res.json()).toMatchObject({ moved: 4, to: '2 agents' });
+
+    const rows = await query<{ owner_user_id: string }>(
+      "SELECT owner_user_id FROM opportunities WHERE status = 'open'",
+    );
+    const owners = new Set(rows.map((r) => String(r.owner_user_id)));
+    expect(owners.has(three.id), 'Three was not ticked, so Three gets nothing').toBe(false);
+    expect(owners.size, 'both of the two who were ticked got some').toBe(2);
+  });
+
   it('is shut to an agent and to a manager', async () => {
     for (const role of ['agent', 'manager']) {
       const person = await createTestUser({ role, name: `A ${role}` });
