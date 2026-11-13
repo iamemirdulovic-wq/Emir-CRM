@@ -97,6 +97,12 @@ Test harness only. No production code, and no security control touched.
   than six hours is dropped. **Only names this harness generates are ever
   considered**, so a hand-made `emir_crm_test`, or the eleven hand-named
   databases other agents had on the box, are untouched.
+- If `CREATE DATABASE` is refused — a test user without the privilege — the run
+  says so in full and **falls back to `emir_crm_test`**, with the warning that
+  it is shared. It does *not* report "no database reachable": that path skips
+  all 269 integration tests and calls the run green, which is the worst
+  possible answer to a missing privilege. Reaching the server and creating a
+  database are now two separate attempts with two separate messages.
 
 ### `server/src/testing/db.ts`
 
@@ -150,10 +156,19 @@ Effect on the calendar file: **110 s → 24 s**, per test 4–10 s → 0.8–1.6
 full-suite run, because the remembered set grows towards the whole schema as
 more files write to more tables.
 
-`src/testing/reset-complete.test.ts` still guards the list against the
-migrations and is unchanged. One new guard: `TRUNCATE_ORDER` entries are
-checked at module load to be plain `[a-z][a-z0-9_]*` names, since a table name
-cannot be a bound parameter and has to go into the probe as text.
+`src/testing/reset-complete.test.ts` still guards the *list* against the
+migrations and is unchanged. Two guards were added:
+
+- **`src/testing/reset.integration.test.ts`** (new) checks the *behaviour*
+  against a real database: write rows into `users`, `contacts`, `audit_log`
+  and `app_settings`, reset, and assert that the only table left holding a row
+  is the `form_field_map` the reset re-seeds. It does that twice — once for a
+  table being written to for the first time, once for a table already in the
+  remembered set — and then checks that `beforeEach` has cleaned up after
+  itself before the next test.
+- `TRUNCATE_ORDER` entries are checked at module load to be plain
+  `[a-z][a-z0-9_]*` names, since a table name cannot be a bound parameter and
+  has to go into the probe as text.
 
 ## The result
 
@@ -161,9 +176,23 @@ cannot be a bound parameter and has to go into the probe as text.
   reported env: **five runs in a row, 18 passed each** — and the full server
   suite was running concurrently in another process throughout, which is the
   demonstration that the isolation holds.
-- Full server suite: 2,826 passed, unchanged.
+- **Two runs started at the same moment, neither naming a database**: 18 passed
+  each. That is the exact shape that used to fail.
 - `npx tsc --noEmit -p tsconfig.json`: exit 0.
 - No `emir_crm_run_*` database left behind after a run.
+
+Each branch of the setup was exercised on purpose, not just reasoned about:
+
+| Case | What happened |
+|---|---|
+| Ordinary run | Own database made, migrated, dropped at the end |
+| `SKIP_DB_TESTS=1` | 18 skipped, as before |
+| Port with nothing listening | "No database reachable", 18 skipped, as before |
+| `TEST_DB_NAME` with another connection on it | The shared-database warning printed |
+| `CREATE DATABASE` refused | Fell back to `emir_crm_test` and **ran** the integration tests (7 passed), rather than skipping them |
+| Abandoned `emir_crm_run_*`, 7 hours old | Dropped, and named in the output |
+| `emir_crm_run_*` a minute old (another live run) | Left alone — including, as it happened, the concurrent full suite's own database |
+| A database not matching the generated pattern | Left alone |
 
 ## Still unsafe
 
