@@ -237,8 +237,8 @@ export function V2SettingsTeam() {
                             </select>
                           )}
                         </td>
-                        <td className="d-t-sub">{openOf(one.id) ?? '—'}</td>
-                        <td className="d-t-sub">{one.last_login_at ? ago(one.last_login_at) : 'Never'}</td>
+                        <td className="d-t-sub" data-label="Open">{openOf(one.id) ?? '—'}</td>
+                        <td className="d-t-sub" data-label="Last in">{one.last_login_at ? ago(one.last_login_at) : 'Never'}</td>
                       </tr>
                     ))}
                   </tbody>

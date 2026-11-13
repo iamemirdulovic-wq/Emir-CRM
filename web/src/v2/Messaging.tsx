@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * From tap to reply.
@@ -91,6 +92,17 @@ const LINK_ICON: Record<string, IconName> = {
 };
 
 export function V2Messaging() {
+  /*
+   * `OwnerMessaging.dc.html` titles this screen "WhatsApp & Telegram" and
+   * subtitles it "Owner · today · no API needed" — and the subtitle is the
+   * point of the screen, because these numbers exist *because* there is no
+   * WhatsApp API. `Menu.dc.html` calls the tile the same thing. The shell's
+   * header draws both; the page does not draw a title of its own.
+   */
+  usePhoneHead({
+    title: 'WhatsApp & Telegram',
+    sub: 'Owner · taps, replies and links opened · no API needed',
+  });
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
   const [period, setPeriod] = useState<Period>('today');
@@ -235,7 +247,12 @@ export function V2Messaging() {
 
               {report.agents.length > 0 ? (
                 <div className="d-table-wrap">
-                  <table className="d-table d-id-agents">
+                  {/* `v2-d-cards`: one card per agent under 768px —
+                      `docs/v2/phone-shell.md` §5.4. Seven columns at 390px
+                      dragged the whole page to 697px and scrolled it
+                      sideways. Each `<td>` carries its own heading, because
+                      the `<thead>` is gone by then. */}
+                  <table className="d-table d-id-agents v2-d-cards">
                     <thead>
                       <tr>
                         <th>Agent</th>
@@ -260,10 +277,10 @@ export function V2Messaging() {
                                 <b>{firstName(row.name)}</b>
                               </span>
                             </td>
-                            <td className="d-t-right"><b>{row.taps}</b></td>
-                            <td className="d-t-right">{row.confirmed}</td>
-                            <td className="d-t-right">{row.replied}</td>
-                            <td>
+                            <td className="d-t-right" data-label="Taps"><b>{row.taps}</b></td>
+                            <td className="d-t-right" data-label="Confirmed">{row.confirmed}</td>
+                            <td className="d-t-right" data-label="Replied">{row.replied}</td>
+                            <td data-label="Reply rate">
                               <div className="d-row d-gap-8">
                                 <div
                                   className={rate >= 45 ? 'd-bar d-green v2-rate-bar' : 'd-bar v2-rate-bar'}
@@ -274,8 +291,8 @@ export function V2Messaging() {
                                 <span className="d-small">{row.confirmed > 0 ? `${rate}%` : '—'}</span>
                               </div>
                             </td>
-                            <td className="d-t-right">{row.linksOpened}</td>
-                            <td className="d-t-right">
+                            <td className="d-t-right" data-label="Links opened">{row.linksOpened}</td>
+                            <td className="d-t-right" data-label="No update">
                               {row.noUpdate === 0 && <span className="d-muted">0</span>}
                               {row.noUpdate > 0 && reminded.includes(row.userId) && (
                                 <span className="d-small d-muted">Reminded</span>

@@ -4,6 +4,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Who used the CRM, from where, and anything unusual.
@@ -78,6 +79,12 @@ const FLAG_TITLE: Record<string, string> = {
 };
 
 export function V2Activity() {
+  /*
+   * `TeamActivity.dc.html`: "Team activity" over "Owner · who used the CRM
+   * and when". The shell's own name for this address is the single word
+   * "Activity", which on its own does not say whose.
+   */
+  usePhoneHead({ title: 'Team activity', sub: 'Owner · who used the CRM and when' });
   const { user } = useAuth();
   const toast = useToast();
 

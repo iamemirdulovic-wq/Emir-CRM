@@ -45,6 +45,27 @@ const IPHONE = [
   },
 ];
 
+/**
+ * What a notification opens when you tap it.
+ *
+ * `InstallGuide.dc.html` closes with this table and so does
+ * `design/web/install-guide.html` — "Always the exact page, never just the
+ * home screen" — and it is the reason to install at all. Every row below was
+ * read out of the `link` the server actually stores with the notification
+ * (`server/src/v2/vip.ts`, `incoming.ts`, `transfers.ts`, `leave.ts`,
+ * `workflows/workflow-a.ts`, `workflow-c.ts`). The design's other rows —
+ * meeting reminders, "How did it go?", a leave request landing on Team
+ * attendance — are not in that list yet, so they are not claimed here.
+ */
+const OPENS: Array<[string, string]> = [
+  ['A lead given to you', 'That lead’s own page'],
+  ['VIP lead from the owner', 'My Day, with the countdown and “Accept VIP lead”'],
+  ['A VIP lead nobody called', 'Incoming'],
+  ['A transfer asked for or answered', 'Transfers'],
+  ['Leave asked for or answered', 'Attendance'],
+  ['A client opened your link', 'That lead'],
+];
+
 const ANDROID = [
   {
     icon: 'globe' as const,
@@ -169,6 +190,21 @@ export function V2SettingsPhoneApp() {
                 </div>
                 <em>14:30</em>
               </div>
+            </section>
+
+            <section className="d-card">
+              <div className="d-card-head">
+                <h3>Tap a notification, it opens…</h3>
+                <span className="d-small d-muted">Always the exact page</span>
+              </div>
+              <dl className="d-kv v2-d-opens">
+                {OPENS.map(([what, where]) => (
+                  <div className="d-kv-row" key={what}>
+                    <dt>{what}</dt>
+                    <dd>{where}</dd>
+                  </div>
+                ))}
+              </dl>
             </section>
 
             <section className="d-card">

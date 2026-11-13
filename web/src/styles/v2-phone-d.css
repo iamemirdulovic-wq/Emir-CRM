@@ -22,7 +22,442 @@
  * New class names of your own carry a `v2-d-` prefix, so that two groups
  * cannot quietly define the same bare class — which is what broke the
  * pipeline board once. `css-collisions.test.ts` checks it.
+ *
+ * ── the one thing that caught every screen in this group ──────────────────
+ *
+ * `v2-shell.css` already narrows a lot of this at `max-width: 900px` —
+ * `.v2 .d-tm-stats`, `.v2 .d-hl-top`, `.v2 .d-ig-top` and friends. Those are
+ * **two** classes. The ported page style beside them is `.v2 .p-set-team
+ * .d-tm-stats` — **three** — so the page style wins at every width and the
+ * narrowing never happened. That is why the owner's team page still drew
+ * three cards across a 390px screen with a green test suite. Everything below
+ * is written at three classes for the same reason.
  */
 
 @media (max-width: 767px) {
+
+  /* ── settings: one title, not two ──────────────────────────────────────
+     The shell's header draws the screen's title and it is static while the
+     page scrolls under it, so a panel drawing its own `<h1>` shows two at
+     once. `SettingsTitle` hands both lines to `usePhoneHead` instead; this
+     takes its own copy away. A panel that also passes an action keeps the
+     row, because the action is the only thing left in it. */
+  .v2.v2-phone .d-set .d-set-title { display: none; }
+  .v2.v2-phone .d-set .d-set-title.v2-d-title-act {
+    display: flex;
+    min-height: 0;
+    margin-bottom: 0;
+  }
+  .v2.v2-phone .d-set-title.v2-d-title-act > .d-grow { display: none; }
+
+  /* The same for the owner reports that are not settings panels: the shell
+     already names the screen, so the page's own repeat of it goes. */
+  .v2.v2-phone .v2-page .v2-d-dup { display: none; }
+
+  /* A settings panel at 390px has no room for a 230px label column — and
+     `.v2 .d-set-row` loses to `.v2 .p-company .d-set-row`, so it has to be
+     said again here. */
+  .v2.v2-phone .d-set .d-set-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .v2.v2-phone .d-set .d-set-savebar { flex-wrap: wrap; justify-content: stretch; }
+  .v2.v2-phone .d-set .d-set-savebar > .d-grow { flex: 1 1 100%; }
+  .v2.v2-phone .d-set .d-set-savebar .d-btn { flex: 1 1 auto; }
+
+  /* A row of tabs or chips wider than the screen must scroll, not clip.
+     `.d-tabs` has no overflow of its own, so the fifth tab was simply
+     unreachable on the feedback inbox and the team page. */
+  .v2.v2-phone .v2-page .d-tabs,
+  .v2.v2-phone .v2-page .d-chip-row {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .v2.v2-phone .v2-page .d-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .v2-page .d-tabs > .d-tab { flex: none; }
+
+  /* ── an owner's report is a stack of cards, not a table ────────────────
+     `docs/v2/phone-shell.md` §5.4. Seven columns at 390px either scroll
+     sideways — which the messaging report did, dragging the whole page to
+     697px — or crush every column to one word. Each row becomes a card: the
+     person across the top, their numbers underneath as label-and-value
+     pairs, read from the `data-label` each cell carries. */
+  .v2.v2-phone .v2-page .v2-d-cards,
+  .v2.v2-phone .v2-page .v2-d-cards tbody { display: block; }
+  .v2.v2-phone .v2-page .v2-d-cards thead { display: none; }
+  .v2.v2-phone .v2-page .v2-d-cards tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px 10px;
+    padding: 12px 0;
+    border: 0;
+  }
+  .v2.v2-phone .v2-page .v2-d-cards tr + tr { border-top: 1px solid var(--line); }
+  .v2.v2-phone .v2-page .v2-d-cards td {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    min-width: 0;
+  }
+  .v2.v2-phone .v2-page .v2-d-cards td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-page .v2-d-cards td:empty::before { content: none; }
+  /* A cell with no label is a whole line of its own: the name, the
+     doing-now phrase, the sparkline. */
+  .v2.v2-phone .v2-page .v2-d-cards td:not([data-label]) { grid-column: 1 / -1; }
+  .v2.v2-phone .v2-page .v2-d-cards td:not([data-label])::before { content: none; }
+  .v2.v2-phone .v2-page .v2-d-cards .d-cellnum,
+  .v2.v2-phone .v2-page .v2-d-cards .d-t-right { text-align: left; }
+  .v2.v2-phone .v2-page .v2-d-cards .d-person { min-height: 32px; }
+  /* `.d-table td` is `white-space: nowrap`, which is right for a column and
+     wrong for a line of a card. */
+  .v2.v2-phone .v2-page .v2-d-cards td { white-space: normal; }
+  /* `min-width: 0` is the load-bearing line: the wrap is a flex item, its
+     automatic minimum size is its min-content width, and that let a 520px
+     row of cards sit inside a 314px card. */
+  .v2.v2-phone .v2-page .d-table-wrap { min-width: 0; }
+  /* On the messaging report the wrap sits inside the section's own card, so
+     a second card around the rows is one border too many. Elsewhere — the
+     activity list — the wrap *is* the card and keeps its own. */
+  .v2.v2-phone .p-messaging .d-table-wrap {
+    padding: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* ── /v2/team-live — OwnerLive.dc.html ─────────────────────────────────
+     Three KPI tiles across, as the design draws them (214 call clicks · 104
+     WhatsApp · 5 meetings booked). The build stacked them full width, one
+     per screen-height, so an owner could not see the three together — which
+     is the only reason to put them side by side. */
+  .v2.v2-phone .p-team-live .d-trio {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+  .v2.v2-phone .p-team-live .d-trio > .d-stat { min-width: 0; }
+  .v2.v2-phone .p-team-live .d-trio .d-stat-row { flex-wrap: wrap; gap: 2px 6px; }
+  .v2.v2-phone .p-team-live .d-trio .d-num-hero { font-size: 26px; }
+  .v2.v2-phone .p-team-live .d-trio .d-num { font-size: 24px; }
+  /* "+12% vs yesterday" is 122px of chip in a 99px column. It wraps inside
+     the chip rather than being thrown away — an owner reading this screen
+     at 13:00 is reading it for the direction, not the absolute number. */
+  .v2.v2-phone .p-team-live .d-trio .d-delta {
+    font-size: 10px;
+    padding: 2px 6px;
+    white-space: normal;
+    line-height: 1.25;
+    /* Its own line in all three tiles, so the three labels line up. */
+    flex: 0 0 100%;
+    align-self: flex-start;
+  }
+  .v2.v2-phone .p-team-live .d-trio .d-label { font-size: 11.5px; }
+  .v2.v2-phone .p-team-live .d-id-hours { margin-top: 18px; }
+  .v2.v2-phone .p-team-live .d-legend { gap: 6px 10px; font-size: 11.5px; }
+  .v2.v2-phone .p-team-live .d-id-agents td { height: auto; }
+  /* Clicks by hour, on a card instead of in a column: the full width. */
+  .v2.v2-phone .p-team-live .v2-d-cards .d-spark { width: 100%; height: 26px; }
+  /* `v2-shell.css` gave this table a 520px floor and let its wrapper scroll
+     sideways, which is the only way six columns fit a phone. They are cards
+     now, so the floor and the scroller both go. */
+  .v2.v2-phone .p-team-live .v2-live-table { overflow-x: visible; }
+  .v2.v2-phone .p-team-live .v2-live-table .d-table { min-width: 0; }
+  .v2.v2-phone .p-team-live .v2-d-cards td[data-label="Last click"] { grid-column: span 2; }
+
+  /* ── /v2/activity — TeamActivity.dc.html ───────────────────────────────
+     The hero plus three summary cards took four screen-heights before the
+     list the screen is for. Two across, under a full-width hero. */
+  .v2.v2-phone .p-activity .d-tops {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .v2.v2-phone .p-activity .d-tops > .d-hero { grid-column: 1 / -1; }
+  .v2.v2-phone .p-activity .d-tops .d-card { padding: 14px; }
+  .v2.v2-phone .p-activity .d-tops .d-num { font-size: 24px; }
+  .v2.v2-phone .p-activity .d-tops .d-delta { font-size: 11px; }
+  .v2.v2-phone .p-activity .d-id-time td { height: auto; }
+
+  /* ── /v2/messaging — OwnerMessaging.dc.html ────────────────────────────
+     Four numbers in one row, as the design draws them: Taps · Confirmed ·
+     Replied · Links opened. Stacked, they were four screen-heights and the
+     funnel they describe was invisible. */
+  .v2.v2-phone .p-messaging .d-funnel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .v2.v2-phone .p-messaging .d-funnel > .d-card { padding: 14px; min-width: 0; }
+  .v2.v2-phone .p-messaging .d-funnel .d-num-hero { font-size: 30px; }
+  .v2.v2-phone .p-messaging .d-funnel .d-num { font-size: 26px; }
+  .v2.v2-phone .p-messaging .d-funnel .d-label { font-size: 11.5px; }
+  .v2.v2-phone .p-messaging .d-funnel .d-stat-row { flex-wrap: wrap; gap: 4px 8px; }
+  .v2.v2-phone .p-messaging .d-funnel .d-of,
+  .v2.v2-phone .p-messaging .d-funnel .d-delta { font-size: 11px; }
+  .v2.v2-phone .p-messaging .d-id-agents td { height: auto; }
+  /* Two of the six cells do not fit a third of 390px: the reply rate carries
+     a bar as well as a number, and "no update" carries a Remind button. */
+  .v2.v2-phone .p-messaging .v2-d-cards td[data-label="Reply rate"] { grid-column: span 2; }
+  .v2.v2-phone .p-messaging .v2-d-cards td[data-label="No update"] { grid-column: 1 / -1; }
+  .v2.v2-phone .p-messaging .v2-rate-bar { max-width: 56px; }
+  .v2.v2-phone .p-messaging .d-nu { display: inline-flex; align-items: center; gap: 8px; }
+  /* "From tap to reply" beside the Today/Week/Month switch, and the card
+     headings beside their notes: both wrap rather than squeeze. */
+  .v2.v2-phone .p-messaging .v2-page-head { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-messaging .v2-page-head > h2 { flex: 1 1 100%; }
+  .v2.v2-phone .p-messaging .d-card-head { flex-wrap: wrap; row-gap: 4px; }
+  .v2.v2-phone .p-messaging .d-card-head > h3 { flex: 1 1 100%; }
+  /* A client's name is the point of the row, so it wraps instead of being
+     cut to "Marco Bellini · Brochu…". */
+  .v2.v2-phone .p-messaging .d-lk .d-grow b { white-space: normal; }
+
+  /* ── /v2/import — Import.dc.html ───────────────────────────────────────
+     Steps 1 and 4 kept the computer's two-column grid, so the drop zone and
+     the "a good file" checklist sat in 130px columns and read one word per
+     line. `.v2 .d-two` loses to `.v2 .p-import .d-two`, which is why the
+     900px rule in `v2-shell.css` never reached it. */
+  .v2.v2-phone .p-import .d-two,
+  .v2.v2-phone .p-import .v2-check-two,
+  .v2.v2-phone .p-import .d-how,
+  .v2.v2-phone .p-import .d-ag-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .v2.v2-phone .p-import .d-stage { padding: 18px 16px 16px; min-height: 0; }
+  .v2.v2-phone .p-import .d-stage > header h2 { font-size: 21px; }
+  /* Step 4's header is the heading beside a 230px Project field. The field
+     is already full width under 860px, which only made it worse: the row
+     did not wrap, so "Who gets the 208 leads?" shrank to one word a line
+     and the field was drawn over the paragraph beside it. */
+  .v2.v2-phone .p-import .d-stage > header.d-row { flex-wrap: wrap; row-gap: 12px; }
+  .v2.v2-phone .p-import .d-stage > header.d-row > * { flex: 1 1 100%; min-width: 0; }
+  .v2.v2-phone .p-import .d-drop { padding: 26px 16px; }
+  .v2.v2-phone .p-import .d-drop .d-ic { width: 52px; height: 52px; }
+  .v2.v2-phone .p-import .d-rules li { font-size: 13px; }
+  /* Six steps with their names is 719px of strip. The names of the steps
+     you are not on go; the circles and the current one stay, which is what
+     the design draws. */
+  .v2.v2-phone .p-import .d-imp .d-stepper { padding: 12px 14px; gap: 0; }
+  .v2.v2-phone .p-import .v2-d-steplabel { display: none; }
+  .v2.v2-phone .p-import .d-step.d-on .v2-d-steplabel { display: inline; }
+  .v2.v2-phone .p-import .d-stepper .d-line { margin: 0 6px; min-width: 8px; }
+  /* The summary arithmetic — 240 = 208 + 18 + 14 — reads as one line of
+     prose on a phone rather than seven columns of four pixels. */
+  .v2.v2-phone .p-import .d-sum3 {
+    grid-template-columns: auto 1fr;
+    gap: 6px 10px;
+    align-items: baseline;
+  }
+  .v2.v2-phone .p-import .d-sum3 .d-op { font-size: 20px; padding-bottom: 0; }
+  .v2.v2-phone .p-import .d-sum3 .d-stat { display: flex; align-items: baseline; gap: 8px; }
+  .v2.v2-phone .p-import .d-sum3 .d-num-hero { font-size: 28px; }
+  .v2.v2-phone .p-import .d-sum3 .d-num { font-size: 24px; }
+  /* The foot was Back · "Step 1 of 6" · a wide primary button, and the
+     button hung 26px past the right edge. */
+  /* Step 6's header is the tick, "208 leads are in the CRM", and "Import
+     another file" — and the button would not shrink, so the headline ran to
+     one word a line. */
+  .v2.v2-phone .p-import .d-done-top { flex-wrap: wrap; row-gap: 12px; gap: 14px; }
+  .v2.v2-phone .p-import .d-done-top .d-ic { width: 52px; height: 52px; }
+  .v2.v2-phone .p-import .d-done-top > .d-grow { flex: 1 1 40%; min-width: 0; }
+  .v2.v2-phone .p-import .d-done-top .d-btn { flex: 1 1 100%; justify-content: center; }
+  .v2.v2-phone .p-import .d-imp-foot { flex-wrap: wrap; row-gap: 10px; }
+  .v2.v2-phone .p-import .d-imp-foot .d-btn.d-primary { flex: 1 1 100%; justify-content: center; }
+  .v2.v2-phone .p-import .d-id-map .d-select { width: 100%; }
+  .v2.v2-phone .p-import .d-id-map td { height: auto; padding: 8px 6px; }
+
+  /* ── /v2/settings/feedback — OwnerFeedback.dc.html ─────────────────────
+     The kind chip and the status pill shared the row with the report, which
+     left the report ~60px and wrapped "The call button does nothing on the
+     lead page" to one word a line for eighteen lines. The pills take their
+     own row; the report gets the width. */
+  .v2.v2-phone .p-feedback-inbox .v2-fb-row > .d-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .v2.v2-phone .p-feedback-inbox .v2-fb-row > .d-row > .d-card-icon { order: 1; }
+  .v2.v2-phone .p-feedback-inbox .v2-fb-row > .d-row > .d-chip { order: 2; }
+  .v2.v2-phone .p-feedback-inbox .v2-fb-row > .d-row > .d-grow {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* ── /v2/settings/team — SettingsTeam.dc.html ──────────────────────────
+     Three stat cards across a 390px screen: the third one's "2 get no
+     alerts" was cut off by the edge and could not be scrolled to. */
+  .v2.v2-phone .p-set-team .d-tm-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .v2.v2-phone .p-set-team .d-tm-stats > .d-card { padding: 14px; min-width: 0; }
+  .v2.v2-phone .p-set-team .d-tm-stats .d-num { font-size: 24px; }
+  .v2.v2-phone .p-set-team .v2-tm-roles { flex-wrap: wrap; gap: 4px 12px; }
+  .v2.v2-phone .p-set-team .d-tm-stats .d-stat-row { flex-wrap: wrap; gap: 2px 8px; }
+  /* One person, one card: name and role on the first line, the work email
+     under it, then the two numbers with the headings they lost when the
+     `<thead>` went. */
+  .v2.v2-phone .p-set-team .v2-tm-table tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
+    padding: 14px 0;
+  }
+  .v2.v2-phone .p-set-team .v2-tm-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .v2.v2-phone .p-set-team .v2-tm-table td:nth-child(3) { grid-column: 2; grid-row: 1; }
+  .v2.v2-phone .p-set-team .v2-tm-table td:nth-child(2) { grid-column: 1 / -1; }
+  .v2.v2-phone .p-set-team .v2-tm-table td[data-label] {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+  .v2.v2-phone .p-set-team .v2-tm-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+
+  /* ── /v2/settings/health — Health.dc.html ──────────────────────────────
+     "Check now" would not shrink, so the heading beside it computed to 81px
+     and ran to eight lines. The button takes its own row — which is also
+     where the design puts it. */
+  .v2.v2-phone .p-health .d-hl-top {
+    flex-wrap: wrap;
+    row-gap: 14px;
+    padding: 18px;
+  }
+  .v2.v2-phone .p-health .d-hl-top h2 { font-size: 19px; }
+  .v2.v2-phone .p-health .d-hl-top > .d-grow { flex: 1 1 60%; min-width: 0; }
+  .v2.v2-phone .p-health .d-hl-top > .d-btn { flex: 1 1 100%; justify-content: center; }
+  .v2.v2-phone .p-health .d-hl-row { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-health .d-hl-name { width: auto; flex: 1 1 60%; }
+  .v2.v2-phone .p-health .d-hl-name span { white-space: normal; }
+  /*
+   * `.d-mini-list` is only defined under `.p-import`, so on this screen and
+   * on Team it styles nothing and the rows render as "ConnectedYes". That is
+   * true on a computer as well; a phone stylesheet may not fix the computer,
+   * so it is written down in `docs/v2/phone-questions-d.md`.
+   */
+  .v2.v2-phone .p-health .d-mini-list > div,
+  .v2.v2-phone .p-set-team .d-mini-list > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    font-size: 13px;
+    min-width: 0;
+  }
+  .v2.v2-phone .p-health .d-mini-list > div + div,
+  .v2.v2-phone .p-set-team .d-mini-list > div + div { border-top: 1px solid var(--line); }
+  .v2.v2-phone .p-health .d-mini-list .d-grow,
+  .v2.v2-phone .p-set-team .d-mini-list .d-grow { flex: 1; min-width: 0; }
+
+  /* ── /v2/settings/phone-app — InstallGuide.dc.html ─────────────────────
+     "Alerts are blocked on this computer" does not wrap, so the heading
+     beside it computed to 40px and ran to nine lines. */
+  .v2.v2-phone .p-install .d-ig-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px;
+  }
+  .v2.v2-phone .p-install .d-ig-top h2 { font-size: 20px; }
+  .v2.v2-phone .p-install .d-ig-state { align-items: flex-start; }
+  .v2.v2-phone .p-install .d-ig-state .d-chip { white-space: normal; height: auto; min-height: 28px; }
+  .v2.v2-phone .p-install .d-ig-cols { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-install .d-ig-step { align-items: flex-start; }
+  .v2.v2-phone .p-install .d-ig-step .d-grow span { line-height: 1.35; }
+  .v2.v2-phone .p-install .d-card-head { flex-wrap: wrap; row-gap: 4px; }
+  .v2.v2-phone .p-install .d-card-head > h3 { flex: 1 1 100%; }
+  .v2.v2-phone .p-install .d-btn-row { flex-wrap: wrap; }
+  .v2.v2-phone .p-install .d-btn-row .d-btn { flex: 1 1 100%; justify-content: center; }
+  /* "Tap a notification, it opens…". A 120px `dt` beside a `dd` leaves the
+     answer 180px, and the answers are sentences. One over the other. */
+  .v2.v2-phone .p-install .v2-d-opens .d-kv-row {
+    display: block;
+    min-height: 0;
+    /* `.d-kv-row` pulls itself 10px past the card on each side to make room
+       for a hover background. There is no hover on a phone, and the rows
+       then start left of the heading above them. */
+    margin: 0;
+    padding: 9px 0;
+  }
+  .v2.v2-phone .p-install .v2-d-opens .d-kv-row + .d-kv-row { border-top: 1px solid var(--line); }
+  .v2.v2-phone .p-install .v2-d-opens dt { width: auto; font-size: 12.5px; }
+  .v2.v2-phone .p-install .v2-d-opens dd { margin-top: 2px; font-size: 13.5px; }
+
+  /* ── /v2/settings/banners — OwnerBanners.dc.html ───────────────────────
+     The editor and its 500px live preview, stacked, with the preview above
+     the fields the way the design draws it. */
+  .v2.v2-phone .p-banners .d-hb { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-banners .d-hb > * { min-width: 0; }
+  .v2.v2-phone .p-banners .d-prev { padding: 16px; }
+  .v2.v2-phone .p-banners .d-prev h2 { font-size: 19px; max-width: 100%; }
+  .v2.v2-phone .p-banners .d-prev p { max-width: 100%; }
+  /* A banner row is the number, its headline, then up · down · on/off ·
+     Change. Four controls that will not shrink left the headline ~90px and
+     one word a line. The controls take the second line. */
+  .v2.v2-phone .p-banners .v2-hb-row { flex-wrap: wrap; row-gap: 10px; }
+  .v2.v2-phone .p-banners .v2-hb-row > .d-card-icon { order: 1; }
+  /* Wide enough that the number and the headline fill the first line
+     together, and narrow enough that the first control cannot join them —
+     so all four land on the second line rather than splitting two and two. */
+  .v2.v2-phone .p-banners .v2-hb-row > .d-grow {
+    order: 2;
+    flex: 1 1 calc(100% - 60px);
+    min-width: 0;
+  }
+  .v2.v2-phone .p-banners .v2-hb-row > .d-btn,
+  .v2.v2-phone .p-banners .v2-hb-row > .d-switch { order: 3; }
+  .v2.v2-phone .p-banners .v2-hb-prev h2 { font-size: 20px; }
+
+  /* ── /v2/settings/company — Company.dc.html ────────────────────────────
+     One field per line, and the "where it shows" preview under the form
+     rather than beside it. */
+  .v2.v2-phone .p-company .d-co-grid,
+  .v2.v2-phone .p-company .d-form-grid,
+  .v2.v2-phone .p-company .d-set-row { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-company .d-co-side { position: static; }
+
+  /* ── /v2/settings/ai — AISettings.dc.html ──────────────────────────────*/
+  .v2.v2-phone .p-ai-settings .d-ai-top { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-ai-settings .d-num-hero { font-size: 32px; }
+  /* The closing note and its link: the note is a sentence and the link will
+     not shrink, so the two take a line each. */
+  .v2.v2-phone .p-ai-settings .d-card-foot { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-ai-settings .d-card-foot > span { flex: 1 1 100%; min-width: 0; }
+
+  /* ── /v2/automations — Automations.dc.html ─────────────────────────────*/
+  .v2.v2-phone .p-automations .d-tb-grid { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-automations .d-take { padding: 18px; }
+
+  /* ── /v2/settings/desks — Desks.dc.html ────────────────────────────────*/
+  .v2.v2-phone .p-desks .d-desk-grid { grid-template-columns: minmax(0, 1fr); }
+  .v2.v2-phone .p-desks .d-desk-top { flex-wrap: wrap; row-gap: 8px; }
+
+  /* ── /v2/settings/attendance — SettingsAttendance.dc.html ──────────────*/
+  .v2.v2-phone .p-set-attendance .d-days { flex-wrap: wrap; }
+  .v2.v2-phone .p-set-attendance .d-set-row { grid-template-columns: minmax(0, 1fr); }
+
+  /* ── the owner's three reports share a sub-tab row ─────────────────────
+     Activity | Live | Messaging. It is the one thing on these screens that
+     the design does not draw, and it is how an owner moves between them, so
+     it stays — as a full-width segment rather than a strip with a clock
+     hanging off the end of it. */
+  .v2.v2-phone .v2-page .d-filters { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-team-live .d-filters > .d-seg,
+  .v2.v2-phone .p-activity .d-filters > .d-seg,
+  .v2.v2-phone .p-messaging .d-filters > .d-seg { display: flex; flex: 1 1 100%; }
+  .v2.v2-phone .p-team-live .d-filters > .d-seg > a,
+  .v2.v2-phone .p-messaging .d-filters > .d-seg > a { flex: 1; justify-content: center; }
 }

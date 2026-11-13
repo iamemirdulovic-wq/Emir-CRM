@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../lib/auth.js';
 import { Icon, type IconName } from '../../design/index.js';
+import { usePhoneHead } from '../phone.js';
 
 /**
  * The settings shell: the section list on the left, one panel on the right.
@@ -91,12 +92,26 @@ export function SettingsShell({
   );
 }
 
-/** The heading every panel opens with, plus an optional action on the right. */
+/**
+ * The heading every panel opens with, plus an optional action on the right.
+ *
+ * On a phone it is the *shell's* header that carries this, not the panel.
+ * `titleFor()` in the shell only knows the first part of an address, so
+ * `/v2/settings/team`, `/v2/settings/company` and the other nine all read
+ * "Settings" with no title of their own; and the panel drawing a second `<h1>`
+ * under that one is the double title `docs/v2/phone-build-brief.md` warns
+ * about. So every panel's title and note are handed to `usePhoneHead` here,
+ * once, and `v2-phone-d.css` hides the panel's own copy under 768px.
+ *
+ * A panel that passes an action keeps its row (the action is the only thing
+ * left in it) — `v2-d-title-act` is what the stylesheet tells them apart by.
+ */
 export function SettingsTitle({
   title, note, children,
 }: { title: string; note: string; children?: ReactNode }) {
+  usePhoneHead({ title, sub: note });
   return (
-    <div className="d-set-title">
+    <div className={children ? 'd-set-title v2-d-title-act' : 'd-set-title'}>
       <div className="d-grow">
         <h1>{title}</h1>
         <p>{note}</p>

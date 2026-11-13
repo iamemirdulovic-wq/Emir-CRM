@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { ErrorNote, useToast } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * Import, as `design/web/import.html` lays it out: six steps, one card each.
@@ -98,6 +99,8 @@ interface Candidate {
 type Give = 'agents' | 'desk' | 'incoming';
 
 export function V2Import() {
+  /* `Import.dc.html`: "Import leads" over "Owner & admin · Excel or CSV". */
+  usePhoneHead({ title: 'Import leads', sub: 'Owner & admin · Excel or CSV' });
   const [step, setStep] = useState<Step>(1);
   const [importId, setImportId] = useState<string | null>(null);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
@@ -273,7 +276,11 @@ export function V2Import() {
                 disabled={one.n >= step || step === 6}
                 onClick={() => setStep(one.n)}
               >
-                <span className="d-n">{one.n}</span>{one.label}
+                {/* The label is its own element so the phone can keep the
+                    six circles and show only the step you are on: six names
+                    is 719px of strip at 390px. */}
+                <span className="d-n">{one.n}</span>
+                <span className="v2-d-steplabel">{one.label}</span>
               </button>
               {index < STEPS.length - 1 && <span className="d-line" />}
             </span>

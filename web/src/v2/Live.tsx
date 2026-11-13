@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
+import { usePhoneHead } from './phone.js';
 
 /**
  * What the team is doing right now.
@@ -277,6 +278,12 @@ const BANDS: Array<{ key: Band; colour: string; word: string }> = [
 /* ── the screen ────────────────────────────────────────────────────────── */
 
 export function V2Live() {
+  /*
+   * `OwnerLive.dc.html` opens with "Team live" over "Owner view · updated
+   * 10 sec ago". The build asks the server again every half minute, so the
+   * subtitle says that rather than the prototype's ten seconds.
+   */
+  usePhoneHead({ title: 'Team live', sub: 'Owner · counted again every 30 seconds' });
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin';
 
@@ -584,7 +591,7 @@ export function V2Live() {
               already inside one. The wrapper is here so seven columns scroll
               on a phone rather than pushing the page sideways. */}
           <div className="v2-live-table">
-            <table className="d-table d-id-agents">
+            <table className="d-table d-id-agents v2-d-cards">
               <thead>
                 <tr>
                   <th>Agent</th>
@@ -615,9 +622,9 @@ export function V2Live() {
                           ? doingWord(here.doing)
                           : whereWord(today.get(agent.userId)?.where)}
                       </td>
-                      <td className="d-t-right d-cellnum">{agent.calls}</td>
-                      <td className="d-t-right">{agent.whatsapp}</td>
-                      <td className="d-t-right">
+                      <td className="d-t-right d-cellnum" data-label="Calls">{agent.calls}</td>
+                      <td className="d-t-right" data-label="WhatsApp">{agent.whatsapp}</td>
+                      <td className="d-t-right" data-label="Telegram">
                         {agent.telegram || <span className="d-muted">0</span>}
                       </td>
                       <td>
@@ -626,7 +633,7 @@ export function V2Live() {
                           label={`${agent.name}: clicks by hour today`}
                         />
                       </td>
-                      <td className="d-t-right d-t-sub">{sinceWord(agent.lastClickAt)}</td>
+                      <td className="d-t-right d-t-sub" data-label="Last click">{sinceWord(agent.lastClickAt)}</td>
                     </tr>
                   );
                 })}
