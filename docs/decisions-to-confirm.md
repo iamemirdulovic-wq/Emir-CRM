@@ -10,6 +10,9 @@ Nothing here touches the live CRM. All of it is on the `v2` branch.
 
 ## 1 · The test address is a preview, not a second website
 
+**Superseded 13 Nov** — you asked for a real one. `docs/TEST_SITE.md` is the
+step-by-step for new.crm.homes.me with its own copy of the database.
+
 **The decision.** `crm.homes.me/v2` is not online. You told me not to change
 the live site, and putting v2 on that host — even on its own path — means
 changing what the live server serves. So what you can try right now is a
@@ -86,6 +89,9 @@ file shows. Change them on the page itself if they are wrong.
 ---
 
 ## 6 · Three settings pages have nothing behind them yet
+
+**Out of date 13 Nov** — all four are built now: Team and roles, System
+health, the Phone app guide and the Feedback inbox. Nothing to decide.
 
 **Team and roles**, **System health** and the **Phone app** guide are in your
 design and have no CRM behind them. Rather than link to an empty page, each
@@ -203,3 +209,40 @@ cannot be recorded is the most expensive thing on that screen. The field is
 still there, still asked for, and the deal can be saved without it.
 
 Say the word and the star goes back.
+
+## 15 · The phone is your phone shell, with the computer pages inside it
+
+**What I did.** The frame around every screen — the floating bottom bar, its
+five items in your order, and the round orange dial button beside it — is
+built from the 68 phone screens in `design/screens/`. I read them properly
+first; `docs/v2/phone-shell.md` is that reading, down to the 66px bar height
+and the 108px gap underneath.
+
+**What I did not do.** The *contents* of each screen are the computer design
+reflowed to 390px, not the phone screen's own layout. Three things follow
+from that, and they are real:
+
+1. **Dialogs are centred boxes, not sheets rising from the bottom.** Your
+   phone screens use a bottom sheet everywhere — the check-in, "give to an
+   agent", transfer a lead, log an outcome. Mine open in the middle.
+2. **The bottom bar shows everywhere.** Your design hides it on four screens
+   on purpose — the dialler, a chat, email and login — because those are jobs
+   you finish before you leave. Mine keeps the bar on all of them.
+3. **No screen-load animation.** Your phone screens lift their cards in on a
+   stagger. Mine appear.
+
+**Why it went that way.** You stopped the build on 12 Nov because screens were
+being invented instead of built from `design/web/`. Every screen since has
+been built from its computer design file, which is what you asked for — and
+those files have no phone version, so the phone layout is mine.
+
+**What I would do about it, if you want it.** Roughly in order of what you
+would feel on a phone:
+
+- **Bottom sheets** — about a day. Every dialog and panel slides up from the
+  bottom at phone width. This is the one that makes it feel like an app.
+- **Hide the bar on the four full-attention screens** — about an hour.
+- **The stagger-in** — about an hour.
+
+Say which of the three you want and I will do them. Say none and the phone
+works as it is; it is clean, it fits, and nothing is cut off.
