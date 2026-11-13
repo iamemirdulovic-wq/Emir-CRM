@@ -2,6 +2,53 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Import, rebuilt as six steps
+
+`design/web/import.html`: Upload · Columns · Check · Give · Confirm · Done,
+one card each, with the step strip across the top.
+
+**The step that earns the screen is Check.** The import has always split a
+file into new leads, duplicates and bad rows — it just did it *while running*,
+which is after the last moment anybody could change their mind. There is now a
+dry run (`imports/preflight.ts`) that does the same split with the writes taken
+out, so *"240 rows = 208 new + 18 duplicates + 14 bad"* is a number somebody
+decides on rather than discovers. It also says who holds each duplicate now —
+"with Rocky", "in Incoming" — which is what decides whether skipping them is
+the right call.
+
+It is built from the same pieces the real run uses, not a second
+implementation, and the test proves the point rather than asserting it: it
+runs the import afterwards and checks the preflight predicted exactly what
+happened.
+
+**"Agents I choose" now really means those agents.** The assignment could name
+one person or a whole desk, but not a chosen handful — `split_even` quietly
+meant everybody, so an owner who ticked four names would have found the batch
+spread across ten. It carries a list of agents now, through the preview and
+through the run.
+
+Two things the screen says and the server keeps: nothing is in the CRM until
+step 5, and an imported lead gets no countdown — it is a list to work through,
+not a race.
+
+### What the tests found that the screen would have hidden
+
+- **`loadImport` does not select `headers`.** The preflight read them through
+  it, got nothing, mapped every column to nothing, and called all 240 rows
+  bad — a screen that would have told an owner their whole file was rubbish.
+- **A row with a phone and no name is a lead, not a bad row.** Somebody who
+  can be rung is contactable; the CRM would rather hold a number with no name
+  than throw the number away. The test expected the opposite and the product
+  was right.
+- **`imports.skipped_count` is duplicates and bad rows added together.** The
+  Done screen's split comes from the rows themselves, where it survives.
+
+On a phone the step strip scrolls, the three-number split stacks, and the
+mapping table becomes one block per column — a select cannot shrink to a third
+of a 390px screen.
+
+Server 2,776 tests. Web 484. Polish: 216 screens, nothing overflowing.
+
 ## Sales offers
 
 Built from `design/web/sales-offers.html`, and it is a much smaller thing than

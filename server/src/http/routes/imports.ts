@@ -21,6 +21,7 @@ import { suggestMappingWithAi } from '../../imports/mapping.js';
 import { columnsFromRows, inferMappingFromValues, preferNamed } from '../../imports/infer.js';
 import { defaultSettings } from '../../imports/normalize.js';
 import { previewUndo, stageRows, startImport, undoImport, UNDO_WINDOW_HOURS } from '../../imports/run.js';
+import { preflight } from '../../imports/preflight.js';
 import { batchTagFor } from '../../imports/batch.js';
 import type { ImportSettings } from '../../imports/normalize.js';
 import { loadCandidates, loadAssignable, previewPlan } from '../../assignment/apply.js';
@@ -209,6 +210,8 @@ const configureSchema = z.object({
       method: z.enum(['agent', 'team_round_robin', 'split_even', 'split_percent', 'split_count', 'by_rule', 'pool']),
       userId: z.string().max(36).nullable().optional(),
       teamId: z.string().max(36).nullable().optional(),
+      /* "Agents I choose": the batch is split across these people only. */
+      userIds: z.array(z.string().max(36)).max(100).nullable().optional(),
       shares: z.array(z.object({ userId: z.string().max(36), percent: z.number().min(0).max(100) })).max(50).optional(),
       /* Split by a plain number of leads: "Tej 100, Talha 100, Olga 50." */
       counts: z.array(z.object({
@@ -268,6 +271,21 @@ importsRouter.post(
     /* The row limit comes back with the count so the wizard shows the same
        rule the server enforces, rather than a second copy of the number. */
     res.json({ total });
+  }),
+);
+
+/**
+ * What this file would do, before it does it.
+ *
+ * `design/web/import.html` step 3: the split into new, duplicate and bad,
+ * worked out from the staged rows without writing anything. It has to run
+ * after `/validate` has staged them and after the mapping is set, because it
+ * is the mapping that decides which column is the phone number.
+ */
+importsRouter.post(
+  '/:id/preflight',
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await preflight(String(req.params.id)));
   }),
 );
 
@@ -460,7 +478,10 @@ importsRouter.post(
       [id],
     );
 
-    const candidates = await loadCandidates({ teamId: assignment.teamId ?? null });
+    const candidates = await loadCandidates({
+      teamId: assignment.teamId ?? null,
+      userIds: assignment.userIds ?? null,
+    });
     // Before the import runs there are no rows yet, so the preview is done
     // against placeholder leads — the counts are what matter at this stage.
     const total = created.length > 0

@@ -1404,3 +1404,61 @@
   /* The chevron is noise once the whole card is the tap target. */
   .v2 .v2-offer-row td:last-child { display:none; }
 }
+
+/* ── Import ──────────────────────────────────────────────────────────────
+ *
+ * The wizard's own layout is ported from `design/web/import.html`. These are
+ * the few things the design's demo script does rather than its stylesheet,
+ * plus the phone layout, which that page does not have.
+ */
+
+/* Each step and the line after it, so the rule sits between two steps
+   rather than being a sibling the flex row has to space around. */
+.v2 .v2-step-wrap { display:contents; }
+
+.v2 .v2-map-table .v2-map-to { width:240px; }
+.v2 .v2-map-table td { height:52px; }
+.v2 .v2-map-table .d-select { width:210px; }
+.v2 .v2-map-table tr.d-bad .d-select { box-shadow:inset 0 0 0 1.5px var(--red); }
+
+.v2 .v2-check-two { grid-template-columns:1fr 1fr; }
+.v2 .v2-give-project { width:230px; }
+.v2 .v2-done-h { font-size:26px; letter-spacing:-.02em; }
+.v2 .v2-import-bar { margin-top:4px; }
+.v2 .v2-import-note { max-width:1040px; margin-left:auto; margin-right:auto; }
+
+/* A step that has been passed can be gone back to; one ahead cannot. */
+.v2 .d-step:disabled { cursor:default; }
+.v2 .d-step.d-done { cursor:pointer; }
+.v2 .d-step.d-done:hover { color:var(--ink); }
+
+@media (max-width: 860px) {
+  /* Six steps with their words do not fit, so the strip scrolls. */
+  .v2 .d-stepper { overflow-x:auto; scrollbar-width:none; }
+  .v2 .d-stepper::-webkit-scrollbar { display:none; }
+  .v2 .d-step { flex:none; }
+
+  .v2 .d-stage { padding:20px 16px 18px; }
+  .v2 .d-two, .v2 .v2-check-two { grid-template-columns:minmax(0,1fr); }
+  .v2 .d-how { grid-template-columns:minmax(0,1fr); }
+  .v2 .d-ag-grid { grid-template-columns:minmax(0,1fr); }
+  .v2 .v2-give-project { width:100%; }
+
+  /* The three numbers and their operators become one column of rows. */
+  .v2 .d-sum3 { grid-template-columns:1fr; gap:4px; }
+  .v2 .d-sum3 .d-op { display:none; }
+
+  /* The mapping table's third column is a select that cannot shrink to a
+     third of a phone, so the row stacks. */
+  .v2 .v2-map-table, .v2 .v2-map-table tbody { display:block; }
+  .v2 .v2-map-table thead { display:none; }
+  .v2 .v2-map-table tr {
+    display:grid; grid-template-columns:1fr; gap:4px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .v2 .v2-map-table td { display:block; height:auto; padding:0; border:0; }
+  .v2 .v2-map-table .d-select { width:100%; }
+
+  .v2 .d-done-top { flex-wrap:wrap; }
+  .v2 .v2-done-h { font-size:21px; }
+}

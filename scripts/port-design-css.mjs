@@ -303,6 +303,7 @@ const PAGES = [
   ['ai-settings.html', "Homes AI's settings", 'p-ai-settings'],
   ['automations.html', 'automations', 'p-automations'],
   ['sales-offers.html', 'sales offers', 'p-offers'],
+  ['import.html', 'import', 'p-import'],
 ];
 
 const pageCss = PAGES.map(([file, what, pageClass]) => {

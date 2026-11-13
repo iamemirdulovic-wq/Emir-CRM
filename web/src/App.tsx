@@ -51,6 +51,7 @@ import { V2Wall } from './v2/Wall.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
 import { V2Offers } from './v2/Offers.js';
+import { V2Import } from './v2/Import.js';
 import { V2SettingsGeneral } from './v2/settings/General.js';
 import { V2SettingsNotifications } from './v2/settings/Notifications.js';
 import { V2SettingsCompany } from './v2/settings/Company.js';
@@ -133,7 +134,7 @@ export function App() {
           <Route path="/v2/pipeline" element={<V2Pipeline />} />
           <Route path="/v2/calling" element={<V2Calling />} />
           <Route path="/v2/transfers" element={<V2Transfers />} />
-          <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
+          <Route path="/v2/import" element={<V2Import />} />
           <Route path="/v2/calendar" element={<V2Calendar />} />
           <Route path="/v2/tasks" element={<V2Tasks />} />
           <Route path="/v2/projects" element={<V2Projects />} />

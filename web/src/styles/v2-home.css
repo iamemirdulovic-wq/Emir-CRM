@@ -445,3 +445,46 @@
 .v2 .p-offers .d-pub-link {display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--surface-2);font-weight:600;font-size:13px}
 .v2 .p-offers .d-pub-link>i, .v2 .p-offers .d-pub-link>svg {color:var(--ink-3)}
 .v2 .p-offers .d-btn>svg {width:16px;height:16px;flex:none}
+
+/* ── import (import.html) · scoped to .p-import ───────────── */
+/* page-only layout */
+.v2 .p-import .d-imp {max-width:1040px;margin:8px auto 0}
+.v2 .p-import .d-imp .d-stepper {margin:0;padding:16px 22px;background:var(--surface);border-radius:22px;box-shadow:var(--shadow-1)}
+.v2 .p-import .d-imp .d-step.d-done {cursor:pointer}
+.v2 .p-import .d-imp .d-step.d-done:hover {color:var(--ink)}
+.v2 .p-import .d-stage {margin-top:16px;padding:28px 30px 24px;min-height:500px}
+.v2 .p-import .d-stage>header {margin-bottom:20px}
+.v2 .p-import .d-stage>header h2 {font-size:24px;letter-spacing:-.02em}
+.v2 .p-import .d-stage>header p {color:var(--ink-3);margin-top:4px;font-size:14px}
+.v2 .p-import .d-stage[hidden] {display:none}
+.v2 .p-import .d-two {display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start}
+.v2 .p-import .d-drop {border:2px dashed var(--line-2);border-radius:22px;padding:44px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;transition:.15s;cursor:pointer}
+.v2 .p-import .d-drop:hover, .v2 .p-import .d-drop.d-over {border-color:var(--accent);background:var(--accent-soft)}
+.v2 .p-import .d-drop .d-ic {width:64px;height:64px;border-radius:20px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2)}
+.v2 .p-import .d-drop b {font-size:17px;font-weight:680}
+.v2 .p-import .d-file-card {display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;background:var(--green-soft)}
+.v2 .p-import .d-file-card .d-ic {width:44px;height:44px;border-radius:14px;background:var(--surface);display:grid;place-items:center;color:var(--green-ink);flex:none}
+.v2 .p-import .d-file-card[hidden], .v2 .p-import .d-banner[hidden] {display:none}
+.v2 .p-import .d-rules {display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.v2 .p-import .d-rules li {display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2)}
+.v2 .p-import .d-rules li i, .v2 .p-import .d-rules li svg {color:var(--green);margin-top:1px;flex:none}
+.v2 .p-import .d-id-map td {height:52px}
+.v2 .p-import .d-id-map .d-select {width:210px}
+.v2 .p-import .d-id-map tr.d-bad .d-select {box-shadow:inset 0 0 0 1.5px var(--red)}
+.v2 .p-import .d-need {display:flex;gap:8px;flex-wrap:wrap}
+.v2 .p-import .d-sum3 {display:grid;grid-template-columns:1.1fr auto 1fr auto 1fr auto 1fr;align-items:end;gap:14px;margin-bottom:14px}
+.v2 .p-import .d-sum3 .d-op {font-size:30px;font-weight:300;color:var(--ink-4);padding-bottom:22px}
+.v2 .p-import .d-mini-list {display:flex;flex-direction:column}
+.v2 .p-import .d-mini-list>div {display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13px;min-width:0}
+.v2 .p-import .d-mini-list>div+div {border-top:1px solid var(--line)}
+.v2 .p-import .d-mini-list .d-grow {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v2 .p-import .d-ag-grid {display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.v2 .p-import .d-ag-grid .d-opt {padding:9px 12px}
+.v2 .p-import .d-ag-grid .d-get {font-weight:700;font-size:13px;white-space:nowrap}
+.v2 .p-import .d-ag-grid .d-opt:not(.d-on) .d-get {color:var(--ink-4);font-weight:500}
+.v2 .p-import .d-how {display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.v2 .p-import .d-how .d-opt {flex-direction:column;align-items:flex-start;gap:6px;padding:14px}
+.v2 .p-import .d-done-top {display:flex;align-items:center;gap:18px;margin-bottom:20px}
+.v2 .p-import .d-done-top .d-ic {width:68px;height:68px;border-radius:22px;background:var(--green-soft);color:var(--green-ink);display:grid;place-items:center;flex:none}
+.v2 .p-import .d-imp-foot {display:flex;align-items:center;gap:10px;margin-top:16px}
+.v2 .p-import .d-imp-foot[hidden] {display:none}

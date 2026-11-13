@@ -235,12 +235,21 @@ export async function assign(
   input: Omit<DistributionInput, 'candidates' | 'leads'> & {
     opportunityIds: string[];
     teamId?: string | null;
+    /**
+     * Only these agents may receive, whatever the method.
+     *
+     * This is "Agents I choose" from `design/web/import.html`: an even split
+     * across a named handful rather than the whole floor. Without it,
+     * `split_even` quietly means everybody, and an owner who ticked four
+     * names would find the batch spread over ten.
+     */
+    userIds?: string[] | null;
     reason: string;
   },
   exec: Executor = getPool(),
 ): Promise<ApplyResult> {
   const [candidates, leads] = await Promise.all([
-    loadCandidates({ teamId: input.teamId ?? null }, exec),
+    loadCandidates({ teamId: input.teamId ?? null, userIds: input.userIds ?? null }, exec),
     loadAssignable(input.opportunityIds, exec),
   ]);
   const plan = distribute({ ...input, candidates, leads });

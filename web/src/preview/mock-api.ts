@@ -1110,6 +1110,28 @@ const offerState: PreviewOfferSheet[] = [
   },
 ];
 
+/* ── import ─────────────────────────────────────────────────────────────
+ *
+ * A file with every kind of row in it: new people, somebody already in the
+ * CRM, and rows that cannot become a lead. A demo file where everything is
+ * clean never shows what steps 3 and 6 are for.
+ */
+const importState = {
+  id: 'imp-1',
+  filename: 'Nov_batch_C.xlsx',
+  status: 'uploaded',
+  total_rows: 240,
+  processed_rows: 0,
+  created_count: 0,
+  updated_count: 0,
+  skipped_count: 0,
+  failed_count: 0,
+  headers: ['Full Name', 'Mobile No.', 'Email', 'Project', 'Budget AED', 'Notes', 'Source'],
+  mapping: null as Record<string, string | null> | null,
+  undo_deadline_at: new Date(Date.now() + 24 * 3_600_000).toISOString(),
+  startedAt: 0,
+};
+
 const ROUTES: Route[] = [
   // --- auth ---------------------------------------------------------------
   { method: 'GET', pattern: /^\/api\/auth\/me$/, handler: () => {
@@ -1669,6 +1691,110 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/v2\/leave\/([^/]+)\/cancel$/, handler: () => ({ cancelled: true }) },
 
   /* The numbers on the menu, in one answer, as the real endpoint gives them. */
+  /* ── import ───────────────────────────────────────────────────────────── */
+  { method: 'POST', pattern: /^\/api\/imports$/, handler: () => {
+    Object.assign(importState, {
+      status: 'uploaded', processed_rows: 0, created_count: 0,
+      updated_count: 0, skipped_count: 0, failed_count: 0, startedAt: 0,
+    });
+    return {
+      id: importState.id,
+      filename: importState.filename,
+      kind: 'xlsx',
+      bytes: 49_152,
+      headers: importState.headers,
+      preview: [
+        ['Sara Ahmed', '0501234567', 'sara@example.com', 'The Archive', 'AED 1.5M - 2.5M', 'Called once', 'Portal'],
+        ['Omar Haddad', '0559876543', 'omar@example.com', 'Damac Islands', 'AED 2M - 3M', '', 'Referral'],
+      ],
+      suggestedMapping: {
+        'Full Name': 'fullName',
+        'Mobile No.': 'phone',
+        Email: 'email',
+        Project: 'projectName',
+        'Budget AED': 'budgetBand',
+        Notes: 'notes',
+        Source: 'source',
+      },
+    };
+  } },
+
+  { method: 'PATCH', pattern: /^\/api\/imports\/([^/]+)$/, handler: ({ body }) => {
+    const patch = (body ?? {}) as { mapping?: Record<string, string | null> };
+    if (patch.mapping) importState.mapping = patch.mapping;
+    return { ok: true };
+  } },
+
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/validate$/, handler: () => ({
+    total: importState.total_rows,
+  }) },
+
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/preflight$/, handler: () => ({
+    total: 240,
+    fresh: 208,
+    duplicates: 18,
+    invalid: 14,
+    contactsInCrm: 863,
+    duplicateRows: [
+      { line: 12, name: 'Marco Bellini', phone: '+39 333 455 4821', detail: 'with Rocky' },
+      { line: 31, name: 'Lina Rahimi', phone: '+971 55 555 0142', detail: 'in Incoming' },
+      { line: 77, name: 'Dave Patel', phone: '+44 7700 900 456', detail: 'with Rocky' },
+    ],
+    invalidRows: [
+      { line: 17, name: 'Hamad R.', phone: null, detail: 'No phone number and no email address' },
+      { line: 52, name: 'Julia Stein', phone: '0550', detail: 'Phone number is too short' },
+      { line: 118, name: null, phone: null, detail: 'No phone number and no email address' },
+    ],
+    invalidReasons: [
+      { reason: 'No phone number and no email address', n: 9 },
+      { reason: 'Phone number is too short', n: 4 },
+      { reason: 'Not a name', n: 1 },
+    ],
+  }) },
+
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/start$/, handler: () => {
+    importState.status = 'importing';
+    importState.startedAt = Date.now();
+    return { ok: true };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/imports\/([^/]+)$/, handler: () => {
+    /* Counts up over about four seconds, so the progress bar on step 6 is a
+       real one rather than a picture of one. */
+    if (importState.status === 'importing') {
+      const share = Math.min(1, (Date.now() - importState.startedAt) / 4000);
+      importState.processed_rows = Math.round(240 * share);
+      importState.created_count = Math.round(208 * share);
+      importState.skipped_count = Math.round(32 * share);
+      if (share >= 1) importState.status = 'completed';
+    }
+    return { import: { ...importState }, problems: [], undoWindowHours: 24 };
+  } },
+
+  { method: 'POST', pattern: /^\/api\/imports\/([^/]+)\/undo$/, handler: () => {
+    importState.status = 'undone';
+    return { undone: importState.created_count };
+  } },
+
+  { method: 'GET', pattern: /^\/api\/teams\/candidates$/, handler: () => ({
+    items: USERS.filter((one) => one.role === 'agent').map((one, index) => ({
+      userId: one.id,
+      name: one.name,
+      languages: ['english'],
+      projectsCovered: [],
+      openLeads: [22, 14, 18, 12, 16][index % 5] ?? 10,
+      isEligible: true,
+    })),
+  }) },
+
+  { method: 'GET', pattern: /^\/api\/teams$/, handler: () => ({
+    items: [
+      { id: 't-1', name: 'Dubai off-plan', description: null, manager_name: 'Yousef' },
+      { id: 't-2', name: 'Arabic desk', description: null, manager_name: 'Yousef' },
+      { id: 't-3', name: 'Abu Dhabi', description: null, manager_name: null },
+    ],
+  }) },
+
   /* ── sales offers ─────────────────────────────────────────────────────── */
   { method: 'GET', pattern: /^\/api\/v2\/offers$/, handler: ({ query }) => {
     const me = currentUser();
