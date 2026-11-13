@@ -1276,3 +1276,21 @@ office can save it without knowing what an IP address is.
 
 It is a deterrent, not a lock — a VPN into the office defeats it — and that
 was already the case before this screen existed.
+
+## Two migrations are both numbered 0038, and renumbering them would break the deploy
+
+`0038_lead_screens.sql` and `0038_meeting_results.sql` were written the same
+afternoon by two people who could not see each other's work. They sort
+deterministically (`lead_screens` before `meeting_results`), both are additive,
+and both apply exactly once, so nothing is wrong with the database.
+
+**Do not "tidy" this by renaming one of them.** `src/db/migrate.ts` records a
+migration by its *filename* in `schema_migrations`, so a renamed file is a file
+the database has never seen: it runs again, its `ALTER TABLE ... ADD COLUMN`
+hits a column that already exists, and the deploy fails on the way up. Every
+push on this branch is a release to crm.homes.me, so that failure would land on
+ten people at once.
+
+If the duplicate ever genuinely has to go, the safe shape is a new, higher-
+numbered migration that does the renaming inside `schema_migrations` itself —
+not a `git mv`.

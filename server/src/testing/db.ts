@@ -14,7 +14,16 @@ import { clearSecretCache } from '../config/secrets.js';
  * MySQL while still running for real in CI and locally.
  */
 
-const TEST_DB = process.env.TEST_DB_NAME ?? 'emir_crm_test';
+/*
+ * Which database the integration suites run against.
+ *
+ * `TEST_DB_NAME` is the caller's own choice and wins. Otherwise it is the one
+ * `global-setup.ts` made for this run and will drop again at the end — see
+ * the note at the top of that file for why a run must not share a database
+ * with another run. `emir_crm_test` is the last resort, for a run started
+ * without this project's vitest config and so without that global setup.
+ */
+const TEST_DB = process.env.TEST_DB_NAME ?? process.env.__EMIR_TEST_DB__ ?? 'emir_crm_test';
 
 function testEnvSource(): NodeJS.ProcessEnv {
   return {
@@ -251,19 +260,83 @@ export const TRUNCATE_ORDER = [
   'projects',
 ];
 
-export async function resetTables(): Promise<void> {
-  await execute('SET FOREIGN_KEY_CHECKS = 0');
-  for (const table of TRUNCATE_ORDER) {
-    await execute(`TRUNCATE TABLE ${table}`);
+/*
+ * A table name from `TRUNCATE_ORDER` goes into SQL as text, because a table
+ * name cannot be a bound parameter. The list is hand-written in this file and
+ * `reset-complete.test.ts` already checks every entry against the migrations,
+ * so there is nothing here an outsider can reach — but check the shape once
+ * at load anyway, so that stays true if someone pastes something odd in.
+ */
+for (const table of TRUNCATE_ORDER) {
+  if (!/^[a-z][a-z0-9_]*$/.test(table)) {
+    throw new Error(`TRUNCATE_ORDER contains a name that is not a plain table name: ${table}`);
   }
-  await execute('SET FOREIGN_KEY_CHECKS = 1');
+}
+
+/**
+ * Tables that have been seen holding a row at any point in this run.
+ *
+ * Emptying a hundred-odd tables before every single test was almost the whole
+ * cost of an integration run — measured at four to six seconds a test, against
+ * a suite where the tests themselves are milliseconds. Nearly all of those
+ * tables are already empty, and that does not make it cheaper: `TRUNCATE` on
+ * an empty InnoDB table still drops and recreates its tablespace, so it costs
+ * the same as one with rows in it.
+ *
+ * So a reset now asks, in one query, which tables actually hold a row, and
+ * empties those. The answer is remembered for the rest of the run and never
+ * forgotten: once a table has held a row it is emptied on every later reset
+ * whether the probe found anything in it or not. That is what keeps this as
+ * thorough as emptying everything — a row written by work that is still in
+ * flight when the next test starts cannot hide behind a probe that ran a
+ * moment earlier, because its table is on this list from then on.
+ */
+const everHeldRows = new Set<string>();
+
+/** One query, one row per table that is not empty. */
+async function tablesHoldingRows(conn: mysql.PoolConnection): Promise<string[]> {
+  const probe = TRUNCATE_ORDER
+    .map((table) => `(SELECT '${table}' AS t FROM \`${table}\` LIMIT 1)`)
+    .join(' UNION ALL ');
+  const rows = await query<{ t: string }>(probe, [], conn);
+  return rows.map((row) => row.t);
+}
+
+export async function resetTables(): Promise<void> {
+  /*
+   * One connection for the whole reset. `FOREIGN_KEY_CHECKS` is a session
+   * setting, and `execute()` takes whichever connection the pool hands it —
+   * so switching it off and truncating on two different connections is a
+   * flake waiting for a busy pool, and leaving it off on a connection the
+   * pool then gives to someone else is worse.
+   */
+  const conn = await getPool().getConnection();
+  try {
+    for (const table of await tablesHoldingRows(conn)) everHeldRows.add(table);
+    /* In TRUNCATE_ORDER's order: settings first, children before parents. */
+    const toEmpty = TRUNCATE_ORDER.filter((table) => everHeldRows.has(table));
+
+    if (toEmpty.length) {
+      await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+      try {
+        for (const table of toEmpty) await conn.query(`TRUNCATE TABLE \`${table}\``);
+      } finally {
+        await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+      }
+    }
+  } finally {
+    conn.release();
+  }
 
   /*
-   * Settings are cached in memory for thirty seconds, and truncating the table
-   * does not touch that. A whole suite runs well inside thirty seconds, so a
-   * test that changed a setting would hand its value to every test after it —
-   * and the failure would land on whichever test happened to run next, which
-   * is the worst kind to debug.
+   * Settings and secrets are cached in memory for thirty seconds, and
+   * truncating the table does not touch that. Nothing here relies on a test
+   * finishing inside that window — the cache is dropped on every reset, so a
+   * test that changed a setting cannot hand its value to the test after it
+   * however long either of them takes. (An earlier version of this comment
+   * argued from "a whole suite runs well inside thirty seconds", which has
+   * not been true for a long time; the clearing is what makes it safe, not
+   * the timing.)
    */
   clearSecretCache();
   await seedFieldMappings();
