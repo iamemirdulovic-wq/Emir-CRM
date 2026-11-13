@@ -376,11 +376,19 @@ describeWithDb('home', () => {
     const to = await createTestUser({ role: 'agent', name: 'Yuliia' });
     const lead = await aLead(from.id, { name: 'Omar Khalil' });
 
+    /*
+     * Two hours before today's Dubai midnight, written in UTC — which is what
+     * the column holds. `DATE(CONVERT_TZ(NOW(), …, '+04:00'))` alone is the
+     * Dubai date as a bare datetime; storing that without converting back
+     * lands it four hours out, and the row turns up as today after all.
+     */
     await execute(
       `INSERT INTO lead_transfers
          (id, opportunity_id, from_user_id, to_user_id, reason, status, requested_at)
        VALUES (?, ?, ?, ?, 'leave', 'needs_approval',
-               DATE_SUB(DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), INTERVAL 2 HOUR))`,
+               DATE_SUB(
+                 CONVERT_TZ(DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), '+04:00', '+00:00'),
+                 INTERVAL 2 HOUR))`,
       [newId(), lead.id, from.id, to.id],
     );
 

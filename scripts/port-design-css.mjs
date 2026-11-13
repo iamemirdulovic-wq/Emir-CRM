@@ -349,6 +349,10 @@ const PAGES = [
   ['messaging-report.html', 'the messaging report', 'p-messaging'],
   ['install-guide.html', 'the install guide', 'p-install'],
   ['add-lead.html', 'adding a lead', 'p-add-lead'],
+  /* The sign-in screen. `docs/v2/screens.md` had it down as "the existing
+     sign-in screen, unchanged", which was a false Done: the design is a
+     two-column brand panel beside the form, nothing like the live card. */
+  ['login.html', 'sign in', 'p-login'],
 ];
 
 const pageCss = PAGES.map(([file, what, pageClass]) => {

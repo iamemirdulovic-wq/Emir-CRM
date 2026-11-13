@@ -512,7 +512,6 @@ export function V2Calendar() {
       {answering?.meeting && (
         <ResultPanel
           plan={answering}
-          plans={plans}
           onClose={() => setAnswering(null)}
           onSaved={(said) => { setAnswering(null); got.reload(); toast(said); }}
         />
@@ -1124,6 +1123,7 @@ function PlanPanel({
   onAnswer: () => void;
   onChanged: (said: string) => void;
 }) {
+  const { user } = useAuth();
   const [changing, setChanging] = useState(false);
   const [on, setOn] = useState(dayKey(plan.at));
   const [at, setAt] = useState(clock(plan.at));
@@ -1146,8 +1146,17 @@ function PlanPanel({
   const clash = clashIn(plans, on, at, lengthMin, plan.id);
   const chip = resultChip(plan.result);
 
+  /*
+   * Whose plan it is.
+   *
+   * An agent may change and delete their own and nothing else — the server
+   * says so too, and a button that always 403s is worse than no button. The
+   * design's own answer for a team plan an agent did not make is "Hide for
+   * me", which has nowhere to be stored yet: see `docs/v2/questions-calendar.md`.
+   */
+  const mine = meeting?.mine !== false || user?.role !== 'agent';
   /* A task is not a plan: it is changed on the Tasks screen, which owns it. */
-  const editable = Boolean(meeting) && !plan.done;
+  const editable = Boolean(meeting) && !plan.done && mine;
 
   async function saveTime() {
     if (past) return;
@@ -1359,7 +1368,7 @@ function PlanPanel({
             </button>
           )}
           <span className="d-grow" />
-          {meeting && (
+          {meeting && mine && (
             <button type="button" className="d-btn d-danger" disabled={busy} onClick={remove}>
               <Icon name="trash-2" />{sure ? 'Tap again to delete' : 'Delete'}
             </button>
@@ -1382,10 +1391,9 @@ function PlanPanel({
  * owner cannot read a week later; a meeting with only a word is barely better.
  */
 function ResultPanel({
-  plan, plans, onClose, onSaved,
+  plan, onClose, onSaved,
 }: {
   plan: Plan;
-  plans: Plan[];
   onClose: () => void;
   onSaved: (said: string) => void;
 }) {

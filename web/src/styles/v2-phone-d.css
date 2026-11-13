@@ -584,3 +584,100 @@
      filter bar sits under the tabs; only the top one is the segment. */
   .v2.v2-phone .p-activity > .d-filters { margin-bottom: 4px; }
 }
+
+@media (max-width: 767px) {
+  /* ── sign in (`design/screens/Login.dc.html`) ───────────────────────────
+   *
+   * The computer design is a dark brand panel beside the form. The phone
+   * prototype has no brand panel at all: one light column, centred, with the
+   * logo lockup at the top, the form under it, the language chips and the
+   * "no app to download" note at the bottom. So the panel collapses to its
+   * logo and everything it was carrying — the headline, the lead paragraph,
+   * the three preview cards and the footer line — is dropped, because the
+   * prototype has none of them and a 54px headline over a 390px screen is
+   * two screens of scrolling before the email field.
+   *
+   * The one thing kept from the computer design is the language-and-theme
+   * row, at the top right. The prototype puts its language chips near the
+   * bottom and has no theme toggle to place; keeping the pair together where
+   * the computer design has them is the smaller surprise.
+   */
+  .v2.v2-phone .p-login {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    min-height: 100dvh;
+    padding: 0;
+    gap: 0;
+  }
+
+  .v2.v2-phone .p-login .d-brand {
+    min-height: 0;
+    border-radius: 0;
+    padding: 0 22px 0;
+    background: transparent;
+    color: var(--ink);
+    isolation: auto;
+    /* The prototype centres logo and form together as one column. An auto
+       margin does that and still resolves to 0 once the content is taller
+       than the screen, so a small phone scrolls instead of losing the top. */
+    margin-top: auto;
+  }
+  /* The two orange glows are the dark panel's, and there is no dark panel. */
+  .v2.v2-phone .p-login .d-brand::before,
+  .v2.v2-phone .p-login .d-brand::after { display: none; }
+  .v2.v2-phone .p-login .d-brand h1,
+  .v2.v2-phone .p-login .d-brand .d-lead,
+  .v2.v2-phone .p-login .d-preview,
+  .v2.v2-phone .p-login .d-foot { display: none; }
+
+  /* §Login.dc: a 52px rounded square and the word at 26px. */
+  .v2.v2-phone .p-login .d-logo { font-size: 26px; letter-spacing: -.02em; gap: 12px; }
+  .v2.v2-phone .p-login .d-logo .d-sb-mark { width: 52px; height: 52px; border-radius: 16px; }
+  .v2.v2-phone .p-login .d-logo .d-sb-mark svg { width: 28px; height: 28px; }
+  .v2.v2-phone .p-login .v2-login-chip {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+
+  .v2.v2-phone .p-login .d-side {
+    flex: none;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 18px 22px 30px;
+    position: static;
+    margin-bottom: auto;
+  }
+  .v2.v2-phone .p-login .d-form { max-width: none; }
+  /* After the form in the markup, so here it simply flows: the prototype
+     centres the two language chips under the Sign in button. */
+  .v2.v2-phone .p-login .d-topline {
+    position: static;
+    justify-content: center;
+    margin-top: 18px;
+  }
+  .v2.v2-phone .p-login .d-topline .d-seg > button { height: 32px; padding: 0 14px; font-size: 13px; }
+  .v2.v2-phone .p-login > .d-side > .v2-login-install { margin-top: 16px; }
+
+  /* The prototype's own control sizes: 52px fields at 16px, which is also
+     what stops iOS zooming the page when a field takes focus, and a 58px
+     button. The check row gets a thumb's 44px. */
+  .v2.v2-phone .p-login .d-input.d-lg {
+    height: 52px;
+    border-radius: 16px;
+    font-size: 16px;
+    padding: 0 16px;
+  }
+  .v2.v2-phone .p-login .d-input-icon > .d-input.d-lg { padding-left: 44px; }
+  .v2.v2-phone .p-login .d-input-icon > i,
+  .v2.v2-phone .p-login .d-input-icon > svg { left: 16px; }
+  .v2.v2-phone .p-login .d-btn.d-primary.d-lg {
+    height: 58px;
+    border-radius: 18px;
+    font-size: 16px;
+    font-weight: 750;
+  }
+  .v2.v2-phone .p-login .d-check { min-height: 44px; }
+  .v2.v2-phone .p-login .d-form h2 { font-size: 28px; }
+  .v2.v2-phone .p-login .v2-login-install { border-radius: 18px; padding: 14px; }
+}

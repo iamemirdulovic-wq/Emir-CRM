@@ -66,6 +66,29 @@ describe('the reasons a lead can be closed or flagged', () => {
     expect(LOST_REASONS).toContain('other');
   });
 
+  /*
+   * The design's six, in `design/web/lead.html`'s own order. Two of them —
+   * "Not into off-plan" and "Is a broker, not a buyer" — were missing
+   * entirely, so an agent whose buyer only wanted a ready flat, or who turned
+   * out to be another broker, reached for "Other" and the owner lost the two
+   * answers they could act on: one is a project problem, the other a
+   * lead-source problem.
+   */
+  it('offers the six the lead page draws, in its order', () => {
+    expect(LOST_REASONS.slice(0, 6)).toEqual([
+      'bought_elsewhere', 'budget_too_low', 'just_browsing',
+      'not_into_offplan', 'is_broker', 'other',
+    ]);
+  });
+
+  /* The dialler still offers these two and leads already carry them, so
+     dropping them would make an existing reason unwritable — which is the
+     fault being fixed here, in reverse. */
+  it('still accepts the two the dialler offers', () => {
+    expect(LOST_REASONS).toContain('not_reachable');
+    expect(LOST_REASONS).toContain('changed_plans');
+  });
+
   it('separates a problem with the contact from a lost deal', () => {
     expect(PROBLEM_REASONS).toContain('wrong_number');
     expect(PROBLEM_REASONS).toContain('not_decision_maker');

@@ -129,7 +129,7 @@ const DASH = {
     {
       kind: 'untouched',
       text: '86 leads are not touched yet',
-      sub: 'Nobody has called or messaged them yet',
+      sub: 'No call and no message since they arrived',
       action: 'View',
       to: '/v2/leads?tab=new',
       move: null,
@@ -142,6 +142,8 @@ const DASH = {
     openLeads: a.open,
     where: a.onLeave ? 'leave' : a.marked === 'outside' ? 'outside'
       : a.marked === 'office' ? 'office' : 'absent',
+    /* The assignment machinery takes an active, available agent and nobody
+       else; the preview mirrors that, so the dialog looks the same here. */
     canTake: !a.onLeave && a.marked !== null,
   })).sort((a, b) => a.openLeads - b.openLeads),
 };

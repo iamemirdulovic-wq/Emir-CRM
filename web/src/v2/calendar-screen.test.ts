@@ -108,6 +108,12 @@ describe('4. a new task always opens at 10:00', () => {
   it('says what the design says when a meeting has no time', () => {
     expect(TASKS).toContain("'A meeting needs a time.'");
   });
+
+  it('lets an overdue task be renamed, but not pushed further back', () => {
+    /* The rule is suspended only while the day and the hour are the ones the
+       task already had. Change either and the past is refused again. */
+    expect(TASKS).toContain('const past = wasPast && keptItsHour ? null : pastProblem(on, at);');
+  });
 });
 
 describe('5. the new-plan form has no lead picker', () => {

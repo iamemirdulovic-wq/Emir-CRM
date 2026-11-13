@@ -131,6 +131,138 @@ describeWithDb('the leads screens', () => {
     expect(list.items[0]?.full_name).toBe('Mariam Saleh');
   });
 
+  /* ── 2. moving several leads at once, and undoing it ──────────────────── */
+
+  /*
+   * The tick boxes and the "Move N leads" panel were in the phone branch
+   * only, and the move itself was one HTTP request per lead from the browser
+   * with no way back. One request now carries the batch and answers with
+   * where each lead came from, which is what makes the design's Undo work.
+   */
+  it('moves a batch in one request and says where each lead came from', async () => {
+    const boss = await createTestUser({ role: 'owner' });
+    const from = await createTestUser({ role: 'agent', name: 'Shan' });
+    const to = await createTestUser({ role: 'agent', name: 'Rocky' });
+    const one = await aLead(from.id, { name: 'Lead One' });
+    const two = await aLead(from.id, { name: 'Lead Two' });
+    const cookie = await signIn(base, boss);
+
+    const res = await send('POST', '/api/my-leads/move', cookie, {
+      moves: [one, two].map((lead) => ({ id: lead.id, toUserId: to.id })),
+    });
+    expect(res.status, await res.clone().text()).toBe(200);
+    const body = await res.json() as {
+      moved: Array<{ id: string; fromUserId: string | null; fromName: string | null }>;
+      said: string;
+    };
+    expect(body.moved).toHaveLength(2);
+    expect(body.moved.every((row) => row.fromUserId === from.id)).toBe(true);
+    expect(body.said).toContain('2 leads moved');
+    expect(body.said, 'the design’s own words').toContain('notes and history went with them');
+
+    const after = await query<{ owner_user_id: string }>(
+      'SELECT owner_user_id FROM opportunities WHERE id IN (?, ?)',
+      [one.id, two.id],
+    );
+    expect(after.every((row) => row.owner_user_id === to.id)).toBe(true);
+
+    /* One notification for the batch, not one per lead. */
+    const told = await query<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM notifications WHERE user_id = ?',
+      [to.id],
+    );
+    expect(Number(told[0]?.n)).toBe(1);
+
+    /* Undo: the same endpoint with the list inverted. */
+    const undo = await send('POST', '/api/my-leads/move', cookie, {
+      moves: body.moved.map((row) => ({ id: row.id, toUserId: row.fromUserId })),
+    });
+    expect(undo.status, await undo.clone().text()).toBe(200);
+    const back = await query<{ owner_user_id: string }>(
+      'SELECT owner_user_id FROM opportunities WHERE id IN (?, ?)',
+      [one.id, two.id],
+    );
+    expect(back.every((row) => row.owner_user_id === from.id)).toBe(true);
+  });
+
+  it('puts a lead in Incoming when it is moved to nobody', async () => {
+    const boss = await createTestUser({ role: 'owner' });
+    const agent = await createTestUser({ role: 'agent' });
+    const { id } = await aLead(agent.id);
+
+    const res = await send('POST', '/api/my-leads/move', await signIn(base, boss), {
+      moves: [{ id, toUserId: null }],
+    });
+    expect(res.status, await res.clone().text()).toBe(200);
+
+    const saved = await queryOne<{ owner_user_id: string | null; assigned_at: Date | null }>(
+      'SELECT owner_user_id, assigned_at FROM opportunities WHERE id = ?',
+      [id],
+    );
+    expect(saved?.owner_user_id).toBeNull();
+    expect(saved?.assigned_at).toBeNull();
+    /* And it is in the free-leads queue, or Incoming would not show it. */
+    const queued = await queryOne<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM unassigned_queue WHERE opportunity_id = ? AND resolved_at IS NULL',
+      [id],
+    );
+    expect(Number(queued?.n)).toBe(1);
+  });
+
+  it('does not let an agent move leads from this screen', async () => {
+    const mine = await createTestUser({ role: 'agent' });
+    const other = await createTestUser({ role: 'agent' });
+    const { id } = await aLead(mine.id);
+
+    const res = await send('POST', '/api/my-leads/move', await signIn(base, mine), {
+      moves: [{ id, toUserId: other.id }],
+    });
+    expect(res.status, 'an agent asks for a transfer instead').toBe(400);
+    const saved = await queryOne<{ owner_user_id: string }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?',
+      [id],
+    );
+    expect(saved?.owner_user_id).toBe(mine.id);
+  });
+
+  it('skips a lead the mover may not see rather than failing the batch', async () => {
+    const manager = await createTestUser({ role: 'manager', name: 'Manager' });
+    const mine = await createTestUser({ role: 'agent', managerId: manager.id });
+    const elsewhere = await createTestUser({ role: 'agent' });
+    const ours = await aLead(mine.id, { name: 'Ours' });
+    const theirs = await aLead(elsewhere.id, { name: 'Not ours' });
+
+    const res = await send('POST', '/api/my-leads/move', await signIn(base, manager), {
+      moves: [
+        { id: ours.id, toUserId: manager.id },
+        { id: theirs.id, toUserId: mine.id },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { moved: unknown[]; skipped: number };
+    expect(body.moved, 'the manager’s own team’s lead moves').toHaveLength(1);
+    expect(body.skipped, 'the other team’s lead is left where it is').toBe(1);
+
+    const untouched = await queryOne<{ owner_user_id: string }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?',
+      [theirs.id],
+    );
+    expect(untouched?.owner_user_id).toBe(elsewhere.id);
+  });
+
+  it('hands back the ids behind the filters, for “Select all”', async () => {
+    const boss = await createTestUser({ role: 'owner' });
+    const agent = await createTestUser({ role: 'agent' });
+    await aLead(agent.id, { name: 'In Valia', project: 'Valia' });
+    await aLead(agent.id, { name: 'Also Valia', project: 'Valia' });
+    await aLead(agent.id, { name: 'Elsewhere', project: 'The Archive' });
+
+    const body = await (await get('/api/my-leads/ids?tab=all&project=valia', await signIn(base, boss)))
+      .json() as { ids: string[]; limit: number };
+    expect(body.ids, 'the filter applies to the ids as well as to the page').toHaveLength(2);
+    expect(body.limit).toBeGreaterThan(0);
+  });
+
   /* ── 4. the project filter ─────────────────────────────────────────────── */
 
   /*
@@ -246,6 +378,24 @@ describeWithDb('the leads screens', () => {
       'and a row in the change history',
     ).toBe(true);
     expect(history.items.some((one) => one.what === 'Lead created')).toBe(true);
+  });
+
+  /*
+   * The three menu lines read their choices from here rather than carrying
+   * their own copy, so a choice on the page is always one the ENUM holds.
+   * It is also a route-order check: `/:id` matches anything, and declared
+   * above this it would swallow it for ever, silently.
+   */
+  it('tells the screen which choices the three menu lines may have', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const res = await get('/api/my-leads/wants/choices', await signIn(base, agent));
+    expect(res.status, await res.clone().text()).toBe(200);
+    const body = await res.json() as Record<string, Array<{ value: string; label: string }>>;
+    expect(body.purpose?.map((one) => one.value)).toEqual(['investment', 'end_use', 'unknown']);
+    expect(body.timeline?.length).toBe(6);
+    expect(body.payment?.map((one) => one.value))
+      .toEqual(['cash', 'mortgage', 'payment_plan', 'unknown']);
+    expect(body.purpose?.[0]?.label, 'in plain English, not the column’s word').toBe('Investment');
   });
 
   it('refuses a purpose the column cannot hold', async () => {

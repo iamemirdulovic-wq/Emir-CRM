@@ -988,12 +988,16 @@ function NewTask({
   /*
    * The design's own refusals, each under the field it is about.
    *
-   * A task already in the past is left alone: an overdue task being renamed
-   * must not be refused for being overdue, which is exactly when somebody is
-   * most likely to be editing it.
+   * An overdue task keeps the hour it already has: renaming one must not be
+   * refused for being overdue, which is exactly when somebody is most likely
+   * to be editing it. Touch the day or the time and the rule applies again,
+   * so it cannot be used to push a task further into the past.
    */
+  const keptItsHour = Boolean(task)
+    && on === dayKey(new Date((task as Task).due_at))
+    && at === clock(new Date((task as Task).due_at));
   const wasPast = task ? new Date(task.due_at).getTime() < Date.now() : false;
-  const past = wasPast ? null : pastProblem(on, at);
+  const past = wasPast && keptItsHour ? null : pastProblem(on, at);
   const titleProblem = title.trim().length < 2 ? 'Write what you need to do.' : null;
   const dayProblem = past?.field === 'day' ? past.message : null;
   const timeProblem = !at
@@ -1075,7 +1079,7 @@ function NewTask({
                 value={on}
                 /* The browser's own floor, so a past day is not even offered.
                    An overdue task keeps its own day until somebody moves it. */
-                {...(wasPast ? {} : { min: today })}
+                {...(wasPast && keptItsHour ? {} : { min: today })}
                 onChange={(e) => setOn(e.target.value)}
               />
               <span className="d-error">{dayProblem}</span>

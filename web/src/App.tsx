@@ -34,6 +34,7 @@ import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
 import { V2Shell, V2More } from './v2/Shell.js';
+import { V2Login } from './v2/Login.js';
 import { V2Leads } from './v2/Leads.js';
 import { V2Home } from './v2/Home.js';
 import { V2Calling } from './v2/Calling.js';
@@ -81,11 +82,18 @@ import { V2SettingsSecurity } from './v2/settings/Security.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 import { OwnerOnly } from './v2/OwnerOnly.js';
 
-/** Everything behind the login, with the temporary-password gate in front. */
-function Protected({ children }: { children: ReactNode }) {
+/**
+ * Everything behind the login, with the temporary-password gate in front.
+ *
+ * `signedOutTo` is which sign-in screen a visitor with no session is sent to.
+ * It is `/login` for every live screen and `/v2/login` for the v2 ones, so
+ * that the two versions each keep their own front door while they exist side
+ * by side.
+ */
+function Protected({ children, signedOutTo = '/login' }: { children: ReactNode; signedOutTo?: string }) {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to={signedOutTo} replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
   /* First sign-in, and they have neither finished the welcome nor put it off.
      Before the shell renders, so nobody sees the dashboard flash past on
@@ -134,9 +142,16 @@ export function App() {
           * side by side. The master prompt's build order replaces these
           * placeholders one phase at a time.
           */}
+        {/*
+          * v2's own sign-in, from `design/web/login.html`. Outside the guard,
+          * because it is what the guard sends people to, and outside the shell,
+          * because the design gives it the whole window. `/login` is untouched
+          * and is still the one ten people use every morning.
+          */}
+        <Route path="/v2/login" element={<V2Login />} />
         <Route
           element={
-            <Protected>
+            <Protected signedOutTo="/v2/login">
               <V2Shell />
             </Protected>
           }

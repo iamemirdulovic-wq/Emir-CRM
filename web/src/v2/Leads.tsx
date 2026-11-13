@@ -453,7 +453,8 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * says what it really knows. See `docs/v2/phone-questions-a.md`.
    */
   const headSub = book
-    ? `Owner · ${(counts.data?.all ?? 0).toLocaleString()} leads · every agent`
+    /* The design's own sub-line, word for word. */
+    ? `${(counts.data?.all ?? 0).toLocaleString()} leads · every agent`
     : `${(counts.data?.all ?? 0).toLocaleString()} leads · ${todayCount} to call today`;
   usePhoneHead({
     /* An agent who arrives on the Hot chip is still looking at their own
@@ -837,8 +838,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       </div>
 
       {/* The strip that starts the day. Only over the Today tab, which is the
-          only list that is a call list. */}
-      {tab === 'today' && todayCount > 0 && (
+          only list that is a call list — and never on the owner's book, which
+          has no Today tab and is not a call list at all. */}
+      {!book && tab === 'today' && todayCount > 0 && (
         <div className="d-start-strip">
           <span className="d-card-icon v2-leadlist-dial"><Icon name="phone" /></span>
           <div className="d-grow">

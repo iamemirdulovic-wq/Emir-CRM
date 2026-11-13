@@ -80,6 +80,23 @@ off-plan 60 · Arabic desk 50 · Abu Dhabi 40"); the real names and numbers come
 from the table, and the footer says "No desk has one set yet" when there are
 none. Set them in Settings → Desks and both screens fill in.
 
+## 4b. A manager cannot be given leads, and the dialog now says so
+
+Found while building the Move dialog: `loadCandidates` in
+`server/src/assignment/apply.ts` — the function every assignment goes
+through — takes **an active user whose role is exactly `agent` and whose
+availability is "available"**, and nobody else. A manager is not one.
+
+So the Move dialog greys a manager out, and the server refuses one, rather
+than appearing to hand the leads over and quietly pooling them. The same is
+true of an agent marked "busy" or "off" in their own availability.
+
+**Worth a decision:** is that right? A manager with their own leads is a real
+thing in this office — the team table counts them — but the assignment rules
+have never given one a lead. If managers should be able to take a batch,
+`loadCandidates` is the one line to change, and it changes every assignment in
+the product, not just this dialog.
+
 ## 5. One line that is not the screens' to fix
 
 Every v2 page on the computer has lost the grey sub-line under its title that
@@ -92,6 +109,19 @@ where `design/screens/OwnerHome.dc.html` draws one. On the computer the design
 has no greeting in the page body — the top bar carries the name and the date —
 so the page starts on the period switch, and the date is currently nowhere on
 the screen except inside "Live · 14:55".
+
+## 5b. Five small tap targets on the dashboard's phone legend
+
+The attendance legend's five entries are now links, so a tap opens attendance
+filtered to that group — which is what the design writes. On a phone each is
+18px tall, under the 28px the layout check wants under a thumb.
+
+It is the design's own size, and `npm run polish` treats a small tap target as
+a judgement call rather than a defect (the run is otherwise clean: 300 screens,
+no overflow, nothing clipped, no broken image). The card's "Attendance →" link
+beside the heading is full size and goes to the same screen, so nothing is
+unreachable. Making the legend taller is a phone stylesheet change, in a file
+this slice did not own.
 
 ## 6. Two small honesties
 

@@ -483,9 +483,11 @@ export async function whoCouldTakeIt(exceptUserId: string): Promise<CouldTakeIt[
     markedToday: (r.markedToday as string | null) ?? null,
     wasLate: Number(r.wasLate ?? 0) === 1,
     lateMinutes: Number(r.wasLate ?? 0) === 1 && r.markedAt
-      ? minutesLate(new Date(r.markedAt as string), office)
+      ? minutesLate(new Date(r.markedAt as string | Date), office)
       : null,
-    backBy: r.backBy ? new Date(r.backBy as string).toISOString() : null,
+    /* mysql2 hands a DATETIME back as a Date; the cast says so rather than
+       pretending it is a string that happens to parse. */
+    backBy: r.backBy ? new Date(r.backBy as string | Date).toISOString() : null,
     onLeave: Number(r.onLeave ?? 0) === 1,
     dealsThisMonth: Number(r.dealsThisMonth ?? 0),
     replySeconds: r.replySeconds === null || r.replySeconds === undefined

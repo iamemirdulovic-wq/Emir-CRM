@@ -402,3 +402,124 @@ so on a computer the date is now nowhere on the owner's home except inside
 pages at once, and it is what the design draws). **B) Give the owner's home
 its own greeting on the computer too**, which is one page fixed and 43 still
 missing it.
+
+## 27. A task with "no time" cannot be stored
+
+The tasks design opens the Time box with **"No time"** at the top of the list:
+a task that belongs to a day and not to an hour. The build cannot store one.
+`tasks.due_at` is a date *and* a time and has been since the first migration,
+so a task with no time has to be given one anyway — and whatever hour we
+picked would be a number nobody typed, showing up in the list as if the agent
+had chosen it.
+
+So the new-task form asks for a time. It opens at the **next free time** on
+that day, which is what the design does for every other case, and the list is
+the design's own quarter-hour list, 07:00 to 21:00, 24-hour.
+
+**A) Leave it as it is** (recommended — a task with a time shows up on My Day
+in the right order, and "no time" quietly means "end of the day" to a database
+either way). **B) Add a "no time" flag to the task**, which is one new column
+and a change to every screen that reads a task's hour: My Day, the week strip,
+the calendar and the reminder job.
+
+## 28. A no-show's "red flag" has nowhere to live
+
+The meeting result panel says, word for word: *"After 2 no-shows the lead gets
+a red flag."* The count is real now — the calendar counts every no-show on
+that lead, over the whole book, and the second one says *"The lead gets a red
+flag. The owner sees it."*
+
+**But there is no red flag.** No column on the lead holds it, nothing on the
+pipeline card draws it, and no screen lists the leads that have one. The
+sentence is the design's and it is on screen, so the promise is being made.
+
+**A) Build the flag** (recommended — a column on the opportunity, a red dot on
+the lead card, and a line on the owner's dashboard; it is the thing that makes
+counting no-shows worth doing). **B) Soften the sentence** to say only what is
+true: "This is the second time they have not come."
+
+## 29. The result panel has no Telegram button
+
+The design's no-show form offers **Open WhatsApp · Open Telegram · Copy**. Two
+of the three are built. Telegram is not: there is no Telegram anywhere else in
+the CRM, and Telegram has no way to open a chat with somebody from their phone
+number the way `wa.me` does — it needs their username, which we do not hold.
+
+**A) Leave it out** (recommended). **B) Ask every agent to collect Telegram
+usernames**, add a field to the contact, and build it from there.
+
+## 30. The design wants a lead on a Follow-up plan too; this build does not
+
+`design/web/calendar.html` requires a lead for every plan except a Team one —
+a Follow-up included. The brief for this change named three kinds: a meeting,
+a site visit and a call. Those three are required, on the screen and on the
+server. A Follow-up can still be planned without a lead.
+
+**A) Leave it** (recommended — "follow up on the Emaar price list" is a real
+plan with no lead on it). **B) Require a lead on a Follow-up as well**, which
+is one word in `LEAD_REQUIRED` on each side.
+
+## 31. "Booked a unit" writes the project down but does not change the lead's
+
+The booking form asks which project they booked in, and the answer is stored
+on the meeting. It is **not** copied onto the lead: a lead that asked about
+Valia and reserved in The Archive keeps Valia as the thing it asked about,
+because that is what the first-touch rule in the master prompt says a lead's
+project is.
+
+**A) Keep both** (recommended — the question "what do they ask about" and the
+question "what did they buy" are different questions, and the reports want
+both). **B) Move the lead onto the project they booked**, which rewrites the
+history of every report that groups by project.
+
+## 32. The Won form now says "posted on the Team wall", not "+300 points"
+
+`design/web/lead.html`'s Won dialog promises **"It is posted on the Team wall ·
++300 points."** The first half is true — `postDealWon()` writes the wall post.
+The second half is not: `recordAchievement` pays XP for reaching a lead and for
+booking a meeting, and pays nothing at all for a Won. So the screen now says
+only the half that happens.
+
+**A) Pay the points** (recommended — a Won is the most valuable thing an agent
+does and it is the one action on the board that scores nothing; it is one rule
+in `wall/wall.ts`, which another pair of hands holds this week). **B) Leave the
+wording as it is** and drop the number from the design.
+
+## 33. Purpose, Timeline and Payment are a menu, not a free-text line
+
+The design's "What the client wants" shows **Purpose: Investment**, **Timeline:
+Q1 2027**, **Payment: 60 / 40 plan** and says *click a line to edit*. Two of
+those three are free text in the prototype, and the columns behind them are
+not: `purpose`, `timeline` and `payment_method` are ENUMs written in January,
+and MySQL here refuses a word outside the list rather than storing an
+approximation of it. So those three lines open as a short menu —
+Investment / To live in / Not said yet, and so on — and the other four
+(Project, Unit, Budget, Language) open as a text box, as drawn.
+
+**A) Keep the menus** (recommended — the three are reported on, and "Q1 2027"
+typed by one agent and "Q1 '27" by another cannot be counted together).
+**B) Add free-text columns beside the three ENUMs** so an agent can write
+"Q1 2027" and the reports keep the coarse answer as well.
+
+## 34. "Select all 863" selects the first 200
+
+The owner's book is 863 leads and the design's select-all bar offers the whole
+list. One press of Move may carry **200**, which is generous for a day's work
+and small enough that the request cannot turn into a background job halfway
+through somebody's afternoon. Pressing "Select all" on a longer list selects
+the first 200 and says so in a toast.
+
+**A) Keep 200** (recommended). **B) Make a real background job of it**, with a
+progress bar and a report at the end, which is a day's work and the same shape
+as the bulk import.
+
+## 35. The owner's book has no Export button yet
+
+`design/web/all-leads.html` puts **Export** at the end of the filter row.
+`/api/contacts/export/csv` exists and is owner/admin only, but it exports
+*every* contact in the CRM rather than the list on screen, and a button that
+ignores the filters above it is a button that lies. It is left off until the
+endpoint can take the same filters as the list.
+
+**A) Leave it off** (recommended). **B) Put it on now** and label it "Export
+every lead", which is what it would do.

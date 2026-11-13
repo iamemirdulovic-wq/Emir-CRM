@@ -320,7 +320,8 @@ export function V2Lead() {
               {lead.language && (
                 <div>
                   <Icon name="message-square" />
-                  <span>Speaks <b>{lead.language}</b></span>
+                  {/* The name, not the code: this line read "Speaks en". */}
+                  <span>Speaks <b>{languageName(lead.language)}</b></span>
                 </div>
               )}
             </div>
@@ -791,6 +792,12 @@ function EditRow({ leadId, field, label, value, editAs, choices, stored, onSaved
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLInputElement>(null);
+  /*
+   * Enter saves, and so does clicking away. One of those can follow the other
+   * while the first request is still in the air, so the line is settled once —
+   * the same `fin` flag the design's own chip editor uses.
+   */
+  const settled = useRef(false);
 
   useEffect(() => {
     if (editing) box.current?.focus();
@@ -798,11 +805,14 @@ function EditRow({ leadId, field, label, value, editAs, choices, stored, onSaved
 
   function start() {
     if (busy) return;
+    settled.current = false;
     setDraft((editAs ?? value ?? '').toString());
     setEditing(true);
   }
 
   async function save(next: string | null) {
+    if (settled.current) return;
+    settled.current = true;
     setBusy(true);
     try {
       const result = await api.patch<{ said: string; changed: string[] }>(
@@ -868,7 +878,12 @@ function EditRow({ leadId, field, label, value, editAs, choices, stored, onSaved
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); void save(draft.trim() || null); }
-                if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+                /* Escape puts the line back and saves nothing. */
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  settled.current = true;
+                  setEditing(false);
+                }
               }}
               onBlur={() => { void save(draft.trim() || null); }}
             />

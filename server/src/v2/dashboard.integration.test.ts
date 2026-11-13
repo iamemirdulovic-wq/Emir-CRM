@@ -302,6 +302,43 @@ describeWithDb('the full dashboard', () => {
     expect(row?.owner_user_id).toBe(here.id);
   });
 
+  /**
+   * A manager is not somebody `assign` gives leads to.
+   *
+   * `loadCandidates` takes an active **agent** who is available, and nobody
+   * else. Offering a manager in the Move dialog would have looked like it
+   * worked and quietly pooled the leads instead, with the screen saying they
+   * had gone to them.
+   */
+  it('does not offer, or accept, somebody the assignment rules will not give to', async () => {
+    const owner = await createTestUser({ role: 'owner' });
+    const away = await createTestUser({ role: 'agent', name: 'Away' });
+    const boss = await createTestUser({ role: 'manager', name: 'Manager' });
+    await aLead({ owner: away.id });
+
+    await execute(
+      `INSERT INTO attendance (id, user_id, on_date, kind)
+       VALUES (?, ?, DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), 'office')`,
+      [newId(), boss.id],
+    );
+
+    const cookie = await signIn(base, owner);
+    const body = await (await get('/api/v2/dashboard', cookie)).json() as {
+      assignable: Array<{ userId: string; name: string; canTake: boolean }>;
+    };
+    expect(
+      body.assignable.find((row) => row.userId === boss.id)?.canTake,
+      'the manager is marked in, but is not somebody leads are given to',
+    ).toBe(false);
+
+    const res = await fetch(`${base}/api/v2/dashboard/move`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: away.id, to: { kind: 'agent', userId: boss.id } }),
+    });
+    expect(res.status, 'and the server refuses rather than pooling them silently').toBe(400);
+  });
+
   it('shares leads only between the agents it was given', async () => {
     const owner = await createTestUser({ role: 'owner' });
     const away = await createTestUser({ role: 'agent', name: 'Away' });

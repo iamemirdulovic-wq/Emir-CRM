@@ -27,7 +27,7 @@ import { query, queryOne } from '../db/client.js';
 import type { SessionUser } from '../auth/sessions.js';
 import { DAY_END, DAY_START, TODAY } from './dubai.js';
 import { dayState } from '../attendance/attendance.js';
-import { assign } from '../assignment/apply.js';
+import { assign, loadCandidates } from '../assignment/apply.js';
 import { badRequest } from '../lib/errors.js';
 import type { AuditActor } from '../audit/audit.js';
 import { countedAgentSql } from '../users/counting.js';
@@ -506,14 +506,25 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
     brief.push({
       kind: 'untouched',
       text: `${untouched} ${untouched === 1 ? 'lead is' : 'leads are'} not touched yet`,
-      sub: 'Nobody has called or messaged them yet',
+      sub: 'No call and no message since they arrived',
       action: 'View',
       to: '/v2/leads?tab=new',
       move: null,
     });
   }
 
-  /* Who the Move dialog may offer, fewest open leads first. */
+  /*
+   * Who the Move dialog may offer, fewest open leads first.
+   *
+   * `canTake` is the assignment machinery's own answer, not a second opinion:
+   * `loadCandidates` is what `assign` consults, and it takes only an active
+   * `agent` whose availability is "available". Offering a manager would have
+   * looked like it worked and quietly pooled the leads instead. On top of
+   * that, today's attendance — somebody on leave or not marked in cannot be
+   * chosen, which is the dialog's own hint and `movePool`'s rule.
+   */
+  const takers = new Set((await loadCandidates()).filter((one) => one.isEligible)
+    .map((one) => one.userId));
   const assignable: Assignable[] = [...rows]
     .sort((a, b) => a.open - b.open || a.name.localeCompare(b.name))
     .map((r) => {
@@ -525,7 +536,7 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
         name: r.name,
         openLeads: r.open,
         where,
-        canTake: where !== 'leave' && where !== 'absent',
+        canTake: where !== 'leave' && where !== 'absent' && takers.has(r.userId),
       };
     });
 
@@ -667,8 +678,13 @@ export async function movePool(
              WHERE status = 'approved' AND from_date <= ${TODAY} AND to_date >= ${TODAY})`,
       [userId],
     );
+    /* And somebody `assign` would really give a lead to: an active agent who
+       is available. Without this a manager could be chosen, and the leads
+       would land in the pool while the screen said they had gone to them. */
+    const able = new Set((await loadCandidates({ userIds: [...asked] }))
+      .filter((one) => one.isEligible).map((one) => one.userId));
     taking = ok
-      .filter((r) => asked.has(String(r.id)))
+      .filter((r) => asked.has(String(r.id)) && able.has(String(r.id)))
       .map((r) => ({ id: String(r.id), name: String(r.name) }));
     if (taking.length === 0) {
       throw badRequest(

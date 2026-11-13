@@ -400,12 +400,16 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
                       : 'Attach the booking form or the payment receipt'}
                   </span>
                   <span className="d-chip">PDF or photo</span>
-                  {/* Hidden rather than styled: the row above is the control,
-                      and a second native file button inside it reads as a bug. */}
+                  {/*
+                    * Out of sight but still in the tab order — `sr-only` from
+                    * `base.css`, not `display:none`, which would make the one
+                    * required control on this form mouse-only. The row above
+                    * is what you see and press.
+                    */}
                   <input
+                    className="sr-only"
                     type="file"
                     accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
                     onChange={(e) => setProof(e.target.files?.[0] ?? null)}
                   />
                 </label>

@@ -97,13 +97,23 @@ const SKEW_MS = 60_000;
  * The day and the time are two different mistakes and they get two different
  * sentences, word for word as `design/web/calendar.html` writes them.
  */
-export function pastProblem(startsAt: Date, now: Date = new Date()): FieldProblem | null {
+export function pastProblem(
+  startsAt: Date,
+  now: Date = new Date(),
+  options: { dayOnly?: boolean } = {},
+): FieldProblem | null {
   if (Number.isNaN(startsAt.getTime())) {
     return { field: 'day', message: 'Choose a day.' };
   }
   if (dubaiDayKey(startsAt) < dubaiDayKey(now)) {
     return { field: 'day', message: 'This day is in the past. Pick today or later.' };
   }
+  /*
+   * A plan that runs over several days has no hour to be late for. It starts
+   * at midnight on its first day, so judging it by the clock would refuse an
+   * expo starting today to anyone who asked for it after midnight.
+   */
+  if (options.dayOnly) return null;
   if (startsAt.getTime() < now.getTime() - SKEW_MS) {
     return { field: 'time', message: `This time has passed. It is ${dubaiClock(now)} now.` };
   }
@@ -223,7 +233,7 @@ function assertWindow(starts: Date, ends: Date, allDay: boolean, now: Date): voi
   if (ends.getTime() <= starts.getTime()) {
     throw badRequest('It has to finish after it starts.', { field: 'time' });
   }
-  const problem = pastProblem(starts, now);
+  const problem = pastProblem(starts, now, { dayOnly: allDay });
   if (problem) throw badRequest(problem.message, { field: problem.field });
   if (allDay && spanDays(starts, ends) > MAX_SPAN_DAYS) {
     throw badRequest(`A plan can run over at most ${MAX_SPAN_DAYS} days.`, { field: 'day' });

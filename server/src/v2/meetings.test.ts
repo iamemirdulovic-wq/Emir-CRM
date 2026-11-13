@@ -53,6 +53,24 @@ describe('a plan cannot be put in the past', () => {
     expect(pastProblem(new Date('2026-11-11T10:54:40Z'), NOW)).toBeNull();
   });
 
+  it('judges a several-day plan by the day alone', () => {
+    /*
+     * An expo starting today starts at midnight, and midnight has gone by
+     * the time anybody asks for it. Judging it by the clock would refuse
+     * every multi-day plan made after midnight on its first day.
+     */
+    const midnight = new Date('2026-11-10T20:00:00Z'); // 00:00 on the 11th in Dubai
+    expect(pastProblem(midnight, NOW)).toEqual({
+      field: 'time',
+      message: 'This time has passed. It is 14:55 now.',
+    });
+    expect(pastProblem(midnight, NOW, { dayOnly: true })).toBeNull();
+  });
+
+  it('still refuses a several-day plan that starts yesterday', () => {
+    expect(pastProblem(new Date('2026-11-09T20:00:00Z'), NOW, { dayOnly: true })?.field).toBe('day');
+  });
+
   it('asks for a day when there is not a real one', () => {
     expect(pastProblem(new Date('not a date'), NOW)).toEqual({
       field: 'day',

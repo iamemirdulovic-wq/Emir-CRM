@@ -3011,3 +3011,59 @@
 @media (min-width: 768px) and (max-width: 1399px) {
   .v2 .d-table.d-id-leads td:last-child .d-btn.d-icon { display: none }
 }
+
+/* ── sign in, v2 (`design/web/login.html`) ─────────────────────────────────
+ *
+ * The page's own layout is ported into `v2-home.css` as `.v2 .p-login …`, so
+ * almost nothing is needed here. What is: `.v2` is the shell's flex row, and
+ * this screen has no shell — its single child is the design's own two-column
+ * grid, so the root has to stop being a flex container. Two classes, so only
+ * this page is affected.
+ *
+ * The phone half of the screen is in `v2-phone-d.css`.
+ */
+.v2.v2-login{ display:block; min-height:100dvh; }
+
+/*
+ * The design's `.sb-mark` lives in the first 184 lines of `ui.css`, which the
+ * port does not read (those are the tokens, the reset and the demo shell). Its
+ * own page style sizes the mark — `.d-logo .d-sb-mark` — and without the base
+ * the orange square was not there at all. These four declarations are the
+ * design's own, from `ui.css` line 90.
+ */
+.v2 .p-login .v2-login-mark{
+  background:var(--accent); color:var(--on-accent);
+  display:grid; place-items:center; flex:none;
+}
+
+/* `style="background:rgba(255,255,255,.1);color:#fff;margin-left:6px"` on the
+   design's CRM chip, moved off the element. */
+.v2 .p-login .v2-login-chip{
+  background:rgba(255,255,255,.1); color:var(--hero-ink); margin-left:6px;
+}
+
+/*
+ * The three cards keep the design's box exactly — `.d-pv` does all of that —
+ * and lose the client names, the call count and the attendance bars that the
+ * design fills them with, because nobody is signed in on this page. The
+ * min-height is the 169px the drawn cards measure with their chart in them,
+ * so the strip keeps its weight and the headline above it stays where the
+ * design puts it.
+ */
+.v2 .p-login .v2-login-pv{ min-height:169px; }
+.v2 .p-login .v2-login-pv-line{
+  margin-top:auto; font-size:13px; font-weight:600; line-height:1.4;
+  color:var(--hero-ink);
+}
+
+/* The install link is a button, because the guide it would point at is behind
+   the sign-in. It keeps the design's `.card-link` look. */
+.v2 .p-login .v2-login-guide{ align-self:center; }
+.v2 .p-login .v2-login-install{ font-size:13px; align-items:flex-start; }
+.v2 .p-login .v2-login-install svg{ margin-top:2px; }
+/* "Ask an admin to reset it" — the design says this in a toast, and there is
+   no toast host on a page outside the shell. */
+.v2 .p-login .v2-login-note{ align-items:flex-start; color:var(--ink-2); }
+.v2 .p-login .v2-login-note svg{ margin-top:2px; color:var(--ink-3); }
+/* The drawn size of the shield on the second step, which is built and off. */
+.v2 .p-login .v2-login-shield{ width:48px; height:48px; border-radius:16px; }

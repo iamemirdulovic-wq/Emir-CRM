@@ -191,11 +191,11 @@ export async function filesForContact(
       content_type: String(row.content_type),
       byte_size: Number(row.byte_size),
       duration_s: row.duration_s === null ? null : Number(row.duration_s),
-      created_at: new Date(row.created_at as string).toISOString(),
+      created_at: new Date(row.created_at as string | Date).toISOString(),
       folder,
       view_count: Number(row.view_count ?? 0),
       last_viewed_at: row.last_viewed_at
-        ? new Date(row.last_viewed_at as string).toISOString()
+        ? new Date(row.last_viewed_at as string | Date).toISOString()
         : null,
       added_by: (row.added_by as string | null) ?? null,
       private: PRIVATE_FOLDERS.has(folder),

@@ -247,6 +247,29 @@ describeWithDb('plans in the diary', () => {
     expect(found!.allDay).toBe(true);
   });
 
+  it('takes a several-day plan that starts today, midnight and all', async () => {
+    /*
+     * It starts at midnight, and midnight has gone. Judging a plan with no
+     * hour by the clock would refuse every expo on the morning it opens.
+     */
+    const agent = await createTestUser({ role: 'agent' });
+    const cookie = await signIn(base, agent);
+    /* Midnight in Dubai, which is where the office is and where the server
+       judges a day from. Midnight UTC is yesterday there after 20:00. */
+    const shifted = new Date(Date.now() + 4 * 3_600_000);
+    shifted.setUTCHours(0, 0, 0, 0);
+    const midnight = new Date(shifted.getTime() - 4 * 3_600_000);
+
+    const res = await send('POST', '/api/v2/meetings', cookie, {
+      kind: 'team',
+      title: 'Cityscape, day one',
+      allDay: true,
+      startsAt: midnight.toISOString(),
+      endsAt: new Date(midnight.getTime() + 3 * 86_400_000).toISOString(),
+    });
+    expect(res.status, await res.text()).toBe(201);
+  });
+
   it('refuses a plan longer than five days', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const cookie = await signIn(base, agent);
