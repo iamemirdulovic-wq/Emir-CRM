@@ -191,3 +191,15 @@ The reason the design is right: a task is something you have to do, a
 follow-up is a promise you made to a client. They belong on the same screen
 because they are both "what I owe today", and being late with one is a
 different kind of late.
+
+## 14 · The unit number is asked for, not demanded
+
+`lead.html` puts a red star beside **Unit** in the Won box, which means the
+screen will not let you mark a deal Won without it.
+
+It was optional before and it is optional again, because a unit number is not
+always in the agent's hand at the moment a client says yes — and a Won that
+cannot be recorded is the most expensive thing on that screen. The field is
+still there, still asked for, and the deal can be saved without it.
+
+Say the word and the star goes back.

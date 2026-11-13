@@ -2791,3 +2791,48 @@
    the later one wins. */
 .v2 ~ .toast {bottom:24px}
 .v2-phone ~ .toast {bottom:calc(76px + env(safe-area-inset-bottom, 0px))}
+
+/* ── phones: thumbs, and rows that run off the edge ──────────────────────
+   Two things the computer design cannot know about, fixed once here rather
+   than twenty-two times in twenty-two screens.
+
+   `npm run polish` counted 542 targets under 28px and twelve screens running
+   off the right edge, and almost all of them were these two shapes. */
+
+@media (max-width: 900px) {
+  /* A row of tabs is a flex row with no wrap, so six of them at 390px simply
+     hang off the edge. It scrolls sideways instead — which also stops the
+     page itself scrolling, and that is the bug that matters: content off the
+     right edge of a phone has no way of being found. */
+  .v2 .d-tabs,
+  .v2 .d-filters,
+  .v2 .d-seg {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .v2 .d-tabs::-webkit-scrollbar,
+  .v2 .d-filters::-webkit-scrollbar,
+  .v2 .d-seg::-webkit-scrollbar { display: none; }
+  .v2 .d-tabs > *,
+  .v2 .d-seg > * { flex: none; }
+
+  /* Anything you tap is at least 30px tall. The design draws 26px pills and
+     26px extra-small buttons, which is comfortable with a mouse and is not
+     with a thumb. The width of a pill is its text, so only the height is
+     forced; a 26px icon button gets a width too. */
+  .v2 .d-tabs.d-pills .d-tab,
+  .v2 .d-seg > button,
+  .v2 .d-seg > a,
+  .v2 .d-btn.d-xs,
+  .v2 .d-btn.d-sm { min-height: 30px; }
+  .v2 .d-btn.d-xs { min-width: 30px; padding: 0 11px; }
+
+  /* A name in a table cell is a link, and a link the height of its text is
+     not a target. */
+  .v2 td a.d-t-main,
+  .v2 td a.d-person { display: inline-flex; align-items: center; min-height: 30px; }
+
+  /* The box you tick to finish a task. */
+  .v2 input[type="checkbox"] { width: 24px; height: 24px; }
+}

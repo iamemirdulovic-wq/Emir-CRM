@@ -76,7 +76,17 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
   const timeIsPast = Number.isNaN(picked.getTime()) || picked.getTime() <= Date.now();
 
   const ready = kind === 'lost' ? reason !== null && (reason !== 'other' || note.trim().length >= 5)
-    : kind === 'won' ? sure && unit.trim() !== ''
+    /*
+     * The unit is asked for, not required.
+     *
+     * `lead.html` marks it with a star, and the rebuild carried that across —
+     * but it was optional before, and a unit number is not always in the
+     * agent's hand at the moment the client says yes. Blocking Won on it means
+     * the stage is wrong until somebody chases a number down, and a Won that
+     * cannot be recorded is the most expensive thing on this screen. Asked for
+     * in the label; `docs/decisions-to-confirm.md` §14 puts it to Emir.
+     */
+    : kind === 'won' ? sure
       : kind === 'meeting' ? !timeIsPast && where.trim() !== ''
         : !timeIsPast && about.trim() !== '';
 
@@ -275,8 +285,8 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
                     onChange={(e) => setProject(e.target.value)}
                   />
                 </div>
-                <div className={bad(unit.trim() === '')}>
-                  <label htmlFor="won-unit">Unit <span className="d-req">*</span></label>
+                <div className="d-field">
+                  <label htmlFor="won-unit">Unit</label>
                   <input
                     className="d-input"
                     id="won-unit"
@@ -284,7 +294,6 @@ export function LeadAction({ kind, opportunityId, who, onDone, onCancel }: {
                     placeholder="2BR · unit 1204"
                     onChange={(e) => setUnit(e.target.value)}
                   />
-                  <span className="d-error">Write the unit.</span>
                 </div>
                 <div className="d-field d-full">
                   <label htmlFor="won-note">Anything worth remembering</label>
