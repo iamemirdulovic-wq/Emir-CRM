@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { useCallAction, type CallActions } from './call.js';
 
 /**
  * The board, from `design/web/pipeline.html`.
@@ -90,6 +91,9 @@ const SHOW = 5;
 
 export function V2Pipeline() {
   const isPhone = useIsPhone();
+  /* One for the board, handed to every card: a hook per card would ask the
+     attendance endpoint once per lead on screen. */
+  const dial = useCallAction({ source: 'lead' });
   const { user } = useAuth();
   const seesEveryone = user?.role !== 'agent';
 
@@ -175,6 +179,7 @@ export function V2Pipeline() {
 
     return (
       <div className="v2-pipe p-pipeline v2-a-pipe">
+        {dial.banner}
         <div className="v2-a-chips">
           {columns.map((column) => (
             <button
@@ -228,6 +233,7 @@ export function V2Pipeline() {
                       className="v2-a-rbtn v2-a-rbtn-call"
                       href={`tel:${card.phone_e164}`}
                       aria-label={`Call ${nameOf(card)}`}
+                      onClick={(e) => { e.preventDefault(); void dial.call(card); }}
                     >
                       <Icon name="phone" />
                     </a>
@@ -260,6 +266,7 @@ export function V2Pipeline() {
 
   return (
     <div className="v2-pipe p-pipeline">
+      {dial.banner}
       <div className="d-filters v2-pipe-filters">
         <div className="d-input-icon">
           <Icon name="search" />
@@ -340,7 +347,7 @@ export function V2Pipeline() {
               <div className="d-kb-bar" />
 
               {shown.map((card) => (
-                <LeadCard key={card.id} card={card} showAgent={seesEveryone} />
+                <LeadCard key={card.id} card={card} showAgent={seesEveryone} dial={dial} />
               ))}
 
               {shown.length === 0 && (
@@ -380,7 +387,7 @@ export function V2Pipeline() {
 
 /* ── one card ──────────────────────────────────────────────────────────── */
 
-function LeadCard({ card, showAgent }: { card: Card; showAgent: boolean }) {
+function LeadCard({ card, showAgent, dial }: { card: Card; showAgent: boolean; dial: CallActions }) {
   const next = latest(card);
 
   return (
@@ -403,7 +410,11 @@ function LeadCard({ card, showAgent }: { card: Card; showAgent: boolean }) {
         )}
         <span className={next.urgent ? 'd-nx d-red' : 'd-nx'}>{next.text}</span>
         {card.phone_e164 && (
-          <a className="d-btn d-xs v2-kb-call" href={`tel:${card.phone_e164}`}>
+          <a
+            className="d-btn d-xs v2-kb-call"
+            href={`tel:${card.phone_e164}`}
+            onClick={(e) => { e.preventDefault(); void dial.call(card); }}
+          >
             <Icon name="phone" size={14} />Call
           </a>
         )}

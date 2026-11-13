@@ -118,6 +118,22 @@
   position:sticky; top:0; z-index:20;
 }
 .v2-title{ font-size:17px; font-weight:700; letter-spacing:-.01em; margin:0; white-space:nowrap; }
+/*
+ * The title and the line under it, as one block in the row -- `.tb-title` in
+ * the design's own ui.css, same shape and same 340px ceiling. This rule is at
+ * the TOP of v2-shell.css on purpose: the bottom half of this file is inside
+ * `@media (max-width:767px)`, and three fixes written for the computer have
+ * already been lost down there in silence.
+ */
+.v2-topttl{
+  display:flex; flex-direction:column; justify-content:center;
+  min-width:0; flex:none; max-width:340px;
+}
+.v2-topttl .v2-title{ line-height:1.2; overflow:hidden; text-overflow:ellipsis; }
+.v2-tsub{
+  margin:0; font-size:12px; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .v2-back{
   display:inline-flex; align-items:center; gap:6px; text-decoration:none;
   color:var(--ink-2); font-size:14px; font-weight:600;

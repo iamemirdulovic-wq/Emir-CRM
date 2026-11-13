@@ -11,6 +11,7 @@ import { spacedE164 } from '../design/phone.js';
 import { TransferLead } from './TransferLead.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
 import { usePhoneHead } from './phone.js';
+import { useCallAction } from './call.js';
 import { LeadNotes } from '../components/LeadNotes.js';
 
 /**
@@ -194,6 +195,12 @@ export function V2Lead() {
    */
   const loaded = detail.data?.lead;
   const tabsAt = useRef<HTMLElement>(null);
+  /*
+   * Every Call and WhatsApp on this page goes through the one helper, so the
+   * call is recorded before the phone opens. Above the early returns with the
+   * rest of them — it holds state and the check-in sheet.
+   */
+  const dial = useCallAction({ source: 'lead' });
 
   usePhoneHead({
     title: loaded?.full_name ?? 'Lead',
@@ -242,6 +249,9 @@ export function V2Lead() {
 
   return (
     <div className="v2-leadpage p-lead">
+      {/* The check-in sheet and anything the recording could not do. Without
+          it on the page the question cannot be asked and Call would hang. */}
+      {dial.banner}
       <div className="d-lead-grid">
 
         {/* ── LEFT: who they are, and what you can do right now ────────── */}
@@ -259,6 +269,14 @@ export function V2Lead() {
               href={phone ? `tel:${phone}` : undefined}
               dir="ltr"
               title={phone ? 'Call' : undefined}
+              onClick={(e) => {
+                if (!phone) return;
+                /* The href stays — it is what a long press on a phone offers
+                   and what right-click copies. The click is taken over so the
+                   call is written down first. */
+                e.preventDefault();
+                void dial.call(lead);
+              }}
             >
               {spacedE164(phone) ?? 'No number'}
             </a>
@@ -330,6 +348,7 @@ export function V2Lead() {
               <a
                 className={phone ? 'd-btn d-primary d-lg d-full' : 'd-btn d-primary d-lg d-full d-disabled'}
                 href={phone ? `tel:${phone}` : undefined}
+                onClick={(e) => { if (!phone) return; e.preventDefault(); void dial.call(lead); }}
               >
                 <Icon name="phone" />Call
               </a>
@@ -338,6 +357,7 @@ export function V2Lead() {
                 href={phone ? `https://wa.me/${phone.replace(/[^\d]/g, '')}` : undefined}
                 target="_blank"
                 rel="noreferrer"
+                onClick={(e) => { if (!phone) return; e.preventDefault(); void dial.whatsapp(lead); }}
               >
                 <Icon name="message-circle" />WhatsApp
               </a>

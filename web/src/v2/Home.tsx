@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, originOf, whenToCall } from '../lib/dialling.js';
 import { iosNeedsInstall, pushState, enablePush, type PushState } from '../lib/push.js';
+import { useCallAction, type CallActions } from './call.js';
 
 /**
  * Under this, the phone layout — `design/screens/Main.dc.html` and
@@ -213,6 +214,9 @@ function greet(now: string): string {
 function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
   const [saying, setSaying] = useState<string | null>(null);
   const isPhone = useIsPhone();
+  /* One for the whole screen, handed to the hero and the call rows. Every
+     Call on My day is recorded before the phone opens. */
+  const dial = useCallAction({ source: 'lead' });
   const toCall = home.counts.today ?? 0;
   const checkedIn = home.attendance.marked !== null;
 
@@ -245,6 +249,8 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
        block in `v2-home.css` is scoped to one of these, so two pages can use
        the same class name for different things, exactly as the design does. */
     <div className="v2-home p-my-day">
+      {/* The check-in sheet and anything a recording could not do. */}
+      {dial.banner}
       <h1 className="v2-hi">
         {greet(home.now)}, {home.me.firstName}
         <span>{home.now}</span>
@@ -269,6 +275,7 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
                 `Sent back to ${home.vip?.givenBy}.`,
               )}
               saying={saying}
+              dial={dial}
             />
           )}
 
@@ -441,7 +448,7 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
           </div>
           {home.callNow.length === 0
             ? <p className="v2-none">Nobody is waiting for a call. </p>
-            : home.callNow.slice(0, 6).map((lead) => <CallRow key={lead.id} lead={lead} />)}
+            : home.callNow.slice(0, 6).map((lead) => <CallRow key={lead.id} lead={lead} dial={dial} />)}
           <div className="d-card-foot v2-foot">
             <span className="d-nowrap">
               <b className="d-ink-2">{home.today.calls}</b> of {home.goals.calls} calls today
@@ -458,7 +465,7 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
             <h3>Best time to call now</h3>
             <span className="d-chip">client&apos;s clock</span>
           </div>
-          <BestTime leads={home.callNow} />
+          <BestTime leads={home.callNow} dial={dial} />
         </section>
 
         <div className="d-stack d-c-3">
@@ -633,11 +640,12 @@ function NotifyCard() {
   );
 }
 
-function VipHero({ vip, onAccept, onRefuse, saying }: {
+function VipHero({ vip, onAccept, onRefuse, saying, dial }: {
   vip: NonNullable<AgentHome['vip']>;
   onAccept: () => void;
   onRefuse: () => void;
   saying: string | null;
+  dial: CallActions;
 }) {
   const left = useCountdown(vip.deadlineAt);
   /*
@@ -664,7 +672,18 @@ function VipHero({ vip, onAccept, onRefuse, saying }: {
             {vip.accepted ? 'VIP LEAD · accepted · call now' : `VIP LEAD FROM ${vip.givenBy.toUpperCase()}`}
           </span>
         </div>
-        <a className="d-hero-phone" href={vip.phone ? `tel:${vip.phone}` : undefined} dir="ltr">
+        <a
+          className="d-hero-phone"
+          href={vip.phone ? `tel:${vip.phone}` : undefined}
+          dir="ltr"
+          onClick={(e) => {
+            if (!vip.phone) return;
+            e.preventDefault();
+            /* `leadId`, not `id`: `id` is the hand-over row, and a call is
+               recorded against the opportunity. */
+            void dial.call({ id: vip.leadId, phone: vip.phone, name: vip.name });
+          }}
+        >
           {vip.phone ?? 'No number'}
         </a>
         <div className="d-hero-who">
@@ -675,7 +694,15 @@ function VipHero({ vip, onAccept, onRefuse, saying }: {
         <div className="d-hero-btns">
           {vip.accepted ? (
             <>
-              <a className="d-btn d-on-dark d-primary" href={vip.phone ? `tel:${vip.phone}` : undefined}>
+              <a
+                className="d-btn d-on-dark d-primary"
+                href={vip.phone ? `tel:${vip.phone}` : undefined}
+                onClick={(e) => {
+                  if (!vip.phone) return;
+                  e.preventDefault();
+                  void dial.call({ id: vip.leadId, phone: vip.phone, name: vip.name });
+                }}
+              >
                 <Icon name="phone" />Call now
               </a>
               <Link className="d-btn d-on-dark" to={`/v2/leads/${vip.leadId}`}>Open the lead</Link>
@@ -803,7 +830,7 @@ function Tile({ to, label, n, note, urgent }: {
   );
 }
 
-function CallRow({ lead }: { lead: Lead }) {
+function CallRow({ lead, dial }: { lead: Lead; dial: CallActions }) {
   const origin = originOf(lead.phone);
   const local = origin ? clockIn(origin.timeZone) : null;
   return (
@@ -816,7 +843,11 @@ function CallRow({ lead }: { lead: Lead }) {
           {local && ` · ${origin?.name} ${local.time}`}
         </span>
       </Link>
-      <a className="d-btn d-xs" href={lead.phone ? `tel:${lead.phone}` : undefined}>
+      <a
+        className="d-btn d-xs"
+        href={lead.phone ? `tel:${lead.phone}` : undefined}
+        onClick={(e) => { if (!lead.phone) return; e.preventDefault(); void dial.call(lead); }}
+      >
         <Icon name="phone" />Call
       </a>
     </div>
@@ -831,7 +862,7 @@ function CallRow({ lead }: { lead: Lead }) {
  * candidate — guessing would be exactly the mistake that had an agent ringing
  * Germany at six in the morning.
  */
-function BestTime({ leads }: { leads: Lead[] }) {
+function BestTime({ leads, dial }: { leads: Lead[]; dial: CallActions }) {
   const picks = useMemo(() => leads
     .map((lead) => {
       const origin = originOf(lead.phone);
@@ -862,7 +893,11 @@ function BestTime({ leads }: { leads: Lead[] }) {
             <b><em>{lead.name ?? 'Unnamed lead'}</em></b>
             <span>{origin.name} {local.time} · good hour to ring</span>
           </Link>
-          <a className="d-btn d-xs" href={lead.phone ? `tel:${lead.phone}` : undefined}>
+          <a
+            className="d-btn d-xs"
+            href={lead.phone ? `tel:${lead.phone}` : undefined}
+            onClick={(e) => { if (!lead.phone) return; e.preventDefault(); void dial.call(lead); }}
+          >
             <Icon name="phone" />Call
           </a>
         </div>

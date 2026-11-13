@@ -89,10 +89,19 @@ describeWithDb('the reset between tests', () => {
     await writeSomethingEverywhere();
     await resetTables();
     expect(await holdingRows()).toEqual(SEEDED);
+
+    /* Left on purpose, for the test below. Tests in a file run in the order
+       they are written, and this pair leans on that deliberately: the thing
+       worth proving is that a mess one test leaves does not reach the next
+       one, and the only way to prove it is to leave one. Nothing else here
+       depends on order, and nothing else should. */
+    await writeSomethingEverywhere();
   });
 
   it('hands the next test a database with nothing of the last one in it', async () => {
-    /* Whatever the test above left, `beforeEach` has dealt with by now. */
-    expect(await holdingRows()).toEqual(SEEDED);
+    expect(
+      await holdingRows(),
+      'the test above left rows behind; beforeEach has to have cleared them',
+    ).toEqual(SEEDED);
   });
 });

@@ -108,9 +108,9 @@ Test harness only. No production code, and no security control touched.
 - If `CREATE DATABASE` is refused — a test user without the privilege — the run
   says so in full and **falls back to `emir_crm_test`**, with the warning that
   it is shared. It does *not* report "no database reachable": that path skips
-  all 269 integration tests and calls the run green, which is the worst
-  possible answer to a missing privilege. Reaching the server and creating a
-  database are now two separate attempts with two separate messages.
+  every integration suite in the repository and calls the run green, which is
+  the worst possible answer to a missing privilege. Reaching the server and
+  creating a database are now two separate attempts with two separate messages.
 
 ### `server/src/testing/db.ts`
 
@@ -128,6 +128,21 @@ Test harness only. No production code, and no security control touched.
 - The comment claiming "a whole suite runs well inside thirty seconds" is gone.
   It was false, and it was not the reason the settings cache is safe —
   `clearSecretCache()` on every reset is.
+
+### Documentation
+
+`README.md`'s paragraph on pointing the tests at a MySQL now says that each run
+makes its own database, and what `TEST_DB_NAME` gives up. `docs/CHANGELOG.md`
+has the entry.
+
+That README line failed the suite the first time, and the check that caught it
+was right: `src/config/env-docs.test.ts` holds every variable named in these
+documents to the ones `env.ts` actually declares, with a short list for the
+ones only scripts and the test harness read. `TEST_DB_NAME` and
+`TEST_DB_PORT` were added to that list beside `TEST_DB_HOST`, `TEST_DB_USER`
+and `TEST_DB_PASSWORD`, which is what it is for. The alternative — writing the
+name without backticks so the check does not see it — is exactly the dodge
+that test's own comment warns against.
 
 ## The reset is now about ten times cheaper
 
@@ -187,8 +202,11 @@ migrations and is unchanged. Two guards were added:
   demonstration that the isolation holds.
 - **Two runs started at the same moment, neither naming a database**: 18 passed
   each. That is the exact shape that used to fail.
+- Full server suite, `npx vitest run` with the same env: **166 files, 2,963
+  tests passed**, in 457 s.
 - `npx tsc --noEmit -p tsconfig.json`: exit 0.
-- No `emir_crm_run_*` database left behind after a run.
+- No `emir_crm_run_*` database left behind after a run — checked with
+  `SHOW DATABASES` after each.
 
 Each branch of the setup was exercised on purpose, not just reasoned about:
 

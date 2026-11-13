@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { useCallAction, type CallActions } from './call.js';
 
 /**
  * The project library, and one project.
@@ -385,6 +386,9 @@ export function V2Project() {
   const { id = '' } = useParams();
   const { user } = useAuth();
   const got = useAsync<ProjectDetail>(() => api.get(`/api/library/${id}`), [id]);
+  /* The leads table's Call and the send card's WhatsApp, both recorded. Above
+     the early returns, and one for the page rather than one per row. */
+  const dial = useCallAction({ source: 'lead' });
 
   const project = got.data?.project;
   const name = typeof project?.name === 'string' ? project.name : '';
@@ -443,6 +447,7 @@ export function V2Project() {
 
   return (
     <div className="v2-project p-project">
+      {dial.banner}
       {/* The design puts these in the top bar through `data-topbar`, which
           this shell does not have; a strip above the layout is the same
           controls in the same order. */}
@@ -580,7 +585,11 @@ export function V2Project() {
                         <td>
                           <div className="d-row-actions d-show">
                             {row.phone_e164 && (
-                              <a className="d-btn d-xs" href={`tel:${row.phone_e164}`}>
+                              <a
+                                className="d-btn d-xs"
+                                href={`tel:${row.phone_e164}`}
+                                onClick={(e) => { e.preventDefault(); void dial.call(row); }}
+                              >
                                 <Icon name="phone" />Call
                               </a>
                             )}
@@ -611,6 +620,7 @@ export function V2Project() {
           location={got.data.location}
           leads={leads.data?.items ?? []}
           me={user?.name ?? ''}
+          dial={dial}
         />
       </div>
     </div>
@@ -629,13 +639,14 @@ export function V2Project() {
  * brochure does not get a brochure button that opens nothing.
  */
 function SendCard({
-  project, plan, location, leads, me,
+  project, plan, location, leads, me, dial,
 }: {
   project: Record<string, unknown>;
   plan: Plan | undefined;
   location: ProjectDetail['location'];
   leads: LeadRow[];
   me: string;
+  dial: CallActions;
 }) {
   const toast = useToast();
   const brochure = str(project.brochure_url);
@@ -675,16 +686,33 @@ function SendCard({
   function open(app: 'whatsapp' | 'telegram') {
     if (!lead) { setMissing(true); return; }
     setMissing(false);
-    /* Recorded as a tap, not a message: the CRM hands over to the real app
-       and cannot know what happened there. */
+
+    if (app === 'whatsapp') {
+      /* The shared helper: it records the tap and opens WhatsApp with the
+         message written, which is what this card used to do by hand. One
+         path, so the owner's WhatsApp-clicks figure counts this card too. */
+      void dial.whatsapp(lead, { text: message });
+      return;
+    }
+
+    /*
+     * Telegram keeps its own form, and deliberately.
+     *
+     * The helper opens `t.me/+<digits>` — the lead's own chat, with nothing
+     * typed in it, because Telegram has no `?text=` on that form. This card's
+     * whole job is to deliver the link and the sentence around it, so it uses
+     * Telegram's share sheet instead, which does carry both. The tap is still
+     * recorded, and `docs/v2/questions-calls.md` says why this one is not on
+     * the helper.
+     */
     void api.post('/api/v2/taps', { opportunityId: lead.id, app, text: message }).catch(() => {});
     const text = encodeURIComponent(message ?? '');
-    const digits = (lead.phone_e164 ?? '').replace(/[^\d]/g, '');
-    const url = app === 'whatsapp'
-      ? `https://wa.me/${digits}?text=${text}`
-      : `https://t.me/share/url?url=${encodeURIComponent(link ?? '')}&text=${text}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    toast(`${app === 'whatsapp' ? 'WhatsApp' : 'Telegram'} opened. You press send.`);
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(link ?? '')}&text=${text}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+    toast('Telegram opened. You press send.');
   }
 
   return (

@@ -203,7 +203,7 @@ for (const [key, route, listRole] of list) {
      because it is the same omission repeated across forty pages and that is
      exactly the kind a person scrolling pictures stops noticing. */
   if (head.sub) {
-    const shown = await bPage.locator('.v2-top .v2-psub, .v2-top .v2-sub').count().catch(() => 0);
+    const shown = await bPage.locator('.v2-top .v2-tsub').count().catch(() => 0);
     if (shown === 0) subs.push(`${key}: "${head.sub}"`);
   }
   await bPage.close();

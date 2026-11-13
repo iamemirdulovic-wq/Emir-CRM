@@ -4390,7 +4390,25 @@ function buildActivities(lead: (typeof LEADS)[number], thread: { messages: Array
       created_at: m.created_at,
       user_name: m.user_name,
     })),
-    { id: `a-assign-${lead.id}`, type: 'lead.assigned', title: `Assigned by ${lead.project ? 'language and project' : 'round robin'}`, body: null, created_at: ago(lead.createdMinutesAgo), user_name: null },
+    /*
+     * The sentence the server writes, word for word. `assignment/why.ts` took
+     * "Assigned by language_and_project" off the lead's history on 13 Nov —
+     * Emir asked for that phrase gone — and the preview kept printing its own
+     * copy of it, so a screenshot of the timeline still showed the thing that
+     * had been removed. Those two strings are `ROUTED.language_and_project`
+     * and `ROUTED.round_robin`; the server module cannot be imported here
+     * because the preview is built from `web/` alone.
+     */
+    {
+      id: `a-assign-${lead.id}`,
+      type: 'lead.assigned',
+      title: lead.project
+        ? 'Given to an agent who speaks their language and knows the project'
+        : 'Given to the next agent in turn',
+      body: null,
+      created_at: ago(lead.createdMinutesAgo),
+      user_name: null,
+    },
     { id: `a-new-${lead.id}`, type: 'lead.created', title: `New lead from ${lead.source}`, body: [lead.project ? `Project: ${lead.project}` : null, lead.budgetMax ? `Budget: AED ${lead.budgetMax.toLocaleString()}` : null, `Timeline: ${lead.timeline}`].filter(Boolean).join('\n'), created_at: ago(lead.createdMinutesAgo), user_name: null },
   ];
   if (lead.slaBreached) {

@@ -7,6 +7,7 @@ import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, budgetLabel, useToast } from '../design/ui.js';
 import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
+import { useCallAction, type CallActions } from './call.js';
 import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, originOf } from '../lib/dialling.js';
 
@@ -258,6 +259,13 @@ function wanted(row: Row): string {
 
 export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const isPhone = useIsPhone();
+  /*
+   * One of these for the whole screen, handed down to the cards, the rows and
+   * the panel. Not one per row: the helper's check-in gate reads
+   * `/api/attendance/today`, and a hook inside `LeadRow` would ask for it
+   * fifty times on a list of fifty leads.
+   */
+  const dial = useCallAction({ source: 'lead' });
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   /* Follow-ups is this screen opened on what is late. The tab is then not the
@@ -591,6 +599,8 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   if (isPhone) {
     return (
       <div className={wide ? 'v2-leadlist p-all-leads v2-a-list' : 'v2-leadlist p-my-leads v2-a-list'}>
+        {/* The check-in sheet and anything a recording could not do. */}
+        {dial.banner}
         {/* The design opens with the search field, above the chips. */}
         <label className="v2-a-search">
           <Icon name="search" />
@@ -697,7 +707,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             )
             : (
               <div className="v2-a-cards">
-                {rows.map((row) => <PhoneLeadCard key={row.id} row={row} />)}
+                {rows.map((row) => <PhoneLeadCard key={row.id} row={row} dial={dial} />)}
               </div>
             )
         )}
@@ -788,6 +798,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
   return (
     <div className={wide ? 'v2-leadlist p-all-leads' : 'v2-leadlist p-my-leads'}>
+      {dial.banner}
       <div className="v2-page-head v2-leadlist-head">
         {!fixedTab && (
           <div
@@ -1021,6 +1032,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                     }}
                     onOpen={() => setPanelFor(row)}
                     onMenu={(x, y) => setMenuAt({ row, x, y })}
+                    dial={dial}
                   />
                 ))}
               </tbody>
@@ -1177,6 +1189,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           book={book}
           onClose={() => setPanelFor(null)}
           onGive={() => { const row = panelFor; setPanelFor(null); openMove([row.id]); }}
+          dial={dial}
         />
       )}
 
@@ -1314,7 +1327,7 @@ function overDesk(takers: Taker[], moveTo: string | null): string | null {
  * are the whole job — message and call. A row in the computer table is six
  * lines tall at 390px; this is three.
  */
-function PhoneLeadCard({ row }: { row: Row }) {
+function PhoneLeadCard({ row, dial }: { row: Row; dial: CallActions }) {
   const why = reason(row);
   const origin = originOf(row.phone_e164);
   const local = origin ? clockIn(origin.timeZone) : null;
@@ -1356,12 +1369,18 @@ function PhoneLeadCard({ row }: { row: Row }) {
             target="_blank"
             rel="noreferrer"
             aria-label={`Message ${name}`}
+            onClick={(e) => { e.preventDefault(); void dial.whatsapp(row); }}
           >
             <Icon name="message-circle" />
           </a>
         )}
         {phone && (
-          <a className="v2-a-rbtn v2-a-rbtn-call" href={`tel:${phone}`} aria-label={`Call ${name}`}>
+          <a
+            className="v2-a-rbtn v2-a-rbtn-call"
+            href={`tel:${phone}`}
+            aria-label={`Call ${name}`}
+            onClick={(e) => { e.preventDefault(); void dial.call(row); }}
+          >
             <Icon name="phone" />
           </a>
         )}
@@ -1416,11 +1435,13 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
 }
 
 function LeadRow({
-  row, wide, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu,
+  row, wide, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu, dial,
 }: {
   row: Row;
   wide: boolean;
   showOwner: boolean;
+  /** The screen's one call helper, so the row records what it did. */
+  dial: CallActions;
   /** The owner's book has a tick box on every row; the agent's list does not. */
   selectable?: boolean;
   picked?: boolean;
@@ -1455,7 +1476,12 @@ function LeadRow({
   const actions = (
     <div className="d-row-actions">
       {phone && (
-        <a className="d-btn d-xs" href={`tel:${phone}`} aria-label={`Call ${row.full_name ?? 'this lead'}`}>
+        <a
+          className="d-btn d-xs"
+          href={`tel:${phone}`}
+          aria-label={`Call ${row.full_name ?? 'this lead'}`}
+          onClick={(e) => { e.preventDefault(); void dial.call(row); }}
+        >
           <Icon name="phone" />Call
         </a>
       )}
@@ -1466,6 +1492,7 @@ function LeadRow({
           target="_blank"
           rel="noreferrer"
           aria-label="WhatsApp"
+          onClick={(e) => { e.preventDefault(); void dial.whatsapp(row); }}
         >
           <Icon name="message-circle" />WhatsApp
         </a>
@@ -1631,11 +1658,12 @@ function LeadRow({
  * and the notes the list rows do not carry. Nothing here invents a figure: a
  * field the record does not hold is simply not drawn.
  */
-function LeadPanel({ row, book, onClose, onGive }: {
+function LeadPanel({ row, book, onClose, onGive, dial }: {
   row: Row;
   book: boolean;
   onClose: () => void;
   onGive: () => void;
+  dial: CallActions;
 }) {
   const detail = useAsync<{
     lead: Row & { email: string | null; language: string | null; preferred_location: string | null };
@@ -1665,7 +1693,11 @@ function LeadPanel({ row, book, onClose, onGive }: {
     <div className="d-p-acts">
       {phone
         ? (
-          <a className="d-btn d-primary" href={`tel:${phone}`}>
+          <a
+            className="d-btn d-primary"
+            href={`tel:${phone}`}
+            onClick={(e) => { e.preventDefault(); void dial.call(row); }}
+          >
             <Icon name="phone" />Call
           </a>
         )
@@ -1676,6 +1708,7 @@ function LeadPanel({ row, book, onClose, onGive }: {
           href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
           target="_blank"
           rel="noreferrer"
+          onClick={(e) => { e.preventDefault(); void dial.whatsapp(row); }}
         >
           <Icon name="message-circle" />WhatsApp
         </a>

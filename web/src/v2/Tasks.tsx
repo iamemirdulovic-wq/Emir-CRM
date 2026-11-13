@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
-import { useCheckIn } from './check-in.js';
+import { useCallAction } from './call.js';
 import {
   clock, dayKey, nextFreeSlot, pastProblem, slots, withSlot, type Occupied,
 } from './plan-rules.js';
@@ -690,9 +690,14 @@ function FollowUps({
 }) {
   const [when, setWhen] = useState<'overdue' | 'today' | 'tomorrow' | 'week'>('overdue');
   const [asking, setAsking] = useState<Task | null>(null);
-  /* The sheet only: the amber "you are not checked in" strip belongs at the
-     top of a page, and this is a tab inside one. */
-  const gate = useCheckIn({ strip: false });
+  /*
+   * Calling a lead from a follow-up. The sheet only: the amber "you are not
+   * checked in" strip belongs at the top of a page, and this is a tab inside
+   * one. The gate used to be asked here and the call recorded nowhere, so a
+   * day of follow-up calls did not exist in any figure the owner reads; the
+   * one helper does both, and asks once.
+   */
+  const dial = useCallAction({ source: 'followup' });
   const toast = useToast();
 
   const groups = useMemo(() => {
@@ -798,10 +803,24 @@ function FollowUps({
                       className="d-btn d-icon"
                       aria-label={`Call ${task.full_name ?? 'this lead'}`}
                       onClick={() => {
-                        void gate.ask().then((answer) => {
-                          if (answer === 'cancel') return;
-                          window.location.href = `tel:${task.phone_e164}`;
-                        });
+                        if (task.opportunity_id) {
+                          void dial.call({
+                            id: task.opportunity_id,
+                            phone_e164: task.phone_e164,
+                            full_name: task.full_name,
+                          });
+                          return;
+                        }
+                        /*
+                         * A follow-up with no lead behind it — a plain
+                         * reminder against a contact. There is no opportunity
+                         * to file a call against and one is not invented, so
+                         * nothing is recorded and the check-in question is
+                         * not asked: its only job is to mark a *recorded*
+                         * call "not checked in", and asking here would
+                         * collect an answer and bin it.
+                         */
+                        window.location.href = `tel:${task.phone_e164}`;
                       }}
                     >
                       <Icon name="phone" />
@@ -883,7 +902,7 @@ function FollowUps({
         way, so nothing is forgotten by being late.
       </p>
 
-      {gate.banner}
+      {dial.banner}
 
       {/*
         * "What happened with {name}?" — the four answers `FollowUps.dc.html`

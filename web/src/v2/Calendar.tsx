@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { useCallAction } from './call.js';
 import {
   addDays, ASKED_BY, clashIn, clock, dayKey, freeGap, instantOf, nextFreeSlot, NEXT_STEPS,
   pastProblem, RESULTS, resultChip, slots, TRY_AGAIN, withSlot,
@@ -1399,6 +1400,9 @@ function ResultPanel({
 }) {
   const meeting = plan.meeting as Meeting;
   const { user } = useAuth();
+  /* The "sorry we missed you" WhatsApp, recorded like every other tap in the
+     CRM. There is no Call on this panel, so the gate never comes up here. */
+  const dial = useCallAction({ source: 'followup' });
   const [result, setResult] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1608,6 +1612,7 @@ function ResultPanel({
     <>
       <div className="v2-panel-back" onClick={onClose} aria-hidden />
       <aside className="d-panel d-open" aria-label="How did it go?">
+        {dial.banner}
         <div className="d-panel-head">
           <h2>How did it go?</h2>
           <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
@@ -1738,6 +1743,19 @@ function ResultPanel({
                     className="d-btn d-sm"
                     disabled={!meeting.phone}
                     onClick={() => {
+                      if (meeting.opportunityId) {
+                        void dial.whatsapp(
+                          { id: meeting.opportunityId, phone: meeting.phone, name: meeting.who },
+                          { text: sorry },
+                        );
+                        return;
+                      }
+                      /*
+                       * A diary entry with no lead behind it — somebody's own
+                       * appointment. There is no opportunity to file the tap
+                       * against and one is not invented, so it opens WhatsApp
+                       * and records nothing.
+                       */
                       const to = (meeting.phone ?? '').replace(/[^\d]/g, '');
                       window.open(
                         `https://wa.me/${to}?text=${encodeURIComponent(sorry)}`,

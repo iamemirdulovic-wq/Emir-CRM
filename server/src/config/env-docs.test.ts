@@ -41,7 +41,10 @@ const CI_SECRETS = /^(HOSTINGER_SSH_|DEPLOY_PATH$)/;
 /** Read only by scripts and the test harness, so not part of the app schema. */
 const TOOLING = new Set([
   'SEED_OWNER_EMAIL', 'SEED_OWNER_PASSWORD',
-  'TEST_DB_HOST', 'TEST_DB_USER', 'TEST_DB_PASSWORD',
+  /* `TEST_DB_NAME` names the database the integration suites use. It is worth
+     documenting because leaving it unset is what gives a run its own
+     database — see `docs/v2/test-race.md`. */
+  'TEST_DB_HOST', 'TEST_DB_PORT', 'TEST_DB_USER', 'TEST_DB_PASSWORD', 'TEST_DB_NAME',
   'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT',
 ]);
 

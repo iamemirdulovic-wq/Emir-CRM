@@ -227,13 +227,27 @@ function TopBar() {
   const { pathname } = useLocation();
   /* S-38: on a record the title is the way back, not a label. */
   const onRecord = /^\/v2\/leads\/[^/]+$/.test(pathname);
+  /*
+   * The same slot the phone header reads. The design gives nearly every page
+   * a line under the title -- the date and the shift on Attendance, "62 open
+   * · 12 to call today" on My leads, "10 agents · 6 in office now" on Team --
+   * and for a long time the computer showed none of them: `scripts/
+   * computer-proof.mjs` found it missing on 24 of the 47 pages at once.
+   *
+   * `app.js` in the design package leaves the sub out when the title is a
+   * back link (`buildTopbar`), and so does this.
+   */
+  const head = usePhoneHeadSlot();
 
   return (
     <header className="v2-top">
       {onRecord ? (
         <Link to="/v2/leads" className="v2-back"><Icon name="arrow-left" />All leads</Link>
       ) : (
-        <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>
+        <div className="v2-topttl">
+          <h1 className="v2-title">{head.title ?? titleFor(pathname, user?.role ?? 'agent')}</h1>
+          {head.sub && <p className="v2-tsub">{head.sub}</p>}
+        </div>
       )}
 
       {/* S-39, S-40: always visible, and never an empty box when opened. */}
