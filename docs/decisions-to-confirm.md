@@ -354,3 +354,51 @@ says what happened — but they can no longer look up the rule itself.
 **A) Keep it shut** (recommended — it is your switch panel, and the
 take-back message already explains itself). **B) Let agents read the rules
 but not change them**, as it was.
+
+## 24. "Going cold" has no list of its own to open
+
+The design's owner home and full dashboard both have a **Going cold** row —
+open leads nobody has contacted for seven days — and both of them open
+`all-leads.html?tab=going-cold`. The leads list has no such tab: it offers
+Today, New, Overdue, No next step, VIP, Lost and All.
+
+So the count beside the row is the real seven-day figure, and tapping it opens
+the **Overdue** list, which is the nearest true thing rather than an error
+page. "Overdue" is a different question, though — it means a promise whose
+time has passed, and a lead can be going cold with no promise on it at all.
+
+**A) Add a "Going cold" tab to the leads list** (recommended — it is one
+clause on one query, and it is the list the owner is being sent to look at).
+**B) Leave it pointing at Overdue** and change the row's wording to match.
+
+## 25. Three dialogs on the owner's home open a screen instead
+
+`owner-home.html` answers three of its six rows inside a dialog: **Give** a
+lead to an agent, **Answer** two leave requests, and a side panel for an agent
+who is **absent**. Each of those three jobs already has a built screen —
+Incoming, Attendance, and Attendance again — so the rows open those instead,
+and the work gets done in one place rather than two.
+
+The cost is a page change where the design has a panel: three taps rather than
+one, and you lose your place on the home screen.
+
+**A) Leave it as links** (recommended for now — one copy of each job, and the
+screens behind them are fuller than the dialogs were). **B) Build the three
+dialogs as well**, and keep both in step.
+
+## 26. The owner's home has no greeting on the computer
+
+The phone design opens with "Good afternoon, Emir" over the date. The computer
+design does not: the shared top bar carries the name and the date, and the page
+starts straight on the Today / Week / Month / Year switch.
+
+The build now matches both — greeting on a phone, no greeting on a computer.
+But the shared top bar has **lost its grey sub-line** on every page (the
+"Wednesday, 11 November 2026 · shift 09:00 – 18:00" the design gives all 44),
+so on a computer the date is now nowhere on the owner's home except inside
+"Live · 14:55".
+
+**A) Put the sub-line back in the top bar** (recommended — it fixes all 44
+pages at once, and it is what the design draws). **B) Give the owner's home
+its own greeting on the computer too**, which is one page fixed and 43 still
+missing it.

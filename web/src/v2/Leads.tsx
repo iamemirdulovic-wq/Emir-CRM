@@ -77,7 +77,7 @@ function useIsPhone(): boolean {
  * `hot` is a chip over All rather than a tab, which is how the dashboards
  * link to it.
  */
-const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
+export const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'today', label: 'Today' },
   { key: 'new', label: 'New' },
   { key: 'overdue', label: 'Overdue', red: true },
@@ -87,7 +87,7 @@ const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'all', label: 'All' },
 ];
 
-const OWNER_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
+export const OWNER_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'all', label: 'All' },
   { key: 'cold', label: 'Going cold' },
   { key: 'overdue', label: 'Overdue', red: true },

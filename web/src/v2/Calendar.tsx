@@ -1339,7 +1339,15 @@ function PlanPanel({
           {problem && <ErrorNote>{problem}</ErrorNote>}
         </div>
 
-        <div className="d-panel-foot">
+        {/*
+          * Wrapping, inline, because this one row can hold three buttons and
+          * "Delete" grows into "Tap again to delete" on the first tap — which
+          * is 70 pixels the 480px panel does not have. `d-panel-foot` is in
+          * the generated stylesheet and `v2-shell.css` belongs to the shell,
+          * so the one place this rule can live without reaching into either
+          * is here.
+          */}
+        <div className="d-panel-foot" style={{ flexWrap: 'wrap', rowGap: 8 }}>
           {plan.leadId && (
             <Link className="d-btn" to={`/v2/leads/${plan.leadId}`}>
               <Icon name="user" />Open the lead
@@ -2062,10 +2070,12 @@ function daySub(plan: Plan, onDay: string): string | null {
     ? Math.round((instantOf(onDay, '00:00').getTime()
       - instantOf(dayKey(plan.at), '00:00').getTime()) / 86_400_000) + 1
     : 0;
+  /* What came of it is the chip on the right of the row, not a word in the
+     middle of this line: saying it twice is how "Cancelled · Cancelled"
+     happens. */
   return [
     span > 1 ? `All day · day ${which} of ${span}` : plan.allDay ? 'All day' : null,
     plan.meeting?.place,
-    resultChip(plan.result)?.label,
     plan.late ? 'Overdue' : null,
   ].filter(Boolean).join(' · ') || plan.kindLabel;
 }

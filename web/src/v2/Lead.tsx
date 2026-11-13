@@ -454,7 +454,7 @@ export function V2Lead() {
 
           <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
             <div className="d-tabs" role="tablist">
-              {(['notes', 'timeline', 'info', 'files'] as const).map((one) => (
+              {TAB_KEYS.map((one) => (
                 <button
                   key={one}
                   type="button"

@@ -27,7 +27,7 @@ export type LeadActionKind = 'follow_up' | 'meeting' | 'won' | 'lost';
  * six the build did offer could not be written at all: see
  * `server/migrations/0038_lead_screens.sql`.
  */
-const LOST_REASONS = [
+export const LOST_REASONS = [
   { key: 'bought_elsewhere', label: 'Bought elsewhere' },
   { key: 'budget_too_low', label: 'Budget too low' },
   { key: 'just_browsing', label: 'Just browsing' },
@@ -37,7 +37,7 @@ const LOST_REASONS = [
 ];
 
 /** What the buyer signed. `design/web/lead.html`'s three chips. */
-const SIGNED = [
+export const SIGNED = [
   { key: 'booking_form', label: 'Booking form' },
   { key: 'reservation_agreement', label: 'Reservation agreement' },
   { key: 'spa', label: 'SPA' },
