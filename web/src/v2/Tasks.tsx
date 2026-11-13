@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -58,7 +58,23 @@ export function V2Tasks() {
   const { user } = useAuth();
   const canSeeTeam = user?.role !== 'agent';
 
-  const [panel, setPanel] = useState<'tasks' | 'follow-ups'>('tasks');
+  /*
+   * Which tab is open lives in the address, not in a useState.
+   *
+   * The sidebar's Follow-ups row is this page's second tab, as the design has
+   * it (`tasks.html#follow-ups`), so it arrives as `?tab=follow-ups`. Keeping
+   * the tab in the address is what makes the sidebar able to light the right
+   * row of the two, and it means a follow-up list can be sent to somebody as
+   * a link.
+   */
+  const [query, setQuery] = useSearchParams();
+  const panel: 'tasks' | 'follow-ups' = query.get('tab') === 'follow-ups' ? 'follow-ups' : 'tasks';
+  const setPanel = (next: 'tasks' | 'follow-ups') => {
+    const q = new URLSearchParams(query);
+    if (next === 'tasks') q.delete('tab');
+    else q.set('tab', 'follow-ups');
+    setQuery(q, { replace: true });
+  };
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
   const [day, setDay] = useState(() => dayKey(new Date()));
   const [state, setState] = useState<'todo' | 'done'>('todo');
@@ -416,10 +432,19 @@ function FollowUps({
           {showing.length} follow-up{showing.length === 1 ? '' : 's'}
         </span>
         {showing.length > 0 && (
-          <Link className="d-btn d-primary" to="/v2/calling">
-            <Icon name="phone" />
-            <span>Call these {showing.length} one by one</span>
-          </Link>
+          <>
+            {/* The same people, as a list of leads rather than of promises.
+                `/v2/follow-ups` is that list, and this is the only way in
+                now that the sidebar row points at this tab. */}
+            <Link className="d-btn d-sm" to="/v2/follow-ups">
+              <Icon name="users" />
+              <span>See them as leads</span>
+            </Link>
+            <Link className="d-btn d-primary" to="/v2/calling">
+              <Icon name="phone" />
+              <span>Call these {showing.length} one by one</span>
+            </Link>
+          </>
         )}
       </div>
 

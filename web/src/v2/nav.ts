@@ -37,6 +37,13 @@ export interface NavItem {
   later?: boolean;
 }
 
+/*
+ * Follow-ups is the Tasks page's second tab, not a page of its own — the
+ * design's own sidebar points at `tasks.html#follow-ups`. We carry it as a
+ * query (`?tab=follow-ups`) rather than a hash, because a hash is how the
+ * preview build routes. `/v2/follow-ups` still answers, as the overdue leads
+ * list, and the tab links across to it.
+ */
 export interface NavGroup {
   /** Null for the unlabelled top group (S-7, S-9, S-15). */
   label: string | null;
@@ -60,7 +67,7 @@ const OWNER_GROUPS: NavGroup[] = [
     label: 'LEADS',
     items: [
       { to: '/v2/leads', label: 'All leads', icon: 'users' },
-      { to: '/v2/follow-ups', label: 'Follow-ups', icon: 'calendar-check', badge: 'followups', urgent: true },
+      { to: '/v2/tasks?tab=follow-ups', label: 'Follow-ups', icon: 'calendar-check', badge: 'followups', urgent: true },
       { to: '/v2/pipeline', label: 'Pipeline', icon: 'kanban' },
       { to: '/v2/transfers', label: 'Transfers', icon: 'repeat', badge: 'transfers' },
       { to: '/v2/import', label: 'Import', icon: 'upload' },
@@ -108,7 +115,7 @@ const AGENT_GROUPS: NavGroup[] = [
     label: 'LEADS',
     items: [
       { to: '/v2/leads', label: 'My leads', icon: 'users' },
-      { to: '/v2/follow-ups', label: 'Follow-ups', icon: 'calendar-check', badge: 'followups', urgent: true },
+      { to: '/v2/tasks?tab=follow-ups', label: 'Follow-ups', icon: 'calendar-check', badge: 'followups', urgent: true },
       { to: '/v2/pipeline', label: 'Pipeline', icon: 'kanban' },
       { to: '/v2/transfers', label: 'Transfers', icon: 'repeat', badge: 'transfers' },
     ],

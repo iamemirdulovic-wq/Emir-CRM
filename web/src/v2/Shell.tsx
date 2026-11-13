@@ -104,6 +104,7 @@ function Badge({ item, folded }: { item: NavItem; folded: boolean }) {
 }
 
 function Row({ item, folded }: { item: NavItem; folded: boolean }) {
+  const at = useLocation();
   if (item.later) {
     /* Drawn, and deliberately not reachable from here. See decisions.md §6.3:
        the old screen still works at its own address, so nothing is lost. */
@@ -122,8 +123,7 @@ function Row({ item, folded }: { item: NavItem; folded: boolean }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/v2'}
-      className={({ isActive }) => (isActive ? 'v2-row v2-row-on' : 'v2-row')}
+      className={() => (rowIsOn(item.to, at) ? 'v2-row v2-row-on' : 'v2-row')}
       title={folded ? item.label : undefined}
     >
       <Icon name={item.icon} />
@@ -132,6 +132,27 @@ function Row({ item, folded }: { item: NavItem; folded: boolean }) {
     </NavLink>
   );
 }
+
+/**
+ * Which row is lit.
+ *
+ * Two rows point at `/v2/tasks` — Tasks, and Follow-ups, which is that page's
+ * second tab. React Router's own matching looks at the path alone, so it would
+ * light both. A row whose address carries a query is lit only when that query
+ * is the one in the address bar, and a row without one is lit only when there
+ * is no tab in the address bar at all.
+ */
+function rowIsOn(to: string, at: { pathname: string; search: string }): boolean {
+  const [path, query] = to.split('?');
+  if (path === '/v2') return at.pathname === '/v2';
+  if (at.pathname !== path && !at.pathname.startsWith(`${path}/`)) return false;
+  const here = new URLSearchParams(at.search).get('tab');
+  if (query) return here === new URLSearchParams(query).get('tab');
+  return !here || !TAB_ROWS.has(`${path}?tab=${here}`);
+}
+
+/** Every row that is a tab of another row's page. */
+const TAB_ROWS = new Set(['/v2/tasks?tab=follow-ups']);
 
 function Sidebar({ folded, onToggle }: { folded: boolean; onToggle: () => void }) {
   const { user } = useAuth();
@@ -228,6 +249,7 @@ function TopBar() {
 
 /** The phone's floating bar, and the dial button beside it — never over it. */
 function PhoneBar() {
+  const at = useLocation();
   return (
     <div className="v2-bar-wrap">
       <nav className="v2-bar" aria-label="Main">
@@ -235,8 +257,7 @@ function PhoneBar() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/v2'}
-            className={({ isActive }) => (isActive ? 'v2-tab v2-tab-on' : 'v2-tab')}
+            className={() => (rowIsOn(item.to, at) ? 'v2-tab v2-tab-on' : 'v2-tab')}
           >
             <Icon name={item.icon} />
             <span>{item.label}</span>
@@ -375,7 +396,7 @@ export function V2More() {
         <section className="v2-more-group" key={group.label ?? `top-${i}`}>
           {group.label && <h2>{group.label}</h2>}
           {group.items.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/v2'} className="v2-more-row">
+            <NavLink key={item.to} to={item.to} className="v2-more-row">
               <Icon name={item.icon} />
               <span className="v2-more-label">{item.label}</span>
               {item.badge && (counts[item.badge] ?? 0) > 0 && (
