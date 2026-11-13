@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
-import { Avatar } from '../design/ui.js';
+import { Avatar, ToastHost } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
 import { groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem } from './nav.js';
 import { Bell } from './Bell.js';
@@ -339,18 +339,30 @@ export function V2Shell() {
     return () => window.removeEventListener('keydown', onKey);
   }, [toggleRail]);
 
+  /*
+   * `ToastHost` wraps the whole shell, and this is not decoration.
+   *
+   * `useToast()` reads a context. Without a host above it the call returns the
+   * context's default — a function that does nothing — and it does it
+   * silently. Twenty-eight v2 screens and sixty-nine call sites were pressing
+   * Undo, moving leads and sending reminders with nothing on screen to say so,
+   * including the one on the dashboard that takes thirty-one leads off an
+   * agent. The host was mounted in the v1 layout only, which v2 does not use.
+   */
   return (
-    <Counts.Provider value={counts}>
-      <div className={isPhone ? 'v2 v2-phone' : 'v2'}>
-        {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
-        <div className="v2-main">
-          {!isPhone && <TopBar />}
-          {isPhone && <PhoneTop />}
-          <main className="v2-page"><Outlet /></main>
+    <ToastHost>
+      <Counts.Provider value={counts}>
+        <div className={isPhone ? 'v2 v2-phone' : 'v2'}>
+          {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
+          <div className="v2-main">
+            {!isPhone && <TopBar />}
+            {isPhone && <PhoneTop />}
+            <main className="v2-page"><Outlet /></main>
+          </div>
+          {isPhone && <PhoneBar />}
         </div>
-        {isPhone && <PhoneBar />}
-      </div>
-    </Counts.Provider>
+      </Counts.Provider>
+    </ToastHost>
   );
 }
 

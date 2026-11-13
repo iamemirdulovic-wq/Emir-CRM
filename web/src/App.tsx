@@ -34,7 +34,6 @@ import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
 import { V2Shell, V2More } from './v2/Shell.js';
-import { Placeholder } from './v2/Placeholder.js';
 import { V2Leads } from './v2/Leads.js';
 import { V2Home } from './v2/Home.js';
 import { V2Calling } from './v2/Calling.js';

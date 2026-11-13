@@ -33,7 +33,7 @@ media query, not a second app. Where the design has a phone screen of its own
 | `manage-projects.html` | `/v2/projects/manage` | Done | `ManageProjects` |
 | `sales-offers.html` | `/v2/offers` | Done | — |
 | `team.html` | `/v2/team` | Done | `TeamDirectory`, `Dark_TeamDirectory` |
-| `profile.html` | `/v2/profile`, `/v2/team/:id` | Done | `Profile`, `Colleague`, `PersonalInfo`, `Security` |
+| `profile.html` | `/v2/profile`, `/v2/team/:id` | Done — "Edit my profile" still opens the old editing form at `/profile`, which was not redrawn; everything you read is v2 | `Profile`, `Colleague`, `PersonalInfo`, `Security` |
 | `digital-card.html` | `/v2/card` | Done | `DigitalCard` |
 | `team-wall.html` | `/v2/wall` | Done | `TeamWall` |
 | `best-of-homes.html` | `/v2/best` | Done | `Leaderboard` |

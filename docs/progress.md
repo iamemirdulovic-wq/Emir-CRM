@@ -133,3 +133,15 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   so it is state leaking between files, not a bug in what they test.
 - **Failed.** Three attempts at the cause, which is the limit agreed. Written
   down here and moved on.
+
+## Dead stylesheet rules, counted but not swept · 13 Nov
+
+- **Done.** Counted them: `v2-shell.css` defines 498 `v2-` classes and 227 are
+  referenced nowhere in the app — leftovers from every screen's rebuild, since
+  a screen rebuilt from its design file stops using the hand-written classes
+  it had before.
+- **Not done.** Removing them. A blind sweep is not safe: a class built by
+  joining strings (`v2-att-` plus a status) reads as dead to a search and is
+  not. It needs one careful pass with the collision test as the net.
+- **Failed.** Nothing. It costs bytes, not behaviour, and
+  `css-collisions.test.ts` is what guards the thing that actually bites.

@@ -2024,6 +2024,10 @@ const ROUTES: Route[] = [
     company: { missing: 1 },
     ai: { spentUsd: '38.40', capUsd: '100.00' },
     health: { ok: 4, total: 5 },
+    /* The real endpoint sends this and the Settings page reads
+       `s.feedback.open` without a guard, so leaving it out was a page error
+       on all four states of /v2/settings, not a blank line. */
+    feedback: { open: 2 },
   }) },
 
   { method: 'GET', pattern: /^\/api\/company$/, handler: () => ({

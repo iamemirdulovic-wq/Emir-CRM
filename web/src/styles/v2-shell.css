@@ -2780,3 +2780,14 @@
   .v2 .p-dashboard .d-hbar.d-prj > a {min-height:30px;display:flex;align-items:center}
   .v2 .p-dashboard .d-hbar .d-bar {grid-column:1 / 2}
 }
+
+/* ── the toast, beside v2 ────────────────────────────────────────────────
+   `ToastHost` renders its toast after its children, so the element is a
+   *sibling* of `.v2`, not a descendant — `.v2 .toast` would never match.
+
+   v1 puts it 24px off the bottom. On a phone that is underneath the floating
+   bar and the dial button, so a confirmation lands where nobody can read it.
+   The phone rule comes second on purpose: both selectors weigh the same, so
+   the later one wins. */
+.v2 ~ .toast {bottom:24px}
+.v2-phone ~ .toast {bottom:calc(76px + env(safe-area-inset-bottom, 0px))}

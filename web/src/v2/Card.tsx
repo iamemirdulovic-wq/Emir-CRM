@@ -115,14 +115,18 @@ export function V2Card() {
 
   /* Nothing here is typed twice: the first load takes the name, title, BRN
      and numbers from the profile, and only when this browser has not already
-     remembered a card. */
+     remembered a card.
+     Both requests have to have settled first — filling from the profile while
+     the company record is still in the air writes the fallback office
+     address and then never corrects it. */
   useEffect(() => {
     if (filled.current || !me.data) return;
-    filled.current = true;
     setPublicCard(Number(me.data.profile.is_public) === 1);
+    if (!company.data && !company.error) return;
+    filled.current = true;
     if (saved.current) return;
     setDetails(fromProfile(me.data.profile, company.data?.company));
-  }, [me.data, company.data]);
+  }, [me.data, company.data, company.error]);
 
   useEffect(() => {
     try {

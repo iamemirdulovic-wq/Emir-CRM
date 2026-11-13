@@ -503,11 +503,13 @@ export function V2Person() {
           <span className="d-grow">Team wall</span>
           <Icon name="arrow-right" />
         </Link>
-        <a className="d-shortcut" href="/tools/business-card">
+        {/* `/v2/card` is the v2 screen; `/tools/business-card` is v1's and
+            leaving the link on it dropped you out of v2 mid-journey. */}
+        <Link className="d-shortcut" to="/v2/card">
           <Icon name="id-card" />
           <span className="d-grow">Business card</span>
           <Icon name="arrow-right" />
-        </a>
+        </Link>
         <Link className="d-shortcut" to={mine ? '/v2/attendance' : '/v2/team'}>
           <Icon name={mine ? 'pin' : 'users-round'} />
           <span className="d-grow">{mine ? 'My attendance' : 'The team'}</span>

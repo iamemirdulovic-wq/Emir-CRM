@@ -377,9 +377,9 @@ const SHORTCUTS: Shortcut[] = [
   },
   {
     to: '/v2/settings/feedback', icon: 'inbox', label: 'Feedback inbox',
-    detail: (s) => (s.feedback.open === 0
+    detail: (s) => ((s.feedback?.open ?? 0) === 0
       ? 'Bugs and ideas from the team'
-      : `${s.feedback.open} waiting for an answer`),
+      : `${s.feedback?.open ?? 0} waiting for an answer`),
   },
 ];
 
