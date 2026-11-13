@@ -839,6 +839,11 @@ campaigns, dashboards and reports, agent profiles, the Team Wall, the command
 palette and tour, owner settings, the project library, sales offers and
 office attendance.
 
+Every page in `design/web/` now has an address under `/v2/*` — 48 routes, and
+`docs/v2/screens.md` is the list, each row with its design file and how far it
+got. Two of them had never been built at all until 13 Nov: the owner's full
+dashboard (`/v2/dashboard`) and Team live (`/v2/team-live`).
+
 **Not built: Emir Books.** It was taken out of scope for this build and no part
 of it is wired up — there is no CRM | Books switcher, and `web/src/styles/books.css`
 exists but is deliberately **not imported**. Do not treat it as half-finished;
@@ -879,6 +884,16 @@ Three things about that port that have each already cost a day:
 - **`design/web/` is the computer design.** Its grids are fixed desktop widths
   and there is no phone version of most pages. The phone layout is yours to
   write, in `v2-shell.css`, and `npm run polish` is what catches it missing.
+- **The ported page CSS is a descendant rule**, `.v2 .p-X .d-foo`. So the
+  `p-*` class goes on a *parent* of the design's elements, never on the same
+  element, and every phone override must repeat the `p-*` class or it loses
+  on specificity whatever the media query says.
+- **The port renames keyframes, and nearly renamed one twice.** `pulse` sat
+  inside the already-renamed `v2-pulse-row` — hyphens are word boundaries —
+  and left `v2-v2-pulse-row`, which names no keyframe, so that animation did
+  nothing on every screen that used it, silently. The lookbehind in
+  `renameAnimations` is what stops it; `grep -c "v2-v2-"` over the generated
+  files must be 0.
 
 ## Things that will trip you up
 

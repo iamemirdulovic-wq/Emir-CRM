@@ -134,3 +134,60 @@ week's ideas is the thing this ordering exists to prevent.
 not just by greying out the button — six banners rotating is not five plus
 one, it is a carousel nobody waits through, and the sixth is the one nobody
 ever sees. Switching an old one back on counts against the five too.
+
+## 10 · The morning brief says where its words came from
+
+The design's dashboard has a black hero card headed **"Homes AI · Morning
+brief"** over a sentence that reads as if a person wrote it.
+
+What the CRM actually has is `/api/activity/insight`, which counts your own
+numbers and labels itself, in its own answer, **"Counted from your own
+data"**. That is the label the card carries, and those are the lines it shows.
+
+Nothing is invented and no counted fact is dressed up as a machine's opinion.
+If you would rather the card said "Homes AI" and had Gemini write the sentence
+from those same numbers, say so — it is a small change, and it needs the
+Gemini key.
+
+## 11 · The full dashboard is owner and admin only
+
+`docs/v2/pages.md` marks `dashboard.html` **O/Ad**, so that is how it is built:
+a manager gets "The full dashboard is for the owner and admins."
+
+The reason to agree with it: the page shows every agent's calls, meetings and
+deals side by side, and the whole company's totals. A manager has their team
+on `/v2/team` and the same numbers for their own people.
+
+If you want managers in, it is a one-word change on the server and one in the
+screen — but then a manager sees everybody, not only their desk.
+
+## 12 · "Move 31" sends that agent's leads back to Incoming
+
+The Going cold card has the design's **Move N** button. It takes every *open*
+lead off that person and puts it in Incoming, where you give it out. It does
+not choose the next agent — the same rule the five-minute bounce follows, and
+for the same reason: you chose that agent once, and the CRM should not choose
+the next one for you.
+
+Three things about it:
+
+- It asks first. The button becomes **"Yes, move 31"** and only the second tap
+  does anything.
+- Won and Lost leads stay where they are. They are not anybody's work.
+- It is written to `audit_log`, with who did it and how many moved.
+
+Owner and admin only.
+
+## 13 · Follow-ups is a tab on Tasks, not a page of its own
+
+The sidebar's **Follow-ups** row used to open a list of overdue leads. The
+design points it at the Tasks page's second tab (`tasks.html#follow-ups`), so
+that is where it goes now.
+
+Nothing is lost: the old overdue-leads list still answers at `/v2/follow-ups`,
+and the follow-ups tab has a **"See them as leads"** button that opens it.
+
+The reason the design is right: a task is something you have to do, a
+follow-up is a promise you made to a client. They belong on the same screen
+because they are both "what I owe today", and being late with one is a
+different kind of late.
