@@ -512,17 +512,69 @@ function PhoneTop() {
   );
 }
 
-/** The phone's More screen: the rest of the same menu, in the same order. */
+/**
+ * The order `Menu.dc.html` puts the tools in, and the three headings it
+ * groups them under.
+ *
+ * The design does not group by topic — it groups by *who a tool is for*:
+ * OWNER & ADMIN, MY WORK, TEAM. That is a different answer from the
+ * sidebar's, and a better one on a phone, where an agent scrolling past
+ * eleven owner tools to reach the calendar is the whole problem.
+ *
+ * These are addresses, not labels. What each one is called, which icon it
+ * carries and who may open it stay in `nav.ts`, so a tool renamed there is
+ * renamed here, and a tool an agent may not open never reaches this list.
+ * Anything `nav.ts` offers that the design does not name still appears, in a
+ * block at the end — a tool dropped silently is a tool nobody finds.
+ */
+const MENU_BLOCKS: { label: string; ownerOnly?: boolean; routes: (string | NavItem)[] }[] = [
+  {
+    label: 'Owner & admin',
+    ownerOnly: true,
+    routes: [
+      '/v2', '/v2/dashboard',
+      /*
+       * Not in `nav.ts`, on purpose: putting it there would add a row to the
+       * computer's sidebar, and the promise is that 768px and wider does not
+       * change. The phone menu is the only way to it for now.
+       */
+      { to: '/v2/vip', label: 'VIP leads I gave', icon: 'star' },
+      '/v2/leads', '/v2/import', '/v2/incoming',
+      '/v2/attendance', '/v2/team-live', '/v2/activity', '/v2/messaging',
+      '/v2/projects/manage', '/v2/settings/banners', '/v2/settings/desks',
+      '/v2/settings/feedback', '/v2/settings/team',
+      /* The design keeps these inside Settings; our menu offers each as its
+         own tile, so they belong in the owner's block rather than in the
+         leftovers at the foot. */
+      '/v2/automations', '/v2/settings/attendance', '/v2/settings/company',
+      '/v2/settings/ai', '/v2/settings/health',
+    ],
+  },
+  {
+    label: 'My work',
+    routes: [
+      '/v2/tasks?tab=follow-ups', '/v2/transfers', '/v2/pipeline', '/v2/inbox',
+      '/v2/calendar', '/v2/tasks', '/v2/projects', '/v2/ai', '/v2/calling',
+      '/v2/email', '/v2/templates', '/v2/offers',
+    ],
+  },
+  {
+    label: 'Team',
+    routes: [
+      '/v2/team', '/v2/wall', '/v2/best', '/v2/attendance', '/v2/feedback',
+      '/v2/notifications', '/v2/settings',
+    ],
+  },
+];
+
 /**
  * The phone's More screen — `Menu.dc.html`.
  *
- * Tiles, two across, grouped the way the menu is grouped, with everything the
- * sidebar holds on a computer plus everything the command palette holds. The
- * owner's tools are in their own block and an agent never sees it: the lists
- * in `nav.ts` already know which role may open what, so this cannot drift.
+ * Tiles, three across, in the design's three blocks, with everything the
+ * sidebar holds on a computer plus everything the command palette holds.
  *
- * It was a list of rows, which is the computer shape and reaches about a third
- * as many tools per screen of thumb-travel.
+ * It was a list of rows, which is the computer shape and reaches about a
+ * third as many tools per screen of thumb-travel.
  */
 export function V2More() {
   const { user, signOut } = useAuth();
@@ -533,21 +585,62 @@ export function V2More() {
     void signOut().then(() => navigate('/login', { replace: true }));
   };
 
-  const blocks = [
-    ...groupsFor(role).map((group, i) => ({
-      label: group.label ?? 'Today',
-      items: group.items,
-      key: group.label ?? `top-${i}`,
-    })),
-    { label: 'Messages', items: MESSAGE_ITEMS, key: 'messages' },
-    { label: 'Everything else', items: [...pinnedFor(role), ...extraScreensFor(role)], key: 'rest' },
-  ];
+  /* Everything this person may open, each tool once, in the menu's order. */
+  const all: NavItem[] = [];
+  const have = new Set<string>();
+  for (const one of [
+    ...groupsFor(role).flatMap((group) => group.items),
+    ...MESSAGE_ITEMS,
+    ...pinnedFor(role),
+    ...extraScreensFor(role),
+  ]) {
+    if (have.has(one.to)) continue;
+    have.add(one.to);
+    all.push(one);
+  }
+
+  const inOffice = role === 'owner' || role === 'admin';
+  const placed = new Set<string>();
+  const blocks = MENU_BLOCKS.filter((block) => inOffice || !block.ownerOnly).map((block) => {
+    const items: NavItem[] = [];
+    for (const one of block.routes) {
+      const to = typeof one === 'string' ? one : one.to;
+      if (placed.has(to)) continue;
+      const found = typeof one === 'string' ? all.find((x) => x.to === to) : one;
+      if (!found) continue;
+      placed.add(to);
+      items.push(found);
+    }
+    return { label: block.label, items, key: block.label };
+  });
+  /* Whatever the design does not name, rather than losing it. */
+  blocks.push({
+    label: 'Everything else',
+    items: all.filter((one) => !placed.has(one.to)),
+    key: 'rest',
+  });
 
   /* A tool reached from two places is still one tool. */
   const seen = new Set<string>();
 
   return (
     <div className="v2-more">
+      {/* The design puts the person and the search box above the tiles: who
+          you are signed in as, then the way to anything not on this screen. */}
+      <Link to="/v2/profile" className="v2-me-row">
+        <Avatar name={user?.name ?? '?'} />
+        <span className="d-grow">
+          <b>{user?.name ?? 'My profile'}</b>
+          <span>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+        </span>
+        <Icon name="chevron-right" />
+      </Link>
+
+      <Link to="/v2/search" className="v2-more-find">
+        <Icon name="search" />
+        Search leads, projects, screens
+      </Link>
+
       {blocks.map((block) => {
         const items = block.items.filter((one) => {
           const key = `${one.to}|${one.label}`;
@@ -581,15 +674,6 @@ export function V2More() {
           </section>
         );
       })}
-
-      <Link to="/v2/profile" className="v2-me-row">
-        <Avatar name={user?.name ?? '?'} />
-        <span className="d-grow">
-          <b>{user?.name ?? 'My profile'}</b>
-          <span>{role === 'agent' ? 'Agent' : role}</span>
-        </span>
-        <Icon name="chevron-right" />
-      </Link>
 
       {/* The design's last control on this screen, and the only way out of
           the app on a phone — there is no sidebar to hold it. */}

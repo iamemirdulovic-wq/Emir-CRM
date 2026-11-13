@@ -209,22 +209,52 @@
      the owner's tools in their own block. */
   .v2.v2-phone .v2-tiles {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Three across, as `Menu.dc.html` has it:
+       grid-template-columns:repeat(3,minmax(0,1fr)). Two fitted nine tools on
+       a screen of thumb-travel where the design fits fifteen, and the whole
+       menu ran to 2,256px. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
   .v2.v2-phone .v2-tile {
-    display: flex; flex-direction: column; gap: 8px;
-    min-height: 92px;
-    padding: 14px;
-    border-radius: 18px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    min-height: 96px;
+    padding: 14px 8px;
+    border-radius: 20px;
     background: var(--surface);
     box-shadow: var(--shadow-1);
     color: var(--ink);
     text-decoration: none;
+    text-align: center;
     position: relative;
   }
-  .v2.v2-phone .v2-tile .lucide { width: 22px; height: 22px; color: var(--ink-3); }
-  .v2.v2-phone .v2-tile-label { font-size: 13.5px; font-weight: 650; line-height: 1.25; }
+  /* The design puts each icon in a 42px tinted disc, which is what makes a
+     wall of tiles readable at a glance rather than a wall of words. */
+  .v2.v2-phone .v2-tile .lucide {
+    width: 20px; height: 20px;
+    color: var(--accent);
+    box-sizing: content-box;
+    padding: 11px;
+    border-radius: 21px;
+    background: var(--accent-soft);
+  }
+  .v2.v2-phone .v2-tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; }
+
+  /* The way into search, which the design puts under the person and above
+     the tiles. It is a link to the search screen, not a second input: one
+     search box in the app, one place its history lives. */
+  .v2.v2-phone .v2-more-find {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 14px;
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink-3);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .v2.v2-phone .v2-more-find .lucide { width: 18px; height: 18px; }
   .v2.v2-phone .v2-tile-badge {
     position: absolute; top: 10px; right: 10px;
     min-width: 22px; height: 22px; padding: 0 7px;

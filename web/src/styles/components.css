@@ -1194,3 +1194,16 @@ table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);
 .login-or::before,.login-or::after{content:'';flex:1;height:1px;background:var(--line)}
 .login-link-sent{font-size:13.5px;line-height:1.55;color:var(--ink-2);
   background:var(--surface-2);border-radius:12px;padding:12px 14px;margin:0}
+
+
+/*
+ * The language switch and the install line, both of which `login.html` and
+ * `Login.dc.html` put on this page. 44px tall, because on a phone this is
+ * the first thing anyone taps.
+ */
+.login-lang{display:flex;gap:8px;margin:22px 0 10px}
+.login-lang button{flex:1;min-height:44px;border:1px solid var(--line);background:transparent;
+  border-radius:12px;font:inherit;font-size:14px;font-weight:560;color:var(--ink-2);cursor:pointer}
+.login-lang button.on{background:var(--surface-3);color:var(--ink);font-weight:650}
+.login-install{font-size:13px;line-height:1.55;color:var(--ink-3);margin:0}
+.login-install b{color:var(--ink-2);font-weight:650}

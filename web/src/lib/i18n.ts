@@ -70,6 +70,10 @@ const STRINGS = {
     signInBlurb:
       'Meta, Google, website and WhatsApp leads in one board, with one inbox for your whole team.',
     keepSignedIn: 'Keep me signed in',
+    noAppToDownload: 'No app to download.',
+    addToHomeScreen:
+      'Open crm.homes.me in Safari or Chrome, tap Share, then Add to Home Screen. '
+      + 'It opens full-screen like an app.',
     forgotPassword: 'Forgot your password? Ask your admin to reset it.',
     addLead: 'Add lead',
     available: 'Available for new leads',
@@ -132,6 +136,10 @@ const STRINGS = {
     signInHeadline: 'كل عميل يحصل على رد خلال ثوانٍ.',
     signInBlurb: 'عملاء ميتا وجوجل والموقع وواتساب في لوحة واحدة، مع صندوق وارد واحد لفريقك.',
     keepSignedIn: 'أبقني مسجلاً للدخول',
+    noAppToDownload: 'لا يوجد تطبيق للتحميل.',
+    addToHomeScreen:
+      'افتح crm.homes.me في سفاري أو كروم، اضغط مشاركة ثم إضافة إلى الشاشة الرئيسية. '
+      + 'سيفتح بملء الشاشة مثل التطبيق.',
     forgotPassword: 'نسيت كلمة المرور؟ اطلب من المسؤول إعادة تعيينها.',
     addLead: 'إضافة عميل',
     available: 'متاح لعملاء جدد',
