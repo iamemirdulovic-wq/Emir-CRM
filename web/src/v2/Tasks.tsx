@@ -186,8 +186,11 @@ export function V2Tasks() {
    * before this it meant Add lead, which is the shell's fallback.
    */
   const todayLeft = (byDay.get(dayKey(new Date())) ?? []).filter((t) => !t.completed_at).length;
+  /* `FollowUps.dc.html` centres a 17px title between the back button and
+     the action, rather than the 30px one on its own line, because the list
+     below wants the height. */
   usePhoneHead(panel === 'follow-ups'
-    ? { sub: 'Promises you made to clients' }
+    ? { compact: true, title: 'Follow-ups', sub: 'Promises you made to clients' }
     : {
       sub: `${todayLeft} left today · ${
         overdue.length === 0 ? 'nothing overdue' : `${overdue.length} overdue`}`,

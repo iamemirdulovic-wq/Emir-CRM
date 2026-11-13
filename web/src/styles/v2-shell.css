@@ -561,6 +561,41 @@
   .v2 .d-crow{ flex-wrap:wrap; height:auto; padding:8px; }
   .v2 .d-mini-stats{ flex-wrap:wrap; }
 
+/*
+ * The owner's home draws the same "Team today" tiles as My Day, and the
+ * design's own stylesheet defines them only under `.p-my-day` — so on the
+ * owner's home they were four unstyled links and the block read
+ * "2In office1Late1Outside1Not marked" as one run-on line. The phone half
+ * was fixed with the phone sheet; this is the computer half.
+ *
+ * Two classes, so `.v2 .p-my-day .d-mini-stats` still wins on My Day and
+ * that page is untouched.
+ */
+.v2 .d-mini-stats{ display:flex; gap:8px; margin-bottom:6px }
+.v2 .d-mini-stats a{
+  flex:1; border-radius:14px; background:var(--surface-2); padding:10px 12px;
+  font-size:12px; color:var(--ink-3); transition:background .15s;
+}
+.v2 .d-mini-stats a:hover{ background:var(--surface-3) }
+.v2 .d-mini-stats b{
+  display:block; font-size:24px; font-weight:720; letter-spacing:-.03em;
+  line-height:1.05; color:var(--ink);
+}
+
+/*
+ * The same again for the row list. The design defines it only under
+ * `.p-import`, so System health and Team rendered theirs as "ConnectedYes"
+ * and "Leads in the last 7 days23" — on the computer too, not only on a
+ * phone. Two classes, so the import page keeps its own.
+ */
+.v2 .d-mini-list{ display:flex; flex-direction:column }
+.v2 .d-mini-list>div{
+  display:flex; align-items:center; gap:10px; padding:9px 0;
+  font-size:13px; min-width:0;
+}
+.v2 .d-mini-list>div+div{ border-top:1px solid var(--line) }
+.v2 .d-mini-list .d-grow{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
   .v2 .d-num-hero{ font-size:56px; }
   .v2 .d-ring.d-lg{ --size:120px; }
   .v2 .d-ring.d-lg b{ font-size:28px; }

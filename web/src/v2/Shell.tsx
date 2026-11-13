@@ -402,7 +402,10 @@ export function V2Shell() {
               {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
               <div className="v2-main">
                 {!isPhone && <TopBar />}
-                {isPhone && <PhoneTop />}
+                {/* A chat replaces the screen: `Chat.dc.html` draws its own
+                    header, and the shell's would sit above it as a second
+                    one. The screen says so with `useFullAttention`. */}
+                {isPhone && !oneJob && <PhoneTop />}
                 <main className="v2-page" key={isPhone ? run : 'wide'}><Outlet /></main>
               </div>
               {/*
@@ -472,9 +475,24 @@ function PhoneTop() {
             <Icon name="arrow-left" />
           </button>
         )}
-        <span className="v2-pgrow" />
-        <Find compact />
-        <Bell />
+        {head.compact
+          ? (
+            <h1 className="v2-title v2-ptitle-compact">
+              {head.title ?? titleFor(pathname, user?.role ?? 'agent')}
+            </h1>
+          )
+          : <span className="v2-pgrow" />}
+        {/* `Main.dc.html` puts the check-in state in the home header, where
+            an agent sees it before anything else. Same control the computer
+            header carries, same address. */}
+        {atHome && user?.role === 'agent' && (
+          <Link to="/v2/attendance" className="v2-checkin v2-checkin-out">
+            <Icon name="clock-3" />Check in
+          </Link>
+        )}
+        {!head.compact && <Find compact />}
+        {!head.compact && <Bell />}
+        {head.compact && !head.action && <span className="v2-pspace" />}
         {/*
           * §1.4: "an optional single round action button sits on the right".
           * One, and the screen's own — not an Add lead on a business card.
@@ -502,12 +520,13 @@ function PhoneTop() {
       {/* §1.4 pattern B: the title is its own line under the buttons, at
           30px, not a label squeezed between them, and under it the live
           count the design puts there rather than in a strip of its own. */}
-      {!atHome && (
+      {!atHome && !head.compact && (
         <>
           <h1 className="v2-title">{head.title ?? titleFor(pathname, user?.role ?? 'agent')}</h1>
           {head.sub && <p className="v2-psub">{head.sub}</p>}
         </>
       )}
+      {head.compact && head.sub && <p className="v2-psub v2-psub-compact">{head.sub}</p>}
     </header>
   );
 }

@@ -92,7 +92,8 @@ export function V2Inbox() {
   const phone = useUnder(PHONE - 1);
 
   /* §1.4, and `Inbox.dc.html`'s own line under the title. */
-  usePhoneHead({ sub: 'WhatsApp, email and notes in one place' });
+  /* `Inbox.dc.html` draws the same compact centred title as Follow-ups. */
+  usePhoneHead({ compact: true, title: 'Inbox', sub: 'WhatsApp, email and notes in one place' });
   const seesEveryone = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
 
   const [scope, setScope] = useState<Scope>('mine');

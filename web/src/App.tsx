@@ -145,10 +145,16 @@ export function App() {
           <Route path="/v2/leads" element={<V2Leads />} />
           <Route path="/v2/leads/new" element={<V2AddLead />} />
           <Route path="/v2/leads/:id" element={<V2Lead />} />
-          {/* Follow-ups is the leads list opened on what is late. Same screen,
-              same numbers — a second list of the same rows is a second chance to
-              disagree with itself. */}
-          <Route path="/v2/follow-ups" element={<V2Leads fixedTab="overdue" />} />
+          {/*
+            * Follow-ups is a tab of Tasks, which is where both designs put it
+            * and where the menu already points. This address showed the leads
+            * list instead — a different screen with different rows — so it
+            * sends you to the real one rather than being a second answer.
+            */}
+          <Route
+            path="/v2/follow-ups"
+            element={<Navigate to="/v2/tasks?tab=follow-ups" replace />}
+          />
           {/* The owner's record of the VIP leads they handed out, from
               `design/screens/OwnerAssign.dc.html` — a screen, not the assign
               dialog it was read as. */}

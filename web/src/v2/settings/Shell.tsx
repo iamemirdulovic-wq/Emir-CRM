@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth.js';
 import { Icon, type IconName } from '../../design/index.js';
 import { usePhoneHead } from '../phone.js';
@@ -55,8 +55,13 @@ const OFFICE: Section[] = [
 export function SettingsShell({
   children, page = 'p-settings',
 }: { children: ReactNode; page?: string }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  /* `/logout` is not a route and never has been, so this link has been dead
+     since the settings shell was built. Signing out is a call, then back to
+     the sign-in page. */
+  const leave = () => { void signOut().then(() => navigate('/login', { replace: true })); };
   const inOffice = user?.role === 'owner' || user?.role === 'admin';
 
   /* `/v2/settings` is the General panel, so it must not light up for every
@@ -82,10 +87,10 @@ export function SettingsShell({
             {OFFICE.map(link)}
           </>
         )}
-        <Link className="d-set-out" to="/logout">
+        <button type="button" className="d-set-out" onClick={leave}>
           <Icon name="log-out" />
           Sign out
-        </Link>
+        </button>
       </nav>
       {children}
     </div>

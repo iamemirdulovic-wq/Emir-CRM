@@ -83,6 +83,17 @@ export interface PhoneHead {
    * once rather than one scrolling away.
    */
   title?: string;
+
+  /**
+   * Draw the title small and centred, in the row with the buttons, instead
+   * of large on a line of its own.
+   *
+   * §1.4 is two patterns, not one. Most screens get the 30px title on its
+   * own line. Some — Follow-ups, the inbox, a sheet-like sub-screen — draw
+   * a 17px centred one between a back button and a single action, because
+   * the screen below it is a list that wants the height.
+   */
+  compact?: boolean;
   /** The live count under the title — "62 open · 12 to call today". */
   sub?: string;
   /**
