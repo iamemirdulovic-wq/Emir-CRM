@@ -1,6 +1,19 @@
 /**
  * One picture per phone screen: the design, the build, and the build in dark.
  *
+ * The left panel is the owner's own picture of the design, from
+ * `design/phone-shots/`, not this script rendering the prototype. The
+ * prototypes need a runtime (`support.js`) that is not in this repository, so
+ * rendering one drew every conditional state stacked on top of the others —
+ * on My Day, the screen plus two pop-ups at once, which is unreadable. The
+ * owner supplied 59 clean pictures instead, 390x844 at two device pixels,
+ * pop-ups closed, each the first state and the top of the screen.
+ *
+ * What those pictures do NOT show, and the `.dc.html` file still must be read
+ * for: the lower part of a long screen, and every sheet and dialog. A row
+ * here that opens a sheet is marked on the picture, because its left panel is
+ * the screen as it looks before the sheet opens.
+ *
  * The owner asked for proof he can look at rather than a claim he has to
  * trust. Each picture is 390px three times across, labelled, with the design
  * file's name on it so any row can be checked by hand.
@@ -17,7 +30,7 @@
  * The preview must be on 5182 (or set PROOF_BASE_URL).
  */
 import { chromium } from 'playwright';
-import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -131,14 +144,9 @@ async function shoot(page, file) {
 }
 
 for (const [key, design, route, role, how = {}] of list) {
-  /* The design. Many prototypes play a state on load; let them. */
-  const d = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
-  await noWebFonts(d);
-  await d.goto(`file://${path.join(ROOT, 'design/screens', `${design}.dc.html`)}`, {
-    waitUntil: 'networkidle',
-  }).catch(() => missed.push(`${key}: no design file ${design}.dc.html`));
-  await shoot(d, path.join(SHOTS, `${key}-design.png`));
-  await d.close();
+  /* The design: the owner's picture, not a render. */
+  const shot = path.join(ROOT, 'design/phone-shots', `${design}__${role}.png`);
+  if (!existsSync(shot)) missed.push(`${key}: no picture ${design}__${role}.png`);
 
   /* The build, light and dark. */
   for (const theme of ['light', 'dark']) {
@@ -179,7 +187,9 @@ for (const [key, design, route, role, how = {}] of list) {
 
 const b64 = (p) => `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 
-for (const [key, design, route, role] of list) {
+for (const [key, design, route, role, how = {}] of list) {
+  const shot = path.join(ROOT, 'design/phone-shots', `${design}__${role}.png`);
+  if (!existsSync(shot)) continue;
   const html = `<!doctype html><meta charset="utf-8"><style>
     body{margin:0;background:#EFEDE9;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#16151A}
     .wrap{padding:22px 24px 26px}
@@ -189,12 +199,15 @@ for (const [key, design, route, role] of list) {
     .col{width:390px}
     .tag{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:0 0 7px;color:#6B6A72}
     .tag b{color:#FF4000}
+    .warn{color:#B3400E;font-weight:700}
     img{width:390px;display:block;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.14)}
   </style><div class="wrap">
     <h1>${key} — 390&nbsp;px</h1>
-    <p class="sub">design/screens/${design}.dc.html &nbsp;·&nbsp; build at <code>${route}</code> as ${role}</p>
+    <p class="sub">${design}.dc.html &nbsp;·&nbsp; build at <code>${route}</code> as ${role}${
+      how.click ? ' &nbsp;·&nbsp; <b class="warn">the design picture is this screen before the sheet opens — read the .dc.html for the sheet itself</b>' : ''
+    }</p>
     <div class="cols">
-      <div class="col"><p class="tag">Phone design</p><img src="${b64(path.join(SHOTS, `${key}-design.png`))}"></div>
+      <div class="col"><p class="tag">Phone design</p><img src="${b64(shot)}"></div>
       <div class="col"><p class="tag"><b>Built — light</b></p><img src="${b64(path.join(SHOTS, `${key}-light.png`))}"></div>
       <div class="col"><p class="tag"><b>Built — dark</b></p><img src="${b64(path.join(SHOTS, `${key}-dark.png`))}"></div>
     </div>
