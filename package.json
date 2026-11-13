@@ -26,6 +26,7 @@
     "start:server-only": "npm run start --workspace=server",
     "phone": "node e2e/phone.mjs",
     "desktop:shots": "node scripts/desktop-shots.mjs",
-    "desktop:diff": "node scripts/desktop-diff.mjs"
+    "desktop:diff": "node scripts/desktop-diff.mjs",
+    "phone-proof": "node scripts/phone-proof.mjs"
   }
 }
