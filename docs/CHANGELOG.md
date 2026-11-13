@@ -2,6 +2,44 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## A green integration run can be trusted again
+
+One test in eighteen failed in `meetings.integration.test.ts`, a different one
+each run: a user that `createTestUser` had inserted two lines earlier failing to
+sign in, a cookie coming back 401, a test expecting 400 getting 401. Run alone,
+every one of them passed.
+
+**Two vitest processes were sharing one database.** `vitest.config.ts` keeps the
+files inside one run from overlapping, but the database name was a constant, so
+every run started without `TEST_DB_NAME` landed on `emir_crm_test`. Each test
+calls `resetTables()`, which TRUNCATEs the whole schema — so a second run
+emptied `users` and `sessions` between the first run's `createTestUser` and its
+`signIn`. Proved three ways: MySQL's general log showed 117 `TRUNCATE TABLE
+contacts` statements across 86 connections during one eighteen-test run; a
+second process doing nothing but truncating those two tables turned the suite
+from 18 passed into 14 failed with exactly the reported shapes; and the same
+suite on a database nobody else was using passed six times running.
+
+A run now **makes its own database and drops it at the end**, so two runs cannot
+see each other. `TEST_DB_NAME` still wins for a database you want to keep, and
+then a warning says if somebody else is already on it. Databases left by a
+killed run are swept after six hours — only ones this harness named, so nothing
+hand-made is touched. A test user that cannot `CREATE DATABASE` falls back to
+`emir_crm_test` with a loud note, rather than reporting "no database reachable"
+and skipping 269 integration tests silently.
+
+**And the reset is about ten times cheaper.** Emptying all 106 tables cost 4–6
+seconds *per test*, which was most of the suite's clock — an empty InnoDB table
+is no cheaper to truncate than a full one. A reset now asks in one query which
+tables actually hold a row and empties those, remembering the answer so that a
+table ever written to is emptied from then on whatever the probe sees. The
+calendar file went 110 s → 24 s; the whole server suite runs in about ten
+minutes. `src/testing/reset.integration.test.ts` is new and checks the
+behaviour against a real database, next to the existing check of the list.
+
+Test harness only — `src/testing/*`. No production code, and no security
+control touched. Written up in `docs/v2/test-race.md`.
+
 ## Sign in, rebuilt from its design file
 
 `docs/v2/screens.md` had `login.html` down as *"Done — the existing sign-in

@@ -66,6 +66,13 @@ The database-backed test suites skip themselves when no server is reachable, so
 `npm test` is green on a machine without MySQL. Point them at one with
 `TEST_DB_HOST`, `TEST_DB_USER` and `TEST_DB_PASSWORD`.
 
+Each run then **makes its own database** (`emir_crm_run_…`) and drops it again
+at the end, because every test empties the whole schema — two runs sharing one
+database truncate each other's rows mid-test, and the symptom looks like a bug
+in the code under test. `docs/v2/test-race.md` has the story. Set
+`TEST_DB_NAME` to override that and keep a database you can inspect afterwards;
+nothing then stops a second run joining it, so use it for one run at a time.
+
 ## Documentation
 
 | Document | What is in it |

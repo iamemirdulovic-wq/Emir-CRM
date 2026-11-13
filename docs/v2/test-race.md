@@ -43,21 +43,29 @@ time.
 
 Three pieces of evidence, in order.
 
-**1. The server was being shared.** With MySQL's general log on
-(`SET GLOBAL general_log = ON, log_output = 'TABLE'`), one run of the
-eighteen-test calendar file produced **117** `TRUNCATE TABLE contacts`
-statements across **86** distinct connections, and `INSERT INTO contacts`
-statements naming columns that file never writes. `information_schema.processlist`
-showed four other `vitest` runs live at that moment. One of the failures in the
-very first run was a different shape and gave it away on its own:
+**1. A failure that could only be another process.** The very first run
+produced one failure of a shape the brief had not seen, and it gave the whole
+thing away:
 
 ```
 Duplicate entry '+971502223344' for key 'contacts.uq_contacts_phone'
 ```
 
-That phone number is written by one helper in one file. A row of it survived a
-`beforeEach` that truncates `contacts` — which only happens if the truncate and
-the insert belong to different processes.
+That phone number is written by one helper in one file, once per test, and
+`beforeEach` truncates `contacts` between them. A row of it survived that
+truncate. Nothing inside one process can do that.
+
+The general log confirmed the server was being shared. With
+`SET GLOBAL general_log = ON, log_output = 'TABLE'`, one run of the
+eighteen-test calendar file sat alongside **117** `TRUNCATE TABLE contacts`
+statements on **86** distinct connections, and `INSERT INTO contacts`
+statements naming columns that file never writes.
+`information_schema.processlist` showed four other `vitest` runs live at that
+moment. (The general log records no database name, and by then those four runs
+had each been pointed at a hand-named database of their own, so most of those
+117 belong to other schemas — that log shows the traffic, not the collision.
+The duplicate-key failure above and the reproduction below are what show the
+collision.)
 
 **2. Reproduced on demand.** A second process doing nothing but what another
 run's `resetTables()` does — `TRUNCATE sessions; TRUNCATE users` every 400 ms
@@ -152,9 +160,10 @@ Order is preserved — the list is filtered, not rebuilt — so `app_settings`
 still goes first and children still precede parents.
 
 Effect on the calendar file: **110 s → 24 s**, per test 4–10 s → 0.8–1.6 s,
-*including* the ~9 s to migrate a fresh database. The saving shrinks over a
-full-suite run, because the remembered set grows towards the whole schema as
-more files write to more tables.
+*including* the ~9 s to migrate a fresh database. The whole server suite —
+165 files, 2,960 tests — came in at **615 s**. The saving shrinks as a run goes
+on, because the remembered set grows towards the whole schema as more files
+write to more tables.
 
 `src/testing/reset-complete.test.ts` still guards the *list* against the
 migrations and is unchanged. Two guards were added:
