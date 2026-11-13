@@ -148,3 +148,26 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   not. It needs one careful pass with the collision test as the net.
 - **Failed.** Nothing. It costs bytes, not behaviour, and
   `css-collisions.test.ts` is what guards the thing that actually bites.
+
+## The last look, with a browser · 13 Nov
+
+- **Done.** `npm run polish` over **300 screens** — 75 routes × a computer and
+  a phone × light and dark. **No v2 screen scrolls sideways, nothing is
+  clipped, no image is broken, nothing throws, and every tap target is big
+  enough.** It started this pass at 542 small targets, 12 pages scrolling
+  sideways, 54 elements off the right edge and 5 console errors.
+- **Not done.** Twenty-four small tap targets remain, all of them on four
+  **v1** screens — `/incoming`, `/contacts/c-1`, `/profile`, `/wall`. Those
+  are the old build, untouched by this work, and the live site is what they
+  belong to.
+- **Failed.** Nothing. One thing worth remembering: the fix that cleared 378
+  of those findings also *introduced* 130 of its own, by giving the design's
+  hidden switch input a 24px body. The layout pass caught it; a test suite
+  never would have.
+
+## The whole server suite, with nothing else running · 13 Nov
+
+- **Done.** 155 files, **2,816 tests, all passing**. Both workspaces compile
+  with no TypeScript errors. The web suite is 500 tests across 28 files.
+- **Not done.** Nothing.
+- **Failed.** Nothing.
