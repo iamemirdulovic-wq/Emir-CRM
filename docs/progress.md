@@ -51,3 +51,14 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
   server.
 - **Not done.** Nothing from this design file.
 - **Failed.** Nothing.
+
+## Calendar · 13 Nov
+
+- **Done.** Month, Week and Day, as the design draws them: the date controls
+  and the legend across the top, the grid on the left, and a side column with
+  "How did it go?" and the chosen day's plans. A meeting that has finished
+  with nobody saying what happened is the one thing on the screen that asks
+  something of the reader, and it is in accent at the top.
+- **Not done.** Making a plan from this screen opens Tasks rather than a
+  panel of its own. Dragging a plan to another time is not built.
+- **Failed.** Nothing.
