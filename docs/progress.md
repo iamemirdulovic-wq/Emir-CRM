@@ -72,3 +72,14 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
 - **Not done.** Desks, the business card, manage projects and the messaging
   report are still placeholders.
 - **Failed.** Nothing.
+
+## A check for invented class names · 13 Nov
+
+- **Done.** `web/src/styles/design-classes.test.ts`. Every `d-` class a screen
+  uses must exist in the ported design stylesheets. A `d-` name that is in no
+  stylesheet styles nothing, and it looks right in the code while the screen
+  renders unstyled — which had already happened twice on the calendar.
+- **Not done.** It cannot see a class that exists but is wrong for the job.
+  Only a screenshot catches that.
+- **Failed.** Nothing. It found three already-shipped misses: `d-card-t` on
+  Add Lead, `d-gap-12` twice, and `d-lt`.
