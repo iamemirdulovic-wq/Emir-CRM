@@ -9,6 +9,60 @@ phone layout itself is done; this is what I would not decide on my own.
 
 ---
 
+## 0. The second pass, against your pictures (13 Nov, later)
+
+The 59 phone pictures made it possible to compare properly for the first
+time. What follows is what that comparison changed, and two things in §3
+below that I had written down as impossible and that are not.
+
+**Put right on the phone, from the pictures:**
+
+| Screen | What the picture showed | What I did |
+|---|---|---|
+| Team live | The design opens with the three numbers and the hourly chart; the build opened with "Right now" and buried them a screen and a half down | The clicks card comes first on a phone. Its own heading was being drawn across the numbers, because the computer's 372px row height landed on whichever card was first — that is fixed too |
+| Team live | "+12% vs yesterday" wrapped to two lines in a 99px tile and pushed "Call clicks" below the other two labels | The short form, "+12%", at phone width only. The design has no comparison on those tiles at all |
+| Import | The design names all six steps — Upload · Columns · Check · Give · Confirm · Done. The build showed only the one you were on | Six columns, the name under its circle, the joining lines gone. A wizard that cannot say how far it has to go is not a wizard |
+| Automations | The four times fit one row in the design; the build wrapped them three and one, which reads as though the fourth were different | Four equal columns |
+| Desks | The design's one button is the round `+` in the header; the build had a bar across the page | Moved to the header. The computer keeps its button |
+| Team and roles | **Both** designs have "Invite a person" and the build had no way to add anybody at all | Built — see §3 |
+| Attendance rules | Starts and Ends side by side in the design; one field per screen-width in the build | Side by side. "Late after" takes the second line, because three time fields at 390px is 95px each and the input clips its own AM/PM |
+| Company details | ORN beside TRN, phone beside email; the build had one field a line, eleven screens of mostly white | The pairs are back. The long fields still take the width |
+| System health | The state pill on the right of each row in the design; the build stacked it underneath and doubled the card's height | On the right. A row that is not set up puts its "Set it up" button on a second line, so the name keeps its width |
+| Feedback inbox | The design's chips are New · Planned · Fixed · All; the build had five of its own words. The design puts Plan it · Mark fixed · Reply on each card; the build had one "Answer" that opened a box | The design's four words and order, every chip with its count, and the two quick buttons on the card at phone width. "Answer" is now "Reply", which is what both designs call it |
+| Feedback inbox | The design shows a Bug / Idea chip; the build had only an icon | The word is there |
+| Team activity, Messaging | The computer design gives all three owner reports the Activity · Live · Messaging row. Activity had none and Messaging was missing Live | All three have all three |
+| Phone app | The design prints `crm.homes.me` in step 1; the build said "the same address you use here" and never wrote it down | It prints the address the page is open at, which is by definition the one that works |
+
+**Six changes above 768px**, all because the *computer* design asks for them
+and the build did not have them. Nothing else on a computer moved:
+
+1. Team and roles: an "Invite a person" button beside the heading, and the
+   dialog behind it.
+2. Team activity: the Activity · Live · Messaging row at the top.
+3. Messaging: "Live" added to that row.
+4. Feedback inbox: the four chips renamed and reordered, each with a count.
+5. Feedback inbox: "Answer" renamed "Reply".
+6. Phone app: the address written out.
+
+**Left alone, and why:**
+
+- **Messaging's four numbers** are one row of small tiles in the design and
+  two rows of two in the build. The build's labels are sentences —
+  "Confirmed · the agent answered" — not one word, and four of those across
+  390px is one word a line. Two across.
+- **Import's drop zone.** The phone design says *"Choose an Excel or CSV
+  file · From your phone, computer or Google Drive"*; `design/web/import.html`
+  says *"Drop your Excel or CSV file here · or click to choose a file from
+  this computer"*, which is what the build says. Computer wins, so I left
+  it — but "this computer" is wrong on a phone and I would change both.
+- **Homes AI** and **Home banners** put their cards in a different order on
+  the phone than on the computer. The build follows the computer in both.
+- **Team activity's summary cards** (average time, most active, least
+  active, not seen) are in the computer design and not in the phone one.
+  Kept. So is the underline tab row, which the phone draws as pills.
+
+---
+
 ## 1. Where the two designs disagree, or the design and the build
 
 | # | The case | What I did |
@@ -23,27 +77,43 @@ phone layout itself is done; this is what I would not decide on my own.
 
 ## 2. One real bug I could not fix from a phone stylesheet
 
-**`.d-mini-list` is only defined under `.p-import`.** On **System health**
-("The website form") and on **Team and roles** it therefore styles nothing,
-and the rows render as *"ConnectedYes"*, *"Leads in the last 7 days23"*. That
-is true on a computer as well as on a phone.
-
-A phone stylesheet may only hold rules under `@media (max-width: 767px)`, so I
-have patched it for the phone and **the computer still shows it**. The fix is
-three lines in `v2-shell.css`, which is not a file this group may touch.
+**Fixed by you on 13 Nov, in `v2-shell.css`.** `.d-mini-list` and
+`.d-mini-stats` are now defined for every page rather than only under
+`.p-import`, so System health and Team and roles no longer read
+*"ConnectedYes"*. My own phone copy of those rules is still in
+`v2-phone-d.css` and is now redundant; it is harmless and three lines, and I
+have left it rather than touch a shared file's behaviour on the way past.
 
 ## 3. What the design draws that the server has no field for
 
 Left out rather than guessed, as the brief says. None of these is a phone
 layout problem; each is a piece of work with a server side.
 
-**Team and roles** — the whole **person sheet**: *"Send a password reset
-link"*, *"Sign out of every phone"*, *Deactivate* with *"Tap again: deactivate
-and move leads to Incoming"*, *"See profile and results ›"*, and the refusal
-*"An owner cannot be deactivated here."* Also the **invite sheet** (name,
-email, Agent/Admin, *"the link works for 48 hours"*) and the **two taps to make
-somebody an Owner**. `/api/users/:id` changes a role and nothing else, so the
-build's one role menu is all the server offers.
+**Team and roles** — ~~the invite sheet~~ **I had this wrong and it is now
+built.** I wrote that `/api/users/:id` changes a role and nothing else. The
+server also has `POST /api/users` (name, email, role) and `POST
+/api/users/invite` (several emails at once), both owner/admin only, both
+audited. So the design's `+` and its sheet are real, and both designs ask for
+them, and there is now a sheet with Full name · Work email · Agent/Admin.
+
+**One thing in it does not match the design and cannot.** The design's sheet
+says *"They get an email with a link to set a password"*. `POST /api/users`
+sends nothing: it returns a one-time password, once, for whoever made the
+account to hand over, and the new account must change it at first sign-in. So
+the sheet says that instead, and shows the password with "copy" after it is
+made. **Do you want the invite emailed instead?** The server can
+(`/api/users/invite` with `sendEmail`), but it takes only an email address and
+makes the name up from the part before the @, so the design's "Full name"
+field would go.
+
+Still missing on that screen, and still needing a server side: the **person
+sheet** — *"Send a password reset link"*, *"Sign out of every phone"*,
+*Deactivate* with *"Tap again: deactivate and move leads to Incoming"*, *"See
+profile and results ›"*, the refusal *"An owner cannot be deactivated here"* —
+and the **two taps to make somebody an Owner**. (`POST
+/api/users/:id/reset-password` and the `isActive` flag on `PATCH
+/api/users/:id` both exist, so most of that sheet is a screen's work, not a
+server's. Say the word.)
 
 **Home banners** — the design's banner **is a picture**: upload, "use project
 photo", thumbnails in the list, a live image preview. Also **label chips**
@@ -71,10 +141,15 @@ per-agent presence as *"On a call · 3 min"* / *"Power hour"* / *"Idle 34
 min"*. **"Open TV mode"** exists only in the phone prototype, where it is a
 toast stub; the computer design has no such button, so I left it out.
 
-**Feedback inbox** — **Plan it** and **Mark fixed** on each card, the
-**Bug / Idea** chip, the status words the design uses (New · Planned · Fixed),
-*"Send all open items to the developer (file)"*, and the computer design's
-**+15 points** rule and screenshot / voice-note attachments.
+**Feedback inbox** — ~~Plan it, Mark fixed, the Bug / Idea chip and the
+status words~~ **also wrong, also now built.** The server has had
+`new · planned · fixed · declined` all along (`server/src/v2/feedback.ts`);
+the build only reached them through the reply box. They are on the card now
+and the chips use the designs' own words.
+
+Still missing: *"Send all open items to the developer (file)"* — nothing
+exports these — and the computer design's **+15 points** for sending a report
+and its **screenshot / voice-note** attachments.
 
 **Import** — **"Download the empty template"**, the **"Up to 5,000 rows"**
 limit, the design's **column-mapping bottom sheet** (the build uses a native
@@ -87,9 +162,11 @@ owner cannot see who is on leave before giving them seventy leads), the
 sheet with "Add to Home Screen" picked out, the Chrome ⋮ menu, the home-screen
 grid, both permission dialogs, and the **lock screen**. On a guide whose job
 is "find this button on your phone", the picture *is* the instruction, and
-ours is text. Also the **QR code** the computer design puts at the top, and
-the **`crm.homes.me` address** printed in step 1 — the build says "the same
-address you use here" and never writes it down.
+ours is text. Also the **QR code** the computer design puts at the top.
+
+*The address is printed now.* It is read from the browser
+(`window.location.host`), so on the live site it says `crm.homes.me` and in a
+preview it says the preview's address. Nothing is stored or guessed.
 
 *I did add the design's closing table, **"Tap a notification, it opens…"**,
 because it needs no server and it is the reason to install at all. Every row
@@ -133,3 +210,13 @@ to `usePhoneHead`, and `v2-phone-d.css` hides the panel's own copy under
 header and then drew a second `<h1>` under it, because `titleFor()` only knows
 the first part of an address. **The computer layout is unchanged.** It applies
 to all thirteen settings panels, including the two group C owns.
+
+**Second pass, 13 Nov:** `SettingsTitle` takes one more thing, an optional
+`action`, which it passes to `usePhoneHead` so a panel's one button becomes
+the round `+` in the phone header — which is where `Desks.dc.html` and
+`SettingsTeam.dc.html` both draw it. A panel that passes `action` has its own
+title row hidden on a phone entirely, since the button has moved; a panel that
+passes only `children`, as before, keeps the row with the button in it. Both
+are optional and nothing that does not pass `action` behaves differently, on
+a phone or on a computer. Sign out is still the `<button>` calling
+`signOut()`, untouched.

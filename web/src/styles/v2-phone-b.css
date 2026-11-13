@@ -256,6 +256,15 @@
   }
   .v2.v2-phone .v2-b-fu-who span { display: block; font-size: 13px; color: var(--ink-3); }
   .v2.v2-phone .v2-b-fu-who small { display: block; font-size: 11px; color: var(--ink-4); }
+  /* `FollowUps.dc.html` draws the call as a filled round button, because on
+     this screen calling is the whole point. The build's was an outlined
+     square the same weight as everything else in the row. */
+  .v2.v2-phone .v2-b-fu-top > .d-btn.d-icon {
+    width: 44px; height: 44px; min-width: 44px; flex: none;
+    border-radius: 50%; box-shadow: none;
+    background: var(--accent); color: #fff;
+  }
+  .v2.v2-phone .v2-b-fu-top > .d-btn.d-icon .lucide { width: 19px; height: 19px; }
   .v2.v2-phone .v2-b-fu-btns { display: flex; gap: 8px; }
   .v2.v2-phone .v2-b-fu-btns > .d-btn { flex: 1; justify-content: center; }
 
@@ -547,6 +556,15 @@
   .v2.v2-phone .p-inbox .v2-ib-chat {
     height: calc(100dvh - 118px - var(--safe-b, 0px));
     min-height: 420px;
+  }
+  /*
+   * With the thread open the shell draws no header either — that is what
+   * `useFullAttention` now does — so the 118px it was leaving for one was
+   * 84px of nothing under the composer. `v2-has-bar` is the shell's mark
+   * for "ordinary screen"; without it on the inbox, a thread is open.
+   */
+  .v2.v2-phone:not(.v2-has-bar) .p-inbox .v2-ib-chat {
+    height: calc(100dvh - 34px - var(--safe-b, 0px));
   }
   /* The name ran under the 24-hour window chip: `.d-grow` computed 93px for
      a 116px name. The chip goes on its own line under the name. */

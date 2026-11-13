@@ -146,3 +146,66 @@ library" — are on the screen. The prototype names a lead and a project in them
 ("Write a WhatsApp to Marco in Italian", "What is the payment plan of The
 Archive?") because it is a demo; mine ask the same two questions without
 naming either, so nothing invented reaches the model's prompt.
+
+---
+
+# Second pass · 13 Nov · against the owner's pictures
+
+*The first clean pictures of all 59 phone designs arrived
+(`design/phone-shots/`), and with them `docs/v2/phone-proof/<key>.jpg` —
+design, build and build-in-dark side by side. Everything below came out of
+reading those fifteen pictures. The first half of this file still stands;
+this is what the comparison added.*
+
+## 4. What I changed
+
+| Screen | What the picture showed | What I did |
+|---|---|---|
+| **All fifteen** | Every one of my designs draws the §1.4 **pattern A** header — a 17px title centred between the back button and one round action. The build drew the 30px title on its own line, with the search and the bell beside it | `usePhoneHead({ compact: true })` on all fifteen. The search and the bell are gone from these fifteen screens, as the design has them: they are still on My Leads, the pipeline and the rest, and in More |
+| **Meet the team** | The design is five people on a screen: avatar, **name and attendance pill on one line**, desk and languages under it, chevron. The build stacked name, role, pill and languages on four lines of their own — 245px a card, two and a half people on a phone | One row per person, name and pill on the first line, the role and languages under, and the design's chevron on the right |
+| **Meet the team** | The design marks nobody's row as their own | The **"You"** badge is hidden at phone width. Pinned to the corner it sat on top of the attendance pill, and there is no room on the line for both. Your own row still carries your own photo. **If you want the badge back, say so and the pill moves to the second line instead** |
+| **A colleague** | The design draws **Phone and WhatsApp side by side**. The build had WhatsApp alone | The Phone button was conditional on a *public* number, which most people never set. It now falls back to the sign-in number, which `loadProfile` already sends and the business card already prefers in the same order. This also puts the button back on the computer |
+| **One project** | The design orders it hero → pitch → **Send to a client** → the leads. The build had the send card last, under fifty-five leads | Ordered on the phone. On a computer the send card is the right-hand column and the question does not arise |
+| **My digital card** | The design opens with the public link — switch, address, Copy link — and only then the printed card. The build had it at the foot of the page, under the whole three-step builder | Ordered to the top on the phone. Unchanged on a computer, where the design puts it in the right-hand column |
+| **Best of Homes** | "You are in first place. Keep it." was **cut in half** by the bottom edge of the podium card | The card keeps 14px under the podium on a phone. The same clipping is there at computer width, in the generated `v2-home.css`, which is not mine to edit — **worth a look on the computer** |
+| **Personal information** | The completeness bar carries its own grey panel, and inside a white card that reads as a box in a box with 20px of nothing round it | Flattened on the phone: one card, the title, the bar, what is missing |
+| **My notifications** | On the one row that carries an "always on" chip, the switch — the only control on the row — dropped to a line of its own under the text | The chip gives way instead, so every switch is on the right where the design has it. Scoped to this screen only, so no other settings panel moves |
+| **My notifications** | The top card squeezed "Notifications are on" into two words beside the test button | The button takes its own full-width line under the heading |
+| **Homes AI** | The design draws the suggestions as full-width rows, one question each. The build had pills that wrapped where they liked | Full-width rows |
+| **The team wall** | "Post to the team" is the width of the box above it in the design | Full width |
+
+## 5. What I did not change, and why
+
+- **"Edit" and "View" on Manage live projects.** The phone design says *Edit
+  details* and *See as an agent*. The computer design has no row buttons at
+  all, so there is nothing to lose a disagreement to — but the labels are
+  shared markup and longer words would re-flow that column on the computer,
+  which I was told not to touch. **Say the word and I will rename them.**
+- **"Public card link" on the business card.** The phone design says *Share my
+  card publicly* and puts a WhatsApp button beside Copy link.
+  `design/web/digital-card.html` says *Public card link · Anyone with the link
+  sees your card · Copy link*, which is what is built. The computer design is
+  the newer one, so it wins, and there is no WhatsApp share button.
+- **"Recommended" on the Signature card design.** Only the phone prototype has
+  that pill; the computer design does not.
+- **Security's order.** The phone design is password → two-step → devices. The
+  build is password → devices → two-step, because our two-step block is a
+  sentence saying there is no second factor, and a sentence does not belong
+  above the list of devices somebody came to read.
+- **Settings' order inside YOU.** The phone design has four rows (profile,
+  language, appearance, notifications); the build has seven, because Security,
+  the phone app and the glass setting are real screens now. Same rows, more of
+  them.
+- **The attendance pill on a colleague's page.** The design shows "In office"
+  under the name. `/api/profiles/:id` does not carry where somebody is today —
+  `/api/v2/team` does, and the page does not read it. A second request for one
+  pill, so I left it. Small server or screen job if you want it.
+- **Feedback's order** is the computer design's exactly (what · where · what
+  happened · how urgent · send). The phone design puts a short title second,
+  and there is no field for one.
+
+## 6. Not mine, and still true
+
+- `web/src/v2/settings/Team.tsx` uses `.d-gap-12`, which is in no stylesheet,
+  so `design-classes.test.ts` fails on it. It was `Calling.tsx` last time;
+  same class, different screen. Not my file either time.

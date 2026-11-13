@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -143,6 +143,8 @@ export function V2Lead() {
    * happened on this very page before — `hook-order.test.ts`.
    */
   const loaded = detail.data?.lead;
+  const tabsAt = useRef<HTMLElement>(null);
+
   usePhoneHead({
     title: loaded?.full_name ?? 'Lead',
     sub: loaded
@@ -331,7 +333,7 @@ export function V2Lead() {
             </button>
           </section>
 
-          <section className="d-card v2-leadpage-tabs">
+          <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
             <div className="d-tabs" role="tablist">
               {(['notes', 'timeline', 'info', 'files'] as const).map((one) => (
                 <button
@@ -340,7 +342,19 @@ export function V2Lead() {
                   role="tab"
                   aria-selected={tab === one}
                   className={tab === one ? 'd-tab d-on' : 'd-tab'}
-                  onClick={() => setTab(one)}
+                  onClick={() => {
+                    setTab(one);
+                    /*
+                     * `Notes.dc.html` is a screen of its own — "Notes & files",
+                     * the lead's name under it — not a tab two screenfuls down
+                     * a page. This build has no route of its own for it, so
+                     * pressing a tab brings it to the top of the phone, which
+                     * is the nearest honest thing to what the design draws.
+                     */
+                    if (window.matchMedia('(max-width:767px)').matches) {
+                      tabsAt.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    }
+                  }}
                 >
                   {one === 'notes' ? 'Notes' : one === 'timeline' ? 'Timeline' : one === 'info' ? 'Info' : 'Files'}
                   {one === 'timeline' && activities.length > 0 && (
