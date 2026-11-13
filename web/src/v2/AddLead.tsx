@@ -9,6 +9,7 @@ import {
   COUNTRIES, DEFAULT_COUNTRY, flagOf, readPhone, type Country,
 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
+import { addLeadSub } from './subs.js';
 
 /**
  * Add a lead.
@@ -182,10 +183,15 @@ export function V2AddLead() {
   /* §1.4: the shell draws the header, so without this it reads "My leads"
      over a form for adding one — the audit found two titles on this screen. */
   /* `AddLead.dc.html` draws the compact header, so the form starts in the
-     first screenful rather than under a 30px title. */
+     first screenful rather than under a 30px title.
+     The line under it is `design/web/add-lead.html`'s own, which says a
+     little more than the phone's "Name, phone and lead source are needed" —
+     the computer design wins where the two differ. Noted in
+     `docs/v2/questions-subs.md`, along with the reason the computer top bar
+     does not draw it yet. */
   usePhoneHead({
     title: 'Add a lead',
-    sub: 'Name, phone and lead source are needed',
+    sub: addLeadSub(),
     compact: true,
   });
 

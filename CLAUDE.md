@@ -839,6 +839,16 @@ campaigns, dashboards and reports, agent profiles, the Team Wall, the command
 palette and tour, owner settings, the project library, sales offers and
 office attendance.
 
+**The sign-in screen has two versions and only one of them is the design's.**
+`/login` is the old one and is what ten people use every morning; `/v2/login`
+is `web/src/v2/Login.tsx`, built from `design/web/login.html` on 13 Nov, and
+is where a v2 address sends you when you are signed out. Making it everybody's
+is one line. Three things in that design are deliberately not built: the
+preview cards carry no client names or live numbers (nobody is signed in on
+that page, so anyone who found the address would read them), the "open as
+Agent / Owner" demo buttons do not exist, and the six-digit second step is
+drawn but unreachable — `docs/decisions-to-confirm.md` §36-38.
+
 Every page in `design/web/` now has an address under `/v2/*` — 48 routes, and
 `docs/v2/screens.md` is the list, each row with its design file and how far it
 got. Two of them had never been built at all until 13 Nov: the owner's full
@@ -914,9 +924,25 @@ Three things about that port that have each already cost a day:
 - **The preview build uses `HashRouter`, production uses `BrowserRouter`.** In
   the preview every path is `#/leads`, so a CSS selector for a nav link has to
   match on the end of the href (`a[href$="/leads"]`), never the whole thing.
-- **The 269 server integration tests skip unless a MySQL is reachable.** A
+- **The server integration tests skip unless a MySQL is reachable.** A
   green run that says "skipped" has not tested the database. Set
   `TEST_DB_HOST` / `TEST_DB_USER` / `TEST_DB_PASSWORD` to run them for real.
+  With a database the whole server suite is around 2,960 tests.
+- **Every test run now makes its own database** (`emir_crm_run_…`) and drops
+  it at the end. It has to: each test TRUNCATEs the whole schema, so two runs
+  sharing one database empty each other's `users` and `sessions` mid-test, and
+  the failure lands on whichever test was unlucky — a different one every
+  time, passing when run alone. Three separate agents chased that as a bug in
+  the code under test before anyone named it. `TEST_DB_NAME` overrides it and
+  turns the isolation off, so use it for one run at a time.
+  `docs/v2/test-race.md` has the story and the proof.
+- **Renaming a migration file re-runs it.** `src/db/migrate.ts` records a
+  migration by filename in `schema_migrations`, so a renamed file is one the
+  database has never seen: it runs again, its `ADD COLUMN` hits a column that
+  already exists, and the deploy fails on the way up — on ten people at once,
+  because every push here is a release. There are two migrations numbered
+  `0038` and they must stay that way; `DECISIONS.md` says why and what the
+  safe alternative is.
 - **Dubai is UTC+4 with no daylight saving.** Business-hours arithmetic uses a
   fixed offset on purpose. Do not "fix" it into a timezone library.
 - **Four checks read the source rather than trusting it**, and they exist
@@ -939,6 +965,17 @@ Three things about that port that have each already cost a day:
 - **`npm run polish`** drives a real browser over 27 routes × 2 screen sizes ×
   2 themes and fails on anything overflowing, clipped or undersized. Run it
   after touching layout. The preview server must be started from inside `web/`.
+- **`scripts/computer-proof.mjs` puts the design beside the build**, one
+  picture per computer page into `docs/v2/proof/`, whole page rather than the
+  first screenful, because what goes missing in a rebuild goes missing below
+  the fold. It renders `design/web/X.html` directly — those pages carry their
+  own `ui.css` and `app.js`, so unlike the phone it needs no supplied
+  screenshots and cannot drift. It reads `data-role` and `data-sub` out of
+  each design file rather than keeping a second copy, and the `data-sub` check
+  is how we found the line under the title missing from 24 pages at once.
+  `scripts/phone-proof.mjs` is the phone half, and that one does need the
+  owner's screenshots — `design/screens/*.dc.html` needs a `support.js` this
+  repository does not have, so rendering one stacks every state at once.
 
 ## Secrets, permanently
 

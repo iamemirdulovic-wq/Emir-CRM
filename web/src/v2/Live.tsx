@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { liveSub } from './subs.js';
 
 /**
  * What the team is doing right now.
@@ -298,10 +299,11 @@ const BANDS: Array<{ key: Band; colour: string; word: string }> = [
 export function V2Live() {
   /*
    * `OwnerLive.dc.html` opens with "Team live" over "Owner view · updated
-   * 10 sec ago". The build asks the server again every half minute, so the
-   * subtitle says that rather than the prototype's ten seconds.
+   * 10 sec ago"; `design/web/team-live.html` writes "What the team does right
+   * now". The computer design wins. How often it is counted again is on the
+   * page itself, beside the numbers it applies to.
    */
-  usePhoneHead({ title: 'Team live', sub: 'Owner · counted again every 30 seconds' });
+  usePhoneHead({ title: 'Team live', sub: liveSub() });
   const isPhone = useIsPhone();
   const { user } = useAuth();
   const canSee = user?.role === 'owner' || user?.role === 'admin';

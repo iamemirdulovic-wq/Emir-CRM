@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { emailSub } from './subs.js';
 
 /**
  * Email.

@@ -8,6 +8,7 @@ import { formatTime } from '../lib/format.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
 import { useFullAttention, usePhoneHead } from './phone.js';
+import { inboxSub } from './subs.js';
 import { useCheckIn } from './check-in.js';
 import type {
   Contact360, Conversation, Message, StageKey, TemplateRow, ThreadResponse,

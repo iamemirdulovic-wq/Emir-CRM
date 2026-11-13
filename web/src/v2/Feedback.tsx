@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { feedbackSub } from './subs.js';
 
 /**
  * Report a bug or an idea.

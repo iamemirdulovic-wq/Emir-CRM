@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { attendanceSub } from './subs.js';
 
 /**
  * Attendance and leave.
@@ -128,12 +129,18 @@ export function V2Attendance() {
   const [asking, setAsking] = useState(false);
 
   /*
-   * §1.4: the 13px line under the title that carries the live count.
-   * `Attendance.dc.html` writes "Shift 09:00 – 18:00 · Business Bay office"
-   * there; `/attendance/me` knows when a shift starts and nothing else, so
-   * this says what today actually is instead of naming an office and an end
-   * time nobody has stored. `TeamAttendance.dc.html` writes "Owner · today,
-   * Wed 11 Nov", which is the whole of the owner's line.
+   * §1.4: the 13px line under the title.
+   *
+   * Both computer design files put today's date and the shift there:
+   * `attendance.html` "Wednesday, 11 November 2026 · shift 09:00 – 18:00" and
+   * `team-attendance.html` the same without the year. The phone prototypes
+   * write something else again — "Shift 09:00 – 18:00 · Business Bay office"
+   * and "Owner · today, Wed 11 Nov" — and the computer design wins.
+   *
+   * The end of the shift is the one thing neither can have: it is in the
+   * attendance settings and `/api/v2/attendance/me` returns only `startsAt`,
+   * so the line says when the shift starts rather than inventing six
+   * o'clock. `docs/v2/questions-subs.md`.
    */
   const today = mine.data?.today;
   usePhoneHead({
@@ -143,13 +150,7 @@ export function V2Attendance() {
        title centred over its sub, because the screen below wants the room. */
     compact: true,
     title: seesTeam ? 'Team attendance' : 'Attendance',
-    sub: seesTeam
-      ? `Owner · today, ${new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`
-      : !today?.enabled ? 'Check-in is switched off'
-        : today.marked === 'office' ? `Checked in${today.markedAt ? ` ${clock(today.markedAt)}` : ''} · in the office`
-          : today.marked === 'outside' ? 'Working outside · owners see where and why'
-            : today.startsAt ? `Not checked in yet · shift starts ${today.startsAt}`
-              : 'Not checked in yet',
+    sub: attendanceSub(seesTeam, new Date(), today?.enabled ? today.startsAt : null),
   });
 
   if (mine.error) return <ErrorNote>{mine.error}</ErrorNote>;

@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { messagingSub } from './subs.js';
 
 /**
  * From tap to reply.

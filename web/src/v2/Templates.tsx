@@ -6,6 +6,7 @@ import { Icon } from '../design/index.js';
 import { ErrorNote, Spinner, useToast } from '../design/ui.js';
 import { formatDateTime } from '../lib/format.js';
 import { usePhoneHead } from './phone.js';
+import { templatesSub } from './subs.js';
 
 /** §4 of `docs/v2/phone-shell.md`: under this, the phone layout. */
 const PHONE = 768;

@@ -11,6 +11,7 @@ import {
 } from '../card/artboard.js';
 import { downloadImage, downloadMockup, downloadPdf } from '../card/export.js';
 import { usePhoneHead } from './phone.js';
+import { cardSub } from './subs.js';
 
 /**
  * My business card, in three steps.
@@ -209,11 +210,15 @@ export function V2Card() {
    * card". The shared header used to call this screen "My business …" — the
    * name from the address, truncated at 390px — and put an Add lead button
    * beside it, which the design never does on this screen.
+   *
+   * `design/web/digital-card.html` writes "Make your card in 3 steps" there,
+   * and the computer design wins over the phone's "Your link and your printed
+   * card". The three is `STEPS.length`, this screen's own stepper.
    */
   usePhoneHead({
     compact: true,
     title: 'My digital card',
-    sub: `Step ${step} of 3 · your link and your printed card`,
+    sub: cardSub(STEPS.length),
   });
 
   if (me.error) return <div className="p-card"><ErrorNote>{me.error}</ErrorNote></div>;

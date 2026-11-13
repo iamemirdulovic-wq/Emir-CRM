@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { importSub } from './subs.js';
 
 /**
  * Import, as `design/web/import.html` lays it out: six steps, one card each.
@@ -99,8 +100,12 @@ interface Candidate {
 type Give = 'agents' | 'desk' | 'incoming';
 
 export function V2Import() {
-  /* `Import.dc.html`: "Import leads" over "Owner & admin · Excel or CSV". */
-  usePhoneHead({ title: 'Import leads', sub: 'Owner & admin · Excel or CSV' });
+  /* `Import.dc.html`: "Import leads" over "Owner & admin · Excel or CSV";
+     `design/web/import.html` writes "Excel or CSV · 6 short steps", and the
+     computer design wins. The six is `STEPS.length` — this screen's own
+     stepper — rather than the design's figure, so adding a step changes the
+     line with it. */
+  usePhoneHead({ title: 'Import leads', sub: importSub(STEPS.length) });
   const [step, setStep] = useState<Step>(1);
   const [importId, setImportId] = useState<string | null>(null);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);

@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { teamSub } from './subs.js';
 
 /**
  * Narrow enough to be a phone, asked in JavaScript rather than in CSS.
@@ -155,13 +156,22 @@ export function V2Team() {
    * `TeamDirectory.dc.html`: "Meet the team", with the live count on the
    * 13px sub-line and no action in the right slot. The build's own header
    * drew the same count inside the page; it belongs up here.
+   *
+   * `design/web/team.html` writes "10 agents · 6 in office now" there, and
+   * its two filter pills say "All 10" and "In office now 6" — one pair of
+   * numbers, counted over the grid. So the sub counts `working`, the people
+   * the grid shows, and not `everyone`, which includes the three in the
+   * "Owners and office" row below it. The design's ten and six are invented;
+   * these are the real ones.
    */
+  const inGridNow = useMemo(
+    () => working.filter((one) => presence(one).kind === 'office').length,
+    [working],
+  );
   usePhoneHead({
     compact: true,
     title: 'Meet the team',
-    sub: team.data
-      ? `${everyone.length} ${everyone.length === 1 ? 'person' : 'people'} · ${inOfficeNow} in the office now`
-      : undefined,
+    sub: team.data ? teamSub(working.length, inGridNow) : undefined,
   });
 
   if (team.error) return <ErrorNote>{team.error}</ErrorNote>;

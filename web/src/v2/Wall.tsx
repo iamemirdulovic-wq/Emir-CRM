@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { bestSub, wallSub } from './subs.js';
 
 /**
  * The team wall, and Best of Homes beside it.
@@ -158,15 +159,14 @@ export function V2Wall() {
   }
 
   /*
-   * `TeamWall.dc.html`: "Team wall" over "Wins and news · 13 people". The
-   * count is the team's, which the sidebar answer already carries.
+   * `TeamWall.dc.html`: "Team wall" over "Wins and news · 13 people".
+   * `design/web/team-wall.html` writes "News and wins from the whole office"
+   * — no count at all — and the computer design wins where the two differ.
    */
   usePhoneHead({
     compact: true,
     title: 'Team wall',
-    sub: side.data
-      ? `Wins and news · ${side.data.leaderboard.length} ${side.data.leaderboard.length === 1 ? 'person' : 'people'}`
-      : undefined,
+    sub: wallSub(),
   });
 
   async function react(id: string, emoji: string) {
