@@ -2978,3 +2978,36 @@
 .v2 .d-set-nav button.d-set-out{ margin-top:12px; color:var(--red-ink) }
 .v2 .d-set-nav button svg{ width:16px; height:16px; color:var(--ink-3) }
 .v2 .d-set-nav button.d-set-out svg{ color:var(--red-ink) }
+
+/* ── the leads table's buttons, at any window size ─────────────────────────
+ * The table is 1,077px of `white-space:nowrap`, and its card scrolls
+ * sideways below about 1,200px. So on a laptop, or in a zoomed browser, the
+ * Call and WhatsApp buttons were cut off at the right edge — the two things
+ * the screen exists for. Emir hit it within a minute of it going live.
+ *
+ * The last column sticks to the right edge instead. Where the table fits,
+ * this does nothing at all; where it does not, the buttons stay put and the
+ * columns scroll under them. The shadow only appears while there is
+ * something scrolled underneath.
+ */
+@media (min-width: 768px) {
+  .v2 .d-table.d-id-leads th:last-child,
+  .v2 .d-table.d-id-leads td:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--surface);
+    box-shadow: -10px 0 10px -10px rgba(14, 26, 20, .18);
+  }
+  .v2 .d-table.d-id-leads tr:hover td:last-child { background: var(--surface-2) }
+  /* The longest text in the row, and the one that can afford two lines. */
+  .v2 .d-table.d-id-leads td:nth-child(3) { white-space: normal; min-width: 120px }
+}
+
+/*
+ * Below about 1,400px the row cannot fit, so it gives up the one control
+ * that repeats something else: the little open-the-lead arrow. The lead's
+ * name is a link to the same page, so nothing is lost but the duplicate.
+ */
+@media (min-width: 768px) and (max-width: 1399px) {
+  .v2 .d-table.d-id-leads td:last-child .d-btn.d-icon { display: none }
+}
