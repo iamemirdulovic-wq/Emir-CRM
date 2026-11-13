@@ -29,7 +29,8 @@ import { importSub } from './subs.js';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
-const STEPS: Array<{ n: Step; label: string }> = [
+/** Exported so `subs.test.ts` can show the sub-line counts these, not six. */
+export const STEPS: Array<{ n: Step; label: string }> = [
   { n: 1, label: 'Upload' },
   { n: 2, label: 'Columns' },
   { n: 3, label: 'Check' },

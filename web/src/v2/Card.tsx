@@ -81,7 +81,8 @@ function remembered(): Saved | null {
   }
 }
 
-const STEPS = [
+/** Exported so `subs.test.ts` can show the sub-line counts these, not three. */
+export const STEPS = [
   { n: 1, label: 'Design' },
   { n: 2, label: 'Details' },
   { n: 3, label: 'Download' },
