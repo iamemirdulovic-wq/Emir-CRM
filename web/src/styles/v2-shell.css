@@ -2837,8 +2837,19 @@
   .v2 td a.d-t-main,
   .v2 td a.d-person { display: inline-flex; align-items: center; min-height: 30px; }
 
-  /* The box you tick to finish a task. */
-  .v2 input[type="checkbox"] { width: 24px; height: 24px; }
+  /*
+   * The box you tick to finish a task.
+   *
+   * Only the ones you can see. The design's switch hides its own input at
+   * zero size and draws a track beside it (`.d-switch input {width:0}`), so
+   * a blanket rule here resurrects an invisible 24px box floating over the
+   * row — which is both a thing to mis-tap and a hundred and thirty false
+   * findings in the layout pass. It took one to make the other obvious.
+   */
+  .v2 .d-check input[type="checkbox"],
+  /* The task row sets its own 22px, from `tasks.html`, and does it with one
+     more class than the line above — so it needs naming to be beaten. */
+  .v2 .p-tasks .d-trow .d-check input[type="checkbox"] { width: 28px; height: 28px; }
 }
 
 /* ── four more screens that the computer design squeezes onto a phone ──── */
