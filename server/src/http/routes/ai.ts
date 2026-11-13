@@ -15,7 +15,10 @@ import {
 import {
   SECTIONS, buildKnowledge, completeness, loadKnowledge, restoreVersion, saveSection, sectionHistory,
 } from '../../ai/knowledge.js';
-import { monthSpend, usd, withinCap } from '../../ai/usage.js';
+import { monthSpend, monthSpendByFeature, usd, withinCap } from '../../ai/usage.js';
+import {
+  AI_FEATURE_KEYS, AI_FEATURES, aiFeatures, saveAiFeatures, type AiFeature,
+} from '../../ai/features.js';
 import { aiProvider } from '../../ai/index.js';
 import { ask } from '../../ai/ask.js';
 import { env } from '../../config/env.js';
@@ -488,12 +491,62 @@ aiRouter.delete(
   }),
 );
 
-/** What the AI has cost this month, by feature. */
+/**
+ * What the AI has cost this month, in total and per feature.
+ *
+ * The breakdown is what makes the number actionable: "$38" does not tell an
+ * owner which switch to turn off, and `design/web/ai-settings.html` draws a
+ * bar per feature for exactly that reason.
+ */
 aiRouter.get(
   '/usage',
   requireManager,
   asyncHandler(async (_req: Request, res: Response) => {
-    const spend = await monthSpend();
-    res.json({ spentUsd: usd(spend.micros), capUsd: usd(spend.capMicros), calls: spend.calls });
+    const [spend, byFeature, features] = await Promise.all([
+      monthSpend(),
+      monthSpendByFeature(),
+      aiFeatures(),
+    ]);
+    res.json({
+      spentUsd: usd(spend.micros),
+      capUsd: usd(spend.capMicros),
+      calls: spend.calls,
+      /* Raw micros too: the screen draws bars, and formatting to dollars
+         first loses the precision the small features need. */
+      spentMicros: spend.micros,
+      capMicros: spend.capMicros,
+      byFeature: byFeature.map((row) => ({ ...row, usd: usd(row.micros) })),
+      features,
+      featureList: AI_FEATURE_KEYS.map((key) => ({ key, ...AI_FEATURES[key] })),
+    });
+  }),
+);
+
+/** The monthly limit, and what Homes AI may do. Owner's decision, audited. */
+const limitSchema = z.object({
+  capUsd: z.number().min(0).max(10000).optional(),
+  features: z.record(z.string(), z.boolean()).optional(),
+});
+
+aiRouter.put(
+  '/limits',
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = limitSchema.parse(req.body);
+    const actor = actorFrom(req);
+    if (body.capUsd !== undefined) {
+      await saveSetting(actor, 'AI_MONTHLY_CAP_USD', String(body.capUsd));
+    }
+    if (body.features) {
+      /* Only keys this app knows. An unknown one is an older client or a
+         typo, never a new feature arriving by request body. */
+      const known: Partial<Record<AiFeature, boolean>> = {};
+      for (const key of AI_FEATURE_KEYS) {
+        if (body.features[key] !== undefined) known[key] = body.features[key];
+      }
+      await saveAiFeatures(actor, known);
+    }
+    const [spend, features] = await Promise.all([monthSpend(), aiFeatures()]);
+    res.json({ capUsd: usd(spend.capMicros), features });
   }),
 );

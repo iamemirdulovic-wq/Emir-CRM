@@ -241,6 +241,9 @@
 .v2-leads-links a:hover{ text-decoration:underline; }
 
 .v2-leads-bar{ display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+/* The search box on the leads list. The search *dialog* is `.v2-finder`,
+   below — two different things, and they shared a name until one of them
+   flattened the other to 40px tall. */
 .v2-find{
   flex:1 1 280px; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
   background:var(--surface); border:1px solid var(--line); border-radius:var(--r-ctl); color:var(--ink-3);
@@ -320,7 +323,9 @@
 .v2-do-wa:hover{ background:var(--green); color:#fff; }
 .v2-do[href=""],.v2-do:not([href]){ opacity:.35; pointer-events:none; }
 
-.v2-more{ display:flex; align-items:center; justify-content:center; gap:14px; padding:18px 0 4px; }
+/* The row under the leads list. The phone's More *screen* is `.v2-more`,
+   further down — same mistake as `.v2-find`, caught by the same guard. */
+.v2-showmore{ display:flex; align-items:center; justify-content:center; gap:14px; padding:18px 0 4px; }
 .v2-count{ font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
 .v2-btn{
   height:36px; padding:0 14px; border-radius:var(--r-ctl);
@@ -349,3 +354,2627 @@
   .v2-step{ grid-area:step; white-space:normal; }
   .v2-row-do{ grid-area:do; }
 }
+
+/* ---------- the lead page ---------- */
+
+.v2-lead-head{
+  display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card);
+  padding:20px var(--pad); margin-bottom:12px;
+}
+.v2-lead-id{ flex:1 1 300px; min-width:0; }
+
+/* The largest thing on the page, and deliberately larger than the name:
+   an agent opens this screen to call somebody. */
+.v2-lead-phone{
+  display:block; font-size:30px; line-height:1.1; font-weight:750; letter-spacing:-.02em;
+  color:var(--ink); text-decoration:none; font-variant-numeric:tabular-nums;
+}
+.v2-lead-phone:hover{ color:var(--accent); }
+.v2-lead-name{
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  margin-top:6px; font-size:15px; font-weight:600; color:var(--ink-2);
+}
+.v2-with{ font-size:12.5px; font-weight:500; color:var(--ink-3); }
+.v2-lead-chips{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:12px; }
+.v2-score{
+  height:24px; padding:0 10px; border-radius:var(--r-pill); display:inline-flex; align-items:center;
+  background:var(--surface-3); color:var(--ink-2); font-size:11.5px; font-weight:650;
+}
+.v2-tag{
+  height:24px; padding:0 10px; border-radius:var(--r-pill); display:inline-flex; align-items:center;
+  background:var(--blue-soft); color:var(--blue-ink); font-size:11.5px; font-weight:600;
+}
+
+.v2-where{
+  flex:0 1 300px; display:flex; flex-direction:column; gap:7px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-ctl); padding:12px 14px;
+}
+.v2-where-warn{ background:var(--amber-soft); border-color:transparent; }
+.v2-where-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-2); }
+.v2-where-row .lucide{ width:15px; height:15px; color:var(--ink-3); }
+.v2-advice{ font-size:12.5px; font-weight:600; color:var(--ink); margin-top:2px; }
+.v2-where-warn .v2-advice{ color:var(--amber-ink); }
+
+.v2-acts{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.v2-act{
+  display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 15px;
+  border:1px solid var(--line); border-radius:var(--r-ctl); background:var(--surface);
+  color:var(--ink); font:inherit; font-size:13.5px; font-weight:600;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+}
+.v2-act:hover{ border-color:var(--line-2); background:var(--surface-2); }
+.v2-act-call{ background:var(--accent); border-color:transparent; color:var(--on-accent); }
+.v2-act-call:hover{ background:var(--accent-600); color:var(--on-accent); }
+.v2-act-wa{ background:var(--green-soft); border-color:transparent; color:var(--green-ink); }
+.v2-act-wa:hover{ background:var(--green); color:#fff; }
+.v2-act-soon{ color:var(--ink-3); border-style:dashed; }
+.v2-act-wide{ width:100%; justify-content:center; }
+.v2-transfer-row{ margin:0 0 16px; }
+.v2-act[href=""],.v2-act:not([href]):not(button){ opacity:.4; pointer-events:none; }
+
+.v2-lead-cols{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:12px; }
+.v2-card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card);
+  padding:16px var(--pad); margin-bottom:12px;
+}
+.v2-card-t{
+  margin:0 0 12px; font-size:14px; font-weight:700;
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+}
+.v2-from{
+  font-size:10.5px; font-weight:650; padding:2px 8px; border-radius:var(--r-pill);
+  background:var(--accent-soft); color:var(--accent-ink);
+}
+.v2-kv{ display:grid; grid-template-columns:auto 1fr; gap:7px 16px; margin:0; }
+.v2-kv dt{ font-size:13px; color:var(--ink-3); }
+.v2-kv dd{ margin:0; font-size:13px; font-weight:600; text-align:right; word-break:break-word; }
+.v2-note-small{ margin:14px 0 0; font-size:11.5px; color:var(--ink-4); }
+
+.v2-card-tabs{ display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+.v2-ctab{
+  height:30px; padding:0 12px; border-radius:var(--r-pill); border:1px solid var(--line);
+  background:transparent; color:var(--ink-2); font:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
+}
+.v2-ctab-on{ background:var(--accent-soft); border-color:transparent; color:var(--accent-ink); }
+.v2-none{ margin:0; font-size:13px; color:var(--ink-3); }
+
+.v2-time{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px; }
+.v2-time li{ display:flex; gap:12px; font-size:12.5px; align-items:baseline; }
+.v2-time-when{ flex:0 0 96px; color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.v2-time-what{ color:var(--ink-2); min-width:0; }
+.v2-time-what b{ color:var(--ink); text-transform:capitalize; }
+
+.v2-back-row{ margin:4px 0 0; }
+.v2-back-row a{ font-size:13px; color:var(--accent-ink); text-decoration:none; font-weight:600; }
+
+@media (max-width:1100px){ .v2-lead-cols{ grid-template-columns:1fr; } }
+@media (max-width:767px){
+  .v2-lead-phone{ font-size:26px; }
+  .v2-acts{ gap:7px; }
+  .v2-act{ flex:1 1 calc(50% - 4px); justify-content:center; }
+}
+
+/* ── Home: My Day and the owner's day ───────────────────────────────────
+ *
+ * Only what the design's own component layer (`v2-ui.css`) does not already
+ * give. Anything here that looks like a tweak to a design class is a
+ * deliberate one, and says why.
+ */
+.v2-home{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+.v2-hi{
+  margin:0; font-size:26px; font-weight:700; letter-spacing:-.03em;
+  display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+}
+.v2-hi span{ font-size:13px; font-weight:500; color:var(--ink-3); letter-spacing:0; }
+
+/* The hero is 268px tall in the design; on a phone it grows instead, because
+   four states of different heights in a fixed box is how text gets clipped. */
+.v2-row1{ grid-template-rows:268px; }
+@media (max-width:1100px){ .v2-row1{ grid-template-rows:auto; } }
+
+.v2-ready-top{ align-items:center; }
+.v2-next{ margin-top:14px; }
+.v2-lock-red{ color:var(--red); }
+.v2-head-tight{ margin-bottom:8px; }
+.v2-card-tight{ flex:none; padding:18px 20px; }
+.v2-foot{ padding-top:10px; }
+.v2-np-row{ align-items:center; }
+.v2-np-what{ margin-top:8px; font-size:15px; display:block; }
+.v2-srow-top{ border-top:1px solid var(--line); margin-top:4px; padding-top:10px; }
+.v2-icon-blue{
+  width:28px; height:28px; border-radius:9px;
+  background:var(--blue-soft); color:var(--blue-ink);
+}
+.v2-self-start{ align-self:flex-start; }
+
+.v2-owner-acts{ display:flex; gap:10px; flex-wrap:wrap; }
+
+.v2-stage-card{ flex-direction:row; align-items:stretch; gap:20px; padding:16px 22px; }
+.v2-stage-side{
+  width:150px; flex:none; display:flex; flex-direction:column; justify-content:center; gap:3px;
+}
+@media (max-width:767px){
+  .v2-stage-card{ flex-direction:column; }
+  .v2-stage-side{ width:auto; }
+}
+
+.v2-banners .slide{ display:flex; }
+
+/* The team table. The design's own `.table` is in v2-ui.css; this is the one
+   column rule it cannot know: who is a person, and people get a face. */
+.v2-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.v2-table th{
+  text-align:left; font-size:11px; font-weight:650; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3); padding:0 10px 8px; white-space:nowrap;
+}
+.v2-table td{ padding:9px 10px; border-top:1px solid var(--line); vertical-align:middle; }
+.v2-table tbody tr:hover{ background:var(--surface-2); }
+.v2-table .person{ display:flex; align-items:center; gap:9px; min-width:0; }
+.v2-table .who b{ display:block; font-weight:620; }
+.v2-table .who .d-small{ display:block; }
+@media (max-width:767px){
+  /* Four numbers per agent will not fit a phone, so the two that matter on a
+     phone stay and the rest go. Nothing is hidden that is not also on the
+     team screen, which is one tap away. */
+  .v2-table th:nth-child(4), .v2-table td:nth-child(4),
+  .v2-table th:nth-child(5), .v2-table td:nth-child(5){ display:none; }
+}
+
+/* ── The design on a phone ──────────────────────────────────────────────
+ *
+ * `design/web/*.html` is the computer design: a twelve-column bento grid,
+ * fixed-height heroes, side-by-side hero columns. None of that survives a
+ * 390px screen, and the first phone screenshot of the home page scrolled
+ * sideways to 575px — the single thing the design research says agents hate
+ * most.
+ *
+ * These are ours, not the design's, and they do one thing: at phone width
+ * every card becomes full width and every side-by-side becomes stacked.
+ * The phone's own 59 screens are a later phase; until then the computer
+ * design has to fold rather than overflow.
+ */
+@media (max-width:767px){
+  .v2 .d-bento{ grid-template-columns:1fr; }
+  .v2 [class*="d-c-"]{ grid-column:1 / -1; }
+  .v2 .d-row1, .v2 .v2-row1{ grid-template-rows:auto; }
+
+  /* The hero's two columns become two rows, and it stops being 268px tall. */
+  .v2 .d-hero{ padding:18px; }
+  .v2 .d-hs{ flex-direction:column; gap:16px; }
+  .v2 .d-hs .d-side{ width:auto; }
+  .v2 .d-hero-phone{ font-size:30px; white-space:normal; word-break:break-all; }
+  .v2 .d-hero-who{ white-space:normal; }
+  .v2 .d-hero-btns{ flex-wrap:wrap; }
+  .v2 .d-goals{ width:auto !important; }
+
+  /* The stage strip reads as a row of bars; on a phone it scrolls rather
+     than squeezing six labels into 390px. */
+  .v2 .d-pstrip{ overflow-x:auto; max-width:100%; }
+
+  /* A time and its chip side by side is 403px of content on a 390px screen. */
+  .v2 .v2-np-row{ flex-wrap:wrap; }
+  /* A row of "name · when" and a button: the name shrinks, the button does not. */
+  .v2 .d-srow{ flex-wrap:wrap; }
+  .v2 .d-srow .d-grow{ min-width:0; }
+  .v2 .d-crow{ flex-wrap:wrap; height:auto; padding:8px; }
+  .v2 .d-mini-stats{ flex-wrap:wrap; }
+
+
+
+
+  .v2 .d-num-hero{ font-size:56px; }
+  .v2 .d-ring.d-lg{ --size:120px; }
+  .v2 .d-ring.d-lg b{ font-size:28px; }
+}
+
+/* ── Calling, and the check-in gate ─────────────────────────────────────
+ *
+ * The design's own calling.html styles come across in `v2-home.css` under
+ * `.p-calling`; these are the pieces this build adds — the queue beside the
+ * lead, the outcome buttons, and the gate dialog.
+ */
+.v2-calling{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+.v2-topline{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--surface); border-radius:var(--r-card);
+  padding:12px 18px; box-shadow:var(--shadow-1);
+}
+.v2-pos{ font-weight:700; font-size:15px; white-space:nowrap; }
+.v2-pos span{ color:var(--ink-3); font-weight:500; }
+.v2-topline .d-bar{ flex:1; min-width:120px; }
+.v2-counts{ display:flex; gap:14px; font-size:12.5px; color:var(--ink-3); white-space:nowrap; }
+.v2-counts b{ color:var(--ink); font-weight:700; }
+
+.v2-call-grid{ display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:var(--gap); align-items:start; }
+.v2-call-main{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+@media (max-width:1100px){ .v2-call-grid{ grid-template-columns:1fr; } }
+
+/* `.v2 .d-card` sets `flex-direction:column`, and it is more specific than a
+   bare class, so this one has to be too. */
+.v2 .v2-call-lead{ flex-direction:row; gap:24px; align-items:stretch; }
+.v2-call-l{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.v2-call-r{ flex:none; width:230px; }
+@media (max-width:767px){
+  .v2 .v2-call-lead{ flex-direction:column; }
+  .v2-call-r{ width:auto; }
+}
+
+.v2-c-name{ display:flex; align-items:center; gap:8px; font-size:17px; font-weight:680; flex-wrap:wrap; }
+.v2-c-phone{
+  display:block; margin-top:10px; font-size:38px; font-weight:760;
+  letter-spacing:-.045em; line-height:1; color:inherit; text-decoration:none;
+}
+.v2-c-meta{ margin-top:10px; display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--hero-ink-2); }
+.v2-c-meta b{ color:#fff; font-weight:650; }
+.v2-c-why{
+  margin-top:10px; display:flex; align-items:center; gap:8px; font-size:13px;
+  color:var(--hero-ink-2); padding-left:12px; border-left:2px solid var(--accent);
+}
+.v2-c-btns{ margin-top:auto; padding-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
+.v2-logged{ margin-top:10px; font-size:11.5px; color:var(--hero-ink-3); }
+.v2-c-kv{ margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
+.v2-c-kv dt{ color:var(--hero-ink-3); }
+.v2-c-kv dd{ margin:0; color:#fff; font-weight:600; }
+
+/* Locked until the agent has actually tapped Call or WhatsApp. */
+.v2-locked{ opacity:.55; }
+.v2-lockmsg{ display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-3); }
+
+.v2-outs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
+.v2-outb{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  height:44px; border-radius:var(--r-ctl); background:var(--surface-2);
+  font-size:13px; font-weight:600; color:var(--ink-2); transition:.15s;
+}
+.v2-outb:hover:not(:disabled){ background:var(--surface-3); color:var(--ink); }
+.v2-outb:disabled{ opacity:.45; cursor:default; }
+.v2-outb-on{ background:var(--accent); color:var(--on-accent); }
+
+.v2-sub{
+  margin:14px 0 0; display:flex; flex-direction:column; gap:8px;
+  font-size:13px; color:var(--ink-2);
+}
+.v2-sub-form{ flex-direction:row; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+.v2-field{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-3); }
+.v2-field-wide{ flex:1; min-width:180px; margin-top:14px; }
+.v2-field-label{ font-size:12px; color:var(--ink-3); }
+.v2-chips{ display:flex; gap:7px; flex-wrap:wrap; }
+.v2-chip-opt{
+  height:30px; padding:0 12px; border-radius:var(--r-pill);
+  background:var(--surface-2); font-size:12.5px; font-weight:600; color:var(--ink-2);
+}
+.v2-chip-opt-on{ background:var(--accent-soft); color:var(--accent-ink); }
+.v2-saved{
+  margin:14px 0 0; display:flex; align-items:center; gap:7px;
+  font-size:13px; color:var(--green-ink); font-weight:600;
+}
+
+.v2-navrow{ margin-top:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.v2-nav-hint{ flex:1; min-width:140px; text-align:center; }
+.v2-disabled{ opacity:.4; cursor:default; }
+
+.v2-queue{ position:sticky; top:calc(var(--tb-h) + 4px); max-height:calc(100vh - var(--tb-h) - 40px); overflow:auto; }
+.v2-queue-head{ margin-bottom:8px; }
+.v2-queue-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.v2-qrow{
+  width:100%; display:flex; align-items:center; gap:9px; text-align:left;
+  padding:8px; border-radius:var(--r-ctl); transition:background .12s; min-width:0;
+}
+.v2-qrow:hover{ background:var(--surface-2); }
+.v2-qrow-on{ background:var(--accent-soft); }
+.v2-qrow-done{ opacity:.5; }
+.v2-qrow-done b{ text-decoration:line-through; }
+.v2-qrow-n{ flex:none; width:20px; font-size:11px; color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.v2-qrow-who{ flex:1; min-width:0; line-height:1.25; }
+.v2-qrow-who b{ display:block; font-size:13px; font-weight:620; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-qrow-who span{ display:block; font-size:11.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.v2-sumgrid{ display:flex; gap:22px; margin:14px 0; }
+.v2-sumgrid b{ display:block; font-size:30px; font-weight:740; letter-spacing:-.03em; }
+.v2-sumgrid span{ font-size:12px; color:var(--ink-3); }
+
+/* The gate. A dialog, not a lock: all three answers let the call happen. */
+.v2-gate-bar{ margin-bottom:4px; }
+.v2-gate-said{ margin:0; font-size:12.5px; color:var(--ink-3); }
+.v2-scrim{
+  position:fixed; inset:0; z-index:90; display:grid; place-items:center;
+  background:rgba(22,21,26,.5); padding:20px;
+}
+.v2-dialog{
+  width:min(440px,100%); background:var(--surface); border-radius:var(--r-card);
+  padding:24px; box-shadow:var(--shadow-3); display:flex; flex-direction:column; gap:10px;
+}
+.v2-dialog h2{ font-size:19px; font-weight:700; }
+.v2-dialog p{ margin:0; font-size:13px; color:var(--ink-2); }
+.v2-dialog-acts{ display:flex; flex-direction:column; gap:8px; margin:6px 0; }
+.v2-dialog-form{ gap:12px; }
+
+/* ── Incoming ───────────────────────────────────────────────────────────── */
+.v2-incoming{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-inc-head{ display:flex; flex-direction:column; gap:4px; }
+.v2-inc-head p{ margin:0; font-size:13px; }
+.v2-said{
+  margin:0; padding:10px 14px; border-radius:var(--r-ctl);
+  background:var(--accent-soft); color:var(--accent-ink); font-size:13px; font-weight:600;
+}
+.v2-inc-grid{ display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:var(--gap); align-items:start; }
+@media (max-width:1100px){ .v2-inc-grid{ grid-template-columns:1fr; } }
+.v2-inc-main{ display:flex; flex-direction:column; gap:10px; min-width:0; }
+.v2-inc-sub{ margin:10px 0 0; font-size:13px; font-weight:650; color:var(--ink-3); }
+.v2-inc-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+.v2 .v2-inc-card{ flex-direction:row; align-items:center; gap:12px; padding:14px 18px; }
+.v2-inc-on{ box-shadow:inset 0 0 0 2px var(--accent); }
+.v2-pick{ flex:none; display:flex; }
+.v2-inc-row{ flex:1; display:flex; align-items:center; gap:12px; min-width:0; }
+.v2-inc-who{ flex:1; min-width:0; line-height:1.3; }
+.v2-inc-who b{ display:flex; align-items:center; gap:7px; font-weight:650; }
+.v2-inc-who>span{ display:block; font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-inc-where{ flex:none; display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-3); }
+.v2-inc-wait{ flex:none; text-align:right; line-height:1.3; }
+.v2-inc-wait b{ display:block; font-size:12.5px; font-weight:650; }
+.v2-inc-wait>span{ display:block; font-size:11.5px; color:var(--ink-3); }
+@media (max-width:767px){
+  .v2 .v2-inc-card{ flex-wrap:wrap; }
+  .v2-inc-row{ flex-wrap:wrap; }
+  .v2-inc-wait{ text-align:left; }
+}
+
+.v2-give{ position:sticky; top:calc(var(--tb-h) + 4px); gap:10px; }
+.v2-agent-list{ list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.v2-agent{
+  display:flex; align-items:center; gap:9px; padding:7px 8px;
+  border-radius:var(--r-ctl); cursor:pointer; transition:background .12s;
+}
+.v2-agent:hover{ background:var(--surface-2); }
+.v2-agent-on{ background:var(--accent-soft); }
+.v2-agent-who{ flex:1; min-width:0; line-height:1.25; }
+.v2-agent-who b{ display:block; font-size:13px; font-weight:620; }
+.v2-agent-who span{ display:block; font-size:11.5px; color:var(--ink-3); }
+.v2-warn{
+  margin:4px 0 0; display:flex; gap:7px; align-items:flex-start;
+  font-size:12px; color:var(--amber-ink); background:var(--amber-soft);
+  padding:9px 11px; border-radius:var(--r-ctl);
+}
+
+/* The board's own rules live with the ported design CSS further down. */
+.v2-pipe{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+/* ── The bell, search, and the phone's top strip ────────────────────────── */
+.v2-bell-wrap{ position:relative; display:flex; }
+.v2-bell-n{
+  position:absolute; top:-2px; right:-2px; min-width:16px; height:16px;
+  padding:0 4px; border-radius:var(--r-pill); background:var(--red); color:#fff;
+  font-size:10px; font-weight:700; display:grid; place-items:center;
+}
+.v2-panel{
+  position:absolute; top:calc(100% + 8px); right:0; width:min(360px,calc(100vw - 32px));
+  background:var(--surface); border-radius:var(--r-card); box-shadow:var(--shadow-3);
+  padding:14px; z-index:70; display:flex; flex-direction:column; gap:8px;
+  max-height:min(520px,70vh); overflow:auto;
+}
+.v2-panel-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.v2-panel-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; }
+.v2-note-row{
+  display:flex; gap:10px; align-items:flex-start; padding:9px 8px;
+  border-radius:var(--r-ctl); transition:background .12s;
+}
+.v2-note-row:hover{ background:var(--surface-2); }
+.v2-note-new{ background:var(--accent-soft); }
+.v2-note-what{ flex:1; min-width:0; line-height:1.3; }
+.v2-note-what b{ display:block; font-size:13px; font-weight:620; }
+.v2-note-what span{ display:block; font-size:12px; color:var(--ink-3); }
+.v2-note-when{ flex:none; font-size:11px; color:var(--ink-4); }
+.v2-panel-foot{ align-self:flex-start; }
+
+.v2-scrim-top{ align-items:flex-start; padding-top:12vh; }
+.v2-finder{
+  width:min(560px,100%); background:var(--surface); border-radius:var(--r-card);
+  box-shadow:var(--shadow-3); display:flex; flex-direction:column; overflow:hidden;
+}
+.v2-finder-top{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+.v2-finder-input{ flex:1; min-width:0; border:0; outline:none; background:none; font-size:16px; }
+.v2-finder-hint{ padding:14px 16px; display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+.v2-finder-list{ list-style:none; margin:0; padding:6px; display:flex; flex-direction:column; gap:1px; max-height:46vh; overflow:auto; }
+.v2-finder-row{
+  width:100%; display:flex; align-items:center; gap:10px; text-align:left;
+  padding:9px 10px; border-radius:var(--r-ctl); transition:background .12s;
+}
+.v2-finder-row:hover{ background:var(--surface-2); }
+.v2-finder-what{ flex:1; min-width:0; line-height:1.25; }
+.v2-finder-what b{ display:block; font-size:13.5px; font-weight:620; }
+.v2-finder-what span{ display:block; font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-finder-kind{ flex:none; font-size:11px; color:var(--ink-4); text-transform:uppercase; letter-spacing:.05em; }
+.v2-search-compact{ width:38px; padding:0; justify-content:center; flex:none; }
+
+.v2-ptop{
+  display:flex; align-items:center; gap:8px; padding:10px 16px;
+  background:var(--surface); border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:40;
+}
+.v2-ptop .v2-title{ flex:1; min-width:0; font-size:17px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-ptop .v2-back{ flex:1; display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; }
+.v2-padd{
+  width:38px; height:38px; border-radius:var(--r-ctl); background:var(--accent);
+  color:var(--on-accent); display:grid; place-items:center; flex:none;
+}
+
+/* The phone's More screen: the rest of the same menu, in the same order. */
+.v2-more{ display:flex; flex-direction:column; gap:18px; }
+.v2-more-group{ display:flex; flex-direction:column; gap:2px; }
+.v2-more-group h2{
+  margin:0 0 4px; font-size:11px; font-weight:650; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.v2-more-row{
+  display:flex; align-items:center; gap:12px; min-height:var(--tap,44px);
+  padding:0 14px; border-radius:var(--r-ctl); background:var(--surface);
+  font-size:14.5px; font-weight:600;
+}
+.v2-more-label{ flex:1; min-width:0; }
+.v2-more-later{ opacity:.5; }
+
+/* ── Add a lead ─────────────────────────────────────────────────────────── */
+/*
+ * Page roots are named for the page, not the verb. `.v2-add` is the button in
+ * the top bar; this is the screen. Three times now a screen and a control have
+ * been given one name (`.v2-find`, `.v2-more`, `.v2-add`), and each time the
+ * control's height or display silently reshaped the screen. The guard in
+ * css-collisions.test.ts catches it; the naming is what stops it happening.
+ */
+.v2-two{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.v2-phone-row{ display:grid; grid-template-columns:minmax(0,220px) minmax(0,1fr); gap:12px; }
+@media (max-width:640px){
+  .v2-two, .v2-phone-row{ grid-template-columns:1fr; }
+}
+.v2 .d-input{
+  height:40px; padding:0 12px; border-radius:var(--r-ctl);
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font:inherit; font-size:14px; width:100%; min-width:0;
+}
+.v2 .d-input:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+.v2-field-problem{ margin:0; font-size:12px; color:var(--red-ink); }
+.v2-switch{ display:flex; align-items:center; gap:9px; font-size:13.5px; cursor:pointer; }
+.v2-switch em{ font-style:normal; color:var(--ink-4); }
+.v2-check{ margin:0; font-size:12.5px; color:var(--ink-3); display:inline-flex; align-items:center; gap:5px; }
+.v2-check-ok{ color:var(--green-ink); font-weight:600; }
+.v2-dupe{
+  display:flex; align-items:center; gap:10px; padding:11px 13px;
+  border-radius:var(--r-ctl); background:var(--red-soft); color:var(--red-ink); font-size:13px;
+}
+.v2-dupe b{ display:block; }
+.v2-dupe span span{ display:block; font-weight:500; opacity:.85; }
+.v2-problem{
+  margin:0; padding:11px 14px; border-radius:var(--r-ctl);
+  background:var(--red-soft); color:var(--red-ink); font-size:13px; font-weight:600;
+}
+
+/* ── Attendance and leave ───────────────────────────────────────────────
+ *
+ * The layout is ported: `design/web/attendance.html` for an agent and
+ * `design/web/team-attendance.html` for an owner, each on its own page class.
+ * What is left here is the handful of values those two files set inline on an
+ * element, and the phone layout, which neither of them has.
+ */
+.v2-att{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+/* The hero's two blocks sit apart; the note under them is on the dark card. */
+.v2 .v2-att-hero{ gap:12px; }
+.v2-hero-note{ color:var(--hero-ink-2); margin:0; }
+
+/* attendance.html: `.card.flat` under the week strip, at its own padding. */
+.v2 .v2-wk-detail{ padding:12px 14px; margin-top:12px; }
+.v2-guide{ padding-top:14px; }
+
+/* The big figures the design sizes by hand: 56px on a leave card, 52px on
+   the team counter. */
+.v2 .v2-att-big{ font-size:56px; }
+.v2 .v2-cnt-big{ font-size:52px; }
+.v2-cnt-lab{ font-size:15px; }
+.v2 .v2-month-title{ font-size:17px; }
+.v2 .v2-lv-why{ min-height:72px; }
+
+/*
+ * A leave request waiting for an answer.
+ *
+ * `attendance.html` styles this as `.pend`, but only inside that page, and
+ * the row appears on the owner's screen too — which is built from
+ * `team-attendance.html`. So it carries our own class and the design's
+ * values, rather than a `d-` name that is only half there.
+ */
+.v2-pend-row{
+  display:flex; align-items:center; gap:14px; padding:16px 18px; border-radius:18px;
+  background:var(--violet-soft); color:var(--violet-ink);
+}
+.v2-pend-row .d-grow b{ display:block; font-size:16px; font-weight:680; }
+
+/* The owner's Today card is a third of the row and its foot holds two buttons
+   and a sentence. The design has one button there, so the row is told to wrap
+   rather than clipping the sentence. */
+.v2 .p-team-attendance .d-card-foot{ flex-wrap:wrap; }
+
+/* A week cell is 110px wide and "Working outside" is not, so its chip wraps
+   rather than running out of the box. */
+.v2 .p-team-attendance .d-wd .d-chip{ white-space:normal; height:auto; padding:4px 9px; line-height:1.25; }
+
+/* The violet waiting row's icon is a light square on a violet card. */
+.v2 .v2-pend-ic{ background:var(--surface); color:var(--violet-ink); }
+
+/* ── Tasks ──────────────────────────────────────────────────────────────── */
+.v2-tasks{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-task-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.v2 .v2-task{ flex-direction:row; align-items:center; gap:12px; padding:13px 16px; }
+.v2-task-done{ opacity:.55; }
+.v2-task-done .v2-task-what b{ text-decoration:line-through; }
+.v2-tick{
+  width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center;
+  box-shadow:inset 0 0 0 1.5px var(--line-2); color:transparent; transition:.15s;
+}
+.v2-tick:hover{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+.v2-tick-on{ background:var(--green); box-shadow:none; color:#fff; }
+.v2-task-what{ flex:1; min-width:0; line-height:1.35; }
+.v2-task-what b{ display:block; font-size:14px; font-weight:620; }
+.v2-task-what>span{
+  display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-3);
+}
+.v2-task-note{ display:block !important; font-style:italic; }
+.v2 .v2-newtask{ gap:10px; align-items:flex-start; }
+.v2 .v2-newtask .v2-two, .v2 .v2-newtask .v2-field-wide{ width:100%; }
+
+/* ── The calendar ───────────────────────────────────────────────────────── */
+.v2-cal{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-cal-head{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:space-between; }
+.v2-cal-move{ display:flex; align-items:center; gap:10px; }
+.v2-cal-grid{
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px;
+  background:var(--surface); border-radius:var(--r-card); padding:14px; box-shadow:var(--shadow-1);
+}
+.v2-cal-dow{
+  font-size:11px; font-weight:650; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); text-align:center; padding-bottom:4px;
+}
+.v2-cal-day{
+  min-height:68px; border-radius:var(--r-ctl); background:var(--surface-2);
+  display:flex; flex-direction:column; align-items:flex-start; gap:5px;
+  padding:7px 8px; transition:background .12s, box-shadow .12s;
+}
+.v2-cal-day:hover{ background:var(--surface-3); }
+.v2-cal-off{ opacity:.4; }
+.v2-cal-today .v2-cal-n{ color:var(--accent-ink); font-weight:750; }
+.v2-cal-picked{ box-shadow:inset 0 0 0 2px var(--accent); }
+.v2-cal-n{ font-size:12.5px; font-weight:600; }
+.v2-cal-marks{ display:flex; flex-wrap:wrap; gap:3px; }
+.v2-cal-mark{ width:7px; height:7px; border-radius:50%; display:block; }
+.v2-cal-meeting{ background:var(--accent); }
+.v2-cal-task{ background:var(--blue); }
+.v2-cal-late{ background:var(--red); }
+.v2-cal-done{ background:var(--line-2); }
+@media (max-width:767px){
+  .v2-cal-day{ min-height:52px; padding:5px; }
+  .v2-cal-grid{ padding:10px; gap:3px; }
+}
+
+.v2-day-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
+.v2-day-row{
+  display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:var(--r-ctl); background:var(--surface-2); flex-wrap:wrap;
+}
+.v2-day-meeting{ box-shadow:inset 3px 0 0 var(--accent); }
+.v2-day-when{ flex:none; font-size:13px; font-weight:650; font-variant-numeric:tabular-nums; }
+.v2-day-what{ flex:1; min-width:140px; line-height:1.3; }
+/* Only the fallback is capitalised — a title somebody typed is theirs.
+   `text-transform` on the whole line turned "Meeting at the office" into
+   "Meeting At The Office". */
+.v2-day-what b{ display:block; font-size:13.5px; font-weight:620; }
+.v2-day-kind{ text-transform:capitalize; }
+.v2-day-what>span{ display:block; font-size:12px; color:var(--ink-3); }
+.v2-done{ text-decoration:line-through; opacity:.7; }
+
+/* ── Transfers ──────────────────────────────────────────────────────────
+ *
+ * The layout is ported from `design/web/transfers.html`. What is left here is
+ * what that file sets inline on an element, and the phone layout it has none
+ * of. `.v2-agent*` belongs to the form on the lead screen, not to this one.
+ */
+.v2-tr{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+/* A request card, and the column of answers down its right-hand end. */
+.v2-treq-row{ margin-bottom:10px; }
+.v2-treq-acts{ flex:none; }
+.v2-tr-reason{ margin-top:2px; }
+
+/* The owner's side column is wider than the agent's, because the give-and-get
+   bars need the room. Both stick while the table scrolls. */
+.v2 .v2-tr-owner{ grid-template-columns:minmax(0,1fr) 380px; }
+.v2-tr-side{ position:sticky; top:calc(var(--tb-h) + 4px); }
+
+/* A card that is a heading and a list of rules, tighter than a normal card. */
+.v2 .v2-rules-card{ gap:12px; }
+
+/* An empty state inside a card that is standing in for one row, not a page. */
+.v2 .v2-empty-tight{ padding:24px; }
+/* "Nothing to approve" is good news, so its mark is green. */
+.v2 .v2-ic-green{ background:var(--green-soft); color:var(--green-ink); }
+
+.v2 .v2-tr-form{ gap:10px; align-items:flex-start; }
+.v2 .v2-tr-form .v2-field-wide, .v2 .v2-tr-form .v2-agent-list{ width:100%; }
+.v2-agent-away{ opacity:.45; }
+.v2-best{
+  font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  background:var(--accent-soft); color:var(--accent-ink);
+  padding:2px 6px; border-radius:var(--r-pill);
+}
+
+/* ── The four actions that move a lead ──────────────────────────────────── */
+.v2-action{ display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+.v2-action-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; }
+.v2-action .v2-field-wide, .v2-action .v2-two{ width:100%; margin-top:0; }
+.v2-act-won{ background:var(--green-soft); color:var(--green-ink); }
+.v2-act-lost{ background:var(--red-soft); color:var(--red-ink); }
+
+/* ── The team, and one person ───────────────────────────────────────────
+ *
+ * Ported from `design/web/team.html` and the hero of `design/web/profile.html`.
+ * Left here: the design's `.page-head` and `.section-title`, which sit above
+ * the line the port script starts at and so were never carried over, the
+ * status ring on an avatar, and the few inline styles those files set.
+ */
+.v2-team{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+
+/* ui.css §3 — above the port's starting line, so written out here. */
+.v2-page-head{ display:flex; align-items:center; gap:12px; margin:4px 0 16px; min-height:40px; }
+.v2-page-sub{ color:var(--ink-3); font-size:13.5px; }
+.v2-section-title{ display:flex; align-items:center; gap:10px; margin:32px 0 12px; }
+.v2-section-title h2{ flex:1; }
+
+/*
+ * The coloured ring on an avatar that says where somebody is.
+ *
+ * The design hangs it off `.av[data-status]`; our `Avatar` takes a name, a
+ * photo and a size and nothing else, and four screens already use it. So the
+ * dot goes on a wrapper rather than on a fifth prop nobody else wants.
+ */
+.v2-face{ position:relative; display:inline-flex; flex:none; }
+.v2-face::after{
+  content:""; position:absolute; right:-1px; bottom:-1px; width:10px; height:10px;
+  border-radius:50%; border:2px solid var(--surface); background:var(--ink-4);
+}
+.v2-face-office::after{ background:var(--green); }
+.v2-face-outside::after{ background:var(--blue); }
+.v2-face-leave::after{ background:var(--violet); }
+.v2 .d-tcard .v2-face{ margin-bottom:8px; }
+
+/* team.html writes these three as inline styles. */
+.v2 .v2-team-pills{ margin:0; border:0; }
+.v2 .v2-ocard{ flex-direction:row; align-items:center; gap:14px; }
+.v2 .v2-panel-kind{ font-weight:600; }
+
+/* An agent is not told how many leads a colleague holds, so their panel has
+   three figures rather than four and the grid follows. */
+.v2 .d-stats4.v2-stats-3{ grid-template-columns:repeat(3,1fr); }
+
+/* profile.html's hero note, which is a block under the bar. */
+.v2 .v2-pf-how{ display:block; }
+/* A badge nobody has earned yet: still named, so it reads as something to aim
+   at rather than something missing. */
+.v2-badge-locked{ opacity:.55; }
+
+.v2-person-page{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-person-bio{ margin:0; font-size:14px; line-height:1.55; color:var(--ink-2); white-space:pre-wrap; }
+
+/* ── The project library ────────────────────────────────────────────────── */
+.v2-projects{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; }
+.v2-projects>.v2-leads-bar{ margin-bottom:0; }
+.v2-proj-grid{
+  list-style:none; margin:0; padding:0;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;
+}
+.v2 .v2-proj{ padding:0; overflow:hidden; gap:0; height:100%; }
+.v2 a.v2-proj:hover{ transform:translateY(-2px); box-shadow:var(--shadow-2); }
+.v2-proj-photo{
+  display:grid; place-items:center; height:140px; background:var(--surface-3);
+  background-size:cover; background-position:center; color:var(--ink-4); position:relative;
+}
+.v2-proj-star{
+  position:absolute; top:10px; right:10px; width:26px; height:26px; border-radius:50%;
+  background:var(--surface); color:var(--accent); display:grid; place-items:center;
+  box-shadow:var(--shadow-1);
+}
+.v2-proj-body{ display:flex; flex-direction:column; gap:6px; padding:14px 16px 16px; min-width:0; }
+.v2-proj-body b{ font-size:15px; font-weight:650; }
+.v2-proj-sub{ font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.v2-proj-facts{ display:flex; gap:14px; flex-wrap:wrap; margin-top:4px; }
+.v2-proj-facts>span{ display:flex; flex-direction:column; font-size:13px; font-weight:620; }
+.v2-proj-facts i{ font-style:normal; font-size:10.5px; font-weight:600; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ink-4); }
+.v2-proj-foot{ display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.v2-proj-units{ font-size:11.5px; color:var(--ink-3); }
+
+/* ── Thumbs ─────────────────────────────────────────────────────────────
+ *
+ * `e2e/polish.mjs` walks every screen at 390px and flags anything under 28px
+ * as a tap target. The design's own `--tap: 44px` says the same thing in a
+ * token. On a computer a 26px button beside a row is fine; on a phone it is
+ * a miss, and "Accept", "Refuse" and the task tick are the three where a miss
+ * costs something.
+ *
+ * Only the height grows. The design's proportions on a computer stay exactly
+ * as drawn.
+ */
+@media (max-width:767px){
+  .v2 .d-btn.d-xs{ min-height:32px; padding:0 12px; }
+  .v2 .v2-tick{ width:32px; height:32px; }
+  .v2 .d-card-link, .v2 .v2-leads-links a{
+    min-height:32px; display:inline-flex; align-items:center; gap:4px;
+  }
+  .v2 .v2-back{ min-height:32px; }
+  /* A checkbox is 13px by default on every browser; the label around it is
+     what a thumb actually hits. */
+  .v2 .v2-pick{ min-width:32px; min-height:32px; align-items:center; justify-content:center; }
+  .v2 .v2-pick input, .v2 .v2-switch input, .v2 .v2-agent input{ width:18px; height:18px; }
+}
+
+/* ── The team wall ──────────────────────────────────────────────────────── */
+.v2-wall{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; max-width:720px; }
+.v2 .v2-write{ flex-direction:row; align-items:flex-start; gap:12px; }
+.v2-write-box{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+.v2 .v2-write-area{ height:auto; min-height:40px; padding:10px 12px; resize:vertical; line-height:1.45; }
+.v2-write-acts{ display:flex; gap:8px; justify-content:flex-end; }
+.v2-posts{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.v2 .v2-post{ gap:10px; }
+.v2-post-top{ display:flex; align-items:center; gap:10px; }
+.v2-post-mark{
+  width:36px; height:36px; border-radius:50%; flex:none; display:grid; place-items:center;
+  background:var(--accent-soft); color:var(--accent-ink);
+}
+.v2-post-who{ flex:1; min-width:0; line-height:1.3; }
+.v2-post-who b{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:650; }
+.v2-post-who>span{ display:block; font-size:11.5px; color:var(--ink-4); }
+.v2-post-body{ margin:0; font-size:14px; line-height:1.55; white-space:pre-wrap; }
+.v2-post-foot{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.v2-react{
+  min-height:30px; padding:0 10px; border-radius:var(--r-pill);
+  background:var(--surface-2); font-size:13px; transition:.15s;
+}
+.v2-react:hover{ background:var(--surface-3); }
+.v2-react-mine{ background:var(--accent-soft); color:var(--accent-ink); font-weight:650; }
+.v2-react-add{ display:flex; gap:4px; opacity:.55; }
+.v2-react-add:hover{ opacity:1; }
+.v2-post-comment{
+  margin:0; font-size:13px; color:var(--ink-2); padding-left:12px;
+  border-left:2px solid var(--line);
+}
+.v2-post-comment b{ font-weight:650; }
+
+/* ── Automations ────────────────────────────────────────────────────────── */
+.v2-autos{ display:flex; flex-direction:column; gap:var(--gap); min-width:0; max-width:820px; }
+.v2-auto-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.v2 .v2-auto{ flex-direction:row; align-items:center; gap:14px; padding:14px 18px; }
+.v2-auto-dot{ width:9px; height:9px; border-radius:50%; flex:none; background:var(--line-2); }
+.v2-auto-on{ background:var(--green); }
+.v2-auto-what{ flex:1; min-width:0; line-height:1.35; }
+.v2-auto-what b{ display:block; font-size:14px; font-weight:650; }
+.v2-auto-what>span{ display:block; font-size:12.5px; color:var(--ink-3); }
+.v2-auto-runs{ font-size:11.5px !important; color:var(--ink-4) !important; }
+.v2-toggle{
+  width:44px; height:26px; border-radius:var(--r-pill); background:var(--line-2);
+  flex:none; padding:3px; transition:background .15s; display:flex;
+}
+.v2-toggle i{
+  width:20px; height:20px; border-radius:50%; background:#fff; display:block;
+  transition:transform .15s; box-shadow:var(--shadow-1);
+}
+.v2-toggle-on{ background:var(--green); }
+.v2-toggle-on i{ transform:translateX(18px); }
+@media (max-width:767px){ .v2 .v2-auto{ flex-wrap:wrap; } }
+
+/* ── Settings ────────────────────────────────────────────────────────────
+ *
+ * What the design's own stylesheets do not cover. Everything structural —
+ * `.d-set`, `.d-set-nav`, `.d-th-grid`, `.d-co-grid`, `.d-ai-top` — is ported
+ * from `design/web/ui.css` and the settings pages' own style blocks; these are
+ * the few states the design draws with its demo script instead of CSS.
+ */
+
+/* A group of switches that its parent switch has turned off. Dimmed, not
+   hidden: it should be clear what turning the parent back on would restore. */
+.v2-set-dim {opacity:.45}
+.v2-set-dim input {pointer-events:none}
+
+/* The design's inline `grid-template-columns:1fr 1fr` on the language list. */
+.v2-set-two {display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* A time or minutes field, at the design's fixed 140px. */
+.v2-set-time {width:140px;flex:none}
+.v2-set-unit {align-self:center;white-space:nowrap}
+
+/* `settings.html`'s last card: avatar, name, then two buttons. */
+.v2 .v2-set-account {flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+
+/* The notifications hero, which the design lays out as a row. */
+.v2 .v2-ntf-top {flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+.v2-ntf-mark {width:52px;height:52px;border-radius:16px}
+.v2-ntf-mark svg.lucide {width:22px;height:22px}
+
+/* A field's own validation line. Red, and it takes the hint's place rather
+   than appearing under it, so the row does not change height. */
+.v2-field-error {font-size:12px;font-weight:500;color:var(--red-ink)}
+
+/* Company preview: a detail that has not been filled in yet. Shown as the
+   word for the missing thing, in the colour of something wrong, because a
+   blank space in a preview reads as "nothing goes here". */
+.v2-co-blank {color:var(--red-ink);font-style:italic}
+.v2-co-faint {opacity:.7}
+
+/* The company text boxes on the Homes AI page. */
+.v2-ai-know {min-height:150px}
+
+/* ── Settings on a phone ─────────────────────────────────────────────────
+ *
+ * The design has no phone version of these pages: `design/web/` is the
+ * computer design, and the phone shell is its own document. So every
+ * two-column grid in it is a fixed desktop width — `.d-set` is 216px plus
+ * 896px, which is 1112px of content inside a 390px screen. The polish run
+ * found all seven settings routes overflowing, both themes.
+ *
+ * Rather than narrow the columns, everything stacks: the section list becomes
+ * a scrolling row of links above the panel, every label-and-controls row
+ * becomes label-then-controls, and every side-by-side grid becomes one column.
+ */
+@media (max-width: 900px) {
+  .v2 .d-set {grid-template-columns:minmax(0,1fr);gap:14px}
+
+  /* The section list reads as a row of tabs, scrolled sideways. Not sticky:
+     a sticky strip on a phone eats a third of the screen. */
+  .v2 .d-set-nav {position:static;flex-direction:row;gap:6px;overflow-x:auto;
+    padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .v2 .d-set-nav::-webkit-scrollbar {display:none}
+  .v2 .d-set-nav a {flex:none}
+  /* "Mine" and "Office" are headings for a column, not a row. */
+  .v2 .d-set-nav .d-set-label {display:none}
+  .v2 .d-set-nav a.d-set-out {margin-top:0}
+
+  .v2 .d-set-row {grid-template-columns:minmax(0,1fr);gap:12px}
+  .v2 .p-company .d-set-row {grid-template-columns:minmax(0,1fr)}
+  .v2 .d-form-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-company .d-co-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-company .d-co-side {position:static}
+  .v2 .p-ai-settings .d-ai-top {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-settings .d-office-grid {grid-template-columns:minmax(0,1fr)}
+  .v2 .p-automations .d-tb-grid {grid-template-columns:minmax(0,1fr)}
+
+  /* Three theme cards side by side leaves each one 110px wide, which is
+     narrower than the miniature inside it. */
+  .v2 .p-settings .d-th-grid {grid-template-columns:1fr 1fr}
+
+  /* The save bar wraps instead of pushing its buttons off the right. */
+  .v2 .d-set-savebar {flex-wrap:wrap;justify-content:stretch}
+  .v2 .d-set-savebar .d-btn {flex:1 1 auto}
+
+  .v2-set-two {grid-template-columns:1fr}
+  .v2 .v2-set-account {flex-wrap:wrap}
+  .v2-set-time {width:100%}
+
+  /* A switch row is label, maybe a chip, then the switch. On a phone the
+     note wraps and the switch must stay beside it rather than below. */
+  .v2 .d-switch-row {flex-wrap:wrap}
+  .v2 .d-switch-row .d-txt {flex:1 1 60%;min-width:0}
+}
+
+/* An inline link that is a real target for a thumb. 18px of text is a
+   28px-tall tap area once the padding is there, and the negative margin
+   keeps the line of prose it sits in from growing. */
+.v2 a.d-link, .v2 button.d-link {display:inline-block;padding:5px 2px;margin:-5px -2px}
+
+/* The automations switch was 26px tall, which the polish run counts as too
+   small for a thumb and it is right. */
+.v2-toggle {min-height:28px}
+
+/* The big AI number is sized for a wide card. */
+@media (max-width: 480px) {
+  .v2 .p-ai-settings .d-num-hero {font-size:34px}
+}
+
+/* A design page with nothing behind it yet: what it will do, as a list. */
+.v2-soon-list {margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;
+  font-size:13px;color:var(--ink-2)}
+
+/* ── Sales offers ────────────────────────────────────────────────────────
+ *
+ * `design/web/sales-offers.html` opens its panels with a script; in React the
+ * panel is simply mounted, so what is needed here is the scrim behind it and
+ * the few states the design's demo draws in JavaScript.
+ */
+
+/* Behind an open panel. Dismisses on a tap, which is what everyone tries. */
+.v2-panel-back {
+  position:fixed; inset:0; z-index:79; background:rgba(15,14,18,.28);
+  backdrop-filter:blur(2px); animation:v2-fade-in .18s ease;
+}
+@keyframes v2-fade-in { from { opacity:0 } to { opacity:1 } }
+@media (prefers-reduced-motion: reduce) { .v2-panel-back { animation:none } }
+
+/* A row of the offer table is a link to the offer. */
+.v2 .v2-offer-row { cursor:pointer; }
+.v2 .v2-offer-row:hover { background:var(--surface-2); }
+.v2 .v2-offer-row td { height:52px; }
+.v2 .v2-offer-row td:last-child { color:var(--ink-4); width:28px; }
+
+/* The panel holds a document preview, which wants the room. */
+.v2 .v2-offer-panel { width:520px; }
+
+/* ── Sales offers on a phone ─────────────────────────────────────────────
+ *
+ * The design's offers list is a table, and a table of eight columns on a
+ * 390px screen is either a sideways scroll nobody finds or a squeeze that
+ * clips the price. Each row becomes a card instead: who and what state on
+ * the first line, the unit on the second, the price and the rest on the
+ * third. The same cells in the same order, laid out for a thumb.
+ */
+@media (max-width: 760px) {
+  .v2 .d-so-top { flex-wrap:wrap; gap:20px 28px; }
+  .v2 .d-so-top .d-btn { align-self:stretch; width:100%; }
+  .v2 .v2-offer-panel { width:auto; }
+
+  /* Four tabs plus their counts do not fit, so they scroll. */
+  .v2 .v2-offers .d-tabs { overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+  .v2 .v2-offers .d-tabs::-webkit-scrollbar { display:none; }
+  .v2 .v2-offers .d-tab { flex:none; }
+
+  /* The filters stack rather than squeezing the search box to nothing. */
+  .v2 .v2-offers .d-filters { flex-wrap:wrap; }
+  .v2 .v2-offers .d-filters .d-input-icon { width:100%; }
+  .v2 .v2-offers .d-filters .d-select { flex:1 1 140px; }
+
+  .v2 .v2-offer-table, .v2 .v2-offer-table tbody { display:block; width:100%; }
+  .v2 .v2-offer-table thead { display:none; }
+
+  .v2 .v2-offer-row {
+    display:grid; grid-template-columns:1fr auto; gap:2px 10px;
+    padding:12px 14px; border-bottom:1px solid var(--line);
+  }
+  .v2 .v2-offer-row td { display:block; height:auto; padding:0; border:0; }
+
+  /* Lead and status on the first line. */
+  .v2 .v2-offer-row td:nth-child(1) { grid-column:1; font-weight:650; }
+  .v2 .v2-offer-row td:nth-child(5) { grid-column:2; grid-row:1; justify-self:end; }
+  /* Project · unit on the second. */
+  .v2 .v2-offer-row td:nth-child(2) { grid-column:1; grid-row:2; }
+  .v2 .v2-offer-row td:nth-child(3) { grid-column:1; grid-row:3; }
+  /* Price, agent and date on the last, with the price leading. */
+  .v2 .v2-offer-row td:nth-child(4) {
+    grid-column:2; grid-row:2 / span 2; justify-self:end; align-self:center;
+    text-align:right; font-weight:650;
+  }
+  .v2 .v2-offer-row td:nth-child(6),
+  .v2 .v2-offer-row td:nth-child(7) { grid-column:1; font-size:12px; }
+  /* The chevron is noise once the whole card is the tap target. */
+  .v2 .v2-offer-row td:last-child { display:none; }
+}
+
+/* ── Import ──────────────────────────────────────────────────────────────
+ *
+ * The wizard's own layout is ported from `design/web/import.html`. These are
+ * the few things the design's demo script does rather than its stylesheet,
+ * plus the phone layout, which that page does not have.
+ */
+
+/* Each step and the line after it, so the rule sits between two steps
+   rather than being a sibling the flex row has to space around. */
+.v2 .v2-step-wrap { display:contents; }
+
+.v2 .v2-map-table .v2-map-to { width:240px; }
+.v2 .v2-map-table td { height:52px; }
+.v2 .v2-map-table .d-select { width:210px; }
+.v2 .v2-map-table tr.d-bad .d-select { box-shadow:inset 0 0 0 1.5px var(--red); }
+
+.v2 .v2-check-two { grid-template-columns:1fr 1fr; }
+.v2 .v2-give-project { width:230px; }
+.v2 .v2-done-h { font-size:26px; letter-spacing:-.02em; }
+.v2 .v2-import-bar { margin-top:4px; }
+.v2 .v2-import-note { max-width:1040px; margin-left:auto; margin-right:auto; }
+
+/* A step that has been passed can be gone back to; one ahead cannot. */
+.v2 .d-step:disabled { cursor:default; }
+.v2 .d-step.d-done { cursor:pointer; }
+.v2 .d-step.d-done:hover { color:var(--ink); }
+
+@media (max-width: 860px) {
+  /* Six steps with their words do not fit, so the strip scrolls. */
+  .v2 .d-stepper { overflow-x:auto; scrollbar-width:none; }
+  .v2 .d-stepper::-webkit-scrollbar { display:none; }
+  .v2 .d-step { flex:none; }
+
+  .v2 .d-stage { padding:20px 16px 18px; }
+  .v2 .d-two, .v2 .v2-check-two { grid-template-columns:minmax(0,1fr); }
+  .v2 .d-how { grid-template-columns:minmax(0,1fr); }
+  .v2 .d-ag-grid { grid-template-columns:minmax(0,1fr); }
+  .v2 .v2-give-project { width:100%; }
+
+  /* The three numbers and their operators become one column of rows. */
+  .v2 .d-sum3 { grid-template-columns:1fr; gap:4px; }
+  .v2 .d-sum3 .d-op { display:none; }
+
+  /* The mapping table's third column is a select that cannot shrink to a
+     third of a phone, so the row stacks. */
+  .v2 .v2-map-table, .v2 .v2-map-table tbody { display:block; }
+  .v2 .v2-map-table thead { display:none; }
+  .v2 .v2-map-table tr {
+    display:grid; grid-template-columns:1fr; gap:4px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .v2 .v2-map-table td { display:block; height:auto; padding:0; border:0; }
+  .v2 .v2-map-table .d-select { width:100%; }
+
+  .v2 .d-done-top { flex-wrap:wrap; }
+  .v2 .v2-done-h { font-size:21px; }
+}
+
+/* ── Automations ─────────────────────────────────────────────────────────
+ *
+ * The take-back hero's layout comes from `design/web/automations.html`. These
+ * are the bits its demo script sets inline.
+ */
+.v2 .v2-take-ic { width:44px; height:44px; border-radius:14px; }
+/* The switch in the hero carries its own word, on a dark background. */
+.v2 .v2-take-switch { display:flex; align-items:center; gap:8px; color:#fff; font-weight:600; }
+
+/* ── Calendar ────────────────────────────────────────────────────────────
+ *
+ * The month, week and day grids are all ported from
+ * `design/web/calendar.html`. These are its inline bits and the phone
+ * layout, which that page does not have.
+ */
+/* The design sets the meeting dot inline; the other four have classes. */
+.v2 .d-dot.v2-dot-accent { background:var(--accent); }
+.v2 .v2-cal-busy { padding:9px 12px; margin-bottom:6px; }
+.v2 .v2-cal-foot { margin-top:10px; }
+/* "+2 more" is not an event, so it does not take an event's colour. */
+.v2 .v2-cal-more { background:transparent; color:var(--ink-3); font-weight:500; padding-left:2px; }
+
+@media (max-width: 900px) {
+  /* The side column goes under the grid rather than beside it. */
+  .v2 .d-cal-layout { grid-template-columns:minmax(0,1fr); }
+  .v2 .d-side { position:static; }
+
+  .v2 .d-cal-top { flex-wrap:wrap; row-gap:8px; }
+  /* The legend is a key for colours that are still visible without it. */
+  .v2 .d-cal-top .d-legend { display:none; }
+  .v2 .d-cal-top h2 { order:-1; flex:1 1 100%; }
+
+  /* A month cell on a phone is a number and a row of dots: three event
+     titles at 11px in a 50px-wide box is three ellipses. */
+  .v2 .d-cal-day { min-height:62px; padding:5px 4px; gap:3px; }
+  .v2 .d-cal-day .d-cal-ev {
+    font-size:0; padding:0; height:5px; width:5px; border-radius:50%;
+    display:inline-block; margin-right:3px;
+  }
+  .v2 .d-cal-day .v2-cal-more { display:none; }
+  .v2 .d-cal-num { width:20px; height:20px; font-size:11.5px; }
+
+  /* A small segmented control is 26px tall, which is under the thumb size
+     the polish run insists on. On a phone it gets the room. */
+  .v2 .d-cal-top .d-seg.d-sm button { min-height:30px; }
+
+  /* A week of seven columns does not fit, so the week view scrolls. */
+  .v2 .d-wk { overflow-x:auto; }
+  .v2 .d-wk-row { min-width:640px; }
+  .v2 .d-day-view .d-wk-row { min-width:0; }
+}
+
+/* ── The board ───────────────────────────────────────────────────────────
+ *
+ * The columns, the cards and the Lost strip are all ported from
+ * `design/web/pipeline.html`. These are the two things that page does with
+ * markup we cannot copy, plus the phone layout, which it does not have.
+ */
+
+/*
+ * The whole card opens the lead.
+ *
+ * The design hangs a `data-href` on the card and navigates in script, so its
+ * Call button can sit inside the clickable area. We use a real link, and an
+ * anchor may not contain another anchor — so the link is stretched over the
+ * card instead of wrapping it, and Call sits above it.
+ */
+.v2 .v2-kb-hit { position:absolute; inset:0; border-radius:14px; z-index:1; }
+.v2 .v2-kb-call { z-index:2; }
+.v2 .v2-kb-none { padding:18px 8px; }
+.v2 .v2-pipe-filters { margin-top:4px; }
+/* The design's filter row keeps the search box at 260px; the sentence about
+   dragging needs the room more than the box does. */
+.v2 .p-pipeline .d-filters .d-input-icon { width:200px; }
+
+@media (max-width: 900px) {
+  /* Six columns cannot shrink to a phone, so the board scrolls sideways with
+     the columns at a width a name and a project still fit in — which is what
+     every CRM does on a phone. */
+  .v2 .p-pipeline .d-kanban {
+    grid-auto-columns:minmax(252px,252px);
+    overflow-x:auto; padding-bottom:8px; scroll-snap-type:x proximity;
+  }
+  .v2 .p-pipeline .d-kb-col { scroll-snap-align:start; }
+
+  /* Hover does not exist on a phone, so a Call button that appears on hover
+     never appears. It sits in the row instead. */
+  .v2 .p-pipeline .d-kb-card .d-btn { opacity:1; position:static; box-shadow:none; }
+  .v2 .p-pipeline .d-kb-card .d-ft { flex-wrap:wrap; }
+
+  /* The note about dragging is long, and the filters are what the thumb is
+     reaching for. */
+  .v2 .p-pipeline .d-how { order:3; flex:1 1 100%; }
+  .v2 .p-pipeline .d-filters .d-input-icon { width:100%; }
+
+  /* The Lost strip is a row of four things on a desktop and a short stack
+     here; the two sample cards are the first thing to go. */
+  .v2 .p-pipeline .d-lost-strip { flex-wrap:wrap; row-gap:8px; }
+  .v2 .v2-lost-cards { display:none; }
+}
+
+/* ── Homes AI ────────────────────────────────────────────────────────────
+ *
+ * Ported from `design/web/homes-ai.html`. These are the states its demo
+ * script styles inline, and the phone layout.
+ */
+
+/* A failure is shown in the thread, so the bubble carries the warning. */
+.v2 .v2-bub-bad { background:var(--red-soft); color:var(--red-ink); }
+/* Which tools the answer came from, under it. */
+.v2 .v2-bub-read { display:block; margin-top:8px; }
+/* The design's bullet list has no space after it, and the model usually
+   writes a closing sentence under one. */
+.v2 .p-homes-ai .d-bub ul + p { margin-top:8px; }
+/* The arrow that opens the lead an answer names. The design's demo puts its
+   links in a button row under the bubble; a real answer names the lead
+   mid-sentence, so the link sits where the name is. */
+.v2 .p-homes-ai .d-bub .v2-bub-lead {
+  display:inline-grid; place-items:center; width:18px; height:18px; border-radius:6px;
+  background:var(--accent-soft); color:var(--accent-ink); vertical-align:-3px; margin:0 2px;
+}
+.v2 .p-homes-ai .d-bub .v2-bub-lead:hover { background:var(--accent); color:#fff; }
+
+/*
+ * Every rule below names `.p-homes-ai` as well as the element.
+ *
+ * The ported sheet writes `.v2 .p-homes-ai .d-ai`, which outranks a plain
+ * `.v2 .d-ai` whatever the media query says — the first phone layout written
+ * here lost to it silently and left the chat 60px wide with the side cards
+ * sitting on top of it.
+ */
+@media (max-width: 900px) {
+  /* The three side cards go under the chat rather than beside it. */
+  .v2 .p-homes-ai .d-ai { grid-template-columns:minmax(0,1fr); }
+  /* With the cards underneath, a chat the height of the screen would push
+     them off the bottom of it. */
+  .v2 .p-homes-ai .d-ai-chat { height:auto; min-height:0; }
+  .v2 .p-homes-ai .d-ai-msgs { max-height:52vh; }
+  .v2 .p-homes-ai .d-msg { max-width:92%; }
+  .v2 .p-homes-ai .d-ai-head,
+  .v2 .p-homes-ai .d-ai-msgs,
+  .v2 .p-homes-ai .d-ai-try,
+  .v2 .p-homes-ai .d-ai-form { padding-left:16px; padding-right:16px; }
+  /* "Enter to ask" is not a thing on a phone keyboard. */
+  .v2 .p-homes-ai .d-ai-form .d-row.d-between span:last-child { display:none; }
+
+  /* The arrow that opens a lead is a thumb target here, not a glyph. */
+  .v2 .p-homes-ai .d-bub .v2-bub-lead { width:28px; height:28px; vertical-align:-9px; }
+}
+
+/* ── Who did what ────────────────────────────────────────────────────────
+ *
+ * Ported from `design/web/team-activity.html`, with the number cards from
+ * `design/web/dashboard.html`. These are the bits its demo script sets
+ * inline, and the phone layout.
+ */
+/* The page itself is a column; `.v2-act` is already an action button on the
+   lead page, and reusing that name here dimmed this whole screen to 40% and
+   swallowed its clicks. Hence the page class, not a new bare one. */
+.v2 .p-activity { display:flex; flex-direction:column; min-width:0; }
+.v2 .v2-un-list { max-width:860px; }
+/* "New" beside a device, which the design writes as a chip in the cell. */
+.v2 .v2-newdev { margin-left:8px; }
+
+@media (max-width: 900px) {
+  /* A hero and three cards side by side become one column. */
+  .v2 .p-activity .d-tops { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .v2 .p-activity .d-num-hero { font-size:44px; }
+  /* Four facts across is four ellipses at this width. */
+  .v2 .p-activity .d-un .d-facts { grid-template-columns:1fr 1fr; }
+
+  .v2 .p-activity .d-filters .d-input-icon { width:100%; }
+  .v2 .p-activity .d-chips { width:100%; }
+
+  /*
+   * Both tables become one card per row.
+   *
+   * Neither can shrink: the time table holds a 150px bar and the sign-in
+   * table a device, a place and a time. Same pattern as `.v2-offer-row`.
+   */
+  .v2 .p-activity .d-table-wrap { padding:4px 12px 8px; }
+  .v2 .p-activity .d-table,
+  .v2 .p-activity .d-table tbody { display:block; }
+  .v2 .p-activity .d-table thead { display:none; }
+  .v2 .p-activity .d-table tbody tr {
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .v2 .p-activity .d-table tbody tr:last-child { border-bottom:0; }
+  .v2 .p-activity .d-table td {
+    display:block; height:auto; padding:0; border:0; white-space:normal;
+  }
+  /* The name takes the row, everything else lines up under it. */
+  .v2 .p-activity .d-table td:first-child { flex:1 1 100%; }
+  .v2 .p-activity .d-table .d-t-right { text-align:left; }
+  .v2 .p-activity .d-tbar { flex:1 1 100%; }
+  .v2 .p-activity .d-tbar .d-bar { flex:1; width:auto; }
+}
+
+/* ── Projects, the wall, the bell and search ─────────────────────────────
+ *
+ * Four screens rebuilt from `design/web/projects.html`, `project.html`,
+ * `team-wall.html`, `best-of-homes.html`, `notifications.html` and
+ * `search.html`. Their own layout is ported; these are the few things the
+ * design does inline or in a part of `ui.css` the port does not cover, plus
+ * the phone layout, which none of those pages has.
+ */
+
+/* `.section-title` sits above the slice of ui.css the port script takes
+   (line 184 onwards), so it is not in `v2-ui.css`. Same rule, our name. */
+.v2 .v2-sec-title { display:flex; align-items:center; gap:10px; margin:32px 0 12px; }
+.v2 .v2-sec-title h2 { flex:1; min-width:0; }
+
+/* The design puts "Projects" and "Edit project" in the top bar through
+   `data-topbar`; this shell has no such slot, so they sit above the layout. */
+.v2 .v2-proj-top { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+
+/* The owner's pinned note keeps its own line breaks: it is written in the
+   post box on the wall, where a second line is a second thought. */
+.v2 .p-projects .d-owner-msg p { white-space:pre-line; }
+
+/* The owner's two buttons wrap as a pair, to the right of whatever line
+   they land on. */
+.v2 .v2-proj-acts { display:flex; gap:8px; margin-left:auto; }
+
+/* `.d-pbody h2` is 22px, which a chip beside the name must not inherit. */
+.v2 .p-projects .d-pbody h2 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.v2 .p-projects .d-pbody h2 .d-chip { font-size:11.5px; font-weight:650; }
+
+/* The rank number in the wall's ranking card, which the design sets inline. */
+.v2 .v2-rank-n { width:22px; flex:none; text-align:left; }
+
+/* The design's post menu is `position:fixed` and placed by its own script.
+   Here it hangs off the button, so it needs an anchor to hang from. */
+.v2 .v2-post-more { position:relative; display:inline-flex; flex:none; }
+.v2 .v2-post-menu { position:absolute; top:100%; right:0; margin-top:6px; }
+
+/* The design's own `style="padding-bottom:14px"` on the notifications card. */
+.v2 .v2-bell-list { padding-bottom:14px; }
+
+/* A full-height side panel over the shell, which is what the design's bell
+   opens. It is `position:fixed`, so it escapes `.v2-bell-wrap`. */
+.v2 .v2-bell-panel { z-index:90; }
+
+@media (max-width: 900px) {
+  /* Every two-column layout in these pages is a fixed desktop width: the
+     wall is 360px, the bell 340px, a project 392px. Below this they stack,
+     and the sticky side column stops being sticky — a column that is as
+     tall as the page cannot stick to the top of it. */
+  /* Four pages share the design's `.d-lay` — a column of content beside a
+     316px rail. All four stack on a phone. Tasks was missing from this list,
+     so its "left today" card sat on top of the day's tasks. */
+  .v2 .p-wall .d-lay,
+  .v2 .p-bell .d-lay,
+  .v2 .p-tasks .d-lay,
+  .v2 .p-project .d-lay { grid-template-columns:minmax(0,1fr); }
+  .v2 .p-wall .d-side,
+  .v2 .p-bell .d-side,
+  .v2 .p-project .d-send { position:static; }
+
+  /* Two cards side by side, each with a 212px photo beside its body. */
+  .v2 .p-projects .d-pgrid { grid-template-columns:minmax(0,1fr); }
+
+  /* The filter strip is a segmented control, a search box, a count and a
+     button: it wraps rather than squeezing the search box to nothing, and
+     six segments scroll rather than clipping the last two. */
+  .v2 .p-projects .d-filters { flex-wrap:wrap; }
+  .v2 .p-projects .d-filters .d-seg { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-projects .d-filters .d-seg::-webkit-scrollbar { display:none; }
+  .v2 .p-projects .d-filters .d-input-icon { flex:1 1 220px; }
+
+  .v2 .p-projects .d-owner-msg { flex-wrap:wrap; }
+  .v2 .p-projects .d-owner-msg p { flex:1 1 100%; }
+
+  /* Four facts across a 392px-wide hero becomes two rows of two, and the
+     left-hand rule between them has to move with them. */
+  .v2 .p-project .d-facts { grid-template-columns:1fr 1fr; row-gap:14px; }
+  .v2 .p-project .d-facts div:nth-child(odd) { border-left:0; padding-left:8px; }
+
+  /* The podium's three blocks and the "you" card below it. */
+  .v2 .p-best .d-row1 { grid-template-rows:auto; }
+  .v2 .p-best .d-top-tabs { overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-best .d-top-tabs::-webkit-scrollbar { display:none; }
+
+  /* The notification row holds an icon, two lines, two buttons, an age and a
+     dot. On a phone that is 560px of content, so it becomes a small grid:
+     icon down the left, text across the top, the buttons underneath. The
+     "Mark read" button stops hiding until hover, because there is no hover. */
+  .v2 .p-bell .d-nrow {
+    display:grid; grid-template-columns:42px minmax(0,1fr) auto;
+    align-items:start; gap:4px 12px;
+  }
+  .v2 .p-bell .d-nrow .d-ic { grid-row:1 / span 2; }
+  .v2 .p-bell .d-nrow .d-bd { grid-column:2; }
+  .v2 .p-bell .d-nrow .d-bd b { white-space:normal; }
+  .v2 .p-bell .d-nrow .d-age { grid-column:3; grid-row:1; width:auto; padding-right:14px; }
+  .v2 .p-bell .d-nrow .d-mark { display:inline-flex; grid-column:2; grid-row:3; justify-self:start; }
+  .v2 .p-bell .d-nrow .d-btn.d-sm { grid-column:3; grid-row:2 / span 2; align-self:center; }
+  /* The dot sits beside the age rather than beside the button: down there it
+     reads as part of "Open" rather than as "this one is new". */
+  .v2 .p-bell .d-nrow .d-udot { position:absolute; top:16px; right:2px; }
+  /* "2 new notifications" and a button do not share 390px, so the button
+     takes its own line under them. */
+  .v2 .p-bell .d-n-head { flex-wrap:wrap; }
+  .v2 .p-bell .d-n-head .d-num-hero { font-size:40px; }
+  .v2 .p-bell .d-n-head .d-btn { flex:1 1 100%; justify-content:center; }
+  .v2 .p-bell .d-n-tabs { flex-wrap:wrap; }
+  .v2 .p-bell .d-n-tabs .d-tabs { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-bell .d-n-tabs .d-tabs::-webkit-scrollbar { display:none; }
+
+  /* The search box is 68px tall with 20px text; on a phone the clear button
+     and the hint beside it do not fit next to the words being typed. */
+  .v2 .p-find .d-sr { margin-top:8px; }
+  .v2 .p-find .d-sr-box { height:58px; padding:0 14px; gap:10px; }
+  .v2 .p-find .d-sr-box input { font-size:17px; }
+  .v2 .p-find .d-sr-box kbd { display:none; }
+  .v2 .p-find .d-sr-type { display:none; }
+  .v2 .p-find .d-tabs { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-find .d-tabs::-webkit-scrollbar { display:none; }
+  .v2 .p-find .d-tab { flex:none; }
+}
+
+@media (max-width: 767px) {
+  /* A project card's photo sits above its body rather than beside it. */
+  .v2 .p-projects .d-pcard { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .v2 .p-projects .d-pcard .d-photo { min-height:170px; }
+  .v2 .p-projects .d-pbody { padding:0 8px 6px; }
+  .v2 .p-projects .d-pfacts { gap:16px; flex-wrap:wrap; }
+  .v2 .p-projects .d-pfoot { flex-wrap:wrap; }
+  .v2 .p-projects .d-pfoot .d-btn { flex:1 1 auto; justify-content:center; }
+
+  .v2 .p-project .d-p-hero .d-photo { height:150px; }
+  .v2 .p-project .d-p-hero .d-name b { font-size:28px; }
+  .v2 .p-project .d-facts { grid-template-columns:1fr; }
+  .v2 .p-project .d-facts div { border-left:0; padding-left:8px; }
+  .v2 .p-project .d-what { grid-template-columns:minmax(0,1fr); }
+  .v2 .p-project .d-send-btns { grid-template-columns:minmax(0,1fr); }
+  .v2 .p-project .d-send-btns .d-primary { grid-column:span 1; }
+
+  /*
+   * The leads table on a project: five columns, one of them a phone number
+   * that cannot shrink. Each row becomes a card instead — who and their
+   * stage on the first line, the number on the second, the next step on the
+   * third — which is the same pattern as the offers list.
+   */
+  .v2 .p-project .d-id-leads,
+  .v2 .p-project .d-id-leads tbody { display:block; width:100%; table-layout:auto; }
+  .v2 .p-project .d-id-leads thead { display:none; }
+  .v2 .p-project .d-id-leads tr {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 10px;
+    padding:12px 2px; border-bottom:1px solid var(--line);
+  }
+  .v2 .p-project .d-id-leads td { display:block; height:auto; padding:0; border:0; }
+  .v2 .p-project .d-id-leads td:nth-child(3) { grid-column:2; grid-row:1; justify-self:end; }
+  .v2 .p-project .d-id-leads td:nth-child(2) { grid-column:1; }
+  .v2 .p-project .d-id-leads td:nth-child(4) { grid-column:1 / -1; }
+  .v2 .p-project .d-id-leads td:nth-child(5) { grid-column:1 / -1; }
+  .v2 .p-project .d-id-leads .d-row-actions { justify-content:flex-start; }
+  /* The name is the link to the lead, and at 16px tall it is not a thumb
+     target. It gets the room a row gives it on a computer. */
+  .v2 .p-project .d-id-leads .d-t-main { display:inline-block; padding:6px 0; }
+
+  /* The post box's avatar is 44px, so the foot's 54px indent lines up with
+     nothing once the row below it wraps. */
+  .v2 .p-wall .d-postbox-foot { padding-left:0; flex-wrap:wrap; }
+  .v2 .p-wall .d-tabs { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-wall .d-tabs::-webkit-scrollbar { display:none; }
+  /* Avatar, name, time, two chips and a menu do not share 390px. The name
+     and the time keep their own line and the chips drop under them, rather
+     than the time sliding behind a chip. */
+  .v2 .p-wall .d-post-head { flex-wrap:wrap; row-gap:6px; }
+  .v2 .p-wall .d-post-head .d-who { flex:1 1 auto; }
+  .v2 .p-wall .d-post.d-win .d-win-line { font-size:24px; }
+
+  /* The podium is three columns of avatars and five-figure numbers. */
+  .v2 .p-best .d-podium { gap:6px; }
+  .v2 .p-best .d-pod .d-pts { font-size:20px; }
+  .v2 .p-best .d-pod.d-first .d-pts { font-size:26px; }
+  .v2 .p-best .d-pod .d-sm { font-size:11px; }
+  .v2 .p-best .d-pod b.d-nm { font-size:14px; }
+  .v2 .p-best .d-quote { font-size:20px; }
+  .v2 .p-best .d-trio { grid-template-columns:1fr; gap:4px; }
+  .v2 .p-best .d-trio div { display:flex; align-items:baseline; gap:8px; }
+  /* Four columns, one of them a 110px bar, on a 390px screen: the bar is a
+     picture of the number in the column beside it, so it goes. */
+  .v2 .p-best .d-id-rank td:nth-child(4),
+  .v2 .p-best .d-id-rank th:nth-child(4) { display:none; }
+  .v2 .p-best .d-id-rank .d-rk { width:26px; font-size:15px; }
+  .v2 .p-best .d-id-rank td { padding-left:4px; padding-right:4px; }
+  .v2 .p-best .d-person b { white-space:normal; }
+  .v2 .p-best .d-card-foot { flex-wrap:wrap; }
+  .v2 .p-best .d-card-foot .d-btn { flex:1 1 auto; justify-content:center; }
+}
+
+/* ── The team, transfers and attendance on a phone ───────────────────────
+ *
+ * `design/web/` is the computer design and has no phone version of these
+ * three pages, so every two-column grid in them is a fixed desktop width: the
+ * team's card grid is five columns, transfers is a column plus a 340px rail,
+ * the team's attendance counters are six tiles in a row. At 390px that is a
+ * sideways scroll, which `npm run polish` fails on and agents hate.
+ *
+ * Nothing here narrows a column. Everything stacks.
+ */
+@media (max-width: 900px) {
+  /* The line under the title takes a line of its own rather than being
+     squeezed into a column beside the button. */
+  .v2 .v2-page-head{ flex-wrap:wrap; }
+  .v2 .v2-page-sub{ flex:1 1 100%; }
+
+  /* Three or four top tabs plus a "Rules" link is 475px of strip. It scrolls
+     rather than pushing the whole page sideways. */
+  .v2 .d-top-tabs{ overflow-x:auto; scrollbar-width:none; }
+  .v2 .d-top-tabs::-webkit-scrollbar{ display:none; }
+  .v2 .d-top-tabs .d-tab{ flex:none; margin-right:14px; }
+  .v2 .d-top-tabs .d-grow{ display:none; }
+
+  /* The filter row: the search box takes the whole line, the pills scroll. */
+  .v2 .d-filters .d-input-icon{ width:100%; }
+  .v2 .v2-team-pills{ overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+  .v2 .v2-team-pills::-webkit-scrollbar{ display:none; }
+  .v2 .v2-team-pills .d-tab{ flex:none; }
+
+  /* Five cards across becomes as many as fit, then one. */
+  .v2 .p-team .d-tgrid{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+  .v2 .p-team .d-ogrid{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-team .d-stats4{ grid-template-columns:1fr 1fr; }
+
+  /* The profile hero's two halves become two rows, and the rule between them
+     a rule above the lower one. */
+  .v2 .p-profile .d-pf-hero{ flex-direction:column; gap:20px; padding:20px; }
+  .v2 .p-profile .d-pf-perf{
+    grid-template-columns:minmax(0,1fr); gap:18px;
+    padding-left:0; padding-top:18px; border-left:0; border-top:1px solid var(--hero-line);
+  }
+  .v2 .p-profile .d-pf-id h1{ font-size:22px; }
+  .v2 .p-profile .d-pf-links{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-profile .d-pf-stats{ flex-wrap:wrap; gap:18px; }
+
+  /* Transfers: the rail goes under the list and stops sticking. */
+  .v2 .p-transfers .d-tgrid, .v2 .v2-tr-owner{ grid-template-columns:minmax(0,1fr); }
+  .v2-tr-side{ position:static; }
+  /* The request card is avatar · who · deadline · two buttons on one line.
+     On a phone each becomes its own line, in that order. The page class is in
+     the selector because the ported rules carry it and would otherwise win. */
+  .v2 .p-transfers .d-treq{ flex-wrap:wrap; gap:10px 12px; padding:16px; }
+  .v2 .p-transfers .d-treq .d-who{ flex:1 1 100%; order:2; }
+  .v2 .p-transfers .d-deadline{ flex:1 1 100%; order:3; text-align:left; }
+  .v2 .p-transfers .v2-treq-acts{ flex:1 1 100%; order:4; flex-direction:row; }
+  .v2 .p-transfers .v2-treq-acts .d-btn{ flex:1; justify-content:center; }
+  .v2 .p-transfers .d-gg{ grid-template-columns:72px 1fr 22px 1fr 22px; }
+
+  /* Attendance: the week strip and the month lose their roomiest parts
+     rather than their shape. */
+  .v2 .p-attendance .d-h-big{ font-size:34px; }
+  .v2 .p-attendance .d-hero{ min-height:0; }
+  .v2 .p-attendance .d-h-facts{ flex-wrap:wrap; gap:18px; }
+  .v2 .p-attendance .d-wk7{ gap:4px; }
+  .v2 .p-attendance .d-wk7 .d-tt{ font-size:10px; }
+  .v2 .p-attendance .d-guide{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-attendance .d-tot{ grid-template-columns:1fr 1fr; }
+  /* A month cell is a number and a colour on a phone: "Working outside" in a
+     48px box is an ellipsis either way. */
+  .v2 .p-attendance .d-md{ height:52px; padding:6px; }
+  .v2 .p-attendance .d-md span{ display:none; }
+  .v2 .v2-att-big{ font-size:40px; }
+
+  /* The team's attendance: six counters become two columns, and the eight-day
+     grid scrolls sideways inside its card rather than pushing the page. */
+  .v2 .p-team-attendance .d-counters{ grid-template-columns:1fr 1fr; }
+  .v2 .p-team-attendance .d-cnt.d-all{ grid-column:1 / -1; }
+  .v2 .v2-cnt-big{ font-size:36px; }
+  .v2 .p-team-attendance .d-week{ grid-template-columns:1fr 1fr; }
+  .v2 .p-team-attendance .d-grid8{
+    grid-template-columns:120px repeat(8,minmax(28px,1fr)) 110px;
+    overflow-x:auto; padding-bottom:4px;
+  }
+  .v2 .p-team-attendance .d-req .d-row{ flex-wrap:wrap; }
+  .v2 .p-team-attendance .d-ans-row{ flex-wrap:wrap; }
+  /* The waiting row's heading takes the width; the chip and the button sit
+     under it rather than squeezing it into a column. */
+  .v2 .v2-pend-row{ flex-wrap:wrap; padding:14px; }
+  .v2 .v2-pend-row .d-grow{ flex:1 1 100%; }
+}
+
+/*
+ * Four tables that cannot shrink, each becoming one card per row.
+ *
+ * Same pattern as `.v2-offer-row` above: the cells keep their order, the head
+ * goes away, and what was a column becomes a line.
+ */
+@media (max-width: 767px) {
+  .v2 .d-id-sent, .v2 .d-id-all, .v2 .d-id-today, .v2 .v2-leave-table,
+  .v2 .d-id-sent tbody, .v2 .d-id-all tbody, .v2 .d-id-today tbody,
+  .v2 .v2-leave-table tbody{ display:block; width:100%; }
+  .v2 .d-id-sent thead, .v2 .d-id-all thead, .v2 .d-id-today thead,
+  .v2 .v2-leave-table thead{ display:none; }
+
+  .v2 .d-id-sent tr, .v2 .d-id-all tr, .v2 .d-id-today tr, .v2 .v2-leave-table tr{
+    display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px;
+    padding:12px 10px; border-bottom:1px solid var(--line);
+  }
+  .v2 .d-id-sent td, .v2 .d-id-all td, .v2 .d-id-today td, .v2 .v2-leave-table td{
+    display:block; height:auto; padding:0; border:0; white-space:normal;
+  }
+  /* The lead or the person takes the whole first line; everything after it
+     shares the lines below. */
+  .v2 .d-id-sent td:first-child, .v2 .d-id-all td:first-child,
+  .v2 .d-id-today td:first-child, .v2 .v2-leave-table td:first-child{ flex:1 1 100%; }
+  .v2 .d-id-sent .d-row-actions{ opacity:1; }
+  .v2 .d-id-today .d-why{ max-width:none; }
+
+  /* Thumbs, the same rule the calendar and the task list already carry: the
+     design's small segmented control is 26px tall, and the lead's name in a
+     request card is a 16px line. Both are things a thumb has to hit. */
+  .v2 .p-transfers .d-seg.d-sm button{ min-height:30px; }
+  .v2 .p-transfers .d-treq .d-nm a{ display:inline-block; padding:6px 0; }
+}
+
+/* ======================================================================
+   Inbox, Email and Templates — the bits the design pages do not carry
+   ----------------------------------------------------------------------
+   `design/web/inbox.html`, `email.html` and `templates.html` are computer
+   drawings with no phone version, and each leans on a few classes its own
+   <style> block never defines. These are those, plus the phone layouts.
+   ====================================================================== */
+
+/* The channel square beside a name. The design has `.ch.wa` (green) and
+   `.ch.tg` (blue) for WhatsApp and Telegram; there is no Telegram here, so
+   email and an internal note take the other two colours. */
+.v2 .p-inbox .d-ch.v2-ch-mail{ background:var(--blue); }
+.v2 .p-inbox .d-ch.v2-ch-note{ background:var(--ink-3); }
+
+/* A preview that says "Not sent". Red, because it means somebody has to do
+   something: the client was never written to. */
+.v2 .p-inbox .v2-ib-failed{ color:var(--red-ink); font-weight:600; }
+
+/* The three columns each scroll inside themselves, which is what makes the
+   list and the thread independent. `.d-card` is already a column. */
+.v2 .p-inbox .v2-ib-list,
+.v2 .p-inbox .v2-ib-chat{ overflow:hidden; }
+
+/* A bubble is a stack: who, then the words, then the time. The design's
+   `.bb` only styles the words. */
+.v2 .p-inbox .d-bb{ display:flex; flex-direction:column; gap:2px; }
+.v2 .p-inbox .v2-bb-by{ font-size:11px; }
+.v2 .p-inbox .v2-bb-subject{ font-weight:650; }
+.v2 .p-inbox .v2-bb-text{ white-space:pre-wrap; overflow-wrap:anywhere; }
+/* A note never left the building, so it does not look like a message. */
+.v2 .p-inbox .d-bb.v2-bb-note{ background:var(--amber-soft); color:var(--amber-ink); align-self:center; max-width:80%; }
+.v2 .p-inbox .d-bb.v2-bb-failed{ box-shadow:inset 0 0 0 1.5px var(--red); }
+.v2 .p-inbox .v2-bb-why{ font-size:11.5px; color:var(--red-ink); font-weight:600; }
+.v2 .p-inbox .v2-tick{ display:inline-flex; vertical-align:-2px; margin-left:4px; color:var(--ink-3); }
+.v2 .p-inbox .v2-tick-read{ color:var(--blue); }
+
+/* The composer's rows: the channel chips and the template picker sit above
+   the box, and only the box itself has the Send button beside it. */
+.v2 .p-inbox .v2-ib-modes,
+.v2 .p-inbox .v2-ib-tpl{ padding-bottom:0; flex-wrap:wrap; }
+.v2 .p-inbox .v2-ib-lock{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--amber-ink); }
+.v2 .p-inbox .v2-ib-phone{ font-size:20px; }
+.v2 .p-inbox .v2-ib-side h4{ font-size:13px; }
+
+/* Email: the merge fields drawn as blanks inside the white email card, where
+   the page's own ink colours do not reach. */
+.v2 .p-email .v2-em-note{ margin-bottom:14px; }
+.v2 .p-email .d-em-body mark,
+.v2 .p-email .d-em-meta mark{
+  background:#FFE3D8; color:#B23A12; border-radius:4px; padding:0 3px; font-weight:600;
+}
+/* A field the server has never heard of is a typo nobody has noticed yet. */
+.v2 .p-email mark.v2-em-unknown{ background:#FCDCDC; color:#9B1C1C; text-decoration:underline wavy; }
+.v2 .p-email .v2-em-view{ overflow:hidden; }
+
+/* Templates: the WhatsApp bubble's trimmings, which the design draws inline. */
+.v2 .p-templates .v2-tp-tabs{ margin:0; }
+.v2 .p-templates .v2-tp-header{
+  align-self:flex-end; max-width:88%; font-size:11.5px; color:rgba(255,255,255,.72);
+}
+.v2 .p-templates .v2-tp-buttons{ align-self:flex-end; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.v2 .p-templates .v2-tp-buttons span{
+  background:rgba(255,255,255,.12); color:#fff; font-size:12px; font-weight:600;
+  padding:5px 10px; border-radius:10px;
+}
+.v2 .p-templates .v2-tp-tick{ color:rgba(255,255,255,.6); align-self:flex-end; }
+.v2 .p-templates .v2-tp-text{ min-height:110px; padding:10px 12px; }
+
+/* A laptop: the three inbox columns at the design's widths leave the thread
+   too narrow to read, so give the sides a little back. */
+@media (max-width: 1240px) {
+  .v2 .p-inbox .d-ib{ grid-template-columns:272px minmax(0,1fr) 248px; }
+}
+
+@media (max-width: 900px) {
+  /* The inbox is one column at a time: the list, then the thread with the
+     lead underneath it. Every messaging app does this, and three columns in
+     390 pixels is none of them. The switch itself is in Inbox.tsx, which
+     reads the same 900px, so only the shape is set here. */
+  .v2 .p-inbox .d-ib{
+    grid-template-columns:minmax(0,1fr);
+    height:auto; min-height:0;
+  }
+  .v2 .p-inbox .v2-ib-list,
+  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 170px); min-height:360px; }
+  .v2 .p-inbox .v2-ib-side{ overflow:visible; }
+  /* A 26px segment is under the thumb size the polish run insists on. */
+  .v2 .p-inbox .d-seg.d-sm>button{ min-height:30px; }
+
+  /* Email: the list above the email rather than beside it. */
+  .v2 .p-email .d-em{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-email .d-em-list{ max-height:320px; overflow-y:auto; }
+  .v2 .p-email .d-em-bar{ flex-wrap:wrap; row-gap:10px; }
+  .v2 .p-email .d-em-bar .d-seg.d-sm>button{ min-height:30px; }
+  .v2 .p-email .d-em-stage{ padding:14px; }
+  .v2 .p-email .d-em-mail,
+  .v2 .p-email .d-em-mail.d-ph{ width:100%; }
+  .v2 .p-email .d-em-body{ padding:18px; }
+  .v2 .p-email .d-em-meta span{ width:52px; }
+
+  /* Templates: four cards across becomes two, then one. */
+  .v2 .p-templates .d-tp-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 560px) {
+  .v2 .p-templates .d-tp-grid{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-inbox .v2-ib-list,
+  .v2 .p-inbox .v2-ib-chat{ height:calc(100dvh - 200px); }
+}
+
+/* ── The settings pages built last ───────────────────────────────────────
+ *
+ * System health, Team and roles, Phone app, Feedback and Home banners. Their
+ * design pages' own styles are ported; these are the few inline bits and the
+ * phone layout, which those pages do not have.
+ */
+
+/* The big tick goes amber when something is not set up. */
+.v2 .d-hl-big.v2-hl-warn { background:var(--amber-soft); color:var(--amber-ink); }
+
+.v2 .v2-tm-roles { align-items:baseline; }
+/* A deactivated person is still listed, because their leads are still theirs
+   until somebody moves them. Dimmed, not hidden. */
+.v2 .v2-tm-off { opacity:.5; }
+
+/* The feedback box wants room to write in. */
+.v2 .v2-fb-text { min-height:120px; }
+.v2 .v2-fb-reply { min-height:80px; }
+.v2 .v2-fb-foot { border-top:1px solid var(--line); padding-top:16px; }
+.v2 .v2-fb-row { padding:14px 0; }
+.v2 .v2-fb-row + .v2-fb-row { border-top:1px solid var(--line); }
+.v2 .v2-fb-mine { align-items:flex-start; }
+
+/* The banner preview: the shape an agent sees at the top of My Day. */
+.v2 .v2-hb-prev {
+  position:relative; min-height:150px; border-radius:18px; padding:20px 22px;
+  display:flex; flex-direction:column; justify-content:flex-end; gap:6px;
+  background:var(--hero); color:var(--hero-ink); overflow:hidden;
+}
+.v2 .v2-hb-prev h2 { font-size:20px; letter-spacing:-.02em; }
+.v2 .v2-hb-prev p { font-size:13.5px; color:var(--hero-ink-2); }
+.v2 .v2-hb-lab {
+  align-self:flex-start; font-size:11px; font-weight:650; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--hero-ink-2);
+}
+.v2 .v2-hb-cta {
+  align-self:flex-start; margin-top:6px; padding:6px 14px; border-radius:999px;
+  background:var(--accent); color:#fff; font-size:12.5px; font-weight:650;
+}
+.v2 .v2-hb-row { align-items:center; gap:8px; }
+.v2 .v2-hb-off { opacity:.5; }
+
+@media (max-width: 900px) {
+  .v2 .d-hl-top, .v2 .d-ig-top { flex-wrap:wrap; }
+  .v2 .d-ig-cols, .v2 .d-hb, .v2 .d-tm-stats, .v2 .d-fb-types {
+    grid-template-columns:minmax(0,1fr);
+  }
+  .v2 .d-hl-row { flex-wrap:wrap; row-gap:6px; }
+  .v2 .d-hl-name { flex:1 1 100%; }
+
+  /* The people table's five columns become one card each. */
+  .v2 .v2-tm-table, .v2 .v2-tm-table tbody { display:block; }
+  .v2 .v2-tm-table thead { display:none; }
+  .v2 .v2-tm-table tr {
+    display:grid; grid-template-columns:1fr auto; gap:4px 10px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .v2 .v2-tm-table td { display:block; height:auto; padding:0; border:0; }
+  .v2 .v2-tm-table td:nth-child(1) { grid-column:1; grid-row:1 / span 2; }
+  .v2 .v2-tm-table td:nth-child(3) { grid-column:2; grid-row:1; justify-self:end; }
+  .v2 .v2-tm-table td:nth-child(2),
+  .v2 .v2-tm-table td:nth-child(4),
+  .v2 .v2-tm-table td:nth-child(5) { font-size:12px; }
+}
+
+/* `design/web/templates.html` sets the card body's height twice — `96px`,
+   then `auto` with `min-height:98px` — and leaves `-webkit-line-clamp:4` on
+   it. The clamp puts the ellipsis after the fourth line while the box stays
+   five lines tall, so half a fifth line shows under it on every long
+   template. Four lines, exactly, and the cards still line up. */
+.v2 .p-templates .d-tp-body{ min-height:calc(20px + 4 * 1.5 * 13px); height:auto; }
+.v2 .p-templates .v2-tp-clamp{
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden;
+}
+
+/* ── Desks, the business card, the messaging report, managing projects ──
+ *
+ * Four screens whose own `<style>` blocks are in `v2-home.css` already
+ * (`p-desks`, `p-card`, `p-messaging`, `p-manage-projects`). What is here is
+ * only what those blocks do not cover: the bits the design file wrote as
+ * inline styles or as ids, the card artboard's sizes, and the phone layout —
+ * `design/web/` is the computer design and has no phone version.
+ */
+
+/* digital-card.html sets this one as an inline style. */
+.v2 .p-card .v2-card-steps{ padding:16px 22px; }
+
+/*
+ * The card itself.
+ *
+ * `CardFace` renders the print artboard as an SVG that fills its container
+ * (`card-studio.css` → `.bc-face{width:100%}`), so the sizes the design gives
+ * `.bc` live on the wrapper instead. 420px is the design's preview width and
+ * 168px its tile width.
+ */
+.v2 .p-card .v2-card-art{ display:block; width:100%; max-width:420px; }
+.v2 .p-card .v2-card-mini{ display:block; width:100%; max-width:168px; }
+
+/* The two cards lying on the desk, which digital-card.html places by id. */
+.v2 .p-card .d-mock .v2-mock-a,
+.v2 .p-card .d-mock .v2-mock-b{ position:absolute; display:block; width:250px; }
+.v2 .p-card .d-mock .v2-mock-a{ left:16%; top:38px; transform:rotate(-8deg); }
+.v2 .p-card .d-mock .v2-mock-b{ left:46%; top:54px; transform:rotate(6deg); }
+
+/* A switch row that is the whole card, so it brings no padding of its own. */
+.v2 .p-card .d-switch-row.v2-flat{ padding:0; }
+
+/*
+ * The artboard's decoration is clipped by the card, and `npm run polish` has
+ * to be able to see that.
+ *
+ * `renderFace()` draws a circle that runs off the edge of the card on
+ * purpose; the `<svg>` clips it, so nothing is visible past the card. But the
+ * check reads an ancestor's `overflow-x` to decide whether something hanging
+ * off the right is real, and `hidden` is not one of the values it accepts —
+ * so three paths inside the card were reported as hanging off the page. The
+ * face already clips its content, so asking for `auto` changes nothing on
+ * screen and no scrollbar can appear.
+ */
+.v2 .p-card .bc-face{ overflow-x:auto; }
+
+/* messaging-report.html writes both of these as inline styles. */
+.v2 .p-messaging .v2-rate-bar{ max-width:90px; }
+.v2 .p-messaging .d-hbar.v2-answer-row{ grid-template-columns:1fr 44px; }
+/* "7 with no update" is a jump to the table below, not a navigation link.
+   The padding is what makes it a 28px target under a thumb. */
+.v2 .p-messaging .v2-jump{
+  text-align:left; text-decoration:underline; padding:5px 0; align-self:flex-start;
+}
+
+/* A sold-out project is labelled beside its name, not instead of it. */
+.v2 .p-manage-projects .d-t-main+.d-chip{ margin-left:6px; }
+
+/*
+ * Both tables scroll inside their own card rather than pushing the page.
+ *
+ * `.d-table-wrap` sets no overflow of its own, and both of these are wider
+ * than the room a sidebar leaves at 1440: the project table is 1209px of
+ * nowrap cells and a three-button control, and the agent table is seven
+ * columns of figures. A report of numbers also reads better as a table with
+ * its headings than as a stack of unlabelled figures.
+ */
+.v2 .p-manage-projects .d-table-wrap,
+.v2 .p-messaging .d-table-wrap{ overflow-x:auto; }
+
+/* The second lines — developer · community, and plan · handover — wrap
+   rather than hold the whole table open, so the Edit and View buttons stay on
+   screen at 1440 with the sidebar out. */
+.v2 .p-manage-projects .d-id-prj td .d-t-sub{ white-space:normal; }
+
+/*
+ * The phone.
+ *
+ * Every one of these is a grid or a row the design sets at a width a phone
+ * does not have. Without them `npm run polish` fails on page-overflow, which
+ * is the check that found the home screen scrolling sideways.
+ */
+@media (max-width: 900px) {
+  /* Desks: the summary reads as four lines, and one member per row. */
+  .v2 .p-desks .d-dk-sum{ flex-direction:column; align-items:flex-start; gap:16px; }
+  .v2 .p-desks .d-dk-sum .d-grow{ width:100%; }
+  .v2 .p-desks .d-desk-top{ flex-wrap:wrap; }
+  .v2 .p-desks .d-desk-top .d-grow{ flex:1 1 100%; }
+  .v2 .p-desks .d-desk-max{ flex:1 1 100%; justify-content:space-between; }
+  .v2 .p-desks .d-desk-grid{ grid-template-columns:1fr; }
+
+  /* The card: the preview goes under the steps rather than beside them, and
+     stops being sticky — a card stuck to the top of a phone screen is a card
+     covering the form. */
+  .v2 .p-card .d-dc{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-card .d-dc-right{ position:static; }
+  .v2 .p-card .d-dz{ grid-template-columns:1fr; }
+  .v2 .p-card .d-cmp-grid{ grid-template-columns:1fr; }
+  .v2 .p-card .d-dl-grid{ grid-template-columns:1fr; }
+  .v2 .p-card .d-mock{ height:180px; }
+  .v2 .p-card .d-mock .v2-mock-a,
+  .v2 .p-card .d-mock .v2-mock-b{ width:62%; }
+  .v2 .p-card .d-mock .v2-mock-a{ left:4%; top:24px; }
+  .v2 .p-card .d-mock .v2-mock-b{ left:34%; top:40px; }
+
+  /* The messaging funnel: four steps down the screen. */
+  .v2 .p-messaging .d-funnel{ grid-template-columns:1fr; }
+
+  /* Managing projects: three tiles in a column. */
+  .v2 .p-manage-projects .d-tiles{ grid-template-columns:1fr; }
+
+  /* The buttons above both of these go onto a second line rather than off
+     the side of the screen. */
+  .v2 .p-manage-projects .v2-page-head,
+  .v2 .p-messaging .v2-page-head{ flex-wrap:wrap; }
+
+  /* The design's small segmented control is 26px high. That is a fine target
+     for a mouse and a poor one for a thumb, and both of these are the main
+     control on their screen — the lead limit, and who sees a project. */
+  .v2 .p-desks .d-seg.d-sm>button,
+  .v2 .p-manage-projects .d-seg.d-sm>button{ height:32px; }
+  .v2 .p-manage-projects .d-id-prj .d-chip{ min-height:28px; }
+}
+
+/*
+ * The project table as cards.
+ *
+ * Same treatment as the offers list above, and for the same reason: the two
+ * things an owner came here to do are read the name and press one of the
+ * three status buttons, and in a sideways scroller both are off-screen. The
+ * cells keep their order; the heading row goes away, so the lead count says
+ * what it is.
+ */
+@media (max-width: 767px) {
+  .v2 .p-manage-projects .d-table-wrap{ overflow-x:visible; }
+  .v2 .p-manage-projects .d-id-prj,
+  .v2 .p-manage-projects .d-id-prj tbody{ display:block; width:100%; }
+  .v2 .p-manage-projects .d-id-prj thead{ display:none; }
+
+  .v2 .p-manage-projects .d-id-prj tr{
+    display:grid; grid-template-columns:1fr auto; gap:8px 10px;
+    padding:12px 8px; border-bottom:1px solid var(--line);
+  }
+  .v2 .p-manage-projects .d-id-prj td{
+    display:block; height:auto; padding:0; border:0; white-space:normal; text-align:left;
+  }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(1){ grid-column:1 / -1; grid-row:1; }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(2){ grid-column:1; grid-row:2; }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(3){ grid-column:2; grid-row:2; justify-self:end; }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(4){ grid-column:1; grid-row:3; }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(4)::before{
+    content:"Leads "; color:var(--ink-3); font-size:12px;
+  }
+  .v2 .p-manage-projects .d-id-prj td:nth-child(5){ grid-column:1 / -1; grid-row:4; }
+  .v2 .p-manage-projects .d-id-prj td.d-act{ grid-column:1 / -1; grid-row:5; width:auto; }
+  /* The three statuses share the width, so each is wide enough to press. */
+  .v2 .p-manage-projects .d-id-prj .d-seg{ display:flex; }
+  .v2 .p-manage-projects .d-id-prj .d-seg>button{ flex:1; justify-content:center; }
+  .v2 .p-manage-projects .d-id-prj .d-row-actions{ justify-content:flex-start; }
+}
+/* The chosen template's wording, under the picker. It is a reminder of which
+   blank is which, not a message, so it is quiet and it wraps. */
+.v2 .p-inbox .v2-ib-tpl-body{
+  display:block; font-size:12px; line-height:1.45; color:var(--ink-3);
+  padding-top:0; padding-bottom:0;
+}
+
+/* ======================================================================
+ * The leads list (my-leads.html, all-leads.html) and one lead (lead.html)
+ * ======================================================================
+ *
+ * Everything the design sets as an inline style or leaves above the port
+ * script's starting line, plus the phone layouts — `design/web/` is the
+ * computer design and draws no phone for any of these three.
+ */
+
+/* The page is a column of blocks; the design's own `.filters`, `.table-wrap`
+   and `.start-strip` carry their own spacing. */
+.v2-leadlist{ display:flex; flex-direction:column; min-width:0; }
+/* Seven tabs and two links need more than one line on a laptop, and the two
+   links are the half that gives way. */
+.v2-leadlist-head{ flex-wrap:wrap; row-gap:8px; }
+/* ui.css §3 `.head-links`, which sits above the port's starting line. */
+.v2-leadlist-links{ display:flex; gap:6px; margin-left:auto; }
+/* The dial icon inside the dark "start calling" strip: the design sets this
+   one as an inline style, because it is the only card-icon on a dark card. */
+.v2-leadlist-dial{ background:rgba(255,255,255,.1); color:#fff; }
+
+/*
+ * The lead's own cell, and the project beside it, are the two that can be any
+ * length. The design caps the first at 210px on All leads; both lists want it,
+ * so that the table still fits the card at the design's own width.
+ */
+.v2 .p-my-leads .d-id-leads td:first-child,
+.v2 .p-all-leads .d-id-leads td:first-child{ max-width:210px; }
+/* All leads writes the name straight into the cell, as the design does, so
+   the cap has to clip the text rather than a flex child. */
+.v2 .p-all-leads .d-id-leads td:first-child{ overflow:hidden; text-overflow:ellipsis; }
+.v2 .p-my-leads .d-id-leads td:nth-child(3),
+.v2 .p-all-leads .d-id-leads td:nth-child(3){ max-width:200px; overflow:hidden; }
+.v2 .p-my-leads .d-id-leads .d-t-main,
+.v2 .p-all-leads .d-id-leads .d-t-main{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.v2 .p-my-leads .d-id-leads .d-t-sub,
+.v2 .p-all-leads .d-id-leads .d-t-sub{ overflow:hidden; text-overflow:ellipsis; }
+
+/* All leads: the next-step cell holds the row's buttons over it, so it needs
+   a width to hold them. The design sets 300px; below that the text wins. */
+.v2 .p-all-leads .d-id-leads td.d-t-act{ min-width:220px; }
+
+/*
+ * Narrower than about 1400px the table no longer fits beside the sidebar, so
+ * it scrolls sideways inside its own card rather than taking the page with it.
+ *
+ * That makes the card a scrollport, and a `position:sticky` header then sticks
+ * to the card rather than to the page: at `top:var(--tb-h)` it lands 68px down
+ * inside the card, on top of the first row. Inside this range it sits still.
+ */
+@media (max-width: 1399px) {
+  .v2 .p-my-leads .d-table-wrap,
+  .v2 .p-all-leads .d-table-wrap{ overflow-x:auto; }
+  .v2 .p-my-leads .d-table.d-sticky th,
+  .v2 .p-all-leads .d-table.d-sticky th{ top:0; }
+}
+
+/* The lead page: the design's inline styles, in one place. */
+.v2-leadpage{ min-width:0; }
+/* The country flag in the facts list. It is an emoji, not an icon, so the
+   `.d-facts i,svg` rule that sizes the others does not reach it. */
+.v2-leadpage-flag{ font-size:15px; line-height:1; width:15px; }
+/* `style="width:44px;height:44px;border-radius:14px"` on the next-step card. */
+.v2-leadpage-flagicon{ width:44px; height:44px; border-radius:14px; }
+/* `style="padding-bottom:18px"` on the card that holds the four tabs. */
+.v2-leadpage-tabs{ padding-bottom:18px; }
+/* `style="margin-bottom:6px"` on both right-hand card heads. */
+.v2-leadpage-wants-head{ margin-bottom:6px; }
+/* The rule above Source and Lead #, which the design sets inline. */
+.v2-leadpage-wants-foot{ border-top:1px solid var(--line); padding-top:8px; }
+
+/* Two textareas the design sizes inline. */
+.v2-leadact-note,
+.v2-leadtr-note{ min-height:64px; }
+/* `style="height:20px"` on the "fewest leads" chip, and the grey half of the
+   "Give to" label. */
+.v2-leadtr-best{ height:20px; margin-left:6px; }
+.v2-leadtr-hint{ font-weight:500; }
+
+/*
+ * A laptop. The three-column lead page needs 308 + 304 and the gaps before
+ * the middle column has room to be the main thing on the page; under that
+ * the right-hand cards go below, side by side.
+ */
+@media (max-width: 1200px) {
+  .v2 .p-lead .d-lead-grid{ grid-template-columns:300px minmax(0,1fr); }
+  .v2 .p-lead .d-rcol{
+    grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; align-items:flex-start;
+  }
+  .v2 .p-lead .d-rcol>*{ flex:1 1 300px; }
+}
+
+/* A phone. */
+@media (max-width: 900px) {
+  /* One column, and the left-hand card stops following the scroll: on a
+     phone it is the first thing you see, not a sidebar. */
+  .v2 .p-lead .d-lead-grid{ grid-template-columns:minmax(0,1fr); gap:12px; }
+  .v2 .p-lead .d-lcol{ position:static; }
+  .v2 .p-lead .d-rcol{ flex-direction:column; align-items:stretch; }
+  .v2 .p-lead .d-rcol>*{ flex:none; }
+  .v2 .p-lead .d-lcol .d-card,
+  .v2 .p-lead .d-rcol .d-card{ padding:16px 18px; }
+  /* The next-step card's three parts stack rather than squeeze; the button
+     stays its own size and sits at the end of the line. */
+  .v2 .p-lead .d-next-card{ flex-wrap:wrap; }
+  .v2 .p-lead .d-next-card .d-btn{ flex:none; margin-left:auto; }
+  /* Seven actions at two per row is right on a phone too, but the labels
+     need the room. */
+  .v2 .p-lead .d-acts .d-btn{ padding:0 10px; }
+
+  /* The tab strips scroll sideways inside themselves rather than taking the
+     page with them. */
+  .v2 .p-my-leads .d-tabs,
+  .v2 .p-all-leads .d-tabs,
+  .v2 .p-lead .d-tabs{ max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .v2 .p-my-leads .d-tabs::-webkit-scrollbar,
+  .v2 .p-all-leads .d-tabs::-webkit-scrollbar,
+  .v2 .p-lead .d-tabs::-webkit-scrollbar{ display:none; }
+  .v2 .p-my-leads .v2-page-head,
+  .v2 .p-all-leads .v2-page-head{ flex-wrap:wrap; }
+
+  /* The filter row: the search box first and full width, then the selects
+     two to a line. */
+  .v2 .p-my-leads .d-filters .d-input-icon,
+  .v2 .p-all-leads .d-filters .d-input-icon{ width:100%; }
+  .v2 .p-my-leads .d-filters .d-select,
+  .v2 .p-all-leads .d-filters .d-select{ flex:1 1 140px; min-width:0; }
+  .v2 .p-my-leads .d-result-count,
+  .v2 .p-all-leads .d-result-count{ width:100%; }
+
+  /* The start-calling strip reads as a block, with the button under it. */
+  .v2 .p-my-leads .d-start-strip{ flex-wrap:wrap; }
+  .v2 .p-my-leads .d-start-strip .d-btn{ flex:1 1 100%; }
+}
+
+/*
+ * Every row becomes a card.
+ *
+ * Six columns with a phone number in them cannot be read on a 390px screen
+ * at any font size, and a sideways scroller hides the two things the agent
+ * came for: the name and the Call button. Same treatment as the leads table
+ * on a project page, which is the pattern Emir has already seen.
+ */
+@media (max-width: 767px) {
+  .v2 .p-my-leads .d-table-wrap,
+  .v2 .p-all-leads .d-table-wrap{ overflow-x:visible; padding:6px 10px 8px; }
+  .v2 .p-my-leads .d-id-leads,
+  .v2 .p-my-leads .d-id-leads tbody,
+  .v2 .p-all-leads .d-id-leads,
+  .v2 .p-all-leads .d-id-leads tbody{ display:block; width:100%; table-layout:auto; }
+  .v2 .p-my-leads .d-id-leads thead,
+  .v2 .p-all-leads .d-id-leads thead{ display:none; }
+
+  .v2 .p-my-leads .d-id-leads tr,
+  .v2 .p-all-leads .d-id-leads tr{
+    display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 10px;
+    padding:12px 2px; border-bottom:1px solid var(--line);
+  }
+  .v2 .p-my-leads .d-id-leads tr:last-child,
+  .v2 .p-all-leads .d-id-leads tr:last-child{ border-bottom:0; }
+
+  .v2 .p-my-leads .d-id-leads td,
+  .v2 .p-all-leads .d-id-leads td{
+    display:block; height:auto; min-width:0; padding:0; border:0;
+    white-space:normal; text-align:left;
+  }
+  /* The name across the top, the stage pill beside it, then the number, the
+     clock, and what is owed. The buttons last, where a thumb is. */
+  .v2 .p-my-leads .d-id-leads td:nth-child(1),
+  .v2 .p-all-leads .d-id-leads td:nth-child(1){ grid-column:1; grid-row:1; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(4),
+  .v2 .p-all-leads .d-id-leads td:nth-child(4){ grid-column:2; grid-row:1; justify-self:end; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(2),
+  .v2 .p-all-leads .d-id-leads td:nth-child(2){ grid-column:1 / -1; grid-row:2; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(3),
+  .v2 .p-all-leads .d-id-leads td:nth-child(3){ grid-column:1 / -1; grid-row:3; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(5),
+  .v2 .p-all-leads .d-id-leads td:nth-child(5){ grid-column:1 / -1; grid-row:4; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(6),
+  .v2 .p-all-leads .d-id-leads td:nth-child(6){ grid-column:1 / -1; grid-row:5; }
+  .v2 .p-my-leads .d-id-leads td:nth-child(7),
+  .v2 .p-all-leads .d-id-leads td:nth-child(7){ grid-column:1 / -1; grid-row:6; }
+
+  /* The next-step text stops being clipped to a table cell's width. */
+  .v2 .p-my-leads .d-id-leads td.d-next,
+  .v2 .p-all-leads .d-id-leads td.d-t-act{ max-width:none; width:auto; min-width:0; }
+  .v2 .p-all-leads .d-id-leads td.d-t-act{ position:static; }
+  .v2 .p-all-leads .d-id-leads td.d-t-act .d-row-actions{
+    position:static; transform:none; background:none; box-shadow:none;
+    padding-left:0; margin-top:6px;
+  }
+  .v2 .p-my-leads .d-id-leads .d-row-actions,
+  .v2 .p-all-leads .d-id-leads .d-row-actions{ justify-content:flex-start; opacity:1; }
+  .v2 .p-my-leads .d-id-leads .d-row-actions .d-btn,
+  .v2 .p-all-leads .d-id-leads .d-row-actions .d-btn{ height:32px; }
+  /* The name is the link to the lead, and at 16px tall it is not a thumb
+     target. It gets the room a row gives it on a computer. */
+  .v2 .p-my-leads .d-id-leads .d-t-main,
+  .v2 .p-all-leads .d-id-leads .d-t-main{ display:inline-block; padding:4px 0; }
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+ * Calling (`/v2/calling`), Incoming (`/v2/incoming`) and Add a lead
+ * (`/v2/leads/new`), rebuilt from `design/web/calling.html`,
+ * `incoming.html` and `add-lead.html`.
+ *
+ * The three pages' own styles are generated into `v2-home.css` under
+ * `.p-calling`, `.p-incoming` and `.p-add-lead`. What is left here is the
+ * handful of values those files set inline on an element, the two or three
+ * pieces of furniture the design draws with script, and the phone layout —
+ * `design/web/` is the computer design and has no phone version of any of
+ * the three.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* The page root already stacks its children with a gap; the design's own
+   margin on top of that is a second gap between the same two boxes. */
+.v2 .p-calling .d-topline{ margin:0; }
+
+/* Day · time · why, the three boxes the design puts under "Call back"
+   (calling.html sets the track inline on the form grid). */
+.v2 .p-calling .v2-dial-when{ grid-template-columns:170px 120px minmax(0,1fr); }
+
+/* `#lead .r` is a column; the key facts sit above the box of words, and the
+   box takes what is left, which is what `.d-say{flex:1}` asks for. */
+.v2 .p-calling .d-say span{ display:block; }
+
+/*
+ * Today's list, sticky beside the lead.
+ *
+ * `.d-card` sets `position:relative` and beats a bare class, so the sticky
+ * the first build put on `.v2-queue` never took — and its `top` was read as
+ * a relative offset, which pushed the whole column seventy pixels down the
+ * page at rest. Set on the design's own class, where it outranks the card.
+ */
+.v2 .p-calling .d-q{
+  position:sticky; top:calc(var(--tb-h) + 4px);
+  max-height:calc(100vh - var(--tb-h) - 40px); overflow:auto;
+}
+.v2 .p-calling .d-q .d-card-head{ padding:0 8px; }
+
+/* Incoming: the inline styles on the owner's and the agent's sidebars. */
+.v2 .p-incoming .v2-inc-side{ position:sticky; top:calc(var(--tb-h) + 4px); }
+.v2 .p-incoming .v2-inc-rules{ gap:12px; }
+.v2 .p-incoming .v2-inc-tabs{ margin:0; }
+.v2 .p-incoming .v2-inc-ic-ok{ background:var(--green-soft); color:var(--green-ink); }
+.v2 .p-incoming .v2-inc-best{ height:20px; margin-left:6px; }
+.v2 .p-incoming .v2-inc-why{ margin-top:3px; }
+.v2 .p-incoming .v2-inc-agents{ max-height:300px; overflow:auto; padding:2px; }
+.v2 .p-incoming .v2-inc-shortcut{ background:var(--surface); box-shadow:var(--shadow-1); }
+/* A row's button must not be squeezed to its letters by the name beside it. */
+.v2 .p-incoming .d-wrow>.d-btn,
+.v2 .p-incoming .d-wrow>.d-chip{ flex:none; }
+
+.v2 .p-add-lead .v2-al-optional{ font-weight:500; }
+.v2 .p-add-lead .v2-al-within{ padding-bottom:12px; }
+.v2 .p-add-lead .v2-al-private{ min-height:60px; }
+.v2 .p-add-lead .v2-al-inbox{ width:32px; height:32px; border-radius:50%; }
+/* The country picker. The design positions its menu with script; here it
+   hangs off the button it belongs to. */
+.v2 .p-add-lead .v2-cc-wrap{ position:relative; flex:none; }
+.v2 .p-add-lead .v2-cc-menu{ position:absolute; top:calc(100% + 6px); left:0; z-index:60; }
+.v2 .p-add-lead .v2-cc-none{ padding:12px; }
+/* `.d-switch` puts the track before the words, and the design's label sits
+   after it — without this the row reads "track, label" at different heights. */
+.v2 .p-add-lead .d-switch{ gap:10px; }
+
+/*
+ * The phone.
+ *
+ * The dialler is the one screen on this list that is used on a phone more
+ * than on a computer: an agent walks out of the office with today's list and
+ * works down it. So the lead card stacks, the phone number comes down to a
+ * size that fits 390px without pushing the card sideways, the six outcome
+ * tiles go to two columns, and today's list drops under the lead rather than
+ * beside it.
+ */
+@media (max-width: 900px){
+  .v2 .p-calling .d-call-grid,
+  .v2 .p-incoming .d-inc-grid,
+  .v2 .p-add-lead .d-add-grid{ grid-template-columns:minmax(0,1fr); }
+
+  .v2 .p-calling .d-topline{ flex-wrap:wrap; gap:10px 14px; }
+  .v2 .p-calling .d-topline .d-pos{ font-size:18px; }
+  .v2 .p-calling .d-bar{ order:5; flex-basis:100%; }
+  .v2 .p-calling .d-counts{ flex-wrap:wrap; gap:10px; }
+
+  .v2 .p-calling .d-id-lead{ flex-direction:column; gap:16px; padding:18px; }
+  .v2 .p-calling .d-id-lead .d-r{ width:auto; }
+  .v2 .p-calling .d-c-phone{ font-size:34px; letter-spacing:-.03em; }
+  .v2 .p-calling .d-c-btns{ flex-wrap:wrap; }
+  .v2 .p-calling .d-c-btns>*{ flex:1 1 140px; justify-content:center; }
+  .v2 .p-calling .d-c-kv{ grid-template-columns:76px minmax(0,1fr); }
+  .v2 .p-calling .d-c-kv dd{ white-space:normal; }
+
+  .v2 .p-calling .d-id-out{ padding:16px; }
+  .v2 .p-calling .d-outs{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .v2 .p-calling .d-outb{ white-space:normal; }
+  .v2 .p-calling .v2-dial-when{ grid-template-columns:minmax(0,1fr); }
+  .v2 .p-calling .d-navrow{ flex-wrap:wrap; }
+  .v2 .p-calling .d-navrow .d-grow{ order:5; flex-basis:100%; }
+
+  /* Today's list under the lead, as a list rather than a tall column. */
+  .v2 .p-calling .d-q{ position:static; max-height:none; }
+
+  /* Incoming: name over the wait over the button, each full width. */
+  .v2 .p-incoming .v2-inc-side{ position:static; }
+  .v2 .p-incoming .d-wrow{ flex-wrap:wrap; gap:12px; padding:14px 16px; }
+  .v2 .p-incoming .d-wrow .d-who{ flex:1 1 180px; }
+  .v2 .p-incoming .d-wrow .d-who .d-sub{ white-space:normal; }
+  .v2 .p-incoming .d-wait{ width:auto; text-align:left; }
+  .v2 .p-incoming .d-wrow>.d-btn{ flex:1 1 100%; justify-content:center; }
+  .v2 .p-incoming .d-sumline{ flex-wrap:wrap; }
+  .v2 .p-incoming .d-sumline b.d-num{ font-size:32px; }
+  .v2 .p-incoming .v2-page-head{ flex-wrap:wrap; }
+
+  /* Add a lead: one column of fields, and the save card below them rather
+     than stuck to a side that no longer exists. */
+  .v2 .p-add-lead .d-add-grid .d-side{ position:static; }
+  .v2 .p-add-lead .d-cc{ height:48px; }
+  .v2 .p-add-lead .v2-cc-menu{ width:min(320px,calc(100vw - 48px)); }
+  /* A scrolling box inside a scrolling page is a trap on a phone: the list
+     of people is short enough to simply be as long as it is. */
+  .v2 .p-add-lead .d-who .d-opt-list{ max-height:none; overflow:visible; }
+
+  /* The lock chip beside "What happened?" needs its own line, or the heading
+     is cut to "What happe…". */
+  .v2 .p-calling .d-id-out .d-card-head{ flex-wrap:wrap; }
+  .v2 .p-calling .d-id-out .d-card-head h3{ white-space:normal; }
+
+  /* Waiting · how long · what to do, each on its own line. */
+  .v2 .p-incoming .d-wait{ flex:1 1 100%; }
+
+  /*
+   * The check-in bar.
+   *
+   * It is a flex row of sentence, link and button, and at 390px the sentence
+   * is squeezed to one word per line while the two controls keep their
+   * width. The words take the first line and the controls the second.
+   */
+  .v2 .v2-gate-bar{ flex-wrap:wrap; }
+  .v2 .v2-gate-bar>.d-grow{ flex:1 1 100%; }
+}
+
+/* The number is set at fifty pixels on a computer. At 390px, even grouped,
+   that is wider than the card it sits in. */
+@media (max-width: 460px){
+  .v2 .p-calling .d-c-phone{ font-size:28px; }
+}
+
+/* ── What the team is doing right now (`team-live.html`) ─────────────────
+ *
+ * The page's own styles are ported into `v2-home.css` under `.p-team-live`.
+ * These are the few things that are not in them: the "Live · 14:55" stamp,
+ * which `ui.css` defines above the line the port starts at; the inline styles
+ * that page writes; one more status ring; and the phone layout, which the
+ * computer design does not have.
+ */
+.v2-live{ min-width:0; }
+
+/* ui.css §2 `.live` — above the port's starting line, so written out here. */
+.v2 .v2-live-stamp{
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:12.5px; font-weight:600; color:var(--ink-2); white-space:nowrap;
+}
+.v2 .v2-live-stamp::before{
+  content:""; width:8px; height:8px; border-radius:50%;
+  background:var(--green); animation:v2-pulse 2s infinite;
+}
+
+/* `style="font-size:20px"` on the hero's own heading. */
+.v2 .p-team-live .v2-live-hero-title{ font-size:20px; }
+
+/* The team page's status ring has three colours; a late check-in is a fourth. */
+.v2 .v2-face.v2-live-face-late::after{ background:var(--amber); }
+
+/*
+ * A row that has just clicked.
+ *
+ * The design flashes it with `.pulse-row`, whose ported rule names a keyframe
+ * that does not exist (`v2-v2-pulse-row`), so it animates nothing. Rather
+ * than edit a generated file, the flash is ours.
+ */
+@keyframes v2-live-flash{ from{ background:var(--accent-soft); } to{ background:transparent; } }
+.v2 .d-table tbody tr.v2-live-flash td{ animation:v2-live-flash 1.4s var(--ease); }
+
+/* Nobody signed in yet: a line in the hero rather than an empty box. */
+.v2 .p-team-live .v2-live-empty{ padding:14px 0; }
+
+/* `style="flex:none"` on the last card, so it is as tall as its one line. */
+.v2 .p-team-live .d-stack>.v2-live-flagged{ flex:none; }
+.v2 .v2-live-flagged-line{ display:block; }
+.v2 .v2-live-flagged-line+.v2-live-flagged-line{ margin-top:4px; }
+
+/* Seven columns of numbers: scrolled at narrow widths, never squeezed. */
+.v2 .v2-live-table{ min-width:0; }
+
+@media (max-width: 900px){
+  /* Three figures at 1.3fr 1fr 1fr is three overlapping deltas by 900px. */
+  .v2 .p-team-live .d-trio{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  .v2 .v2-live-table{ overflow-x:auto; }
+  .v2 .v2-live-table .d-table{ min-width:640px; }
+  /*
+   * The bars are `flex:1; height:auto` because the design's row is 372px
+   * tall. Below 767px that row becomes `auto`, so flex:1 of nothing is a
+   * chart no pixels high — it needs its own height back.
+   */
+  .v2 .p-team-live .d-id-hours{ flex:none; height:132px; margin-top:28px; }
+  /* The list of who is online stops being a scroller inside a fixed card. */
+  .v2 .p-team-live .d-now-list{ overflow:visible; }
+  /*
+   * The AI line is one ellipsised row by design, which at 390px is the word
+   * "Yesterday…" and nothing else. It wraps instead, and the button drops
+   * under it.
+   */
+  .v2 .p-team-live .d-ai-line{ flex-wrap:wrap; row-gap:8px; }
+  .v2 .p-team-live .d-ai-line p{ white-space:normal; flex:1 1 100%; }
+}
+
+@media (max-width: 560px){
+  .v2 .p-team-live .d-trio{ grid-template-columns:minmax(0,1fr); }
+  /* A card head of title + toggle + link is 430px of content on a 390px
+     screen, and the title is the part that gets squeezed to "C...". It takes
+     a row of its own instead. */
+  .v2 .p-team-live .d-card-head{ flex-wrap:wrap; row-gap:8px; }
+  .v2 .p-team-live .d-card-head>h3{ flex:1 1 100%; }
+  .v2 .p-team-live .d-card-foot{ flex-wrap:wrap; row-gap:6px; }
+  .v2 .p-team-live .d-card-foot .d-right{ margin-left:0; }
+  /* The sparkline is the one column a phone can do without: the same shape
+     is drawn larger, for everybody at once, above it. */
+  .v2 .p-team-live .d-id-agents th:nth-child(6),
+  .v2 .p-team-live .d-id-agents td:nth-child(6){ display:none; }
+  .v2 .v2-live-table .d-table{ min-width:520px; }
+}
+
+/* ── the full dashboard (/v2/dashboard) ──────────────────────────────────
+   `design/web/dashboard.html` is a computer design with no phone version, so
+   the phone layout below is ours. Every rule repeats `.p-dashboard`, because
+   the ported page CSS is `.v2 .p-dashboard .d-foo` — a descendant rule — and
+   a media query does not beat specificity. */
+
+/* The stage card is a row on a computer: a 150px title column, then the
+   strip. The design writes this inline on the <section>; we keep it in a
+   class so the phone can undo it. */
+.v2 .p-dashboard .v2-dash-stages {flex-direction:row;align-items:stretch;gap:20px;padding:16px 22px}
+.v2 .p-dashboard .v2-dash-stages-head {width:150px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.v2 .p-dashboard .v2-dash-stages-head .d-card-link {align-self:flex-start}
+
+/* Avatar and name on one line in the team table. */
+.v2 .p-dashboard .v2-dash-who {display:inline-flex;align-items:center;gap:8px;min-width:0;font-weight:560}
+.v2 .p-dashboard .v2-dash-who span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* The card foot's last link sits at the right end. */
+.v2 .p-dashboard .v2-dash-right {margin-left:auto}
+
+/* The three shortcuts are a short card, not a stretched one. */
+.v2 .p-dashboard .v2-dash-more {flex:none;gap:8px}
+
+@media (max-width: 900px) {
+  /* The bento is twelve columns on a computer and one on a phone. */
+  .v2 .p-dashboard .d-bento > * {grid-column:1 / -1}
+  .v2 .p-dashboard .d-row1 {grid-template-rows:auto}
+
+  /* The hero's own fixed height goes with it, or the rows are clipped. */
+  .v2 .p-dashboard .d-card.d-hero {min-height:0}
+  .v2 .p-dashboard .d-brief-say {font-size:19px;margin:12px 0 4px}
+
+  /* Four across becomes two by two, twice. */
+  .v2 .p-dashboard .d-tot {grid-template-columns:1fr 1fr;gap:14px 16px}
+  .v2 .p-dashboard .d-num-hero {font-size:44px}
+  .v2 .p-dashboard .d-ptiles {grid-template-columns:1fr 1fr;margin-top:14px}
+
+  /* The stage card stacks, and the strip becomes a list of rows: a stage is
+     a name and a number, and side by side at 390px neither can be read. */
+  .v2 .p-dashboard .v2-dash-stages {flex-direction:column;gap:12px;padding:16px}
+  .v2 .p-dashboard .v2-dash-stages-head {width:auto}
+  .v2 .p-dashboard .d-pstrip {flex-direction:column;gap:8px}
+  .v2 .p-dashboard .d-pstrip > .d-pstage {flex:none;width:100%;min-height:44px}
+
+  /* The bars keep their shape; there is simply less of them. */
+  .v2 .p-dashboard .d-id-days {height:120px;margin-top:20px;gap:3px}
+  .v2 .p-dashboard .d-id-days .d-bar-lab {font-size:9.5px}
+
+  /* Two tables that will not fit. Side-scroll beats a squeeze: every column
+     keeps its heading, which is what makes the numbers mean anything. */
+  .v2 .p-dashboard .d-id-team {min-width:620px}
+  .v2 .p-dashboard .v2-dash-scroll {overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
+
+  /* The attendance bar and its key stack rather than sit side by side. */
+  .v2 .p-dashboard .d-att-head {flex-direction:column;align-items:stretch;gap:10px}
+
+  /* A cold row is a name, a count and two buttons: too much for one line. */
+  .v2 .p-dashboard .d-cold-row {flex-wrap:wrap;gap:8px 10px}
+  .v2 .p-dashboard .d-cold-row .d-grow {flex:1 1 100%;order:-1}
+  .v2 .p-dashboard .d-cold-row .d-btn {min-height:36px}
+
+  /* The project and source bars give their label a line of its own. */
+  .v2 .p-dashboard .d-hbar.d-prj {grid-template-columns:1fr 34px 62px}
+  .v2 .p-dashboard .d-hbar.d-src {grid-template-columns:1fr 40px}
+  .v2 .p-dashboard .d-hbar.d-prj > a,
+  .v2 .p-dashboard .d-hbar.d-src > span:first-child {grid-column:1 / -1}
+  /* A project name is a link, and a 19px-tall link is not a tap target. */
+  .v2 .p-dashboard .d-hbar.d-prj > a {min-height:30px;display:flex;align-items:center}
+  .v2 .p-dashboard .d-hbar .d-bar {grid-column:1 / 2}
+}
+
+/* ── the toast, beside v2 ────────────────────────────────────────────────
+   `ToastHost` renders its toast after its children, so the element is a
+   *sibling* of `.v2`, not a descendant — `.v2 .toast` would never match.
+
+   v1 puts it 24px off the bottom. On a phone that is underneath the floating
+   bar and the dial button, so a confirmation lands where nobody can read it.
+   The phone rule comes second on purpose: both selectors weigh the same, so
+   the later one wins. */
+.v2 ~ .toast {bottom:24px}
+.v2-phone ~ .toast {bottom:calc(76px + env(safe-area-inset-bottom, 0px))}
+
+/* ── phones: thumbs, and rows that run off the edge ──────────────────────
+   Two things the computer design cannot know about, fixed once here rather
+   than twenty-two times in twenty-two screens.
+
+   `npm run polish` counted 542 targets under 28px and twelve screens running
+   off the right edge, and almost all of them were these two shapes. */
+
+@media (max-width: 900px) {
+  /* A row of tabs is a flex row with no wrap, so six of them at 390px simply
+     hang off the edge. It scrolls sideways instead — which also stops the
+     page itself scrolling, and that is the bug that matters: content off the
+     right edge of a phone has no way of being found. */
+  .v2 .d-tabs,
+  .v2 .d-filters,
+  .v2 .d-seg {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .v2 .d-tabs::-webkit-scrollbar,
+  .v2 .d-filters::-webkit-scrollbar,
+  .v2 .d-seg::-webkit-scrollbar { display: none; }
+  .v2 .d-tabs > *,
+  .v2 .d-seg > * { flex: none; }
+
+  /* Anything you tap is at least 30px tall. The design draws 26px pills and
+     26px extra-small buttons, which is comfortable with a mouse and is not
+     with a thumb. The width of a pill is its text, so only the height is
+     forced; a 26px icon button gets a width too. */
+  .v2 .d-tabs.d-pills .d-tab,
+  .v2 .d-seg > button,
+  .v2 .d-seg > a,
+  .v2 .d-btn.d-xs,
+  .v2 .d-btn.d-sm { min-height: 30px; }
+  .v2 .d-btn.d-xs { min-width: 30px; padding: 0 11px; }
+
+  /* A name in a table cell is a link, and a link the height of its text is
+     not a target. */
+  .v2 td a.d-t-main,
+  .v2 td a.d-person { display: inline-flex; align-items: center; min-height: 30px; }
+
+  /*
+   * The box you tick to finish a task.
+   *
+   * Only the ones you can see. The design's switch hides its own input at
+   * zero size and draws a track beside it (`.d-switch input {width:0}`), so
+   * a blanket rule here resurrects an invisible 24px box floating over the
+   * row — which is both a thing to mis-tap and a hundred and thirty false
+   * findings in the layout pass. It took one to make the other obvious.
+   */
+  .v2 .d-check input[type="checkbox"],
+  /* The task row sets its own 22px, from `tasks.html`, and does it with one
+     more class than the line above — so it needs naming to be beaten. */
+  .v2 .p-tasks .d-trow .d-check input[type="checkbox"] { width: 28px; height: 28px; }
+}
+
+/* ── four more screens that the computer design squeezes onto a phone ──── */
+@media (max-width: 900px) {
+  /* feedback.html offers four kinds of report across the width. Four at
+     390px is 85px a column, and the words inside do not fit, so the grid
+     grows past the screen instead. Two by two. */
+  .v2 .p-feedback .d-fb-types { grid-template-columns: 1fr 1fr; }
+
+  /* home-banners.html is an editor beside a 500px live preview — a fixed
+     column, so the card is 500px wide whatever the screen is. Stacked, with
+     the preview under the fields it previews. */
+  .v2 .p-banners .d-hb { grid-template-columns: minmax(0, 1fr); }
+
+  /* The install guide is two columns of steps beside the QR code. */
+  .v2 .p-install .d-ig-cols { grid-template-columns: minmax(0, 1fr); }
+  /* "Add homes.me to your home screen" does not fit on one line at 390px. */
+  .v2 .p-install .d-btn { white-space: normal; height: auto; min-height: 38px; padding: 8px 14px; }
+}
+
+@media (max-width: 900px) {
+  /* tasks.html lays the week out as seven cards across. Seven cards at 390px
+     is 28px of padding each before a single word, so the row cannot shrink
+     and the whole page drags sideways by seven pixels — enough to feel, not
+     enough to see. It scrolls instead, three and a half days at a time. */
+  .v2 .p-tasks .d-week {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .v2 .p-tasks .d-week::-webkit-scrollbar { display: none; }
+  .v2 .p-tasks .d-wd { flex: 0 0 104px; }
+  .v2 .p-tasks .d-week .d-nav { position: sticky; left: 0; background: var(--bg); z-index: 1; }
+}
+
+@media (max-width: 900px) {
+  /* A task row on a computer is time · kind · what it is · who · Open, all on
+     one line. At 390px the fixed 48px and 92px columns leave the title about
+     forty pixels, so every task read "Call …", "Follo…", "Send…". The row
+     wraps: time and kind on the first line, the task itself on the second,
+     and Open stays on the right where the thumb expects it. */
+  .v2 .p-tasks .d-trow { flex-wrap: wrap; row-gap: 2px; padding: 10px; }
+  .v2 .p-tasks .d-trow .d-tx { flex: 1 0 100%; order: 3; min-width: 0; }
+  .v2 .p-tasks .d-trow > .d-btn,
+  .v2 .p-tasks .d-trow > a.d-btn { order: 2; margin-left: auto; }
+  .v2 .p-tasks .d-trow .d-ty { width: auto; }
+}
+
+@media (max-width: 900px) {
+  /* The VIP card's phone number is 46px and `white-space:nowrap`, which is
+     13 digits at about 29px each — wider than a 390px screen, so the last
+     digit of the number the agent is meant to ring was cut off. The one
+     thing on that card that must be readable. */
+  .v2 .p-my-day .d-hero-phone,
+  .v2 .p-owner-home .d-hero-phone { font-size: 30px; letter-spacing: -.03em; }
+}
+@media (max-width: 360px) {
+  .v2 .p-my-day .d-hero-phone,
+  .v2 .p-owner-home .d-hero-phone { font-size: 26px; }
+}
+
+/* ── out of the phone's media query, where these three belong ──────────────
+ * Each fixes something that is wrong at every width, and each was written
+ * inside `@media (max-width:767px)` by accident, so none of them did
+ * anything on a computer. The layout comparison found it, not a test: the
+ * settings nav's Sign out stayed 61 pixels out of place on every settings
+ * page while the suite was green.
+ */
+
+/*
+ * The owner's home draws the same "Team today" tiles as My Day, and the
+ * design's own stylesheet defines them only under `.p-my-day` — so on the
+ * owner's home they were four unstyled links and the block read
+ * "2In office1Late1Outside1Not marked" as one run-on line. The phone half
+ * was fixed with the phone sheet; this is the computer half.
+ *
+ * Two classes, so `.v2 .p-my-day .d-mini-stats` still wins on My Day and
+ * that page is untouched.
+ */
+.v2 .d-mini-stats{ display:flex; gap:8px; margin-bottom:6px }
+.v2 .d-mini-stats a{
+  flex:1; border-radius:14px; background:var(--surface-2); padding:10px 12px;
+  font-size:12px; color:var(--ink-3); transition:background .15s;
+}
+.v2 .d-mini-stats a:hover{ background:var(--surface-3) }
+.v2 .d-mini-stats b{
+  display:block; font-size:24px; font-weight:720; letter-spacing:-.03em;
+  line-height:1.05; color:var(--ink);
+}
+
+/*
+ * The same again for the row list. The design defines it only under
+ * `.p-import`, so System health and Team rendered theirs as "ConnectedYes"
+ * and "Leads in the last 7 days23" — on the computer too, not only on a
+ * phone. Two classes, so the import page keeps its own.
+ */
+.v2 .d-mini-list{ display:flex; flex-direction:column }
+.v2 .d-mini-list>div{
+  display:flex; align-items:center; gap:10px; padding:9px 0;
+  font-size:13px; min-width:0;
+}
+.v2 .d-mini-list>div+div{ border-top:1px solid var(--line) }
+.v2 .d-mini-list .d-grow{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+/*
+ * The settings nav styles its rows by element name — `.v2 .d-set-nav a` —
+ * which is the design's own sheet and cannot be edited. Sign out had to
+ * become a button (it pointed at `/logout`, which is not a route), and a
+ * button is not an `a`: it lost every rule and the nav's last row changed
+ * height by 61px on every settings page.
+ *
+ * The same shape as the port's own `i`/`svg` duplication: say it again for
+ * the element we really render.
+ */
+.v2 .d-set-nav button{
+  display:flex; align-items:center; gap:10px; height:35px; padding:0 12px;
+  border:none; background:transparent; width:100%;
+  border-radius:11px; font:inherit; font-size:13.5px; font-weight:560;
+  color:var(--ink-2); white-space:nowrap; text-align:left; cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.v2 .d-set-nav button:hover{ background:var(--surface-3); color:var(--ink) }
+.v2 .d-set-nav button.d-set-out{ margin-top:12px; color:var(--red-ink) }
+.v2 .d-set-nav button svg{ width:16px; height:16px; color:var(--ink-3) }
+.v2 .d-set-nav button.d-set-out svg{ color:var(--red-ink) }

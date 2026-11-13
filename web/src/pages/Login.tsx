@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.js';
 import { api, ApiError } from '../lib/api.js';
-import { t } from '../lib/i18n.js';
+import { locale, setLocale, t } from '../lib/i18n.js';
 import { BrandLockup } from '../brand.js';
 
 /**
@@ -20,6 +20,9 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  /* The switch has to redraw this page, so it holds the choice itself. */
+  const [lang, setLang] = useState(locale());
+  const switchTo = (next: 'en' | 'ar') => { setLocale(next); setLang(next); };
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /* The sign-in link flow, which lives beside the password rather than
@@ -181,6 +184,43 @@ export function Login() {
             )}
 
             <p className="hint">{t('forgotPassword')}</p>
+
+            {/*
+              * The two things both design files put on this page and the
+              * build had neither: the language switch, and how to put the
+              * CRM on a phone.
+              *
+              * `design/web/login.html` has "English · العربية" above the
+              * form and "Put homes.me on your phone · install guide" below
+              * it; `design/screens/Login.dc.html` has the same switch and
+              * the same offer written out as "No app to download."
+              *
+              * The install guide inside the CRM is behind the sign-in, so
+              * there is nothing to link to from here. The three steps are
+              * the whole of it, so they are written out instead of promising
+              * a page that would ask them to sign in first.
+              */}
+            <div className="login-lang" role="group" aria-label="Language">
+              <button
+                type="button"
+                className={lang === 'en' ? 'on' : undefined}
+                onClick={() => switchTo('en')}
+              >
+                English
+              </button>
+              <button
+                type="button"
+                lang="ar"
+                className={lang === 'ar' ? 'on' : undefined}
+                onClick={() => switchTo('ar')}
+              >
+                العربية
+              </button>
+            </div>
+
+            <p className="login-install">
+              <b>{t('noAppToDownload')}</b> {t('addToHomeScreen')}
+            </p>
           </form>
         </div>
       </div>

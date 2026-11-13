@@ -2,6 +2,162 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Import, rebuilt as six steps
+
+`design/web/import.html`: Upload · Columns · Check · Give · Confirm · Done,
+one card each, with the step strip across the top.
+
+**The step that earns the screen is Check.** The import has always split a
+file into new leads, duplicates and bad rows — it just did it *while running*,
+which is after the last moment anybody could change their mind. There is now a
+dry run (`imports/preflight.ts`) that does the same split with the writes taken
+out, so *"240 rows = 208 new + 18 duplicates + 14 bad"* is a number somebody
+decides on rather than discovers. It also says who holds each duplicate now —
+"with Rocky", "in Incoming" — which is what decides whether skipping them is
+the right call.
+
+It is built from the same pieces the real run uses, not a second
+implementation, and the test proves the point rather than asserting it: it
+runs the import afterwards and checks the preflight predicted exactly what
+happened.
+
+**"Agents I choose" now really means those agents.** The assignment could name
+one person or a whole desk, but not a chosen handful — `split_even` quietly
+meant everybody, so an owner who ticked four names would have found the batch
+spread across ten. It carries a list of agents now, through the preview and
+through the run.
+
+Two things the screen says and the server keeps: nothing is in the CRM until
+step 5, and an imported lead gets no countdown — it is a list to work through,
+not a race.
+
+### What the tests found that the screen would have hidden
+
+- **`loadImport` does not select `headers`.** The preflight read them through
+  it, got nothing, mapped every column to nothing, and called all 240 rows
+  bad — a screen that would have told an owner their whole file was rubbish.
+- **A row with a phone and no name is a lead, not a bad row.** Somebody who
+  can be rung is contactable; the CRM would rather hold a number with no name
+  than throw the number away. The test expected the opposite and the product
+  was right.
+- **`imports.skipped_count` is duplicates and bad rows added together.** The
+  Done screen's split comes from the rows themselves, where it survives.
+
+On a phone the step strip scrolls, the three-number split stacks, and the
+mapping table becomes one block per column — a select cannot shrink to a third
+of a 390px screen.
+
+Server 2,776 tests. Web 484. Polish: 216 screens, nothing overflowing.
+
+## Sales offers
+
+Built from `design/web/sales-offers.html`, and it is a much smaller thing than
+the offer builder in the original brief — in the design's own words: *"A sales
+offer is a one-page price sheet for one unit. You share the link yourself in
+WhatsApp. The CRM shows when the client opens it."*
+
+Four numbers across the top, tabs for All · Draft · Shared · Accepted with
+their counts, search and filters, and the list. Opening one shows the sheet as
+the client will see it, whether they have actually opened it and how often, the
+private link, and Share on WhatsApp or Telegram.
+
+**Nothing here sends anything.** Making an offer writes a draft. "Share on
+WhatsApp" opens WhatsApp with the message written and the link in it, and the
+agent presses send; the CRM records that it went out. That is the design's
+decision and it is the right one — an offer carries a price a client will hold
+the brokerage to.
+
+What the rules enforce, in the database and not only on screen: an offer can
+only be built on a lead that person may work; the valid-until day cannot be in
+the past; an offer cannot be marked accepted before it has been shared; and an
+offer the client has already been sent cannot be deleted — deleting the record
+does not unsend it, and a price somebody was quoted is worth keeping.
+
+**The price is an integer of whole AED, and it is shown in full.** The first
+version abbreviated it, so a unit at 2,050,000 appeared on the sheet as "AED
+2.0M" — a fifty thousand dirham difference on a document a client holds you
+to. Only the four tiles at the top round, where a month's total is a sense of
+scale rather than a figure anybody quotes.
+
+Migration 0037 adds four columns to the existing `offers` table and touches
+none of the builder's: the unit label, the price, the payment plan, and when
+the client said yes. "Accepted" is a timestamp rather than a new status value,
+because changing an ENUM means `ALTER ... MODIFY`, which the migration guard
+refuses on a live table and is right to — and because this table already works
+that way, with "opened" and "reading now" read from the views rather than
+stored.
+
+On a phone the eight-column table becomes one card per offer, since a table
+that wide is either a sideways scroll nobody finds or a squeeze that clips the
+price.
+
+Server 2,770 tests. Web 483. Polish: 212 screens, nothing overflowing.
+
+## Settings, rebuilt from the design file
+
+Emir, looking at the Settings screen being typed: *"Wait what design you make
+now? Why its not match? With the new design"*
+
+He was right. The design package holds **50 page designs** in `design/web/`.
+The port script had pulled the page-specific styling out of **six** of them —
+my-day, owner-home, calling, incoming, my-leads, lead — and every screen built
+after that was built from `docs/v2/pages.md` and the API endpoints instead of
+from its own design file. Right colours, right components, invented layouts.
+The Settings screen being written at that moment was one page with three
+boxes; `settings.html` is a section list with eight office pages behind it.
+
+**Settings is now built from the design**, as five panels inside one shell:
+General (theme as three miniatures, sounds with a test tone, language, the
+office shortcuts with live numbers under each), My notifications, Company,
+Attendance rules and Homes AI. Automations moved in behind the same nav.
+
+What the design asks for that the CRM could not do yet, now done on the
+server: **per-person notification settings** — about thirty switches, storing
+only the differences from the default so a switch added later arrives on for
+everybody, and refusing in the database, not only on screen, to let a VIP
+alert be switched off; **the attendance rules** the design asks an owner
+(working outside, the location asked once, "are you back?", whether a call
+needs a check-in and whether "call anyway" is allowed); **what Homes AI may
+do**, one switch per feature, so the AI can be narrowed rather than only
+turned off; and **this month's AI spend per feature**, because "$38" does not
+tell an owner which switch to turn off.
+
+**One thing in the design cannot be built as drawn.** It asks for the office
+*Wi-Fi network name*, "exactly as on the phone". No browser exposes the Wi-Fi
+name, on any platform. The screen asks for the office's internet address
+instead, which is what the live CRM already checks, and shows the address this
+computer is being seen from so an owner sitting in the office can save it
+without knowing what an IP address is.
+
+### Three bugs the screenshots found that the tests could not
+
+**Every icon in a styled slot was in the wrong place.** The design writes an
+icon as `<i data-icon="phone">`; we render an `<svg>`. So `.input-icon>i`,
+which is `position:absolute`, never matched, the icon became a flex child
+that shoved the input sideways, and the office phone number was clipped
+inside its own box. The same miss meant the open section's icon never turned
+orange. The port script now emits every `i` selector a second time for `svg`.
+
+**Each settings panel was wearing Settings' stylesheet.** Every design page
+carries its own `<style>` block, ported and scoped to one class. The shell set
+that class once, so the Company page's two-column grid never applied and its
+preview column sat under the form instead of beside it.
+
+**All seven settings routes overflowed a phone.** `design/web/` is the
+computer design — `.set` is 216px plus 896px, which is 1112px of content on a
+390px screen — and there is no phone version of these pages. They now stack,
+with the section list as a scrolling row above the panel.
+
+### And one test that was wrong four hours a day
+
+`transfers.integration.test.ts` wrote its leave row for the **UTC** date while
+the product correctly asks MySQL for Dubai's. Between 20:00 and midnight UTC
+the two differ, the leave was yesterday's, and the person was not away after
+all. It passed for twenty hours a day and failed for four.
+
+Server 147 files, 2751 tests. Web 482. Polish: 208 screens, nothing
+overflowing, clipped or undersized.
+
 ## One card for a batch, and an X to close it
 
 Emir: *"When I add bulk leads it continues opening one-by-one notifications,

@@ -1114,3 +1114,165 @@ they label now, at 14:1, and the stroke went from 0.26 to 0.3 mm. The accent
 still carries on the first name and the logo, which have the area for it. The
 orange back keeps its Night icons for the same reason in reverse: dark on
 orange is 4.9:1 where white on orange is only 3.6:1.
+
+---
+
+## The v2 build, 12 November 2026
+
+Emir asked for a second version of the whole CRM from the same codebase —
+phone and computer, orange design system, on its own address, with the live
+CRM untouched. Then: *"just go ahed dont ask me anything today you just
+builed it plz all the things"*. So these are mine, made alone, each written
+down with what I would have asked.
+
+### The design's CSS is ported by a script, not by hand
+
+`scripts/port-design-css.mjs` reads `design/web/ui.css` and the design's own
+page files and writes `web/src/styles/v2-ui.css` and `v2-home.css`. It scopes
+every rule under `.v2`, prefixes every design class `d-`, and renames every
+animation `v2-*`.
+
+That is not tidiness. The design and the live CRM share **forty-two class
+names** — `.card`, `.chip`, `.btn`, `.side`, `.ring` — for different things,
+and keyframe names are global whatever the selectors say. The first time the
+home screen was drawn, the design's `.side` (the hero's right-hand column)
+picked up the live app's `.side` (a fixed-position slide-in panel) and the
+countdown ring landed on top of the agent's phone number in a white box.
+Nothing threw. A screenshot caught it.
+
+Re-port after a design change; never hand-edit the generated files.
+
+### A reset must be the weakest rule in the file
+
+The ported base layer is wrapped in `:where()`. Without it `.v2 button`
+(0,1,1) beats `.v2-chip-opt` (0,1,0), and a rule meant to clear the browser's
+default button styling quietly cleared ours: every chip on Add Lead and every
+outcome button on the calling screen rendered as plain text. Again, only a
+screenshot showed it.
+
+### Page roots are named for the page
+
+`.v2-find` was the search box *and* the search dialog. `.v2-more` was the
+"show more" row *and* the phone's More screen. `.v2-add` was the top bar's
+button *and* the Add Lead screen. Three times in one night, and each time the
+control's height or display silently reshaped the screen.
+
+`css-collisions.test.ts` had a gap: it only caught two rules that *disagreed*
+about a layout property, and these agreed. A rule that refines a component
+does not restate what kind of box it is, so the guard now refuses any class
+that declares `display` in two base rules. It found a fourth on its first run:
+`.two`, declared word for word twice in the live stylesheet.
+
+### Numbers nobody set are not drawn
+
+Three places where the design shows a figure this database cannot produce:
+
+- **"+240 points today."** There is no points table. The home screen shows
+  kudos received instead, which is real.
+- **"18 of 40 calls."** The 40, the 20 and the 2 are Emir's own numbers from
+  his design package, so they are sent from the server (`DAILY_GOALS`) and
+  become a Settings field the day he wants to change them. They are not
+  written into the page.
+- **"14 annual days left."** There is no allowance anywhere. Attendance shows
+  days *taken*, which is true. An allowance nobody set is a number somebody
+  plans a holiday around.
+
+### What a tap is, and what it is not
+
+The CRM hands the agent to WhatsApp and has no idea what happens there. So
+`message_taps` records a **tap**, never a send, and asks "what happened?"
+afterwards. Only *replied* moves the lead, because only a reply is evidence
+anything reached the client. Same for calls: a call row is opened when the
+agent presses Call, and the outcome is a separate answer.
+
+The dialler's outcome runs the ordinary `runLeadAction`, so a call logged
+there moves the stage exactly as the same outcome logged from the lead page
+does. Two screens writing the stage two different ways is how a pipeline
+stops meaning anything.
+
+**`busy` has no stage of its own.** In substance it is a call that did not
+get through, so it counts as `no_answer` and the hour's delay comes from the
+next step. A separate stage would mean two names for one thing in every
+report afterwards.
+
+### VIP leads
+
+Owner and admin only, and only together with an agent to give it to. Refused
+rather than quietly downgraded when either is missing: a VIP lead that
+silently became an ordinary one is the worst outcome, because the owner would
+believe somebody was answerable for it.
+
+"Call within" is 15, 30 or 60 minutes, or *today* — which ends at **midnight
+in Dubai**, not in UTC. Refusing one sends the lead back to the giver through
+`returnLeadToGiver`, the same path a run-out clock takes, so a refused VIP
+lead and a breached one end up in exactly one place.
+
+A VIP lead **cannot be transferred sideways**. It goes back to whoever gave
+it.
+
+### "Speaks" is a list, and `contacts.language` is a code
+
+`contacts.language` is `varchar(8)` and the routing rules read it. Writing
+"Arabic, English" into it fails at fifteen characters — and a `.catch()` was
+swallowing the error. The first choice goes in the column; the whole list
+becomes `lang:` tags, which is what the tag namespaces are for. The catch
+logs at error now.
+
+### No cap on claiming free leads
+
+CLAUDE.md suggests "max 50 open claimed leads" as an example. I have not
+added one: a silent limit that blocks an agent mid-morning is worse than no
+limit, and the number is Emir's to set. The claim is a conditional UPDATE, so
+two agents cannot take the same lead; who took what is audited.
+
+### Follow-ups is the leads list, not a second list
+
+`/v2/follow-ups` renders the same screen opened on what is late. A second
+list of the same rows is a second chance to disagree with itself — which is
+exactly the bug Emir reported on 11 November ("we have leads means new 419,
+but we can't see all the leads").
+
+
+## Screens are built from the design file, not from the written spec — 12 Nov 2026
+
+Emir stopped the build mid-screen: the layouts did not match his design
+package. He was right, and the cause was mechanical. `design/web/` holds 50
+page designs. The port script had been given six of them, and every screen
+built after those six was built from `docs/v2/pages.md` and the API endpoints.
+They came out in the right colours with the right components and the wrong
+shapes.
+
+**The rule now: open the design HTML first.** Port its `<style>` block through
+`scripts/port-design-css.mjs` as a `p-*` scoped block, add the page to that
+script's `PAGES` list, and build the markup to match the design's. The written
+spec says what a screen must do; the design file says what it looks like, and
+where they differ the design file wins.
+
+Two things fall out of this that are worth knowing before the next screen:
+
+- **`<i>` vs `<svg>`.** The design styles icons through the element name. We
+  render Lucide SVGs. Every such rule is now emitted twice by the port script,
+  once for each. Before that fix the icon in every input sat outside the box
+  and the open nav section's icon never turned orange — on every screen, for
+  weeks, with a green test suite.
+- **The design is the computer design.** Its grids are fixed desktop widths
+  and there is no phone version of the settings pages. The phone layout for
+  anything ported from `design/web/` is ours to write, and `npm run polish`
+  is what catches it.
+
+Emir chose this over finishing the remaining screens quickly and matching them
+later. The screens already built with invented layouts — Calendar, Tasks,
+Attendance, Team, Transfers, Projects, Wall, Bell, Find, Pipeline, Homes AI,
+Automations, Activity — are to be redone the same way.
+
+## The office network is an address, not a Wi-Fi name — 12 Nov 2026
+
+`design/web/settings-attendance.html` asks for the office Wi-Fi network name,
+"exactly as on the phone". No browser exposes the Wi-Fi SSID, on any platform,
+and no permission unlocks it. The live CRM already checks the public address
+the office's internet line is seen from, so the screen asks for that, and
+shows the address this computer is being seen from so an owner sitting in the
+office can save it without knowing what an IP address is.
+
+It is a deterrent, not a lock — a VPN into the office defeats it — and that
+was already the case before this screen existed.

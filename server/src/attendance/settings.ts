@@ -42,6 +42,29 @@ export interface AttendanceSettings {
   closedDays: number[];
   /** Minutes after the start before a tap counts as late. */
   graceMinutes: number;
+  /**
+   * Working outside, and what is asked when somebody does.
+   *
+   * A viewing, a site visit and a developer event are work, so the design
+   * treats "outside" as a state rather than an absence. These four decide
+   * how much is asked of the agent for it: the location once at the start,
+   * one "are you back?" at the time they said, and whether owners hear.
+   * Following anybody through the day was never on the table.
+   */
+  outsideAllowed: boolean;
+  outsideLocationOnce: boolean;
+  outsideAskBack: boolean;
+  outsideTellOwners: boolean;
+  /**
+   * Whether an agent is asked to check in before a call, and whether they
+   * may call anyway.
+   *
+   * "Call anyway" stays available by default on purpose: a gate with no way
+   * past it turns a broken office router into an office that cannot phone
+   * its clients. The call is recorded as not-checked-in instead.
+   */
+  callNeedsCheckIn: boolean;
+  callAnyway: boolean;
 }
 
 export const ATTENDANCE_DEFAULTS: AttendanceSettings = {
@@ -53,6 +76,12 @@ export const ATTENDANCE_DEFAULTS: AttendanceSettings = {
   satEnd: '15:00',
   closedDays: [0],
   graceMinutes: 10,
+  outsideAllowed: true,
+  outsideLocationOnce: true,
+  outsideAskBack: true,
+  outsideTellOwners: false,
+  callNeedsCheckIn: true,
+  callAnyway: true,
 };
 
 /** "HH:MM", or null when it is anything else. */
@@ -111,6 +140,20 @@ function numbers(raw: string | null, fallback: number[]): number[] {
   }
 }
 
+/**
+ * A stored switch.
+ *
+ * Unset means "never chosen", which is the default and not `false` — the
+ * difference matters for `callAnyway`, where reading an unset value as off
+ * would silently gate every call in an office that had never opened this
+ * screen.
+ */
+function flag(raw: string | null, fallback: boolean): boolean {
+  if (raw === '1') return true;
+  if (raw === '0') return false;
+  return fallback;
+}
+
 function list(raw: string | null): string[] {
   if (!raw) return [];
   try {
@@ -130,7 +173,11 @@ function list(raw: string | null): string[] {
 export async function attendanceSettings(
   exec: Executor = getPool(),
 ): Promise<AttendanceSettings> {
-  const [enabled, ips, start, end, satStart, satEnd, closed, grace] = await Promise.all([
+  const [
+    enabled, ips, start, end, satStart, satEnd, closed, grace,
+    outsideAllowed, outsideLocationOnce, outsideAskBack, outsideTellOwners,
+    callNeedsCheckIn, callAnyway,
+  ] = await Promise.all([
     setting('ATT_ENABLED', exec),
     setting('ATT_OFFICE_IPS', exec),
     setting('ATT_START', exec),
@@ -139,6 +186,12 @@ export async function attendanceSettings(
     setting('ATT_SAT_END', exec),
     setting('ATT_CLOSED_DAYS', exec),
     setting('ATT_GRACE_MINUTES', exec),
+    setting('ATT_OUTSIDE_ALLOWED', exec),
+    setting('ATT_OUTSIDE_LOCATION_ONCE', exec),
+    setting('ATT_OUTSIDE_ASK_BACK', exec),
+    setting('ATT_OUTSIDE_TELL_OWNERS', exec),
+    setting('ATT_CALL_NEEDS_CHECKIN', exec),
+    setting('ATT_CALL_ANYWAY', exec),
   ]);
 
   const officeIps = list(ips);
@@ -157,6 +210,12 @@ export async function attendanceSettings(
     graceMinutes: Number.isFinite(graceMinutes) && graceMinutes >= 0 && graceMinutes <= 120
       ? Math.round(graceMinutes)
       : ATTENDANCE_DEFAULTS.graceMinutes,
+    outsideAllowed: flag(outsideAllowed, ATTENDANCE_DEFAULTS.outsideAllowed),
+    outsideLocationOnce: flag(outsideLocationOnce, ATTENDANCE_DEFAULTS.outsideLocationOnce),
+    outsideAskBack: flag(outsideAskBack, ATTENDANCE_DEFAULTS.outsideAskBack),
+    outsideTellOwners: flag(outsideTellOwners, ATTENDANCE_DEFAULTS.outsideTellOwners),
+    callNeedsCheckIn: flag(callNeedsCheckIn, ATTENDANCE_DEFAULTS.callNeedsCheckIn),
+    callAnyway: flag(callAnyway, ATTENDANCE_DEFAULTS.callAnyway),
   };
 }
 
@@ -169,6 +228,12 @@ export interface AttendanceInput {
   satEnd?: string;
   closedDays?: number[];
   graceMinutes?: number;
+  outsideAllowed?: boolean;
+  outsideLocationOnce?: boolean;
+  outsideAskBack?: boolean;
+  outsideTellOwners?: boolean;
+  callNeedsCheckIn?: boolean;
+  callAnyway?: boolean;
 }
 
 export async function saveAttendanceSettings(
@@ -206,6 +271,17 @@ export async function saveAttendanceSettings(
     const n = Math.round(Number(input.graceMinutes));
     put('ATT_GRACE_MINUTES', String(Number.isFinite(n) ? Math.min(120, Math.max(0, n)) : 10));
   }
+
+  if (input.outsideAllowed !== undefined) put('ATT_OUTSIDE_ALLOWED', input.outsideAllowed ? '1' : '0');
+  if (input.outsideLocationOnce !== undefined) {
+    put('ATT_OUTSIDE_LOCATION_ONCE', input.outsideLocationOnce ? '1' : '0');
+  }
+  if (input.outsideAskBack !== undefined) put('ATT_OUTSIDE_ASK_BACK', input.outsideAskBack ? '1' : '0');
+  if (input.outsideTellOwners !== undefined) {
+    put('ATT_OUTSIDE_TELL_OWNERS', input.outsideTellOwners ? '1' : '0');
+  }
+  if (input.callNeedsCheckIn !== undefined) put('ATT_CALL_NEEDS_CHECKIN', input.callNeedsCheckIn ? '1' : '0');
+  if (input.callAnyway !== undefined) put('ATT_CALL_ANYWAY', input.callAnyway ? '1' : '0');
 
   await Promise.all(writes);
   return attendanceSettings(exec);

@@ -35,6 +35,8 @@ export interface ImportAssignment {
   method: AssignmentMethod;
   userId?: string | null;
   teamId?: string | null;
+  /** "Agents I choose": only these people receive. */
+  userIds?: string[] | null;
   shares?: SplitShare[];
   /** For split_count: how many leads each person gets. */
   counts?: CountShare[];
@@ -53,7 +55,7 @@ export interface ImportRecord {
   assignment: unknown;
 }
 
-function asJson<T>(value: unknown, fallback: T): T {
+export function asJson<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined) return fallback;
   if (typeof value === 'string') {
     try {
@@ -311,7 +313,15 @@ async function markRow(
 }
 
 /** Is this person already in the CRM? Phone first, then wa_id, then email. */
-async function findExisting(
+/**
+ * The contact this row would land on, if there is one.
+ *
+ * Exported because the preflight in `preflight.ts` has to answer the same
+ * question before anything is written, and two copies of "is this person
+ * already in the CRM" would eventually disagree — which would mean a screen
+ * promising 208 new leads and an import creating 191.
+ */
+export async function findExisting(
   exec: Executor,
   phoneE164: string | null,
   email: string | null,
@@ -375,6 +385,7 @@ async function finish(importId: string, exec: Executor): Promise<void> {
           method: assignment.method,
           userId: assignment.userId ?? null,
           teamId: assignment.teamId ?? null,
+          userIds: assignment.userIds ?? null,
           shares: assignment.shares ?? [],
           counts: assignment.counts ?? [],
           clauses: assignment.clauses ?? [],

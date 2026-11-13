@@ -1,0 +1,629 @@
+/*
+ * The phone, group B:
+ *   Calling, Calendar, Tasks, Follow-ups, Attendance (agent and owner),
+ *   Working outside, Leave, Leave approvals, Transfers, Search,
+ *   Notifications, Inbox, Chat, Email, Templates.
+ *
+ * `v2-phone.css` holds the shell — the bottom bar, the sheets, the header,
+ * the rise-in. This file holds what these screens need on top of it, and
+ * nothing else touches it.
+ *
+ * Two rules, both enforced by `web/src/v2/phone.test.ts`:
+ *
+ * 1. Every rule lives inside `@media (max-width: 767px)`. The promise to the
+ *    owner is that the computer layout does not change, and a rule that slips
+ *    outside the media query lands on every screen in the company with
+ *    nothing in the code looking wrong.
+ *
+ * 2. Every selector starts `.v2.v2-phone`. The ported page styles are
+ *    `.v2 .p-leads .d-card` — three classes. A phone rule written
+ *    `.v2-phone .d-card` is two, so it loses, and the box computes to the
+ *    wrong width with the code reading correctly. `.v2.v2-phone` ties at
+ *    three and wins on source order, because this file loads last.
+ *
+ * New class names of your own carry a `v2-b-` prefix, so that two groups
+ * cannot quietly define the same bare class — which is what broke the
+ * pipeline board once. `css-collisions.test.ts` checks it.
+ */
+
+@media (max-width: 767px) {
+  /* ══ Calendar ═══════════════════════════════════════════════════════════
+   *
+   * The one rule this whole file exists to prove. `v2-shell.css` already
+   * stacks the calendar into one column at 900px — `.v2 .d-cal-layout`, two
+   * classes — and the ported page style `.v2 .p-calendar .d-cal-layout` is
+   * three, so it won and the month grid computed to **26 pixels wide** at
+   * 390px with nothing in the code looking wrong. Everything below the next
+   * two lines only became visible once they were written.
+   */
+  .v2.v2-phone .p-calendar .d-cal-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .v2.v2-phone .p-calendar .d-side { position: static; gap: 14px; }
+
+  /*
+   * The top bar is the design's two blocks in its order: Month · Week · Day
+   * across the full width, then "‹ November 2026 › Today" under it. The
+   * markup's order is the computer design's — the controls, then the title,
+   * then the key — so the title is ordered back between the two arrows.
+   */
+  .v2.v2-phone .d-cal-top { flex-wrap: wrap; row-gap: 10px; margin-bottom: 12px; }
+  .v2.v2-phone .d-cal-top > .d-seg[aria-label="How much to show"] {
+    order: 1;
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .v2.v2-phone .d-cal-top > .d-btn.d-icon[aria-label="Earlier"] { order: 2; }
+  .v2.v2-phone .d-cal-top h2 {
+    order: 3; flex: 1 1 auto; min-width: 0;
+    font-size: 17px; text-align: center;
+  }
+  .v2.v2-phone .d-cal-top > .d-btn.d-icon[aria-label="Later"] { order: 4; }
+  .v2.v2-phone .d-cal-top > .d-btn.d-sm { order: 5; }
+  .v2.v2-phone .d-cal-top .d-grow { display: none; }
+  /* The key lives under the grid on a phone, where the design draws it;
+     `Calendar.tsx` renders that copy. This is the computer's one. */
+  .v2.v2-phone .d-cal-top .d-legend { display: none; }
+  .v2.v2-phone .p-calendar .v2-b-callegend {
+    display: flex; flex-wrap: wrap;
+    white-space: normal; gap: 6px 12px; margin: 12px 2px 0;
+  }
+  /* "New plan" is the header's round + on a phone; two of the same action is
+     one too many, and the wide one pushed the month title onto a third row. */
+  .v2.v2-phone .d-cal-top > .d-btn.d-primary { display: none; }
+
+  /* A month cell is a number over a **row** of coloured dots.
+     `v2-shell.css` already turns the event chips into 5px dots at 900px, but
+     the cell is a flex column, so they came out as a vertical stack of three
+     in the design's horizontal row — and they kept the pale chip background,
+     which at 5px is invisible. Block layout puts the number on its own line
+     (it is a grid box) and lets the inline-block dots flow under it. */
+  .v2.v2-phone .d-cal-day {
+    min-height: 58px; display: block; text-align: center; padding: 6px 2px;
+  }
+  .v2.v2-phone .d-cal-num { margin: 0 auto 4px; }
+  .v2.v2-phone .d-cal-day .d-cal-ev { margin: 0 1.5px; vertical-align: middle; }
+  .v2.v2-phone .d-cal-day .d-cal-ev.d-meeting { background: var(--accent); }
+  .v2.v2-phone .d-cal-day .d-cal-ev.d-visit { background: var(--green); }
+  .v2.v2-phone .d-cal-day .d-cal-ev.d-call { background: var(--blue); }
+  .v2.v2-phone .d-cal-day .d-cal-ev.d-follow { background: var(--amber); }
+  .v2.v2-phone .d-cal-day .d-cal-ev.d-team { background: var(--violet); }
+  /* The design's "+N" badge on a day with more than three plans. It was
+     switched off at 900px; without it a busy day looks like a quiet one. */
+  .v2.v2-phone .d-cal-day .v2-cal-more {
+    display: block; font-size: 9.5px; font-weight: 700; line-height: 1.2;
+    padding: 0; color: var(--ink-3); background: transparent;
+    white-space: nowrap; overflow: visible;
+  }
+
+  /* The week, as the design draws it: seven full-width day rows, not an hour
+     grid 640px wide that drags sideways inside its card. The rows themselves
+     are `Calendar.tsx`'s; this is what they sit in. */
+  .v2.v2-phone .v2-b-wkrows {
+    display: flex; flex-direction: column;
+    background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-1);
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-b-wkrow {
+    display: flex; align-items: flex-start; gap: 12px;
+    width: 100%; padding: 12px 14px; text-align: left;
+    background: transparent; color: var(--ink);
+    min-height: 58px;
+  }
+  .v2.v2-phone .v2-b-wkrow + .v2-b-wkrow { box-shadow: 0 -1px 0 var(--line); }
+  .v2.v2-phone .v2-b-wkrow.d-on { background: var(--accent-soft); }
+  .v2.v2-phone .v2-b-wkday { flex: none; width: 36px; text-align: center; }
+  .v2.v2-phone .v2-b-wkday b { display: block; font-size: 17px; font-weight: 800; line-height: 1.1; }
+  .v2.v2-phone .v2-b-wkday span {
+    display: block; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-b-wkrow.d-today .v2-b-wkday b { color: var(--accent-ink); }
+  .v2.v2-phone .v2-b-wkev { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .v2.v2-phone .v2-b-wkev > span {
+    display: block; font-size: 12.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-b-wkmore { font-size: 12px; font-weight: 700; color: var(--accent-ink); }
+  .v2.v2-phone .v2-b-wkn { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-3); }
+  .v2.v2-phone .v2-b-wkempty { font-size: 12.5px; color: var(--ink-4); }
+
+  /* ══ Tasks ══════════════════════════════════════════════════════════════ */
+
+  /* The design's week strip is five days with an arrow either side, each day
+     saying how much is left on it. `Tasks.tsx` sends five on a phone; this
+     makes the two arrows sit side by side rather than stacked, which is what
+     put the strip 450px wide. */
+  .v2.v2-phone .p-tasks .d-week { overflow-x: visible; gap: 5px; margin-bottom: 14px; align-items: stretch; }
+  .v2.v2-phone .p-tasks .d-week .d-nav { flex-direction: row; gap: 4px; align-items: center; }
+  .v2.v2-phone .p-tasks .d-week .d-nav .d-btn { width: 28px; min-width: 28px; padding: 0; }
+  .v2.v2-phone .p-tasks .d-wd { flex: 1 1 0; min-width: 0; padding: 9px 4px; text-align: center; }
+  .v2.v2-phone .p-tasks .d-wd .d-dn { font-size: 10px; }
+  .v2.v2-phone .p-tasks .d-wd .d-dd { font-size: 19px; }
+  .v2.v2-phone .p-tasks .d-wd .d-lf {
+    font-size: 10.5px; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* The card head holds a date, a Today button, a To do/Done segment and New
+     task — 348px of controls in a 314px card, so New task bled out of the
+     right edge. It wraps, and the date gets its own line as the design has. */
+  .v2.v2-phone .p-tasks .d-card-head { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-tasks .d-card-head > h3 { flex: 1 1 100%; }
+  .v2.v2-phone .p-tasks .d-card-head > .d-seg { flex: 1 1 auto; }
+  /* "New task" is the header's round + on a phone. Two of the same action in
+     the same thumb's reach is one too many, and it was bleeding past the
+     card's right edge — 348px of controls in a 314px card. */
+  .v2.v2-phone .p-tasks .d-card-head > .d-btn.d-primary { display: none; }
+  /* `Tasks.dc.html` reads "To do · 5 | Done · 1" and then Today on the
+     right; the markup has Today first because that is `tasks.html`'s order. */
+  .v2.v2-phone .p-tasks .d-card-head > .d-btn { order: 3; margin-left: auto; }
+  .v2.v2-phone .p-tasks .d-card-head > .d-seg { order: 2; flex: 0 1 auto; }
+
+  /*
+   * The task row the design draws: a checkbox, then the kind as a small
+   * coloured line over the title over the time and the lead, then the ⋯.
+   * The computer's row is time · chip · title · Open · ⋯ — six boxes on a
+   * 322px line, which put the ⋯ on a line by itself.
+   */
+  .v2.v2-phone .p-tasks .v2-b-trow {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 0; min-height: 56px;
+  }
+  .v2.v2-phone .p-tasks .v2-b-trow + .v2-b-trow { box-shadow: 0 -1px 0 var(--line); }
+  .v2.v2-phone .p-tasks .v2-b-trow .d-check { flex: none; padding-top: 2px; }
+  .v2.v2-phone .p-tasks .v2-b-trow .d-check input { border-radius: 50%; }
+  .v2.v2-phone .p-tasks .v2-b-tbody {
+    flex: 1; min-width: 0; display: block; color: var(--ink); text-decoration: none;
+  }
+  .v2.v2-phone .p-tasks .v2-b-tkind {
+    display: block; font-size: 12px; font-weight: 700; color: var(--ink-3);
+  }
+  .v2.v2-phone .p-tasks .v2-b-tlate { color: var(--red-ink); }
+  .v2.v2-phone .p-tasks .v2-b-tbody b {
+    display: block; font-size: 15px; font-weight: 700; line-height: 1.3; margin-top: 1px;
+  }
+  .v2.v2-phone .p-tasks .v2-b-tmeta {
+    display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px;
+  }
+  .v2.v2-phone .p-tasks .v2-b-tdone .v2-b-tbody b {
+    color: var(--ink-3); text-decoration: line-through;
+  }
+  /* The ⋯ on every row — the design's way into change, move a day and
+     delete. It stays on the right where the thumb expects it. */
+  .v2.v2-phone .p-tasks .v2-b-trow > .v2-b-more { flex: none; }
+
+  /* ══ Follow-ups ═════════════════════════════════════════════════════════ */
+
+  /*
+   * Four period tabs that computed to `width: 0` with `scrollWidth: 472`:
+   * Overdue · Today · Tomorrow · This week were in the DOM and invisible, so
+   * the list could not be changed from Overdue. `.d-fu-head` is a flex row
+   * and the tabs had nothing telling them to keep their size.
+   */
+  .v2.v2-phone .p-tasks .d-fu-head { flex-wrap: wrap; row-gap: 10px; }
+  .v2.v2-phone .p-tasks .d-fu-head .d-tabs {
+    flex: 1 1 100%; min-width: 0;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .v2.v2-phone .p-tasks .d-fu-head .d-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-tasks .d-fu-head .d-tab { flex: none; white-space: nowrap; }
+  .v2.v2-phone .p-tasks .d-fu-head .d-grow { display: none; }
+  .v2.v2-phone .p-tasks .d-fu-head .d-result-count { flex: 1 1 auto; }
+  .v2.v2-phone .p-tasks .d-fu-head > .d-btn.d-primary { flex: 1 1 100%; justify-content: center; }
+
+  /* The design has no table here. Each promise is a card: the time, the name,
+     what was promised, the project, a round call button — then Done and Move
+     one day later underneath. `Tasks.tsx` renders these instead of the table
+     on a phone, because a 779px table pushed the whole document to 803px and
+     the page itself scrolled sideways, floating bar and all. */
+  .v2.v2-phone .v2-b-fu { display: flex; flex-direction: column; gap: 10px; }
+  .v2.v2-phone .v2-b-fu-row {
+    background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-1);
+    padding: 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .v2.v2-phone .v2-b-fu-top { display: flex; align-items: flex-start; gap: 12px; }
+  .v2.v2-phone .v2-b-fu-when {
+    flex: none; width: 52px; font-size: 13px; font-weight: 700; padding-top: 2px;
+  }
+  .v2.v2-phone .v2-b-fu-late { color: var(--red-ink); }
+  .v2.v2-phone .v2-b-fu-who { flex: 1; min-width: 0; color: var(--ink); }
+  .v2.v2-phone .v2-b-fu-who b {
+    display: block; font-size: 15px; font-weight: 800;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-b-fu-who span { display: block; font-size: 13px; color: var(--ink-3); }
+  .v2.v2-phone .v2-b-fu-who small { display: block; font-size: 11px; color: var(--ink-4); }
+  /* `FollowUps.dc.html` draws the call as a filled round button, because on
+     this screen calling is the whole point. The build's was an outlined
+     square the same weight as everything else in the row. */
+  .v2.v2-phone .v2-b-fu-top > .d-btn.d-icon {
+    width: 44px; height: 44px; min-width: 44px; flex: none;
+    border-radius: 50%; box-shadow: none;
+    background: var(--accent); color: #fff;
+  }
+  .v2.v2-phone .v2-b-fu-top > .d-btn.d-icon .lucide { width: 19px; height: 19px; }
+  .v2.v2-phone .v2-b-fu-btns { display: flex; gap: 8px; }
+  .v2.v2-phone .v2-b-fu-btns > .d-btn { flex: 1; justify-content: center; }
+  /* The design fills Done and outlines Move to tomorrow; the build had the
+     weights the other way round, so the quiet answer looked like the main
+     one. */
+  .v2.v2-phone .v2-b-fu-btns > .d-btn:first-child {
+    background: var(--green-soft); color: var(--green-ink); box-shadow: none;
+  }
+  .v2.v2-phone .v2-b-fu-btns > .d-btn.d-ghost {
+    box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+
+  /* ══ Calling ════════════════════════════════════════════════════════════ */
+
+  /*
+   * The number is the biggest thing on this screen. The owner's instruction,
+   * and the agent's job. `v2-shell.css` steps it 50px → 34px → 28px, which
+   * leaves 78px of the card unused: a 16-character UAE number renders 314px
+   * at 36px inside a 322px box.
+   */
+  .v2.v2-phone .p-calling .d-c-phone { font-size: 34px; letter-spacing: -.02em; }
+
+  /* The topline is a progress bar, three counts, a points chip and End
+     session. On one line that is a row of ellipses. */
+  .v2.v2-phone .p-calling .d-topline { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-calling .d-topline .d-bar { flex: 1 1 100%; order: -1; }
+  /* "Lead 1 of 12" is the header's title now, where the design puts it. */
+  .v2.v2-phone .p-calling .d-topline .d-pos { display: none; }
+  .v2.v2-phone .p-calling .d-counts { flex: 1 1 100%; }
+  .v2.v2-phone .p-calling .d-c-btns { flex-wrap: wrap; }
+  .v2.v2-phone .p-calling .d-c-btns > .d-btn { flex: 1 1 calc(50% - 5px); justify-content: center; }
+  .v2.v2-phone .p-calling .d-c-btns > a.d-btn { flex: 1 1 100%; }
+  /* "What happened?" and the amber "Click Call or WhatsApp first" lock do not
+     share a 358px line: the heading came out as "What / happened?". */
+  .v2.v2-phone .p-calling .d-card-head { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-calling .d-card-head > h3 { flex: 1 1 100%; }
+  /* `Dialer.dc.html` lays the six answers out three to a row — Interested ·
+     No answer · Busy over Call back · Wrong number · Not interested — which
+     is the whole set on one thumb's reach rather than two. */
+  .v2.v2-phone .p-calling .d-outs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .v2.v2-phone .p-calling .d-outb {
+    padding: 10px 6px; gap: 6px;
+    align-items: center; text-align: center;
+    font-size: 12.5px; white-space: normal; line-height: 1.2;
+  }
+  .v2.v2-phone .p-calling .d-navrow { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-calling .d-navrow > .d-grow { flex: 1 1 100%; order: 3; text-align: center; }
+
+  /* The design's five outcome forms are one bottom sheet with a coloured
+     mark, a title and a sub-line — not a panel that opens inside the card
+     under the thumb. `Calling.tsx` puts them in a `.d-dialog` on a phone,
+     which the shell has already made a sheet; this is only its inside. */
+  .v2.v2-phone .v2-b-out-head { display: flex; align-items: flex-start; gap: 12px; }
+  .v2.v2-phone .v2-b-out-ic {
+    width: 42px; height: 42px; flex: none; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-b-out-head h3 { font-size: 17px; font-weight: 800; }
+  .v2.v2-phone .v2-b-out-head p { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+
+  /* ══ Attendance ═════════════════════════════════════════════════════════ */
+
+  /* A key/value row keeps its label in a fixed 120px column, which with the
+     card's own padding is ten pixels more than a 390px screen has. Narrower
+     label, and a row that wraps rather than pushing its value off the edge.
+     Scoped to this group's own pages: `.d-kv` is on half the build. */
+  .v2.v2-phone .p-attendance .d-kv-row,
+  .v2.v2-phone .p-team-attendance .d-kv-row,
+  .v2.v2-phone .p-bell .d-kv-row,
+  .v2.v2-phone .p-inbox .d-kv-row { flex-wrap: wrap; row-gap: 0; }
+  .v2.v2-phone .p-attendance .d-kv-row dt,
+  .v2.v2-phone .p-team-attendance .d-kv-row dt,
+  .v2.v2-phone .p-bell .d-kv-row dt,
+  .v2.v2-phone .p-inbox .d-kv-row dt { width: 96px; }
+
+  /* The tab bar across the top of Attendance — Today · Month · Leave, plus
+     Rules for an owner — ran off the right edge. */
+  .v2.v2-phone .p-attendance .d-tabs,
+  .v2.v2-phone .p-team-attendance .d-tabs {
+    overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap;
+  }
+  .v2.v2-phone .p-attendance .d-tabs::-webkit-scrollbar,
+  .v2.v2-phone .p-team-attendance .d-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-attendance .d-tab,
+  .v2.v2-phone .p-team-attendance .d-tab { flex: none; white-space: nowrap; }
+
+  /*
+   * The five counts, as `TeamAttendance.dc.html` draws them: one row of
+   * small tiles across the top — 6 In office · 1 Late · 1 Outside · 1 Leave
+   * · 1 Absent. `v2-shell.css` puts them two to a row, which gave five cards
+   * the height of a hand and pushed the first agent's name off the screen.
+   */
+  .v2.v2-phone .p-team-attendance .d-counters {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .v2.v2-phone .p-team-attendance .d-cnt {
+    padding: 8px 4px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .v2.v2-phone .p-team-attendance .d-cnt .d-num { font-size: 19px; }
+  .v2.v2-phone .p-team-attendance .d-cnt .d-label {
+    font-size: 9px; letter-spacing: -.01em; line-height: 1.15;
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+  }
+  .v2.v2-phone .p-team-attendance .d-cnt .d-label .d-dot { width: 5px; height: 5px; flex: none; }
+  .v2.v2-phone .p-team-attendance .d-cnt.d-all {
+    grid-column: 1 / -1;
+    flex-direction: row; align-items: center; gap: 12px; text-align: left;
+    padding: 12px 14px;
+  }
+  .v2.v2-phone .p-team-attendance .d-cnt.d-all .d-label {
+    display: block; font-size: 12px; letter-spacing: 0;
+  }
+
+  /*
+   * One agent, one line. `v2-shell.css` turns `.d-id-today` into a card per
+   * row and gives the first cell the whole first line, so the name, the
+   * status, the time and the reason came out as four stacked lines each.
+   * The design is avatar · name · status on one line, the time on its right,
+   * and the reason under it.
+   */
+  .v2.v2-phone .p-team-attendance .d-id-today tr { gap: 2px 8px; padding: 12px 2px; }
+  /* The ported page CSS gives every cell `height:56px`, which is a row
+     height on the computer and four stacked 56px lines here. */
+  .v2.v2-phone .p-team-attendance .d-id-today td { height: auto; }
+  .v2.v2-phone .p-team-attendance .d-id-today td:first-child { flex: 1 1 auto; min-width: 0; }
+  .v2.v2-phone .p-team-attendance .d-id-today td:nth-child(2) { flex: none; order: 2; }
+  .v2.v2-phone .p-team-attendance .d-id-today td:nth-child(3) {
+    flex: none; order: 3; margin-left: auto; font-size: 12.5px; color: var(--ink-3);
+  }
+  .v2.v2-phone .p-team-attendance .d-id-today td:nth-child(4) {
+    flex: 1 1 100%; order: 4; font-size: 12.5px;
+  }
+  .v2.v2-phone .p-team-attendance .d-id-today .d-person { min-width: 0; }
+  .v2.v2-phone .p-team-attendance .d-id-today .d-who { min-width: 0; }
+  .v2.v2-phone .p-team-attendance .d-id-today .d-who b {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /*
+   * The last-eight-days grid on the owner's screen is `150px repeat(8,1fr)
+   * 150px` — 300px of name and summary before a single day, so the right-hand
+   * four days sat off the screen. The summary column closes to nothing (it is
+   * the build's own addition, not the design's) and the name loses its
+   * avatar, which leaves the eight days 34px each.
+   */
+  .v2.v2-phone .p-team-attendance .d-grid8 {
+    grid-template-columns: 82px repeat(8, minmax(0, 1fr)) 0;
+    gap: 6px 3px;
+  }
+  /*
+   * The summary closes to nothing rather than being taken out: it is the
+   * tenth item of a ten-column grid, and `display:none` removes it from the
+   * flow altogether, which pushed every row after the first one column left
+   * and left the names stranded at the end of the row above.
+   */
+  .v2.v2-phone .p-team-attendance .d-grid8 .d-sum {
+    visibility: hidden; overflow: hidden; min-width: 0; white-space: nowrap;
+  }
+  .v2.v2-phone .p-team-attendance .d-grid8 .d-person .avatar { display: none; }
+  .v2.v2-phone .p-team-attendance .d-grid8 .d-hd {
+    font-size: 8px; letter-spacing: -.02em; overflow: hidden; text-align: center;
+  }
+  .v2.v2-phone .p-team-attendance .d-cell { font-size: 11px; }
+
+  /* The month's four counts, two to a row. One per row is four cards the
+     height of a thumb for four numbers, and the design's are a single row. */
+  .v2.v2-phone .p-attendance .d-bento.v2-b-tiles {
+    grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  /* `v2-shell.css` sends every `d-c-*` card to `grid-column:1 / -1` at this
+     width, which is right for a card and wrong for a counter. */
+  .v2.v2-phone .p-attendance .d-bento.v2-b-tiles > [class*="d-c-"] { grid-column: auto; }
+  .v2.v2-phone .p-attendance .d-bento.v2-b-tiles .d-tile { padding: 14px; }
+  .v2.v2-phone .p-attendance .d-bento.v2-b-tiles .d-stat-row {
+    flex-wrap: wrap; row-gap: 2px; align-items: baseline;
+  }
+  .v2.v2-phone .p-attendance .d-bento.v2-b-tiles .d-delta { font-size: 11.5px; }
+
+  /* Three allowance tiles, the state card's buttons and the footer actions
+     all want the full width under a thumb. */
+  .v2.v2-phone .p-attendance .d-btn.d-lg,
+  .v2.v2-phone .p-attendance .d-card-foot .d-btn { width: 100%; justify-content: center; }
+
+  /* `LeaveRequest.dc.html` puts From and To on one line, and two date
+     fields fit: a `dd/mm/yyyy` input with its picker is 150px. The shell
+     stacks every `.v2-two` at this width, which is right everywhere else. */
+  .v2.v2-phone .p-attendance .d-panel .v2-two,
+  .v2.v2-phone .p-team-attendance .d-panel .v2-two {
+    grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+
+  /* ══ Transfers ══════════════════════════════════════════════════════════ */
+
+  .v2.v2-phone .p-transfers .d-card-head { flex-wrap: wrap; row-gap: 6px; }
+
+  /* The intro line repeats the sub-line the header already carries, and the
+     design has neither: it explains the rules once, at the foot. */
+  .v2.v2-phone .p-transfers .v2-page-head .v2-page-sub { display: none; }
+  .v2.v2-phone .p-transfers .v2-page-head > .d-btn { flex: 1 1 100%; justify-content: center; }
+
+  /*
+   * The request card as `Transfers.dc.html` draws it: the lead's name and
+   * who it came from on the left, an amber "Answer by 18:00" pill on the
+   * right, then the reason and the two answers. The build drew a 64px
+   * avatar of a person nobody has met and a 22px clock, which together were
+   * bigger than the name of the lead the card is about.
+   */
+  .v2.v2-phone .p-transfers .d-treq { align-items: flex-start; }
+  .v2.v2-phone .p-transfers .d-treq > .avatar { display: none; }
+  .v2.v2-phone .p-transfers .d-treq .d-who { flex: 1 1 55%; min-width: 0; order: 1; }
+  .v2.v2-phone .p-transfers .d-treq .d-nm { font-size: 16px; }
+  .v2.v2-phone .p-transfers .d-deadline.v2-b-by {
+    flex: none; order: 1; align-self: flex-start;
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--amber-soft); color: var(--amber-ink);
+    font-size: 11.5px; font-weight: 700; line-height: 1.25; text-align: right;
+  }
+  /* Accept · Decline · Remind · Cancel each want a thumb, so two to a row. */
+  .v2.v2-phone .p-transfers .v2-treq-acts { flex-wrap: wrap; gap: 8px; }
+  .v2.v2-phone .p-transfers .v2-treq-acts > .d-btn {
+    flex: 1 1 calc(50% - 4px); justify-content: center;
+  }
+  .v2.v2-phone .p-transfers .v2-treq-row { flex-wrap: wrap; row-gap: 8px; }
+
+  /* ══ Notifications ══════════════════════════════════════════════════════ */
+
+  /* The design's row is an icon tile, the title with the time on the right,
+     the body, the verb line and an unread dot — all tappable. A separate
+     "Mark read" button beside "Open →" is two targets where there is one. */
+  .v2.v2-phone .p-bell .d-lay { grid-template-columns: minmax(0, 1fr); }
+  /* The count card said "2 new notifications" and carried Mark all read.
+     Both are in the header now, where `Notifications.dc.html` puts them. */
+  .v2.v2-phone .p-bell .d-n-head { display: none; }
+  .v2.v2-phone .p-bell .d-n-tabs { flex-wrap: wrap; row-gap: 8px; padding-top: 2px; }
+  .v2.v2-phone .p-bell .d-n-tabs .d-grow { display: none; }
+  .v2.v2-phone .p-bell .d-n-tabs .d-tabs {
+    flex: 1 1 100%; flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .v2.v2-phone .p-bell .d-n-tabs .d-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-bell .d-n-tabs .d-tab { flex: none; white-space: nowrap; }
+
+  /* The row `Notifications.dc.html` draws: one link, the icon in a tinted
+     tile, the time on the title's right, the text under it, the unread dot
+     at the end. The computer's row carries "Mark read" and "Open →" as two
+     more targets, and at 390px the second of them took a line of its own. */
+  .v2.v2-phone .p-bell .v2-b-nrow {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0; color: var(--ink); text-decoration: none;
+  }
+  .v2.v2-phone .p-bell .v2-b-nrow + .v2-b-nrow { box-shadow: 0 -1px 0 var(--line); }
+  /* The tinted 42px tile the design puts every notification's icon in. It is
+     written for `.d-nrow` in the ported page CSS, and this row is not one. */
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic {
+    width: 42px; height: 42px; flex: none; border-radius: 14px;
+    display: grid; place-items: center;
+    background: var(--surface-2); color: var(--ink-2);
+  }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-accent { background: var(--accent-soft); color: var(--accent-ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-red { background: var(--red-soft); color: var(--red-ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-green { background: var(--green-soft); color: var(--green-ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-blue { background: var(--blue-soft); color: var(--blue-ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-violet { background: var(--violet-soft); color: var(--violet-ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-ic.d-amber { background: var(--amber-soft); color: var(--amber-ink); }
+  .v2.v2-phone .p-bell .v2-b-nnew .v2-b-ntop b { color: var(--ink); }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-udot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+  }
+  .v2.v2-phone .p-bell .v2-b-nbd { flex: 1; min-width: 0; }
+  .v2.v2-phone .p-bell .v2-b-ntop { display: flex; align-items: baseline; gap: 10px; }
+  .v2.v2-phone .p-bell .v2-b-ntop b {
+    flex: 1; min-width: 0; font-size: 14.5px; font-weight: 700; line-height: 1.3;
+  }
+  .v2.v2-phone .p-bell .v2-b-nage {
+    flex: none; font-size: 11.5px; color: var(--ink-4); white-space: nowrap;
+  }
+  .v2.v2-phone .p-bell .v2-b-ntext {
+    display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; line-height: 1.35;
+  }
+  .v2.v2-phone .p-bell .v2-b-nrow .d-udot { flex: none; margin-top: 7px; }
+
+  /* ══ Inbox and the thread ═══════════════════════════════════════════════ */
+
+  /*
+   * The list scrolled inside itself — 556px of rows in a 502px box inside a
+   * 644px card on an 869px document, so there were two scrollers on one
+   * phone screen and the last chat was cut off at rest. The design puts the
+   * rows in one card inside the page's own scroller.
+   */
+  .v2.v2-phone .p-inbox .v2-ib-list { height: auto; min-height: 0; overflow: visible; }
+  .v2.v2-phone .p-inbox .d-ib-scroll { overflow-y: visible; flex: none; }
+
+  /* The thread is one of the four full-attention screens: no bottom bar, so
+     it takes the screen and the composer sits on the bottom edge. */
+  .v2.v2-phone .p-inbox .v2-ib-chat {
+    height: calc(100dvh - 118px - var(--safe-b, 0px));
+    min-height: 420px;
+  }
+  /*
+   * With the thread open the shell draws no header either — that is what
+   * `useFullAttention` now does — so the 118px it was leaving for one was
+   * 84px of nothing under the composer. `v2-has-bar` is the shell's mark
+   * for "ordinary screen"; without it on the inbox, a thread is open.
+   */
+  .v2.v2-phone:not(.v2-has-bar) .p-inbox .v2-ib-chat {
+    height: calc(100dvh - 34px - var(--safe-b, 0px));
+  }
+  /* The name ran under the 24-hour window chip: `.d-grow` computed 93px for
+     a 116px name. The chip goes on its own line under the name. */
+  .v2.v2-phone .p-inbox .d-ib-head { flex-wrap: wrap; row-gap: 6px; padding: 12px 14px; }
+  /* Small enough to shrink and let the call button share the first line;
+     `.d-truncate` inside does the rest. */
+  .v2.v2-phone .p-inbox .d-ib-head .d-grow { flex: 1 1 80px; min-width: 80px; }
+  .v2.v2-phone .p-inbox .d-ib-head .d-chip { order: 9; }
+  /* The round call button the design puts in the thread header, lime and
+     44px. It is the one action a thread has that the lead page is a detour
+     for. */
+  .v2.v2-phone .p-inbox .v2-b-call {
+    width: 44px; height: 44px; flex: none; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent); color: #fff;
+  }
+  .v2.v2-phone .p-inbox .v2-b-call .lucide { width: 20px; height: 20px; }
+  .v2.v2-phone .p-inbox .d-ib-compose { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-inbox .d-ib-compose .d-input { flex: 1 1 60%; }
+  /* The quick-send row above the composer: five chips that scroll. */
+  .v2.v2-phone .p-inbox .v2-b-quick {
+    display: flex; gap: 8px; padding: 0 14px 8px;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .v2.v2-phone .p-inbox .v2-b-quick::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-inbox .v2-b-quick > .d-chip-opt { flex: none; white-space: nowrap; }
+
+  /* ══ Email ══════════════════════════════════════════════════════════════ */
+
+  .v2.v2-phone .p-email .d-em-bar { flex-wrap: wrap; row-gap: 8px; }
+  .v2.v2-phone .p-email .d-em-list { max-height: none; overflow: visible; }
+
+  /* ══ Templates ══════════════════════════════════════════════════════════
+   *
+   * The design is one "16 TEMPLATES" card of compact rows — a round icon, the
+   * name, a one-line purpose, a status pill — so seven fit on a screen. The
+   * build gives each template a card with the whole message body in it, and
+   * three fill the phone. The body is in the detail sheet either way.
+   */
+  /* The green box the design opens with, and the list's own count header. */
+  .v2.v2-phone .p-templates .v2-tp-rule {
+    margin: 0 0 12px; padding: 12px 14px;
+    border-radius: 16px;
+    background: var(--green-soft); color: var(--green-ink);
+    font-size: 13px; line-height: 1.4;
+  }
+  .v2.v2-phone .p-templates .v2-tp-rule b { font-weight: 800; }
+  .v2.v2-phone .p-templates .v2-tp-count {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 0 0 8px 2px;
+  }
+  .v2.v2-phone .p-templates .d-tp-grid { gap: 10px; }
+  .v2.v2-phone .p-templates .d-tp { padding: 12px 14px; gap: 6px; }
+  .v2.v2-phone .p-templates .d-tp .d-tp-body { display: none; }
+  .v2.v2-phone .p-templates .v2-tp-tabs {
+    overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap;
+  }
+  .v2.v2-phone .p-templates .v2-tp-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-templates .v2-tp-tabs .d-tab { flex: none; white-space: nowrap; }
+
+  /* ══ Search ═════════════════════════════════════════════════════════════
+   *
+   * The one header in the whole phone set with no back button: a full-width
+   * field and a text "Close". The shell draws the back button, so the field
+   * gets the rest of the row, and the kind chips scroll as the design's do.
+   */
+  .v2.v2-phone .p-find .d-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .v2.v2-phone .p-find .d-tabs::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .p-find .d-tab { flex: none; white-space: nowrap; }
+  .v2.v2-phone .p-find .d-sr-box { width: 100%; }
+  /* The design centres the footnote under an empty screen. */
+  .v2.v2-phone .p-find > .d-sr > .d-small { text-align: center; }
+  /* "Enter opens the first result" is advice for a keyboard. */
+  .v2.v2-phone .p-find .d-sr-box kbd { display: none; }
+}

@@ -52,6 +52,56 @@ const ROUTES = [
   ['/imports/im-1', 'import-detail'], ['/pool', 'pool'], ['/automations', 'automations'],
   ['/team-activity', 'team-activity'], ['/audit', 'audit'], ['/profile', 'profile'],
   ['/settings', 'settings'], ['/attendance', 'attendance'], ['/dev/components', 'components'],
+
+  /*
+   * v2, under its own shell. Same checks, because the same mistakes are
+   * available: the first drawing of the v2 home scrolled sideways to 575px on
+   * a phone, and the calling screen's outcome buttons rendered as bare text.
+   * Neither is visible in a passing test suite.
+   */
+  ['/v2', 'v2-home'], ['/v2/incoming', 'v2-incoming'], ['/v2/leads', 'v2-leads'],
+  ['/v2/leads?tab=all', 'v2-leads-all'], ['/v2/leads/o-1', 'v2-lead'],
+  ['/v2/leads/new', 'v2-add-lead'], ['/v2/calling', 'v2-calling'],
+  ['/v2/pipeline', 'v2-pipeline'], ['/v2/follow-ups', 'v2-follow-ups'],
+  ['/v2/transfers', 'v2-transfers'], ['/v2/calendar', 'v2-calendar'],
+  ['/v2/tasks', 'v2-tasks'], ['/v2/attendance', 'v2-attendance'],
+  ['/v2/team', 'v2-team'], ['/v2/profile', 'v2-profile'],
+  ['/v2/projects', 'v2-projects'], ['/v2/projects/p-1', 'v2-project'],
+  ['/v2/wall', 'v2-wall'], ['/v2/best', 'v2-best'],
+  ['/v2/notifications', 'v2-notifications'], ['/v2/search?q=em', 'v2-search'],
+  ['/v2/more', 'v2-more'],
+  /* Settings, one route per panel: they share a shell but each lays its
+     own page out, and the Company page's two columns are exactly the kind
+     of thing that only breaks at one width. */
+  ['/v2/offers', 'v2-offers'],
+  ['/v2/import', 'v2-import'],
+  /* Homes AI is a two-column grid and Activity holds two tables that cannot
+     shrink; both are exactly what this pass is for. */
+  ['/v2/ai', 'v2-ai'],
+  ['/v2/activity', 'v2-activity'],
+  /* The three message screens. The inbox is the only three-column layout in
+     v2, so it is the one most likely to scroll sideways on a phone. */
+  ['/v2/inbox', 'v2-inbox'],
+  ['/v2/email', 'v2-email'],
+  ['/v2/templates', 'v2-templates'],
+  ['/v2/settings', 'v2-settings'],
+  ['/v2/settings/notifications', 'v2-settings-notifications'],
+  ['/v2/settings/company', 'v2-settings-company'],
+  ['/v2/settings/attendance', 'v2-settings-attendance'],
+  ['/v2/settings/ai', 'v2-settings-ai'],
+  ['/v2/settings/automations', 'v2-settings-automations'],
+  ['/v2/settings/team', 'v2-settings-team'],
+  ['/v2/settings/desks', 'v2-settings-desks'],
+  ['/v2/card', 'v2-card'],
+  ['/v2/messaging', 'v2-messaging'],
+  ['/v2/projects/manage', 'v2-manage-projects'],
+  ['/v2/dashboard', 'v2-dashboard'],
+  ['/v2/feedback', 'v2-feedback'],
+  ['/v2/settings/feedback', 'v2-settings-feedback'],
+  ['/v2/settings/banners', 'v2-settings-banners'],
+  ['/v2/settings/health', 'v2-settings-health'],
+  ['/v2/settings/phone-app', 'v2-settings-phone-app'],
+  ['/v2/team/u-2', 'v2-team-member'],
 ];
 
 const VIEWPORTS = [['desktop', 1440, 1000], ['mobile', 390, 844]];

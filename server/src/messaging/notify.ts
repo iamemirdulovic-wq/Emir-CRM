@@ -26,9 +26,16 @@ export type NotificationType =
   | 'deal_won'
   | 'suspicious_activity'
   | 'flagged_login'
+  /* v2: a lead the owner handed over personally. The column is a VARCHAR, so
+     these are a code change and not a migration. */
+  | 'vip_accepted'
+  | 'vip_refused'
   /* A colleague said thank you on the Team Wall. */
   | 'kudos'
-  | 'badge_earned';
+  | 'badge_earned'
+  /* A manager pressed Remind on the messaging report: one notification
+     carrying every "What happened?" the agent has left unanswered. */
+  | 'tap_reminder';
 
 export interface NotifyInput {
   userId: string;

@@ -300,4 +300,50 @@ server reads, and the between-test reset against the schema.
 
 ---
 
+## 8. The second build — finished, and not live
+
+There are two builds in this repository now. The one at **crm.homes.me**,
+which section 1 describes, and **v2**, which is every screen rebuilt from the
+design package you sent. They share the same server and the same database
+shape; v2's screens live at `/v2/*`.
+
+**v2 is on the `v2` branch and on a test address only.** It has never been
+deployed. crm.homes.me still serves the first build, and nothing in this work
+touched it or its data.
+
+**What is in it.** Every page in `design/web/` has an address — 48 of them,
+with nothing left as a placeholder. Two of those pages had never been built
+at all before 13 November: the owner's full dashboard and Team live. The
+complete list, each row against its design file, is `docs/v2/screens.md`.
+
+**Two screens are partly done**, both because the data is not there to finish
+them honestly:
+
+- **Email** shows your template library rather than a mailbox. The CRM has no
+  mailbox — email goes out from a lead's page — so nothing can list sent mail
+  or drafts across the company.
+- **Who did what** has no activity graph and no "leads opened" column.
+  Nothing records either, and a column of plausible hours beside a person's
+  name is the worst thing on that screen to guess at.
+
+**How it was checked.** 2,816 server tests and 499 web tests, all passing,
+with no TypeScript errors in either half. Then a browser walked 300 screens —
+75 addresses on a computer and on a phone, in light and dark — and no v2
+screen scrolls sideways, cuts off text, breaks an image or throws an error.
+
+**Four things it found that nobody would have seen.** Toasts never appeared
+anywhere in v2, so sixty-nine places that said "done" or "undone" said
+nothing at all — including the button that takes thirty-one leads off an
+agent. One stylesheet animation named a keyframe that did not exist, so it
+animated nothing on every screen that used it. The menu offered managers
+pages the server answers 403 for. And on a phone the VIP lead's phone number
+was cut off at the last digit, on the card whose whole job is that number.
+
+**What it is waiting for.** Your decision on whether it goes live, and
+fourteen smaller ones written in plain English in
+`docs/decisions-to-confirm.md`. Each already has an answer chosen, so nothing
+is blocked on reading them.
+
+---
+
 **Is this right, or do you want changes?**

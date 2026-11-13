@@ -33,9 +33,51 @@ import { Attendance } from './pages/Attendance.js';
 import { AuditLog } from './pages/AuditLog.js';
 import { Profile } from './pages/Profile.js';
 import { Wall } from './pages/Wall.js';
-import { V2Shell } from './v2/Shell.js';
-import { Placeholder } from './v2/Placeholder.js';
+import { V2Shell, V2More } from './v2/Shell.js';
 import { V2Leads } from './v2/Leads.js';
+import { V2Home } from './v2/Home.js';
+import { V2Calling } from './v2/Calling.js';
+import { V2Incoming } from './v2/Incoming.js';
+import { V2Pipeline } from './v2/Pipeline.js';
+import { V2AddLead } from './v2/AddLead.js';
+import { V2Attendance } from './v2/Attendance.js';
+import { V2Tasks } from './v2/Tasks.js';
+import { V2Calendar } from './v2/Calendar.js';
+import { V2Transfers } from './v2/Transfers.js';
+import { V2Team, V2Person } from './v2/Team.js';
+import { V2Projects, V2Project } from './v2/Projects.js';
+import { V2Wall, V2Best } from './v2/Wall.js';
+import { V2Notifications } from './v2/Bell.js';
+import { V2Find } from './v2/Find.js';
+import { V2Ai } from './v2/Ai.js';
+import { V2Automations } from './v2/Automations.js';
+import { V2Offers } from './v2/Offers.js';
+import { V2ManageProjects } from './v2/ManageProjects.js';
+import { V2Card } from './v2/Card.js';
+import { V2Messaging } from './v2/Messaging.js';
+import { V2Inbox } from './v2/Inbox.js';
+import { V2Email } from './v2/Email.js';
+import { V2Templates } from './v2/Templates.js';
+import { V2Import } from './v2/Import.js';
+import { V2SettingsGeneral } from './v2/settings/General.js';
+import { V2SettingsNotifications } from './v2/settings/Notifications.js';
+import { V2SettingsCompany } from './v2/settings/Company.js';
+import { V2SettingsAttendance } from './v2/settings/Attendance.js';
+import { V2SettingsAi } from './v2/settings/Ai.js';
+import { V2SettingsHealth } from './v2/settings/Health.js';
+import { V2SettingsDesks } from './v2/settings/Desks.js';
+import { V2SettingsTeam } from './v2/settings/Team.js';
+import { V2SettingsPhoneApp } from './v2/settings/PhoneApp.js';
+import { V2FeedbackInbox } from './v2/settings/FeedbackInbox.js';
+import { V2SettingsBanners } from './v2/settings/Banners.js';
+import { V2Feedback } from './v2/Feedback.js';
+import { V2Activity } from './v2/Activity.js';
+import { V2Dashboard } from './v2/Dashboard.js';
+import { V2Live } from './v2/Live.js';
+import { V2Lead } from './v2/Lead.js';
+import { V2VipGiven } from './v2/VipGiven.js';
+import { V2PersonalInfo } from './v2/PersonalInfo.js';
+import { V2SettingsSecurity } from './v2/settings/Security.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
@@ -98,30 +140,88 @@ export function App() {
             </Protected>
           }
         >
-          <Route path="/v2" element={<Placeholder title="Home" phase="phase 4 — leads" />} />
-          <Route path="/v2/incoming" element={<Placeholder title="Incoming" phase="phase 4 — leads" />} />
+          <Route path="/v2" element={<V2Home />} />
+          <Route path="/v2/incoming" element={<V2Incoming />} />
           <Route path="/v2/leads" element={<V2Leads />} />
-          <Route path="/v2/leads/new" element={<Placeholder title="Add lead" phase="phase 4 — leads" />} />
-          <Route path="/v2/leads/:id" element={<Placeholder title="Lead" phase="phase 4 — leads" />} />
-          <Route path="/v2/follow-ups" element={<Placeholder title="Follow-ups" phase="phase 5 — calling" />} />
-          <Route path="/v2/pipeline" element={<Placeholder title="Pipeline" phase="phase 5 — calling" />} />
-          <Route path="/v2/calling" element={<Placeholder title="Calling" phase="phase 5 — calling" />} />
-          <Route path="/v2/transfers" element={<Placeholder title="Transfers" phase="phase 9 — transfer" />} />
-          <Route path="/v2/import" element={<Placeholder title="Import" phase="phase 10 — import" />} />
-          <Route path="/v2/calendar" element={<Placeholder title="Calendar" phase="phase 7 — calendar" />} />
-          <Route path="/v2/tasks" element={<Placeholder title="Tasks" phase="phase 7 — calendar" />} />
-          <Route path="/v2/projects" element={<Placeholder title="Projects" phase="phase 11 — owner tools" />} />
-          <Route path="/v2/offers" element={<Placeholder title="Sales offers" phase="phase 11 — owner tools" />} />
-          <Route path="/v2/team" element={<Placeholder title="Team" phase="phase 12 — team and me" />} />
-          <Route path="/v2/wall" element={<Placeholder title="Team wall" phase="phase 12 — team and me" />} />
-          <Route path="/v2/attendance" element={<Placeholder title="Attendance" phase="phase 8 — attendance" />} />
-          <Route path="/v2/activity" element={<Placeholder title="Activity" phase="phase 11 — owner tools" />} />
-          <Route path="/v2/ai" element={<Placeholder title="Homes AI" phase="phase 14 — Homes AI" />} />
-          <Route path="/v2/automations" element={<Placeholder title="Automations" phase="phase 11 — owner tools" />} />
-          <Route path="/v2/settings" element={<Placeholder title="Settings" phase="phase 12 — team and me" />} />
-          <Route path="/v2/profile" element={<Placeholder title="My profile" phase="phase 12 — team and me" />} />
-          <Route path="/v2/more" element={<Placeholder title="More" phase="phase 2 — shell" />} />
-          <Route path="/v2/templates" element={<Placeholder title="Templates" phase="later" />} />
+          <Route path="/v2/leads/new" element={<V2AddLead />} />
+          <Route path="/v2/leads/:id" element={<V2Lead />} />
+          {/*
+            * Follow-ups is a tab of Tasks, which is where both designs put it
+            * and where the menu already points. This address showed the leads
+            * list instead — a different screen with different rows — so it
+            * sends you to the real one rather than being a second answer.
+            */}
+          <Route
+            path="/v2/follow-ups"
+            element={<Navigate to="/v2/tasks?tab=follow-ups" replace />}
+          />
+          {/* The owner's record of the VIP leads they handed out, from
+              `design/screens/OwnerAssign.dc.html` — a screen, not the assign
+              dialog it was read as. */}
+          <Route path="/v2/vip" element={<V2VipGiven />} />
+          <Route path="/v2/pipeline" element={<V2Pipeline />} />
+          <Route path="/v2/calling" element={<V2Calling />} />
+          <Route path="/v2/transfers" element={<V2Transfers />} />
+          <Route path="/v2/import" element={<V2Import />} />
+          <Route path="/v2/calendar" element={<V2Calendar />} />
+          <Route path="/v2/tasks" element={<V2Tasks />} />
+          <Route path="/v2/projects" element={<V2Projects />} />
+          {/* Before `:id`, or "manage" is read as a project's id. */}
+          <Route path="/v2/projects/manage" element={<V2ManageProjects />} />
+          <Route path="/v2/projects/:id" element={<V2Project />} />
+          <Route path="/v2/offers" element={<V2Offers />} />
+          {/* The agent's own business card, from `digital-card.html`. */}
+          <Route path="/v2/card" element={<V2Card />} />
+          {/* The messaging funnel, beside Activity in `messaging-report.html`. */}
+          <Route path="/v2/messaging" element={<V2Messaging />} />
+          <Route path="/v2/team" element={<V2Team />} />
+          <Route path="/v2/team/:id" element={<V2Person />} />
+          <Route path="/v2/wall" element={<V2Wall />} />
+          {/* Best of Homes sits beside the Team page in `best-of-homes.html`,
+              and is reached from the wall's own ranking card. */}
+          <Route path="/v2/best" element={<V2Best />} />
+          {/* The bell's panel and the palette both have a whole page behind
+              them in the design, and both link to it. */}
+          <Route path="/v2/notifications" element={<V2Notifications />} />
+          <Route path="/v2/search" element={<V2Find />} />
+          <Route path="/v2/attendance" element={<V2Attendance />} />
+          <Route path="/v2/activity" element={<V2Activity />} />
+          <Route path="/v2/dashboard" element={<V2Dashboard />} />
+          {/* Beside Activity in the design's own segmented control. Owner and
+              admin only — the screen refuses, and so does its endpoint. */}
+          <Route path="/v2/team-live" element={<V2Live />} />
+          <Route path="/v2/ai" element={<V2Ai />} />
+          {/* Settings, as `design/web/settings.html` lays it out: one shell
+              with the section list, a panel per page behind it. The office
+              pages are owner and admin only, enforced by every endpoint they
+              read as well as by the nav not showing them. */}
+          <Route path="/v2/settings" element={<V2SettingsGeneral />} />
+          <Route path="/v2/settings/notifications" element={<V2SettingsNotifications />} />
+          <Route path="/v2/settings/phone-app" element={<V2SettingsPhoneApp />} />
+          <Route path="/v2/settings/team" element={<V2SettingsTeam />} />
+          <Route path="/v2/settings/attendance" element={<V2SettingsAttendance />} />
+          <Route path="/v2/settings/automations" element={<V2Automations />} />
+          <Route path="/v2/settings/company" element={<V2SettingsCompany />} />
+          <Route path="/v2/settings/ai" element={<V2SettingsAi />} />
+          <Route path="/v2/settings/desks" element={<V2SettingsDesks />} />
+          <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
+          <Route path="/v2/settings/feedback" element={<V2FeedbackInbox />} />
+          <Route path="/v2/settings/banners" element={<V2SettingsBanners />} />
+          <Route path="/v2/settings/security" element={<V2SettingsSecurity />} />
+          <Route path="/v2/feedback" element={<V2Feedback />} />
+          {/* The old address kept working, since it is in the nav of every
+              screen already shipped. */}
+          <Route path="/v2/automations" element={<V2Automations />} />
+          <Route path="/v2/profile" element={<V2Person />} />
+          {/* Where the settings list's "My profile · Photo, BRN, card" row
+              points. It pointed nowhere until now. */}
+          <Route path="/v2/me" element={<V2PersonalInfo />} />
+          <Route path="/v2/more" element={<V2More />} />
+          {/* Messages: the shared inbox, the client emails and the WhatsApp
+              templates. They were drawn as a later phase and are built now. */}
+          <Route path="/v2/inbox" element={<V2Inbox />} />
+          <Route path="/v2/email" element={<V2Email />} />
+          <Route path="/v2/templates" element={<V2Templates />} />
         </Route>
 
         {/* One shell around every signed-in screen, as the design has it. */}

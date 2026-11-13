@@ -253,9 +253,25 @@ export function whenToCall(clock: LocalClock | null, timeZone: string | null): C
       timeZone, hour: '2-digit', hour12: false,
     }).format(at).slice(0, 2));
     if (theirHour === CALL_FROM) {
+      /*
+       * On the hour there, not on this minute.
+       *
+       * The loop steps forward in whole hours from right now, so at 9:41 PM
+       * it lands on 9:41 AM and the advice read "call after 9:41 AM" -- a
+       * time with no meaning to anybody. Taking off the minutes it is there
+       * gives the moment it is exactly 09:00 for the client, which is the
+       * thing the sentence is actually about. The minutes are subtracted in
+       * THEIR clock rather than ours, because half-hour zones exist: 09:00
+       * in India is 07:30 in Dubai, and rounding in the wrong clock would
+       * tell an agent to call at 07:00.
+       */
+      const theirMinute = Number(new Intl.DateTimeFormat('en-GB', {
+        timeZone, minute: '2-digit',
+      }).format(at));
+      const onTheHour = new Date(at.getTime() - theirMinute * 60_000);
       const yours = new Intl.DateTimeFormat('en-US', {
         hour: 'numeric', minute: '2-digit', hour12: true,
-      }).format(at);
+      }).format(onTheHour);
       const early = clock.hour < CALL_FROM;
       return {
         ok: false,

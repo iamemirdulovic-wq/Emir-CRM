@@ -13,6 +13,7 @@ web/dist/
 server/dist/
 *.tsbuildinfo
 dist-preview/
+dist-preview-*/
 
 # Uploaded import files. They are read back by the import job and deleted with
 # the import; nothing here belongs in version control.
@@ -27,3 +28,8 @@ server/var/emir-crm.key
 # Database dumps. They hold every client in the business; they never go in git.
 *.sql.gz
 crm-backups/
+shots*/
+web/dist-polish*/
+/*.mjs
+web/dist-*/
+docs/v2/phone-proof/.shots*/

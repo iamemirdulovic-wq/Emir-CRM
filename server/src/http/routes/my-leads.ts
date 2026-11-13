@@ -10,6 +10,8 @@ import { badRequest, notFound } from '../../lib/errors.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { leadBrief, refreshNotesDigest } from '../../ai/lead-review.js';
 import { isLeadTab, TABS, LEAD_TABS, type LeadTab } from '../../leads/tabs.js';
+import { leadTabCounts } from '../../leads/counts.js';
+import { contact360 } from '../../services/contacts.js';
 import {
   LEAD_ACTIONS, LOST_REASONS, PROBLEM_REASONS, runLeadAction,
 } from '../../leads/actions.js';
@@ -241,9 +243,11 @@ myLeadsRouter.get(
 /**
  * The number on each tab.
  *
- * One query with a CASE per tab rather than six round trips: this runs every
- * time the screen opens, and six COUNT(*) over the same rows is five more
- * table scans than the answer needs.
+ * The query lives in `leads/counts.ts`, with the one that the v2 home screen
+ * reads, so a tab and the list under it cannot be counted two different ways.
+ * They were, until 12 November: "All" was a plain `COUNT(*)` here while the
+ * list was built from `TABS.all.where`, which excludes deleted leads. The tab
+ * read one too high for every lead anybody had ever deleted, silently.
  */
 myLeadsRouter.get(
   '/counts',
@@ -251,19 +255,13 @@ myLeadsRouter.get(
     const user = currentUser(req);
     const params = listSchema.parse(req.query);
     const visible = await visibleUserIds(user);
+    /* The scope is already inside `leadTabCounts`; what comes back from
+       `buildFilters` on top of it is the screen's own narrowing. */
     const { where, args } = buildFilters(params, visible);
+    const mine = where.slice(1);
+    const mineArgs = args.slice(ownerPredicate('o.owner_user_id', visible).params.length);
 
-    const counted = LEAD_TABS.filter((tab) => tab !== 'all');
-    const row = await queryOne<Record<string, number>>(
-      `SELECT ${counted.map((tab) => `SUM(${TABS[tab].where}) AS \`${tab}\``).join(', ')},
-              COUNT(*) AS \`all\`
-         FROM opportunities o
-         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
-        WHERE ${where.join(' AND ')}`,
-      args,
-    );
-
-    res.json(Object.fromEntries(LEAD_TABS.map((tab) => [tab, Number(row?.[tab] ?? 0)])));
+    res.json(await leadTabCounts(visible, { where: mine, args: mineArgs }));
   }),
 );
 
@@ -383,6 +381,35 @@ myLeadsRouter.post(
     const digest = await refreshNotesDigest(opportunityId, { force: true });
     const brief = await leadBrief(opportunityId);
     res.json({ ...brief, refreshed: digest !== null });
+  }),
+);
+
+/**
+ * One lead, and everything the lead page shows about it.
+ *
+ * Registered after `/counts` and the other named paths, so `:id` cannot
+ * swallow them -- Express matches in the order routes are declared, and a
+ * `/:id` placed above `/counts` would make the counts endpoint unreachable
+ * for ever, silently.
+ *
+ * It answers with the opportunity and the contact's full record together,
+ * because the page needs both and two requests for one screen is two chances
+ * for half of it to arrive.
+ */
+myLeadsRouter.get(
+  '/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+
+    const lead = await queryOne<Record<string, unknown>>(
+      `${SELECT} WHERE o.id = ? AND o.deleted_at IS NULL`,
+      [opportunityId],
+    );
+    if (!lead) throw notFound('That lead no longer exists.');
+
+    const detail = await contact360(String(lead.contact_id));
+    res.json({ lead, ...detail });
   }),
 );
 

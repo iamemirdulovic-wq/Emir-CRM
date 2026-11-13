@@ -1,0 +1,397 @@
+/*
+ * The phone, under 768px.
+ *
+ * **Every selector here starts `.v2.v2-phone`, and that is not a typo.** The
+ * ported page styles are `.v2 .p-calendar .d-cal-layout` — three classes. A
+ * phone rule written `.v2-phone .d-cal-layout` is two, so it loses, and the
+ * calendar grid computes to 26 pixels wide at 390px with nothing in the code
+ * looking wrong. CLAUDE.md warns about this trap; `phone.test.ts` now fails if
+ * a rule in this file carries fewer than three classes.
+ *
+ * Read from the 59 prototypes in `design/screens/` and from
+ * `docs/v2/phone-shell.md`, which is the careful reading of them. The computer
+ * design in `design/web/` has no opinion about any of this, because it is a
+ * computer design — its grids are fixed desktop widths and there is no phone
+ * version of a single page.
+ *
+ * **Everything in this file is inside `@media (max-width: 767px)`.** The owner
+ * drew that line himself: 768 and wider must look exactly as it did. The one
+ * exception is the keyframes, which name nothing on their own.
+ *
+ * It loads after `v2-shell.css`, so where the two say different things about a
+ * phone, this wins without needing `!important`.
+ */
+
+/* ── the animations ──────────────────────────────────────────────────────── */
+
+/* §1.1: the scroller's children come up 14px and fade in. */
+@keyframes v2-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* §1.5: a sheet slides up over 0.38s on a soft overshoot. */
+@keyframes v2-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes v2-dim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (max-width: 767px) {
+
+  /* ── the top of a screen ───────────────────────────────────────────────
+     Not an app bar. §1.4: "There is no persistent app bar. Each screen draws
+     its own header as the first child of the scroller, and it scrolls away."
+     It was sticky with a line under it, which is the computer pattern. */
+  .v2.v2-phone .v2-ptop {
+    position: static;
+    background: transparent;
+    border-bottom: 0;
+    padding: calc(10px + var(--safe-t, 0px)) 16px 4px;
+    gap: 10px;
+  }
+  .v2.v2-phone .v2-ptop { display: block; }
+  .v2.v2-phone .v2-ptop-row { display: flex; align-items: center; gap: 10px; }
+  .v2.v2-phone .v2-pgrow { flex: 1 1 auto; min-width: 0; }
+  /* §1.4 pattern B: 30px, weight 800, tight. Its own line, under the
+     buttons — a title wedged between three round controls is a label. */
+  .v2.v2-phone .v2-ptop .v2-title {
+    font-size: 30px; font-weight: 800;
+    letter-spacing: -.8px; line-height: 1.1;
+    margin: 12px 0 0;
+    white-space: normal;
+  }
+
+  /* The round back button, 44px, white, soft shadow — §1.4 pattern B. */
+  .v2.v2-phone .v2-pback {
+    width: 44px; height: 44px; flex: none;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-pback .lucide { width: 20px; height: 20px; }
+
+  /* Home opens with your own face rather than a title — §1.4 pattern A. */
+  .v2.v2-phone .v2-pme { flex: none; display: grid; place-items: center; }
+  .v2.v2-phone .v2-pme .avatar { width: 44px; height: 44px; font-size: 15px; }
+
+  .v2.v2-phone .v2-padd { width: 44px; height: 44px; border-radius: 50%; }
+  /* §1.4: a 13px muted line under the title carrying the live count —
+     "62 open · 12 to call today". The design puts status here, never in a
+     strip of its own. */
+  .v2.v2-phone .v2-psub {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+
+  /* ── cards rising in ───────────────────────────────────────────────────
+     §1.1: 0.55s, 50ms apart for the first six, then all together. The page
+     element is re-keyed on every screen change so this plays again. */
+  .v2.v2-phone .v2-page > * > * {
+    animation: v2-rise .55s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  .v2.v2-phone .v2-page > * > *:nth-child(1) { animation-delay: 0ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(2) { animation-delay: 50ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(3) { animation-delay: 100ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(4) { animation-delay: 150ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(5) { animation-delay: 200ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(6) { animation-delay: 250ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(n + 7) { animation-delay: 300ms; }
+
+  /* A sheet must never inherit the rise — it has its own entrance, and two
+     animations on one element is a flicker. */
+  .v2.v2-phone .v2-page > * > .d-scrim,
+  .v2.v2-phone .v2-page > * > .d-dialog,
+  .v2.v2-phone .v2-page > * > .d-panel { animation: none; }
+
+  /* ── every dialog is a bottom sheet ────────────────────────────────────
+     §1.5: "Bottom sheets are the only modal in the whole phone design."
+     The build's dialogs are centred boxes and its side panels come in from
+     the right; both are computer shapes. Here they rise from the bottom
+     edge, full width, with a grab handle, and they scroll inside themselves
+     so the page behind stays where it was. */
+  .v2.v2-phone .d-dialog,
+  .v2.v2-phone .d-panel,
+  .v2.v2-phone .v2-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; max-width: none;
+    transform: none;
+    border-radius: 28px 28px 0 0;
+    max-height: 86vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(24px + var(--safe-b, 0px));
+    box-shadow: 0 -18px 50px -12px rgba(16, 24, 20, .34);
+    animation: v2-sheet-up .38s cubic-bezier(.22, 1.1, .36, 1) both;
+  }
+  /* `.d-open` is how the build shows a dialog; the transform it sets is the
+     centring one, which would undo the line above. */
+  .v2.v2-phone .d-dialog.d-open,
+  .v2.v2-phone .d-panel.d-open { transform: none; }
+
+  /* The 44 x 5 grab handle, §1.5. Drawn rather than marked up, so no screen
+     has to remember it. `usePhoneSheets` is what makes it drag. */
+  .v2.v2-phone .d-dialog::before,
+  .v2.v2-phone .d-panel::before,
+  .v2.v2-phone .v2-sheet::before {
+    content: "";
+    display: block;
+    width: 44px; height: 5px;
+    margin: 0 auto 12px;
+    border-radius: 999px;
+    background: var(--line-2);
+    flex: none;
+  }
+
+  /* The dim behind it. Tapping it closes the sheet — the build already wires
+     that to the scrim. */
+  .v2.v2-phone .d-scrim,
+  .v2.v2-phone .v2-scrim {
+    position: fixed; inset: 0;
+    background: rgba(16, 24, 20, .45);
+    animation: v2-dim-in .25s ease both;
+  }
+
+  /* A sheet's last button is the one your thumb lands on, so it is full
+     width and it is the tallest thing in the sheet. §1.5: its label states
+     the outcome, which is the screen's job, not this file's. */
+  .v2.v2-phone .d-dialog-foot,
+  .v2.v2-phone .d-panel-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .v2.v2-phone .d-dialog-foot > .d-btn,
+  .v2.v2-phone .d-panel-foot > .d-btn { width: 100%; min-height: 48px; }
+
+  /* ── the floating bar, and what sits clear of it ───────────────────────
+     §1.1: the scroller carries 108px of bottom padding, and nothing else
+     keeps content off the bar. */
+  .v2.v2-phone .v2-page {
+    padding-bottom: calc(108px + var(--safe-b, 0px));
+  }
+  /* With no bar — the dialler, a chat, email — that padding is wasted
+     screen. The shell drops `v2-has-bar` when the bar is away. */
+  .v2.v2-phone:not(.v2-has-bar) .v2-page {
+    padding-bottom: calc(20px + var(--safe-b, 0px));
+  }
+
+  /* ── thumbs ────────────────────────────────────────────────────────────
+     44px is the owner's own number, and it is Apple's. The design draws
+     26px pills, which is comfortable with a mouse and is not with a thumb. */
+  .v2.v2-phone .d-btn,
+  .v2.v2-phone .d-tab,
+  .v2.v2-phone .d-seg > button,
+  .v2.v2-phone .d-seg > a,
+  .v2.v2-phone .d-opt,
+  .v2.v2-phone .d-shortcut,
+  .v2.v2-phone .d-chip.d-click { min-height: 44px; }
+  .v2.v2-phone .d-btn.d-xs,
+  .v2.v2-phone .d-btn.d-sm { min-height: 40px; min-width: 40px; }
+  .v2.v2-phone .d-check input[type="checkbox"] { width: 30px; height: 30px; }
+
+  /* ── lists are cards, not tables ───────────────────────────────────────
+     §5.4: "one-at-a-time instead of a table". A table at 390px is either a
+     side-scroll or six words per column. Screens that have built their own
+     card layout opt out with `v2-keep-table`. */
+  .v2.v2-phone .d-table-wrap:not(.v2-keep-table) { overflow: visible; }
+
+  /* ── the More screen, as tiles ─────────────────────────────────────────
+     `Menu.dc.html` is the phone's answer to a sidebar: one screen of tiles,
+     the owner's tools in their own block. */
+  .v2.v2-phone .v2-tiles {
+    display: grid;
+    /* Three across, as `Menu.dc.html` has it:
+       grid-template-columns:repeat(3,minmax(0,1fr)). Two fitted nine tools on
+       a screen of thumb-travel where the design fits fifteen, and the whole
+       menu ran to 2,256px. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .v2.v2-phone .v2-tile {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    min-height: 96px;
+    padding: 14px 8px;
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    text-decoration: none;
+    text-align: center;
+    position: relative;
+  }
+  /* The design puts each icon in a 42px tinted disc, which is what makes a
+     wall of tiles readable at a glance rather than a wall of words. */
+  .v2.v2-phone .v2-tile .lucide {
+    width: 20px; height: 20px;
+    color: var(--accent);
+    box-sizing: content-box;
+    padding: 11px;
+    border-radius: 21px;
+    background: var(--accent-soft);
+  }
+  .v2.v2-phone .v2-tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; }
+
+  /* The way into search, which the design puts under the person and above
+     the tiles. It is a link to the search screen, not a second input: one
+     search box in the app, one place its history lives. */
+  .v2.v2-phone .v2-more-find {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 14px;
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink-3);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .v2.v2-phone .v2-more-find .lucide { width: 18px; height: 18px; }
+  .v2.v2-phone .v2-tile-badge {
+    position: absolute; top: 10px; right: 10px;
+    min-width: 22px; height: 22px; padding: 0 7px;
+    border-radius: 999px;
+    background: var(--surface-3); color: var(--ink-2);
+    font-size: 11.5px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-tile-badge.v2-tile-urgent {
+    background: var(--red-soft); color: var(--red-ink);
+  }
+  .v2.v2-phone .v2-tiles-head {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 18px 2px 8px;
+  }
+  .v2.v2-phone .v2-tiles-head:first-child { margin-top: 2px; }
+
+  /* The person, and the way out, at the foot of More. */
+  .v2.v2-phone .v2-me-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px; margin-top: 18px;
+    border-radius: 18px; background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink); text-decoration: none;
+  }
+  .v2.v2-phone .v2-me-row b { display: block; font-size: 14.5px; }
+  .v2.v2-phone .v2-me-row span { font-size: 12.5px; color: var(--ink-3); }
+}
+
+/* Everything above moves. Under a reduce-motion setting, nothing does. */
+@media (prefers-reduced-motion: reduce) {
+  .v2.v2-phone .v2-page > * > *,
+  .v2.v2-phone .d-dialog,
+  .v2.v2-phone .d-panel,
+  .v2.v2-phone .v2-sheet,
+  .v2.v2-phone .d-scrim { animation: none !important; }
+}
+
+@media (max-width: 767px) {
+  /* The way out, at the foot of More. Not red — it is the normal way to
+     leave, not a thing to be warned about. */
+  .v2.v2-phone .v2-signout { margin-top: 10px; }
+  .v2.v2-phone .v2-signout .lucide { width: 20px; height: 20px; color: var(--ink-3); }
+}
+
+@media (max-width: 767px) {
+  /* ── the check-in gate ─────────────────────────────────────────────────
+     The sheet that asks before the first call of the day. It is already a
+     sheet by the rules above; these are its three answers, which the design
+     draws as coloured rows with what each one means underneath. */
+  .v2.v2-phone .v2-gate-head { display: flex; align-items: flex-start; gap: 12px; }
+  .v2.v2-phone .v2-gate-ic {
+    width: 44px; height: 44px; flex: none;
+    border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-ink);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-gate-rows { display: flex; flex-direction: column; gap: 10px; }
+  .v2.v2-phone .v2-gate-row {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 64px; padding: 12px 14px;
+    border-radius: 16px;
+    text-align: left;
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .v2.v2-phone .v2-gate-row b { display: block; font-size: 14.5px; font-weight: 650; }
+  .v2.v2-phone .v2-gate-row > .d-grow > span {
+    display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px;
+  }
+  .v2.v2-phone .v2-gate-dot {
+    width: 38px; height: 38px; flex: none;
+    border-radius: 50%; background: var(--surface);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-gate-in { background: var(--green-soft); }
+  .v2.v2-phone .v2-gate-in .v2-gate-dot { color: var(--green-ink); }
+  .v2.v2-phone .v2-gate-out { background: var(--blue-soft); }
+  .v2.v2-phone .v2-gate-out .v2-gate-dot { color: var(--blue-ink); }
+  .v2.v2-phone .v2-gate-any { background: var(--amber-soft); }
+  .v2.v2-phone .v2-gate-any .v2-gate-dot { color: var(--amber-ink); }
+  .v2.v2-phone .v2-gate-foot { text-align: center; margin-top: 12px; }
+}
+
+@media (max-width: 767px) {
+  /*
+   * Settings, on the phone.
+   *
+   * `.d-set` is a 216px nav beside the panel — at 390px that leaves 142px
+   * for the panel, so every settings screen was unusable. The phone design
+   * has no side nav at all: `Settings.dc.html` is a list of sections, and
+   * tapping one opens that section on its own, with the back button as the
+   * way out. So the nav does not render here and the grid is one column.
+   *
+   * The list itself is the Settings screen's own work, not the shell's.
+   */
+  .v2.v2-phone .d-set {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: 0;
+  }
+  .v2.v2-phone .d-set-nav { display: none }
+  .v2.v2-phone .d-set-body { gap: 12px }
+}
+
+@media (max-width: 767px) {
+  /*
+   * §1.4 pattern A: a 17px title centred between the back button and the
+   * screen's one action, instead of the 30px one on its own line. Follow-ups
+   * and the inbox draw it this way, because the list below wants the height.
+   */
+  /*
+   * `.v2-ptop` is in the selector only to match the weight of the 30px rule
+   * near the top of this file — four classes against four. Without it this
+   * rule is three and loses, so every screen that asked for the compact
+   * title got the 30px one and nothing in the code looked wrong. Seven
+   * screens were wrong that way: Follow-ups, the inbox, Notifications,
+   * Transfers, Templates, Attendance and Search.
+   */
+  .v2.v2-phone .v2-ptop .v2-ptitle-compact {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    line-height: 1.3;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* With no title line under the row, the sub-line carries the count. */
+  .v2.v2-phone .v2-psub-compact { text-align: center; margin-top: 2px; }
+  /* A compact header has a 44px back button on the left and may have no
+     action on the right, and then the title centres in what is left rather
+     than in the screen. The shell renders a matching blank instead. */
+  .v2.v2-phone .v2-pspace { width: 44px; flex: none; }
+}

@@ -37,7 +37,17 @@ const VISIBLE = ['display', 'margin', 'padding', 'font-size', 'color', 'position
  * `class="pill due"` on purpose. Anything new has to be added here
  * deliberately, which is the point.
  */
-const ALLOWED = new Set(['pill']);
+const ALLOWED = new Set([
+  'pill',
+  /*
+   * `.v2-phone` is both: a component in `v2-shell.css` that lays the shell out
+   * for a narrow screen, and a modifier in `v2-phone.css` written `.v2.v2-phone`
+   * on purpose. The composition is the point — a phone rule needs three classes
+   * to beat `.v2 .p-calendar .d-cal-layout`, and two of them are these. See the
+   * head of `v2-phone.css`.
+   */
+  'v2-phone',
+]);
 
 /**
  * The layout properties that decide what a component *is*. Two files setting
@@ -226,6 +236,35 @@ describe('CSS class collisions', () => {
     }
 
     expect(clashes, `Two components are sharing a name:\n${clashes.join('\n')}`).toEqual([]);
+  });
+
+  it('no class name is declared as a component twice', () => {
+    /*
+     * The gap the test above left, and the one that bit on 12 November.
+     *
+     * `.v2-find` was the search box on the leads list — `display:flex` with
+     * `flex:1 1 280px` — and, four hundred lines later in the same file, the
+     * search *dialog*, also `display:flex`. The values agreed, so the layout
+     * check above saw no disagreement; the dialog simply inherited `height:40px`
+     * from the box and rendered as a strip with its results invisible beneath.
+     * Nothing threw, and the search appeared to find nothing.
+     *
+     * Re-declaring `display` for a name is the signal: a rule that refines a
+     * component does not restate what kind of box it is. So a bare class may
+     * set `display` in exactly one base rule, anywhere in the stylesheets.
+     */
+    const twice: string[] = [];
+    for (const [name, perRule] of layout) {
+      const declaring = [...perRule.entries()].filter(([, map]) => map.has('display'));
+      if (declaring.length > 1) {
+        twice.push(`.${name} declares display in ${declaring.map(([where]) => where).join(' and ')}`);
+      }
+    }
+
+    expect(
+      twice,
+      `Two components are sharing a name — rename one:\n${twice.join('\n')}`,
+    ).toEqual([]);
   });
 
   it('the board is the pipeline’s alone', () => {

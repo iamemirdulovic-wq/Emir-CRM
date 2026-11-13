@@ -10,7 +10,7 @@
  * drifts is exactly the thing a spending cap must not do.
  */
 import { setting } from '../config/secrets.js';
-import { execute, getPool, queryOne, type Executor } from '../db/client.js';
+import { execute, getPool, query, queryOne, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { logger } from '../lib/logger.js';
 
@@ -136,4 +136,33 @@ export async function recordUsage(
 
 export function usd(micros: number): string {
   return (micros / MICROS_PER_DOLLAR).toFixed(2);
+}
+
+/**
+ * What each feature cost this month.
+ *
+ * `design/web/ai-settings.html` shows a bar per feature, because "$38" on its
+ * own does not tell an owner which switch to turn off. Features with no calls
+ * are left out rather than listed at zero.
+ */
+export async function monthSpendByFeature(
+  exec: Executor = getPool(),
+): Promise<Array<{ feature: string; micros: number; calls: number }>> {
+  /* `SUM()` arrives as a string from mysql2, the same as in `monthSpend`. */
+  const rows = await query<{ feature: string; micros: string | null; calls: number }>(
+    `SELECT feature,
+            COALESCE(SUM(cost_micros), 0) AS micros,
+            COUNT(*) AS calls
+       FROM ai_usage
+      WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')
+      GROUP BY feature
+      ORDER BY micros DESC`,
+    [],
+    exec,
+  );
+  return rows.map((row) => ({
+    feature: row.feature,
+    micros: Number(row.micros ?? 0),
+    calls: Number(row.calls ?? 0),
+  }));
 }
