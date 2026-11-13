@@ -165,7 +165,15 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
       <div className="d-bento v2-row1">
         <section className="d-card d-hero d-c-8" data-state={state} aria-label="What to do now">
           {state === 'vip' && home.vip && (
-            <VipHero vip={home.vip} onAccept={() => act(`/api/v2/vip/${home.vip?.id}/accept`, 'Emir is told you accepted.')} saying={saying} />
+            <VipHero
+              vip={home.vip}
+              onAccept={() => act(`/api/v2/vip/${home.vip?.id}/accept`, `${home.vip?.givenBy} is told you accepted.`)}
+              onRefuse={() => act(
+                `/api/v2/vip/${home.vip?.id}/refuse`,
+                `Sent back to ${home.vip?.givenBy}.`,
+              )}
+              saying={saying}
+            />
           )}
 
           {state === 'over' && home.vip && (
@@ -419,12 +427,29 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
   );
 }
 
-function VipHero({ vip, onAccept, saying }: {
+function VipHero({ vip, onAccept, onRefuse, saying }: {
   vip: NonNullable<AgentHome['vip']>;
   onAccept: () => void;
+  onRefuse: () => void;
   saying: string | null;
 }) {
   const left = useCountdown(vip.deadlineAt);
+  /*
+   * "I can't take it", which both designs draw and neither half of the build
+   * offered — so an agent who could not take a VIP lead had no way to say so
+   * and simply let the clock run out.
+   *
+   * Two taps, because sending a VIP lead back is not something to do by
+   * brushing the screen. The wording is the prototype's own:
+   * `refuseLabel: s.refConf ? 'Tap again to send it back' : 'I can’t take it'`.
+   */
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    /* Disarm itself, so a tap left armed does not fire on the next visit. */
+    const t = setTimeout(() => setArmed(false), 6000);
+    return () => clearTimeout(t);
+  }, [armed]);
   return (
     <div className="d-hs d-h-vip">
       <div className="d-left">
@@ -454,7 +479,13 @@ function VipHero({ vip, onAccept, saying }: {
               <button type="button" className="d-btn d-on-dark d-primary" onClick={onAccept}>
                 <Icon name="check" />Accept VIP lead
               </button>
-              <Link className="d-btn d-on-dark" to={`/v2/leads/${vip.leadId}`}>Open the lead</Link>
+              <button
+                type="button"
+                className="d-btn d-on-dark"
+                onClick={() => { if (armed) { onRefuse(); setArmed(false); } else setArmed(true); }}
+              >
+                {armed ? 'Tap again to send it back' : "I can’t take it"}
+              </button>
             </>
           )}
           {saying && <span className="d-said">{saying}</span>}
