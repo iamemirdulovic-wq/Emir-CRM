@@ -52,7 +52,7 @@ function connectionOptions(): mysql.ConnectionOptions {
 
 function runDatabaseName(): string {
   const startedAt = Math.floor(Date.now() / 1000);
-  return `${RUN_DB_PREFIX}${process.pid}_${startedAt}_${randomBytes(2).toString('hex')}${'x'.repeat(90)}`;
+  return `${RUN_DB_PREFIX}${process.pid}_${startedAt}_${randomBytes(2).toString('hex')}`;
 }
 
 /**
