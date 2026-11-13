@@ -33,7 +33,11 @@ interface DayState {
 const FROM = 9;
 const UNTIL = 18;
 
-export function useCheckIn(): { ask: () => Promise<GateAnswer>; banner: ReactNode } {
+export function useCheckIn(
+  /** The bar wants the sheet only: its amber strip belongs on a page. */
+  options: { strip?: boolean } = {},
+): { ask: () => Promise<GateAnswer>; banner: ReactNode } {
+  const withStrip = options.strip ?? true;
   const { user } = useAuth();
   const day = useAsync<DayState>(() => api.get('/api/attendance/today'), []);
   const [asking, setAsking] = useState<((answer: GateAnswer) => void) | null>(null);
@@ -99,7 +103,7 @@ export function useCheckIn(): { ask: () => Promise<GateAnswer>; banner: ReactNod
 
   const banner = (
     <>
-      {marked === null && enabled && !closed && user?.role === 'agent' && (
+      {withStrip && marked === null && enabled && !closed && user?.role === 'agent' && (
         <div className="d-banner d-amber v2-gate-bar">
           <Icon name="alert-triangle" />
           <span className="d-grow">
@@ -117,29 +121,69 @@ export function useCheckIn(): { ask: () => Promise<GateAnswer>; banner: ReactNod
 
       {asking && (
         <>
-          <div className="d-scrim d-show" aria-hidden />
-          <div className="d-dialog d-open d-sm" role="dialog" aria-modal="true" aria-label="You are not checked in yet">
-            <div className="d-dialog-head">
+          <div className="d-scrim d-show" onClick={() => answer('cancel')} aria-hidden />
+          <div
+            className="d-dialog d-open d-sm v2-gate"
+            role="dialog"
+            aria-modal="true"
+            aria-label="You are not checked in yet"
+          >
+            <div className="d-dialog-head v2-gate-head">
+              <span className="v2-gate-ic"><Icon name="clock" /></span>
               <div className="d-grow">
                 <h3>You&apos;re not checked in yet</h3>
-                <p>
-                  Checking in takes one tap and only works on the office Wi-Fi.
-                  You can call either way.
-                </p>
+                <p>Work hours {String(FROM).padStart(2, '0')}:00 – {UNTIL}:00 · calls need a check-in</p>
               </div>
+              <button
+                type="button"
+                className="d-btn d-icon"
+                aria-label="Close"
+                data-sheet-close
+                onClick={() => answer('cancel')}
+              >
+                <Icon name="x" />
+              </button>
             </div>
 
             <div className="d-dialog-body">
               {where === null ? (
-                <div className="d-col d-gap-8">
-                  <button type="button" className="d-btn d-primary d-block" onClick={() => answer('checked_in')}>
-                    <Icon name="check" size={15} />Check in now and call
+                /*
+                 * Three answers, each a row with what it means underneath —
+                 * `Main.dc.html` and the 63 other prototypes that carry this
+                 * sheet. The sub-lines are the point: "owners see it" is the
+                 * half that makes "call anyway" an honest choice rather than
+                 * a dare.
+                 */
+                <div className="v2-gate-rows">
+                  <button type="button" className="v2-gate-row v2-gate-in" onClick={() => answer('checked_in')}>
+                    <span className="v2-gate-dot"><Icon name="wifi" /></span>
+                    <span className="d-grow">
+                      <b>Check in now and call</b>
+                      <span>
+                        {day.data?.onOfficeNetwork
+                          ? 'Office Wi-Fi found · takes 1 second'
+                          : 'Only works on the office network'}
+                      </span>
+                    </span>
+                    <Icon name="chevron-right" />
                   </button>
-                  <button type="button" className="d-btn d-block" onClick={() => setWhere('')}>
-                    <Icon name="pin" size={15} />I&apos;m working outside
+
+                  <button type="button" className="v2-gate-row v2-gate-out" onClick={() => setWhere('')}>
+                    <span className="v2-gate-dot"><Icon name="pin" /></span>
+                    <span className="d-grow">
+                      <b>I&apos;m working outside</b>
+                      <span>Viewing, sales centre, meeting</span>
+                    </span>
+                    <Icon name="chevron-right" />
                   </button>
-                  <button type="button" className="d-btn d-ghost d-block" onClick={() => answer('anyway')}>
-                    Call anyway
+
+                  <button type="button" className="v2-gate-row v2-gate-any" onClick={() => answer('anyway')}>
+                    <span className="v2-gate-dot"><Icon name="phone" /></span>
+                    <span className="d-grow">
+                      <b>Call anyway</b>
+                      <span>Each call is marked &ldquo;not checked in&rdquo; · owners see it</span>
+                    </span>
+                    <Icon name="chevron-right" />
                   </button>
                 </div>
               ) : (
@@ -166,8 +210,15 @@ export function useCheckIn(): { ask: () => Promise<GateAnswer>; banner: ReactNod
                   </button>
                 </form>
               )}
-              <p className="d-small d-muted">
-                “Call anyway” marks this call <b>not checked in</b>.
+
+              {/*
+                * The exemption, printed. It was enforced in code and never
+                * said, so an agent who was not asked could not tell a rule
+                * from a bug.
+                */}
+              <p className="d-small d-muted v2-gate-foot">
+                After {UNTIL}:00, on weekends and holidays, calls open directly.
+                Owners and admin are not asked.
               </p>
             </div>
           </div>

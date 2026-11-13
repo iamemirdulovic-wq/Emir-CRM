@@ -93,3 +93,28 @@ prototype therefore shows every conditional state at once — a sheet open over
 the screen behind it, several versions of the same card. Read the `<body>` and
 the `<script type="text/x-dc">` block, not only the picture. Every reader was
 told this and worked that way.
+
+## Added after the merge: the check-in gate
+
+Group 1's report landed after the summary above was written. Its largest
+finding was not one screen but a rule missing from sixty-three:
+
+> The attendance gate is on one screen out of twelve. `design/screens`
+> puts it on the way to the dialler from all of them — 64 of the 68
+> prototypes carry it — and it is the only thing in the phone design that
+> stops an agent working. We ask on `/v2/calling` only, as a centred box,
+> and the sentence that says when it does **not** apply is implemented in
+> code and never printed, so an agent cannot tell a lock from a bug.
+
+Fixed in the shell before the build agents started, because it is shell
+work and four agents would otherwise each have copied the old shape:
+
+- the gate now hangs off the dial button, so it covers every screen that
+  has one, rather than the single screen that was carrying it;
+- it is a bottom sheet with the design's three answers, their sub-lines
+  and their colours, wording taken from the prototypes verbatim;
+- the exemption is printed: *"After 18:00, on weekends and holidays, calls
+  open directly. Owners and admin are not asked."*
+
+`e2e/phone.mjs` asserts all three answers, the consequence line and the
+exemption from a real browser, from `/v2/leads` rather than `/v2/calling`.

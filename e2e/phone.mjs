@@ -127,19 +127,38 @@ for (const route of ['/v2/calling', '/v2/email']) {
 /* ── 3. the check-in gate ───────────────────────────────────────────────── */
 
 {
-  const page = await open('/v2/calling');
-  const text = (await page.locator('.v2-page').innerText()).toLowerCase();
-  ok('check-in', text.includes('check in'), 'the calling screen never mentions checking in');
-  ok(
-    'check-in',
-    text.includes('working outside') || text.includes('outside'),
-    'the calling screen offers no "working outside" answer',
-  );
-  ok(
-    'check-in',
-    text.includes('not checked in') || text.includes('call anyway'),
-    'the calling screen does not say what happens if you call anyway',
-  );
+  /*
+   * From the dial button, on an ordinary screen — not only on the calling
+   * screen. §1.3 puts the gate on the way to the dialler from all 64, and
+   * the audit found it on one.
+   */
+  const page = await open('/v2/leads');
+  await page.locator('.v2-dial').click();
+  await page.waitForTimeout(700);
+  const gate = await page.evaluate(() => {
+    const d = document.querySelector('.v2-gate');
+    if (!d) return null;
+    const r = d.getBoundingClientRect();
+    return {
+      bottomGap: Math.round(window.innerHeight - r.bottom),
+      rows: [...d.querySelectorAll('.v2-gate-row b')].map((x) => x.textContent?.trim()),
+      subs: [...d.querySelectorAll('.v2-gate-row > .d-grow > span')].map((x) => x.textContent ?? ''),
+      foot: d.querySelector('.v2-gate-foot')?.textContent ?? '',
+    };
+  });
+  if (!gate) {
+    fail('check-in', 'the dial button did not ask — the gate is not on the way to the dialler');
+  } else {
+    ok('check-in', gate.bottomGap === 0, 'the gate is not a bottom sheet');
+    ok('check-in', gate.rows.length === 3, `expected three answers, found ${gate.rows.length}`);
+    ok('check-in', gate.rows[0] === 'Check in now and call', `first answer reads "${gate.rows[0]}"`);
+    ok('check-in', gate.rows[1] === "I'm working outside", `second answer reads "${gate.rows[1]}"`);
+    ok('check-in', gate.rows[2] === 'Call anyway', `third answer reads "${gate.rows[2]}"`);
+    /* The half that makes "call anyway" honest rather than a dare. */
+    ok('check-in', gate.subs[2]?.includes('owners see it'), 'the consequence does not say owners see it');
+    /* Enforced in code and never said, so a lock looked like a bug. */
+    ok('check-in', gate.foot.includes('Owners and admin are not asked'), 'the exemption is still unprinted');
+  }
   await page.close();
 }
 

@@ -1,4 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -9,6 +12,7 @@ import {
   extraScreensFor, groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem,
 } from './nav.js';
 import { Bell } from './Bell.js';
+import { useCheckIn } from './check-in.js';
 import { Find } from './Find.js';
 import {
   barIsHiddenAt, FullAttentionProvider, PhoneHeadProvider, usePhoneHeadSlot,
@@ -254,8 +258,26 @@ function TopBar() {
 }
 
 /** The phone's floating bar, and the dial button beside it — never over it. */
+/**
+ * The floating bar, and the dial button beside it.
+ *
+ * The dial button carries the check-in gate. `docs/v2/phone-shell.md` §1.3:
+ * "It always opens the power dialer — on all 64 screens, no exceptions", and
+ * §5.1 puts the gate on the way. It was on the calling screen alone, so an
+ * agent who started a call from anywhere else was never asked, and the record
+ * an owner reads had a hole in it the shape of eleven screens.
+ */
 function PhoneBar() {
   const at = useLocation();
+  const navigate = useNavigate();
+  const gate = useCheckIn({ strip: false });
+
+  const dial = async (e: ReactMouseEvent) => {
+    e.preventDefault();
+    const answer = await gate.ask();
+    if (answer !== 'cancel') navigate('/v2/calling');
+  };
+
   return (
     <div className="v2-bar-wrap">
       <nav className="v2-bar" aria-label="Main">
@@ -270,9 +292,10 @@ function PhoneBar() {
           </NavLink>
         ))}
       </nav>
-      <Link to="/v2/calling" className="v2-dial" aria-label="Start calling">
+      <Link to="/v2/calling" className="v2-dial" aria-label="Start calling" onClick={dial}>
         <Icon name="phone" />
       </Link>
+      {gate.banner}
     </div>
   );
 }

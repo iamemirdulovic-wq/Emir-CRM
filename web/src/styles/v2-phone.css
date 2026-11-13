@@ -270,3 +270,42 @@
   .v2.v2-phone .v2-signout { margin-top: 10px; }
   .v2.v2-phone .v2-signout .lucide { width: 20px; height: 20px; color: var(--ink-3); }
 }
+
+@media (max-width: 767px) {
+  /* ── the check-in gate ─────────────────────────────────────────────────
+     The sheet that asks before the first call of the day. It is already a
+     sheet by the rules above; these are its three answers, which the design
+     draws as coloured rows with what each one means underneath. */
+  .v2.v2-phone .v2-gate-head { display: flex; align-items: flex-start; gap: 12px; }
+  .v2.v2-phone .v2-gate-ic {
+    width: 44px; height: 44px; flex: none;
+    border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-ink);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-gate-rows { display: flex; flex-direction: column; gap: 10px; }
+  .v2.v2-phone .v2-gate-row {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 64px; padding: 12px 14px;
+    border-radius: 16px;
+    text-align: left;
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .v2.v2-phone .v2-gate-row b { display: block; font-size: 14.5px; font-weight: 650; }
+  .v2.v2-phone .v2-gate-row > .d-grow > span {
+    display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px;
+  }
+  .v2.v2-phone .v2-gate-dot {
+    width: 38px; height: 38px; flex: none;
+    border-radius: 50%; background: var(--surface);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-gate-in { background: var(--green-soft); }
+  .v2.v2-phone .v2-gate-in .v2-gate-dot { color: var(--green-ink); }
+  .v2.v2-phone .v2-gate-out { background: var(--blue-soft); }
+  .v2.v2-phone .v2-gate-out .v2-gate-dot { color: var(--blue-ink); }
+  .v2.v2-phone .v2-gate-any { background: var(--amber-soft); }
+  .v2.v2-phone .v2-gate-any .v2-gate-dot { color: var(--amber-ink); }
+  .v2.v2-phone .v2-gate-foot { text-align: center; margin-top: 12px; }
+}
