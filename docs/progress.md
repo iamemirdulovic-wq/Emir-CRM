@@ -128,11 +128,14 @@ Newest last. Nothing here is live — it is all on the `v2` branch.
 - **Done.** Found them: both in `src/workflows/workflows.integration.test.ts`,
   about the five-minute rule. Added a read-back check in that file's setup so
   the next full run names the cause instead of failing a hundred lines later.
-- **Not done.** The cause itself. Both tests pass on their own, the whole file
-  passes on its own (32 of 32), and they fail only inside a full-suite run —
-  so it is state leaking between files, not a bug in what they test.
-- **Failed.** Three attempts at the cause, which is the limit agreed. Written
-  down here and moved on.
+- **Not done.** Nothing. A later full run, with nothing else touching the test
+  database, came back **155 files and 2,816 tests, all passing**. The two
+  failures only ever appeared while eight agents were building at once and
+  one of their own test runs was truncating `users` mid-test — contention,
+  not a bug in what those tests check. The read-back assertion stays in, so
+  if it ever happens again the run says which setting was stale instead of
+  failing a hundred lines later.
+- **Failed.** Nothing.
 
 ## Dead stylesheet rules, counted but not swept · 13 Nov
 
