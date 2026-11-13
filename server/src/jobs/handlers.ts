@@ -35,6 +35,7 @@ import type { JobType } from './types.js';
 import { runCampaignBatch } from '../email/campaigns.js';
 import { sendOwnerSummary } from '../activity/send-owner-summary.js';
 import { runWallDaily } from '../wall/auto.js';
+import { runChecks } from '../v2/health-checks.js';
 
 export type JobHandler = (payload: Record<string, unknown>) => Promise<unknown>;
 
@@ -412,6 +413,18 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   'reports.owner_summary': async () => sendOwnerSummary(),
 
   'wall.daily': async () => runWallDaily(),
+
+  /*
+   * Six measurements, six rows. This is what makes the thirty-day bars and
+   * the uptime percentages on the health page real rather than drawn.
+   */
+  'health.check': async () => {
+    const measured = await runChecks();
+    return {
+      checked: measured.length,
+      notFine: measured.filter((one) => one.state !== 'ok').map((one) => one.service),
+    };
+  },
 
   'maintenance.cleanup': async () => {
     const sessions = await purgeExpiredSessions();

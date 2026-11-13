@@ -33,16 +33,16 @@ media query, not a second app. Where the design has a phone screen of its own
 | `manage-projects.html` | `/v2/projects/manage` | Done | `ManageProjects` |
 | `sales-offers.html` | `/v2/offers` | Done | — |
 | `team.html` | `/v2/team` | Done | `TeamDirectory`, `Dark_TeamDirectory` |
-| `profile.html` | `/v2/profile`, `/v2/team/:id` | Done — "Edit my profile" still opens the old editing form at `/profile`, which was not redrawn; everything you read is v2 | `Profile`, `Colleague`, `PersonalInfo`, `Security` |
+| `profile.html` | `/v2/profile`, `/v2/me` (computer) · `/v2/team/:id` (a colleague) | Done — one page inside the settings shell, hero + shortcuts + the Personal info and Security tabs, with the real signed-in devices. No two-step switch and no monthly target: `docs/v2/questions-inbox.md`. A phone keeps the three prototypes | `Profile`, `Colleague`, `PersonalInfo`, `Security` |
 | `digital-card.html` | `/v2/card` | Done | `DigitalCard` |
 | `team-wall.html` | `/v2/wall` | Done | `TeamWall` |
 | `best-of-homes.html` | `/v2/best` | Done | `Leaderboard` |
-| `attendance.html` | `/v2/attendance` (agent) | Done | `Attendance`, `Dark_Attendance`, `WorkOutside`, `LeaveRequest` |
+| `attendance.html` | `/v2/attendance` (agent) | Done — four tiles, the week's times, the month's absences, the leave rules. No checking out, no allowance, no half day: `docs/v2/questions-inbox.md` | `Attendance`, `Dark_Attendance`, `WorkOutside`, `LeaveRequest` |
 | `team-attendance.html` | `/v2/attendance` (owner) | Done | `TeamAttendance`, `LeaveApprovals` |
 | `team-live.html` | `/v2/team-live` | Done | `OwnerLive` |
 | `team-activity.html` | `/v2/activity` | **Partly** — no 7-day sparkline and no "leads opened" column: nothing records either, and a column of plausible hours against a colleague's name is the worst thing to guess | `TeamActivity` |
 | `messaging-report.html` | `/v2/messaging` | Done | `OwnerMessaging` |
-| `inbox.html` | `/v2/inbox` | Done | `Inbox`, `Chat` |
+| `inbox.html` | `/v2/inbox` | Done — with the design's later-phase banner. Its composer is inert in the drawing and sends here; that one difference is `docs/decisions-to-confirm.md` §39 | `Inbox`, `Chat` |
 | `email.html` | `/v2/email` | **Partly** — the left list is the email template library, not a mailbox. The CRM has no mailbox: email goes out from a lead's page, so nothing lists sent mail or drafts across the company | `Email` |
 | `templates.html` | `/v2/templates` | Done | `Templates` |
 | `homes-ai.html` | `/v2/ai` | Done | `AskAI` |

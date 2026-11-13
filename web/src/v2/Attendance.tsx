@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
+import { celebrate } from '../lib/celebrate.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
@@ -23,18 +24,31 @@ import { attendanceSub } from './subs.js';
  *     number nobody set is a number somebody plans a holiday around. It shows
  *     days taken, which is true, and the allowance can join it the day it
  *     exists.
- *   - Checking out. There is one tap a day and the first one wins; the hero
- *     says so rather than offering a button that does nothing.
- *   - Absences on an agent's own month. `/attendance/me` does not say which
- *     days the office was shut, so an unmarked Friday cannot be told apart
- *     from a public holiday. The team grid does know, and marks them.
+ *   - Checking out, and with it the design's "Day finished" hero and its
+ *     "I'm back in the office" button. There is one tap a day and the first
+ *     one wins; the hero says so rather than offering a button that does
+ *     nothing. It needs a column and three answers from the owner —
+ *     `docs/decisions-to-confirm.md` §43.
+ *   - Hours. Nothing records when anybody leaves, so the week's "24 h 14 min
+ *     so far" and the month's "Hours in the office" have nothing to add up.
+ *     Days are counted instead, and the card says so.
  *   - The shared-location map, and the buttons beside each row of the team
  *     table. Nothing stores a location, and there is no endpoint behind
  *     "Mark as leave"; the note an agent writes on their way out is what the
  *     office gets.
  */
 
-interface DayState {
+export interface Shift {
+  start: string;
+  end: string;
+  satStart: string;
+  satEnd: string;
+  /** JS day numbers, 0 = Sunday. */
+  closedDays: number[];
+  graceMinutes: number;
+}
+
+export interface DayState {
   closed: boolean;
   marked: 'office' | 'outside' | null;
   markedAt: string | null;
@@ -42,10 +56,24 @@ interface DayState {
   note: string | null;
   onOfficeNetwork: boolean;
   enabled: boolean;
+  /** What the network the caller is on is called, when the owner named it. */
+  officeName?: string | null;
+  /** Every office network's name, for the "Where" row. */
+  officeNames?: string[];
   startsAt: string | null;
+  endsAt: string | null;
+  /** A tap after this counts as late. The design's "Late · after 09:10". */
+  lateAfter: string | null;
+  /*
+   * Optional on purpose: a tab left open across a deploy is holding the old
+   * answer, which has no shift in it, and a screen that throws on a stale
+   * field is a screen that throws in front of ten people at once. `shiftOf`
+   * leaves the facts blank rather than inventing office hours.
+   */
+  shift?: Shift;
 }
 
-interface Leave {
+export interface Leave {
   id: string;
   userId: string;
   userName?: string;
@@ -59,13 +87,17 @@ interface Leave {
   createdAt?: string;
 }
 
-interface Mine {
+export interface Mine {
   today: DayState;
   from: string;
   to: string;
-  days: Array<{ on_date: string; kind: string; was_late: number; note: string | null }>;
+  days: Array<{
+    on_date: string; kind: string; marked_at: string | null; was_late: number; note: string | null;
+  }>;
   leave: Leave[];
   taken: Record<string, number>;
+  /** First names of the people who answer a leave request. */
+  answerers?: string[];
 }
 
 /** Exactly what `attendanceMonth` returns, plus the leave to answer. */
@@ -104,7 +136,7 @@ const KINDS = [
 const REFUSALS = ['Too many people away', 'Busy week', 'Talk to me first'];
 
 /** The five states a day can be in, and how each is drawn. */
-type Mark = 'ok' | 'late' | 'out' | 'leave' | 'asked' | 'abs' | 'future' | 'none';
+export type Mark = 'ok' | 'late' | 'out' | 'leave' | 'asked' | 'abs' | 'future' | 'none';
 
 const WORD: Record<Mark, string> = {
   ok: 'In office', late: 'Late', out: 'Working outside', leave: 'On leave',
@@ -202,7 +234,9 @@ export function V2Attendance() {
         )}
       </div>
 
-      {!seesTeam && tab === 'today' && <AgentToday mine={mine.data} reload={mine.reload} />}
+      {!seesTeam && tab === 'today' && (
+        <AgentToday mine={mine.data} reload={mine.reload} onGoto={setTab} />
+      )}
       {!seesTeam && tab === 'month' && <AgentMonth mine={mine.data} />}
       {!seesTeam && tab === 'leave' && (
         <AgentLeave mine={mine.data} reload={mine.reload} onAsk={() => setAsking(true)} />
@@ -223,7 +257,11 @@ export function V2Attendance() {
       )}
 
       {asking && (
-        <AskPanel onClose={() => setAsking(false)} onAsked={() => { setAsking(false); mine.reload(); }} />
+        <AskPanel
+          mine={mine.data}
+          onClose={() => setAsking(false)}
+          onAsked={() => { setAsking(false); mine.reload(); }}
+        />
       )}
     </div>
   );
@@ -231,19 +269,22 @@ export function V2Attendance() {
 
 /* ── the agent's day ───────────────────────────────────────────────────── */
 
-function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
+function AgentToday({ mine, reload, onGoto }: {
+  mine: Mine;
+  reload: () => void;
+  onGoto: (tab: string) => void;
+}) {
   const [outside, setOutside] = useState(false);
   const marks = useMarks(mine);
   const week = weekOf(dubaiToday());
   const [picked, setPicked] = useState(dubaiToday());
 
-  const office = mine.days.filter((d) => d.kind === 'office').length;
-  const away = mine.days.filter((d) => d.kind === 'outside').length;
-  const late = mine.days.filter((d) => Number(d.was_late) === 1).length;
-  const taken = Object.values(mine.taken).reduce((sum, n) => sum + n, 0);
-  const asked = mine.leave.filter((one) => one.status === 'pending').length;
+  const month = useMemo(() => monthFacts(mine), [mine]);
+  const asked = mine.leave.filter((one) => one.status === 'pending');
+  const annualTaken = mine.taken.annual ?? 0;
 
   const detail = markOn(marks, picked);
+  const shift = shiftOf(mine.today);
 
   return (
     <>
@@ -253,7 +294,12 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
         <section className="d-card d-c-5">
           <div className="d-card-head">
             <h3>This week</h3>
-            <span className="d-small d-muted">{nice(week[0]!)} – {nice(week[6]!)}</span>
+            {/* The design's "Week 46 · 24 h 14 min so far". The hours are not
+                here: nothing records when anybody leaves, so the week has no
+                total to add up. `docs/v2/questions-inbox.md`. */}
+            <span className="d-small d-muted">
+              Week {weekNumber(dubaiToday())} · {nice(week[0]!)} – {nice(week[6]!)}
+            </span>
           </div>
           <div className="d-wk7">
             {week.map((date, i) => {
@@ -271,7 +317,13 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
                   <span className="d-dn">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
                   <span className="d-dd">{Number(date.slice(8))}</span>
                   <span className={`d-st ${BAR[mark]}`} />
-                  <span className="d-tt">{SHORT[mark]}</span>
+                  {/* The design puts the check-in time in the cell, and falls
+                      back to a word only where there is no time to show —
+                      "off" on a day the office is shut. */}
+                  <span className="d-tt">
+                    {timeOn(mine, date)
+                      ?? (shift.closedDays.includes(dayOfWeek(date)) ? 'off' : SHORT[mark])}
+                  </span>
                 </button>
               );
             })}
@@ -281,30 +333,67 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
               <b className="d-bold d-grow">
                 {nice(picked)}{picked === dubaiToday() ? ' · today' : ''}
               </b>
-              <span className={CHIP[detail]}>{WORD[detail] || 'Not yet'}</span>
+              <span className={CHIP[detail]}>
+                {shift.closedDays.includes(dayOfWeek(picked)) && detail === 'none'
+                  ? 'Day off'
+                  : WORD[detail] || 'Not yet'}
+              </span>
             </div>
             <div className="d-small d-muted d-mt-4">{lineFor(picked, detail, mine)}</div>
           </div>
           <div className="d-guide d-mt-auto v2-guide">
             <span><span className="d-dot d-green" />In office, on time</span>
-            <span><span className="d-dot d-amber" />Late</span>
+            <span>
+              <span className="d-dot d-amber" />
+              Late{mine.today.lateAfter ? ` · after ${mine.today.lateAfter}` : ''}
+            </span>
             <span><span className="d-dot d-blue" />Working outside</span>
             <span><span className="d-dot d-violet" />Leave</span>
-            <span><span className="d-dot" />Not marked, or still to come</span>
+            <span><span className="d-dot d-red" />Absent</span>
+            <span><span className="d-dot v2-dot-none" />Day off or not yet</span>
           </div>
         </section>
       </div>
 
-      {/* `Attendance.dc.html` ends its month with a row of small counts, not
-          a column of full-width cards; two to a row is what fits at 390px. */}
+      {/* The design's four tiles, each a link into the tab that explains it.
+          `Attendance.dc.html` ends its month with the same row of counts. */}
       <div className="d-bento v2-b-tiles">
-        <Tile label="In the office" value={office} note={`of ${mine.days.length} days marked`} />
-        <Tile label="Late" value={late} note={late === 0 ? 'none in sixty days' : 'in sixty days'} />
-        <Tile label="Working outside" value={away} note="in sixty days" />
         <Tile
-          label="Days off taken"
-          value={taken}
-          note={asked > 0 ? `${asked} waiting for an answer` : 'this year'}
+          label={`On time in ${MONTHS[Number(dubaiToday().slice(5, 7)) - 1]}`}
+          value={month.onTime}
+          note={`of ${month.marked} days`}
+          up
+          onGoto={() => onGoto('month')}
+        />
+        <Tile
+          label="Late"
+          value={month.late}
+          note={month.lastLate
+            ? `${nice(month.lastLate.date)}${month.lastLate.minutes !== null ? ` · ${month.lastLate.minutes} min` : ''}`
+            : 'none this month'}
+          onGoto={() => onGoto('month')}
+        />
+        <Tile
+          label="Working outside"
+          value={month.outside}
+          note={month.lastOutside
+            ? `${nice(month.lastOutside.date)}${month.lastOutside.why ? ` · ${month.lastOutside.why}` : ''}`
+            : 'none this month'}
+          onGoto={() => onGoto('month')}
+        />
+        {/*
+          * The design's tile is "Annual leave left · 14 · 3 days asked".
+          * There is no allowance in this database, so the number is the one
+          * that is true — days taken — under a label that says so. The day
+          * Emir sets the allowance this becomes his tile exactly.
+          */}
+        <Tile
+          label="Annual leave taken"
+          value={annualTaken}
+          note={asked.length > 0
+            ? `${askedDays(asked)} day${askedDays(asked) === 1 ? '' : 's'} asked`
+            : 'nothing asked'}
+          onGoto={() => onGoto('leave')}
         />
       </div>
 
@@ -333,9 +422,26 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
           <dl className="d-kv">
             <div className="d-kv-row">
               <dt>Shift</dt>
-              <dd>{mine.today.closed ? 'The office is closed today' : `Starts at ${mine.today.startsAt ?? '—'}`}</dd>
+              <dd>
+                {shift.start
+                  ? `${shift.start} – ${shift.end}, ${openDays(shift.closedDays)}`
+                  : mine.today.closed
+                    ? 'The office is closed today'
+                    : `Starts at ${mine.today.startsAt ?? '—'}`}
+              </dd>
             </div>
-            <div className="d-kv-row"><dt>Where</dt><dd>Only on the office Wi-Fi</dd></div>
+            <div className="d-kv-row">
+              <dt>Late</dt>
+              <dd>
+                {mine.today.lateAfter
+                  ? `Check-in after ${mine.today.lateAfter}`
+                  : `Check-in more than ${shift.graceMinutes} minutes after the shift starts`}
+              </dd>
+            </div>
+            <div className="d-kv-row">
+              <dt>Where</dt>
+              <dd>{whereLine(mine.today.officeNames)}</dd>
+            </div>
             <div className="d-kv-row"><dt>Not in office</dt><dd>Use “I&apos;m working outside”</dd></div>
             <div className="d-kv-row"><dt>One tap</dt><dd>The first tap of the day counts. A second one changes nothing.</dd></div>
             <div className="d-kv-row"><dt>Time</dt><dd>The real time is saved. Nobody can change it.</dd></div>
@@ -350,15 +456,32 @@ function AgentToday({ mine, reload }: { mine: Mine; reload: () => void }) {
   );
 }
 
-function Tile({ label, value, note }: { label: string; value: number; note: string }) {
-  return (
-    <div className="d-card d-c-3 d-tile">
+/**
+ * A tile that is a link, as the design draws it: `<a class="card tile"
+ * href="#month" data-goto="month">`. Pressing it moves to the tab that holds
+ * the detail, which is the only reason the number is interesting.
+ */
+function Tile({ label, value, note, up, onGoto }: {
+  label: string;
+  value: number;
+  note: string;
+  up?: boolean;
+  onGoto?: () => void;
+}) {
+  const body = (
+    <>
       <span className="d-label">{label}</span>
       <div className="d-stat-row d-mt-4">
         <b className="d-num">{value}</b>
-        <span className="d-delta">{note}</span>
+        <span className={up ? 'd-delta d-up' : 'd-delta'}>{note}</span>
       </div>
-    </div>
+    </>
+  );
+  if (!onGoto) return <div className="d-card d-c-3 d-tile">{body}</div>;
+  return (
+    <button type="button" className="d-card d-c-3 d-tile d-click" onClick={onGoto}>
+      {body}
+    </button>
   );
 }
 
@@ -378,8 +501,12 @@ function useCheckIn(): { checkIn: () => void; busy: boolean; problem: string | n
     setBusy(true);
     setProblem(null);
     try {
-      await api.post('/api/attendance/check-in', {});
-      toast('Checked in. Have a good day.');
+      const saved = await api.post<DayState>('/api/attendance/check-in', {});
+      /* The design throws confetti on check-in, and `celebrate()` already
+         does nothing at all for anybody who has asked their device to stop
+         animating things. The time is the server's, never this clock's. */
+      celebrate();
+      toast(`Checked in at ${clock(saved.markedAt)}. Have a good day.`);
       window.location.reload();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not work.');
@@ -423,21 +550,35 @@ function Hero({ day, onOutside }: { day: DayState; onOutside: () => void }) {
 
   if (day.marked) {
     const out = day.marked === 'outside';
+    /*
+     * The design's outside hero is "Outside · back by 16:30" over the place,
+     * who with and why. All four are in the one line the agent wrote on the
+     * way out — the table keeps a single note per day — so the headline takes
+     * the "back by" out of it and the rest stays as the sub.
+     */
+    const back = backFrom(day.note);
     return (
       <section className="d-card d-hero d-c-7 v2-att-hero">
         <div>
           <span className="d-h-eyebrow">
             <span className={`d-dot ${out ? 'd-blue' : day.wasLate ? 'd-amber' : 'd-green'}`} />
-            {out ? 'Working outside' : `Checked in · ${day.wasLate ? 'late' : 'on time'}`}
+            {out
+              ? `Working outside · marked once at ${clock(day.markedAt)}`
+              : `Checked in · ${day.wasLate ? 'late' : 'on time'}`}
           </span>
           <div className="d-h-big">
-            {out ? 'Outside today' : `In office since ${clock(day.markedAt)}`}
+            {out
+              ? (back ? `Outside · back by ${back}` : 'Outside today')
+              : `In office since ${clock(day.markedAt)}`}
           </div>
           {out && day.note && <p className="d-h-sub">{day.note}</p>}
           <div className="d-h-facts">
-            <div><b>{clock(day.markedAt)}</b><span>marked at</span></div>
-            <div><b>{day.startsAt ?? '—'}</b><span>shift starts</span></div>
-            <div><b>{out ? 'Outside' : 'Office Wi-Fi'}</b><span>where</span></div>
+            <div><b>{workedSince(day.markedAt)}</b><span>worked today</span></div>
+            <div><b>{day.endsAt ?? '—'}</b><span>shift ends</span></div>
+            <div>
+              <b>{out ? 'Outside' : day.officeName ?? 'Office Wi-Fi'}</b>
+              <span>{out ? 'where' : 'office Wi-Fi'}</span>
+            </div>
           </div>
         </div>
         <p className="d-small v2-hero-note">
@@ -452,12 +593,18 @@ function Hero({ day, onOutside }: { day: DayState; onOutside: () => void }) {
       <div>
         <span className="d-h-eyebrow">
           <span className={`d-dot ${day.onOfficeNetwork ? 'd-green' : 'd-red'}`} />
-          {day.onOfficeNetwork ? 'Office Wi-Fi found' : 'Not on the office network'}
+          {day.onOfficeNetwork
+            ? `Office Wi-Fi found${day.officeName ? ` · ${day.officeName}` : ''}`
+            : 'Not on the office network'}
         </span>
         <div className="d-h-big">Ready to start your day?</div>
+        {/* The design warns, in this exact shape, that a check-in at this
+            hour counts as late: "Shift 09:00 – 18:00. It is 14:55 now, so
+            this check-in counts as late. The real time is saved." */}
         <p className="d-h-sub">
           {day.startsAt
-            ? `The shift starts at ${day.startsAt}. The real time is saved.`
+            ? `Shift ${day.startsAt} – ${day.endsAt ?? '—'}. ${lateWarning(day)} `
+              + 'The real time is saved.'
             : 'Check in when you get in. The real time is saved.'}
         </p>
       </div>
@@ -499,7 +646,9 @@ function stepsFor(day: DayState): Step[] {
       tone: day.wasLate ? 'd-amber' : 'd-green',
       icon: 'check',
       title: `Checked in · ${day.wasLate ? 'late' : 'on time'}`,
-      body: day.note ?? 'On the office Wi-Fi.',
+      body: day.note ?? (day.officeName
+        ? `Office Wi-Fi ${day.officeName}`
+        : 'On the office Wi-Fi.'),
       at: clock(day.markedAt),
     });
   } else if (day.marked === 'outside') {
@@ -511,7 +660,9 @@ function stepsFor(day: DayState): Step[] {
   } else {
     steps.push({
       tone: 'd-red', icon: 'alert-triangle', title: 'Not checked in yet',
-      body: day.startsAt ? `The shift started at ${day.startsAt}.` : 'Check in when you get in.',
+      body: day.startsAt
+        ? `Shift started ${day.startsAt}${day.lateAfter ? ` · late after ${day.lateAfter}` : ''}`
+        : 'Check in when you get in.',
       at: nowClock(),
     });
   }
@@ -520,6 +671,19 @@ function stepsFor(day: DayState): Step[] {
     body: 'The first tap is the one that is saved. A second one changes nothing.',
     at: '',
   });
+  /*
+   * The design's last row is "Shift ends · 18:00 · if you forget, the day
+   * closes at 18:00", which is about checking out. Nothing in this CRM
+   * records when anybody leaves, so the row says when the shift ends and
+   * stops there rather than promising a close that does not happen.
+   */
+  if (day.endsAt) {
+    steps.push({
+      tone: '', icon: 'clock', title: 'Shift ends',
+      body: `The office day ends at ${day.endsAt}.`,
+      at: day.endsAt,
+    });
+  }
   return steps;
 }
 
@@ -544,19 +708,32 @@ function AgentMonth({ mine }: { mine: Mine }) {
   const [picked, setPicked] = useState(dubaiToday());
 
   const cells = useMemo(() => monthGrid(month), [month]);
+  const shift = shiftOf(mine.today);
+  /* Without the shift there is no way to tell a day the office was shut from
+     a day nobody came in, so the sixth total stays "Not marked". */
+  const knowsClosed = shift.start !== '';
+  const closed = shift.closedDays;
   const totals = useMemo(() => {
-    const count: Record<string, number> = { ok: 0, late: 0, out: 0, leave: 0, none: 0 };
+    const count: Record<string, number> = { ok: 0, late: 0, out: 0, leave: 0, abs: 0, none: 0 };
     for (const date of cells) {
       if (!date || date > dubaiToday()) continue;
       const mark = markOn(marks, date);
-      if (mark === 'asked') count.leave = (count.leave ?? 0) + 1;
+      /* A day the office was shut is not an absence. `closedDays` reaches
+         the agent's own screen now, so the two can finally be told apart —
+         until today every unmarked Sunday read as "not marked". */
+      if (mark === 'none') {
+        if (!knowsClosed) count.none = (count.none ?? 0) + 1;
+        else if (!closed.includes(dayOfWeek(date))) count.abs = (count.abs ?? 0) + 1;
+      } else if (mark === 'asked') count.leave = (count.leave ?? 0) + 1;
       else if (count[mark] !== undefined) count[mark] = (count[mark] ?? 0) + 1;
     }
     return count;
-  }, [cells, marks]);
+  }, [cells, marks, closed, knowsClosed]);
 
   const worked = (totals.ok ?? 0) + (totals.late ?? 0) + (totals.out ?? 0);
   const detail = markOn(marks, picked);
+  const row = mine.days.find((one) => one.on_date === picked) ?? null;
+  const late = row ? minutesLate(row, shift) : null;
 
   return (
     <div className="d-bento">
@@ -585,19 +762,26 @@ function AgentMonth({ mine }: { mine: Mine }) {
           {cells.map((date, i) => {
             if (!date) return <div className="d-md d-blank" key={`blank-${i}`} />;
             const mark = markOn(marks, date);
+            /* The design draws a day the office was shut as `.md.off` — an
+               outline, no colour and nothing to press. It could not tell
+               those from an absence until `closedDays` reached this screen. */
+            const off = knowsClosed && closed.includes(dayOfWeek(date))
+              && (mark === 'none' || mark === 'future');
             return (
               <button
                 key={date}
                 type="button"
                 className={[
-                  'd-md', `d-${mark}`,
+                  'd-md', off ? 'd-off' : `d-${mark}`,
                   date === dubaiToday() ? 'd-today' : '',
                   date === picked ? 'd-on' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => setPicked(date)}
               >
                 <b>{Number(date.slice(8))}</b>
-                <span>{SHORT[mark] === '–' ? '' : SHORT[mark]}</span>
+                {/* The design's own cell: "Late 09:18", "Outside 09:30", or
+                    the bare time; nothing at all on a closed or future day. */}
+                <span>{cellWord(mine, date, mark, off)}</span>
               </button>
             );
           })}
@@ -614,11 +798,18 @@ function AgentMonth({ mine }: { mine: Mine }) {
             <div><b>{totals.late ?? 0}</b><span><span className="d-dot d-amber" />Late</span></div>
             <div><b>{totals.out ?? 0}</b><span><span className="d-dot d-blue" />Outside</span></div>
             <div><b>{totals.leave ?? 0}</b><span><span className="d-dot d-violet" />Leave</span></div>
-            <div><b>{totals.none ?? 0}</b><span><span className="d-dot" />Not marked</span></div>
+            {knowsClosed ? (
+              <div><b>{totals.abs ?? 0}</b><span><span className="d-dot d-red" />Absent</span></div>
+            ) : (
+              <div><b>{totals.none ?? 0}</b><span><span className="d-dot" />Not marked</span></div>
+            )}
             <div><b>{worked}</b><span>Days worked</span></div>
           </div>
+          {/* The design's foot is "Hours in the office: 60 h 12 min". Nothing
+              records when anybody leaves, so there are no hours to add up —
+              written down in `docs/v2/questions-inbox.md`. */}
           <div className="d-card-foot">
-            A day with no mark may have been a day the office was shut.
+            Days, not hours: the CRM saves when you arrive, not when you leave.
           </div>
         </section>
 
@@ -627,13 +818,68 @@ function AgentMonth({ mine }: { mine: Mine }) {
             <h3>{nice(picked)}{picked === dubaiToday() ? ' · today' : ''}</h3>
             <span className={CHIP[detail]}>{WORD[detail] || 'Not yet'}</span>
           </div>
+          {/*
+            * The design's rows, and only the ones this CRM can fill. It
+            * writes Check in (with the minutes late), Check out, Worked,
+            * Where and Note; nothing records when anybody leaves, so the
+            * middle two are not drawn rather than drawn empty.
+            */}
           <dl className="d-kv">
-            <div className="d-kv-row">
-              <dt>What</dt><dd>{WORD[detail] || 'Still to come'}</dd>
-            </div>
-            <div className="d-kv-row">
-              <dt>Note</dt><dd>{lineFor(picked, detail, mine)}</dd>
-            </div>
+            {detail === 'leave' || detail === 'asked' ? (
+              <>
+                <div className="d-kv-row"><dt>Type</dt><dd>{WORD[detail]}</dd></div>
+                <div className="d-kv-row">
+                  <dt>Answer</dt>
+                  <dd>{detail === 'asked' ? 'Waiting for an answer' : 'Approved'}</dd>
+                </div>
+              </>
+            ) : detail === 'future' || detail === 'none' || detail === 'abs' ? (
+              <>
+                <div className="d-kv-row">
+                  <dt>Check in</dt>
+                  <dd>{detail === 'future' ? 'Still to come' : 'Not yet'}</dd>
+                </div>
+                <div className="d-kv-row">
+                  <dt>Shift</dt>
+                  <dd>
+                    {/* The design's own two: "Started at 09:00" on a day
+                        that has passed, the hours on one still to come. */}
+                    {startOn(picked, shift)
+                      ? (detail === 'future'
+                        ? `${startOn(picked, shift)} – ${shift.end}`
+                        : `Started at ${startOn(picked, shift)}`)
+                      : lineFor(picked, detail, mine)}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="d-kv-row">
+                  <dt>Check in</dt>
+                  <dd>
+                    {timeOn(mine, picked)
+                      ? `${timeOn(mine, picked)}${late !== null ? ` · ${late} min late` : ' · on time'}`
+                      : WORD[detail]}
+                  </dd>
+                </div>
+                <div className="d-kv-row">
+                  <dt>Where</dt>
+                  <dd>
+                    {detail === 'out'
+                      ? (row?.note ?? mine.today.note ?? 'Outside, no place written down')
+                      : mine.today.officeName && picked === dubaiToday()
+                        ? `Office Wi-Fi ${mine.today.officeName}`
+                        : 'Office Wi-Fi'}
+                  </dd>
+                </div>
+                {(row?.note || (picked === dubaiToday() && mine.today.note)) && detail !== 'out' && (
+                  <div className="d-kv-row">
+                    <dt>Note</dt>
+                    <dd>{row?.note ?? mine.today.note}</dd>
+                  </div>
+                )}
+              </>
+            )}
           </dl>
         </section>
       </div>
@@ -647,20 +893,28 @@ function AgentLeave({ mine, reload, onAsk }: { mine: Mine; reload: () => void; o
   const waiting = mine.leave.filter((one) => one.status === 'pending');
   const answered = mine.leave.filter((one) => one.status !== 'pending');
   const taken = Object.values(mine.taken).reduce((sum, n) => sum + n, 0);
+  const lastSick = lastOf(mine.leave, 'sick');
 
   return (
     <>
       <div className="d-bento">
+        {/*
+          * The design's first card is "Annual leave left · 14 · of 22 days
+          * this year" with a 64% bar. No allowance is stored anywhere, so
+          * this is the same card counting what is true. The bar needs the 22
+          * to mean anything, so it is not drawn.
+          */}
         <section className="d-card d-c-4">
-          <span className="d-label">Days off taken this year</span>
+          <span className="d-label">Annual leave taken</span>
           <div className="d-stat-row d-mt-4">
-            <b className="d-num-hero v2-att-big">{taken}</b>
-            <span className="d-delta">working days</span>
+            <b className="d-num-hero v2-att-big">{mine.taken.annual ?? 0}</b>
+            <span className="d-delta">working days this year</span>
           </div>
           <div className="d-card-foot">
-            {Object.entries(mine.taken).length === 0
+            {taken === 0
               ? 'Nothing taken yet.'
-              : Object.entries(mine.taken).map(([kind, n]) => `${n} ${kind}`).join(' · ')}
+              : `${taken} day${taken === 1 ? '' : 's'} off in all: `
+                + Object.entries(mine.taken).map(([kind, n]) => `${n} ${kindWord(kind).toLowerCase()}`).join(' · ')}
           </div>
         </section>
 
@@ -668,39 +922,66 @@ function AgentLeave({ mine, reload, onAsk }: { mine: Mine; reload: () => void; o
           <span className="d-label">Sick days used</span>
           <div className="d-stat-row d-mt-4">
             <b className="d-num-hero v2-att-big">{mine.taken.sick ?? 0}</b>
-            <span className="d-delta">this year</span>
+            <span className="d-delta">{lastSick ? `last: ${nice(lastSick.fromDate)}` : 'none this year'}</span>
           </div>
-          <div className="d-card-foot">A sick note is needed from day two.</div>
+          <div className="d-card-foot">A sick note is needed from day 2.</div>
         </section>
 
         <section className="d-card d-c-4">
           <span className="d-label">Waiting for an answer</span>
           <div className="d-stat-row d-mt-4">
             <b className="d-num-hero v2-att-big">{waiting.length}</b>
-            <span className="d-delta">{waiting.length === 0 ? 'nothing open' : 'an owner answers'}</span>
+            <span className="d-delta">
+              {waiting.length === 0
+                ? 'No open request'
+                : `${sentence(answerList(mine.answerers))} answers`}
+            </span>
           </div>
           <div className="d-card-foot">
             <button type="button" className="d-btn d-primary" onClick={onAsk}>
-              <Icon name="plus" />Ask for days off
+              <Icon name="plus" />Request leave
             </button>
           </div>
         </section>
       </div>
 
-      <MyWaiting rows={waiting} reload={reload} />
+      <MyWaiting rows={waiting} reload={reload} answerers={mine.answerers} />
       <MyHistory rows={answered} />
     </>
   );
 }
 
-function MyWaiting({ rows, reload }: { rows: Leave[]; reload: () => void }) {
+function MyWaiting({ rows, reload, answerers }: {
+  rows: Leave[];
+  reload: () => void;
+  answerers?: string[];
+}) {
   const toast = useToast();
+  /* The design asks twice before anything is undone — `data-confirm="Tap
+     again to cancel"` — and then offers an Undo on the toast. */
+  const [armed, setArmed] = useState<string | null>(null);
 
-  async function cancel(id: string) {
+  async function cancel(one: Leave) {
     try {
-      await api.post(`/api/v2/leave/${id}/cancel`, {});
-      toast('Request cancelled');
+      await api.post(`/api/v2/leave/${one.id}/cancel`, {});
+      setArmed(null);
       reload();
+      toast(`Leave request cancelled · ${span(one)}`, {
+        /* A cancelled request cannot be un-cancelled, so Undo asks for the
+           same days again. The owner sees one new request, not two. */
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void api.post('/api/v2/leave', {
+              kind: one.kind,
+              fromDate: one.fromDate,
+              toDate: one.toDate,
+              reason: one.reason,
+            }).then(() => { toast('Asked again'); reload(); })
+              .catch((err: unknown) => toast(err instanceof Error ? err.message : 'That did not work.'));
+          },
+        },
+      });
     } catch (err) {
       toast(err instanceof Error ? err.message : 'That did not work.');
     }
@@ -713,7 +994,10 @@ function MyWaiting({ rows, reload }: { rows: Leave[]; reload: () => void }) {
         <div className="d-card">
           <div className="d-empty v2-empty-tight">
             <b>Nothing is waiting</b>
-            <p>When you ask for days off it shows here until an owner answers.</p>
+            <p>
+              When you ask for leave it shows here until {answerList(answerers)}{' '}
+              {(answerers?.length ?? 0) === 1 ? 'answers' : 'answer'}.
+            </p>
           </div>
         </div>
       ) : (
@@ -724,12 +1008,19 @@ function MyWaiting({ rows, reload }: { rows: Leave[]; reload: () => void }) {
               <span className="d-grow">
                 <b>{kindWord(one.kind)} · {span(one)} · {one.workingDays} working {one.workingDays === 1 ? 'day' : 'days'}</b>
                 <span className="d-small">
-                  {one.reason ? `“${one.reason}” · ` : ''}waiting for an owner
+                  {one.reason ? `“${one.reason}” · ` : ''}
+                  {one.createdAt ? `asked ${askedWhen(one.createdAt)} · ` : ''}
+                  waiting for {answerList(answerers)}
                 </span>
               </span>
               <span className="d-chip d-violet d-pip">Waiting</span>
-              <button type="button" className="d-btn d-sm" onClick={() => cancel(one.id)}>
-                Cancel request
+              <button
+                type="button"
+                className={armed === one.id ? 'd-btn d-sm d-danger' : 'd-btn d-sm'}
+                onClick={() => (armed === one.id ? void cancel(one) : setArmed(one.id))}
+                onBlur={() => setArmed((was) => (was === one.id ? null : was))}
+              >
+                {armed === one.id ? 'Tap again to cancel' : 'Cancel request'}
               </button>
             </div>
           ))}
@@ -757,7 +1048,10 @@ function MyHistory({ rows }: { rows: Leave[] }) {
         <div className="d-table-wrap">
           <table className="d-table v2-leave-table">
             <thead>
-              <tr><th>Type</th><th>Days</th><th>Working days</th><th>Reason</th><th>Answer</th></tr>
+              <tr>
+                <th>Type</th><th>Days</th><th>Working days</th><th>Reason</th><th>Asked</th>
+                <th>Answer</th>
+              </tr>
             </thead>
             <tbody>
               {rows.map((one) => (
@@ -766,6 +1060,7 @@ function MyHistory({ rows }: { rows: Leave[] }) {
                   <td className="d-t-sub">{span(one)}</td>
                   <td>{one.workingDays}</td>
                   <td className="d-t-sub">{one.reason ?? '—'}</td>
+                  <td className="d-t-sub">{one.createdAt ? askedWhen(one.createdAt) : '—'}</td>
                   <td><Answer one={one} /></td>
                 </tr>
               ))}
@@ -1234,7 +1529,7 @@ function OwnerMine({ mine, reload, onAsk }: { mine: Mine; reload: () => void; on
         </section>
       </div>
 
-      <MyWaiting rows={waiting} reload={reload} />
+      <MyWaiting rows={waiting} reload={reload} answerers={mine.answerers} />
 
       {outside && (
         <OutsidePanel onClose={() => setOutside(false)} onSaved={() => { setOutside(false); reload(); }} />
@@ -1263,25 +1558,52 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [where, setWhere] = useState('');
   const [withWho, setWithWho] = useState('');
   const [back, setBack] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const toast = useToast();
 
-  const missing = { why: why === null, where: where.trim() === '' };
+  /*
+   * "With who", picked from your own leads.
+   *
+   * The design's field is a `<datalist>` over the agent's lead names, and the
+   * build had a free-text box with a made-up name in the placeholder. These
+   * are the caller's own leads — `/api/my-leads` is fenced to what the viewer
+   * may see, so an agent gets theirs and nobody else's.
+   */
+  const leads = useAsync<{ items: Array<{ full_name: string | null }> }>(
+    () => api.get('/api/my-leads?tab=all&pageSize=50'), [],
+  );
+  const names = (leads.data?.items ?? [])
+    .map((one) => one.full_name)
+    .filter((one): one is string => Boolean(one && one.trim()))
+    .slice(0, 50);
+
+  const missing = {
+    why: why === null,
+    where: where.trim() === '',
+    /* The design marks "Back by" required and refuses to send without it. */
+    back: back === null,
+  };
 
   async function save() {
     setTouched(true);
-    if (missing.why || missing.where) return;
+    if (missing.why || missing.where || missing.back) return;
     setBusy(true);
     setProblem(null);
     /* One line, because the server keeps a single note per day. It is the
        line the office reads on the team screen, so it carries everything. */
-    const note = [why, where.trim(), withWho.trim() && `with ${withWho.trim()}`, back && `back by ${back}`]
-      .filter(Boolean).join(' · ');
+    const line = [
+      why,
+      where.trim(),
+      withWho.trim() && `with ${withWho.trim()}`,
+      back && `back by ${back}`,
+      note.trim(),
+    ].filter(Boolean).join(' · ');
     try {
-      await api.post('/api/attendance/outside', { note });
-      toast('You are working outside. The office can see it.');
+      await api.post('/api/attendance/outside', { note: line.slice(0, 160) });
+      toast(`You are working outside · back by ${(back ?? '').toLowerCase()}. The office can see it.`);
       onSaved();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not work.');
@@ -1306,6 +1628,14 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             Tell the office where you are. It shows on the team screen, and it is the
             same as checking in.
           </p>
+
+          {/*
+            * The design's first field is "Share my location · one time only",
+            * over "We read it once, now. We do not follow you." Nothing in
+            * this CRM stores a location — there is no column for one and no
+            * endpoint that takes one — so the field is not drawn and the
+            * place is typed instead. `docs/v2/questions-inbox.md`.
+            */}
 
           <div className={touched && missing.why ? 'd-field d-invalid' : 'd-field'}>
             <span className="d-field-label">Why are you outside?</span>
@@ -1333,9 +1663,13 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               id="v2-out-who"
               className="d-input"
               value={withWho}
-              placeholder="Omar K."
+              list="v2-out-leads"
+              placeholder="Start typing a lead's name"
               onChange={(e) => setWithWho(e.target.value)}
             />
+            <datalist id="v2-out-leads">
+              {names.map((one) => <option key={one} value={one} />)}
+            </datalist>
           </div>
 
           <div className={touched && missing.where ? 'd-field d-invalid' : 'd-field'}>
@@ -1350,7 +1684,7 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <span className="d-error">Write where exactly you are.</span>
           </div>
 
-          <div className="d-field">
+          <div className={touched && missing.back ? 'd-field d-invalid' : 'd-field'}>
             <span className="d-field-label">Back by</span>
             <div className="d-chips">
               {['16:30', '17:30', '18:00', 'Tomorrow'].map((text) => (
@@ -1364,6 +1698,18 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                 </button>
               ))}
             </div>
+            <span className="d-error">Choose when you are back.</span>
+          </div>
+
+          <div className="d-field">
+            <label htmlFor="v2-out-note">Note</label>
+            <textarea
+              id="v2-out-note"
+              className="d-textarea v2-lv-why"
+              value={note}
+              placeholder="Anything the office should know"
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
 
           {problem && <ErrorNote>{problem}</ErrorNote>}
@@ -1375,14 +1721,16 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           {/*
             * `WorkOutside.dc.html` names the missing field in the button
             * itself rather than letting you press it and be refused —
-            * "Pick why you are outside" → "Write where exactly" → "I'm going
-            * outside". Under a thumb that is the only place anybody looks.
+            * "Pick why you are outside" → "Write where exactly" → the
+            * computer design's own "Start working outside". Under a thumb
+            * that is the only place anybody looks.
             */}
           <button type="button" className="d-btn d-primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…'
               : missing.why ? 'Pick why you are outside'
                 : missing.where ? 'Write where exactly'
-                  : 'I’m going outside'}
+                  : missing.back ? 'Choose when you are back'
+                    : 'Start working outside'}
           </button>
         </div>
       </aside>
@@ -1390,31 +1738,63 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   );
 }
 
-function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => void }) {
-  const tomorrow = addDays(dubaiToday(), 1);
+function AskPanel({ mine, onClose, onAsked }: {
+  mine: Mine;
+  onClose: () => void;
+  onAsked: () => void;
+}) {
+  /* The next day the office is open, not simply tomorrow: opening the panel
+     on a Saturday and being told "Saturday is a day off" is the kind of
+     first screen that makes people stop using a form. */
+  const first = nextOpenDay(dubaiToday(), shiftOf(mine.today).closedDays);
   const [kind, setKind] = useState('annual');
-  const [from, setFrom] = useState(tomorrow);
-  const [to, setTo] = useState(tomorrow);
+  const [from, setFrom] = useState(first);
+  const [to, setTo] = useState(first);
   const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const toast = useToast();
 
-  const badDates = to < from;
+  const closed = shiftOf(mine.today).closedDays;
+  const waiting = mine.leave.filter((one) => one.status === 'pending');
+
+  /*
+   * Every rule `design/web/attendance.html` checks before it will send,
+   * in its own words.
+   *
+   * The working days are counted here against the days the office is shut —
+   * the same rule the server applies when it stores the request, so the
+   * number on the banner is the number that gets saved. It was a plain count
+   * of calendar days before, which told an agent asking for Thursday to
+   * Sunday that they were asking for four.
+   */
+  const fromError = !from ? 'Choose the first day.'
+    : from < dubaiToday() ? 'This day has passed.'
+      : closed.includes(dayOfWeek(from)) ? `${dayName(from)} is a day off.`
+        : '';
+  const toError = !to ? 'Choose the last day.'
+    : to < from ? 'The last day is before the first day.'
+      : closed.includes(dayOfWeek(to)) ? 'This is a day off. Choose a working day.'
+        : '';
+  const clash = fromError || toError ? null : overlapping(waiting, from, to);
+  const days = fromError || toError ? 0 : workingDays(from, to, closed);
   const noReason = reason.trim().length < 3;
-  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+  const stop = Boolean(fromError || toError || clash);
 
   async function send() {
     setTouched(true);
-    if (badDates || noReason) return;
+    if (stop || noReason || days === 0) return;
     setBusy(true);
     setProblem(null);
     try {
       await api.post('/api/v2/leave', {
         kind, fromDate: from, toDate: to, reason: reason.trim(),
       });
-      toast('Your request is with the owner. You get a notification with the answer.');
+      toast(
+        `Leave request is with ${answerList(mine.answerers)} · ${range(from, to)}`
+        + ' · you get a notification with the answer',
+      );
       onAsked();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not work.');
@@ -1438,6 +1818,17 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
         </div>
 
         <div className="d-panel-body d-col d-gap-16">
+          {/*
+            * The design's three chips are "14 annual days left · 3 sick days
+            * used · 1 waiting". There is no allowance, so the first one
+            * counts what has been taken instead and says so.
+            */}
+          <div className="d-row d-gap-8 d-wrap">
+            <span className="d-chip d-green">{mine.taken.annual ?? 0} annual days taken</span>
+            <span className="d-chip">{mine.taken.sick ?? 0} sick days used</span>
+            <span className="d-chip d-violet">{waiting.length} waiting</span>
+          </div>
+
           <div className="d-field">
             <span className="d-field-label">Type</span>
             <div className="d-chips">
@@ -1455,7 +1846,7 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
           </div>
 
           <div className="v2-two">
-            <div className="d-field">
+            <div className={touched && fromError ? 'd-field d-invalid' : 'd-field'}>
               <label htmlFor="v2-lv-from">From</label>
               <input
                 id="v2-lv-from"
@@ -1468,8 +1859,9 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
                   if (to < e.target.value) setTo(e.target.value);
                 }}
               />
+              <span className="d-error">{fromError}</span>
             </div>
-            <div className={touched && badDates ? 'd-field d-invalid' : 'd-field'}>
+            <div className={touched && toError ? 'd-field d-invalid' : 'd-field'}>
               <label htmlFor="v2-lv-to">To</label>
               <input
                 id="v2-lv-to"
@@ -1479,21 +1871,35 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
                 min={from}
                 onChange={(e) => setTo(e.target.value)}
               />
-              <span className="d-error">The last day is before the first day.</span>
+              <span className="d-error">{toError}</span>
             </div>
           </div>
 
-          {/* The office decides which days it is shut, so the working-day
-              count is the server's to make. Saying a number here that the
-              server then changes is worse than not saying one. */}
-          <div className="d-banner">
-            <Icon name="calendar-days" />
-            <span className="d-grow">
-              {badDates
-                ? 'Choose the last day after the first one.'
-                : `${days} day${days === 1 ? '' : 's'} chosen. Days the office is shut are not counted.`}
-            </span>
-          </div>
+          {clash ? (
+            <div className="d-banner d-red">
+              <Icon name="calendar-days" />
+              <span className="d-grow">
+                <b>You already asked for these days.</b>
+                {' '}{kindWord(clash.kind)} · {span(clash)} is waiting for an answer.
+                {' '}Choose other days or cancel that request first.
+              </span>
+            </div>
+          ) : days > 0 ? (
+            <div className="d-banner d-green">
+              <Icon name="calendar-days" />
+              <span className="d-grow">
+                <b>{days} working day{days === 1 ? '' : 's'}</b> · {range(from, to)}
+                {days !== calendarDays(from, to) ? ' · days off are not counted' : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="d-banner">
+              <Icon name="calendar-days" />
+              <span className="d-grow">
+                Choose the days. {closedNames(closed)} are days off and are not counted.
+              </span>
+            </div>
+          )}
 
           <div className={touched && noReason ? 'd-field d-invalid' : 'd-field'}>
             <label htmlFor="v2-lv-why">Reason</label>
@@ -1507,8 +1913,21 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
             <span className="d-error">Write a short reason.</span>
           </div>
 
+          {/* Sick leave: the design puts a "Add the sick note" upload here,
+              "needed from day 2". Nothing stores a file against a leave
+              request, so the rule is said and the upload is not drawn.
+              `docs/v2/questions-inbox.md`. */}
+          {kind === 'sick' && days >= 2 && (
+            <p className="d-small d-muted">
+              A sick note is needed from day 2. Hand it to the office — the CRM cannot
+              hold the file yet.
+            </p>
+          )}
+
           <p className="d-small d-muted">
-            An owner answers. You get a notification. Your leads stay with you.
+            {sentence(answerList(mine.answerers))}
+            {' '}{(mine.answerers?.length ?? 0) === 1 ? 'answers' : 'answer'}.
+            {' '}You get a notification. Your leads stay with you.
           </p>
 
           {problem && <ErrorNote>{problem}</ErrorNote>}
@@ -1583,11 +2002,32 @@ function lineFor(date: string, mark: Mark, mine: Mine): string {
   if (row?.note) return row.note;
   if (mark === 'leave') return 'Approved days off.';
   if (mark === 'asked') return 'Asked for, waiting for an answer.';
-  if (mark === 'ok') return 'In the office, on time.';
-  if (mark === 'late') return 'In the office, after the shift started.';
+  const shift = shiftOf(mine.today);
+  const start = startOn(date, shift);
+  if (mark === 'ok' || mark === 'late') {
+    const at = timeOn(mine, date);
+    const late = row ? minutesLate(row, shift) : null;
+    if (!at) return mark === 'late' ? 'In the office, after the shift started.' : 'In the office, on time.';
+    return `In ${at}${late !== null ? ` · ${late} min late` : ' · on time'}`;
+  }
   if (mark === 'out') return 'Working outside the office.';
-  if (date > dubaiToday()) return 'Still to come.';
+  /* The design's own three lines for a day with no mark on it. */
+  if (shift.start && shift.closedDays.includes(dayOfWeek(date))) {
+    return `${closedNames(shift.closedDays)} ${shift.closedDays.length === 1 ? 'is a day off' : 'are days off'}.`;
+  }
+  if (date > dubaiToday()) {
+    return shift.start ? `Shift ${shift.start} – ${shift.end}.` : 'Still to come.';
+  }
+  if (start) return `No check-in yet. The shift started at ${start}.`;
   return 'Nothing marked. It may have been a day the office was shut.';
+}
+
+/** When the shift starts on that date, or null when the office is shut. */
+export function startOn(date: string, shift: Shift): string | null {
+  if (!shift.start) return null;
+  const day = dayOfWeek(date);
+  if (shift.closedDays.includes(day)) return null;
+  return day === 6 ? shift.satStart : shift.start;
 }
 
 /* ── dates, the Dubai way ──────────────────────────────────────────────── */
@@ -1646,4 +2086,256 @@ function span(one: Leave): string {
 
 function kindWord(kind: string): string {
   return KINDS.find((one) => one.value === kind)?.label ?? kind;
+}
+
+/* ── the facts the design's tiles and panels name ──────────────────────── */
+
+/** 0 = Sunday, like `Date.getUTCDay()` and like the stored `closedDays`. */
+export function dayOfWeek(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function dayName(date: string): string {
+  return DAY_NAMES[dayOfWeek(date)] ?? '';
+}
+
+/**
+ * "Monday to Friday", from the days the office is shut.
+ *
+ * Said as a run where the open days are one — which they are in every office
+ * anybody has described — and as a list where they are not, rather than
+ * writing a sentence that is only true for a five-day week.
+ */
+export function openDays(closedDays: number[]): string {
+  /* Monday first, which is how everybody says it and how the week strip is
+     drawn; the stored numbers are Sunday-first. */
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const open = order.filter((day) => !closedDays.includes(day));
+  if (open.length === 0) return 'the office is shut every day';
+  if (open.length === 7) return 'every day';
+  const run = open.every((day, i) => i === 0 || order.indexOf(day) === order.indexOf(open[i - 1]!) + 1);
+  if (run && open.length > 2) return `${DAY_NAMES[open[0]!]} to ${DAY_NAMES[open[open.length - 1]!]}`;
+  return open.map((day) => DAY_NAMES[day]?.slice(0, 3)).join(', ');
+}
+
+/** "Saturday and Sunday", for the line under the dates. */
+export function closedNames(closedDays: number[]): string {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const shut = order.filter((day) => closedDays.includes(day)).map((day) => DAY_NAMES[day] ?? '');
+  if (shut.length === 0) return 'No days';
+  if (shut.length === 1) return shut[0] ?? '';
+  return `${shut.slice(0, -1).join(', ')} and ${shut[shut.length - 1]}`;
+}
+
+/** The same count the server keeps: days in the range the office is open. */
+export function workingDays(from: string, to: string, closedDays: number[]): number {
+  let days = 0;
+  for (let at = from; at <= to; at = addDays(at, 1)) {
+    if (!closedDays.includes(dayOfWeek(at))) days += 1;
+  }
+  return days;
+}
+
+function calendarDays(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+}
+
+/** A request already waiting that covers any of these days. */
+export function overlapping(waiting: Leave[], from: string, to: string): Leave | null {
+  return waiting.find((one) => from <= one.toDate && to >= one.fromDate) ?? null;
+}
+
+export function askedDays(waiting: Leave[]): number {
+  return waiting.reduce((sum, one) => sum + one.workingDays, 0);
+}
+
+/** The most recent approved leave of one kind, for "last: Wed 14 Oct". */
+export function lastOf(leave: Leave[], kind: string): Leave | null {
+  return leave
+    .filter((one) => one.kind === kind && one.status === 'approved')
+    .sort((a, b) => b.fromDate.localeCompare(a.fromDate))[0] ?? null;
+}
+
+/**
+ * "Emir or George", from the real owners. Never a name nobody set.
+ *
+ * Lower case, because it is read inside a sentence more often than at the
+ * start of one — "waiting for an owner". `sentence()` is for the other two.
+ */
+export function answerList(names: string[] | undefined): string {
+  const clean = (names ?? []).filter(Boolean);
+  if (clean.length === 0) return 'an owner';
+  if (clean.length === 1) return clean[0] as string;
+  return `${clean.slice(0, -1).join(', ')} or ${clean[clean.length - 1]}`;
+}
+
+/** The same words at the start of a sentence. */
+export function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "today 14:07", or "2 Nov 09:12" — 24-hour, in Dubai, like everything else. */
+export function askedWhen(at: string): string {
+  const on = new Date(Date.parse(at) + DUBAI_MS).toISOString().slice(0, 10);
+  const time = clock(at);
+  if (on === dubaiToday()) return `today ${time}`;
+  return `${new Date(`${on}T00:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', timeZone: 'UTC',
+  })} ${time}`;
+}
+
+/** The check-in time on one date, when there is one. */
+function timeOn(mine: Mine, date: string): string | null {
+  if (date === dubaiToday() && mine.today.markedAt) return clock(mine.today.markedAt);
+  const row = mine.days.find((one) => one.on_date === date);
+  return row?.marked_at ? clock(row.marked_at) : null;
+}
+
+/** Minutes past the start of that day's shift, for "· 8 min late". */
+export function minutesLate(
+  row: { on_date: string; marked_at: string | null; was_late: number },
+  shift: Shift,
+): number | null {
+  if (Number(row.was_late) !== 1 || !row.marked_at) return null;
+  const day = dayOfWeek(row.on_date);
+  if (shift.closedDays.includes(day)) return null;
+  const start = day === 6 ? shift.satStart : shift.start;
+  const late = minutesOf(row.marked_at) - toMinutes(start);
+  return late > 0 ? late : null;
+}
+
+function toMinutes(clockValue: string): number {
+  const [h, m] = clockValue.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+/** Minutes past midnight in Dubai. */
+function minutesOf(at: string): number {
+  const on = new Date(Date.parse(at) + DUBAI_MS);
+  return on.getUTCHours() * 60 + on.getUTCMinutes();
+}
+
+/** "4 h 20 min", since the morning's tap. The design's "worked today". */
+export function workedSince(at: string | null): string {
+  if (!at) return '—';
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(at)) / 60_000));
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
+}
+
+/** "It is 14:55 now, so this check-in counts as late." */
+export function lateWarning(day: DayState): string {
+  if (!day.lateAfter) return '';
+  const now = nowClock();
+  return toMinutes(now) > toMinutes(day.lateAfter)
+    ? `It is ${now} now, so this check-in counts as late.`
+    : `A check-in after ${day.lateAfter} counts as late.`;
+}
+
+/** "back by 16:30" out of the one line the agent wrote on the way out. */
+export function backFrom(note: string | null): string | null {
+  const found = /back by ([^·]+)/i.exec(note ?? '');
+  return found?.[1]?.trim() ?? null;
+}
+
+/** ISO week number, for the design's "Week 46". */
+export function weekNumber(date: string): number {
+  const at = new Date(`${date}T00:00:00Z`);
+  /* Thursday of this week decides the year's week, which is the ISO rule. */
+  const thursday = new Date(at.getTime() + (3 - ((at.getUTCDay() + 6) % 7)) * 86_400_000);
+  const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  const offset = (firstThursday.getUTCDay() + 6) % 7;
+  const week1 = new Date(firstThursday.getTime() - offset * 86_400_000);
+  return Math.round((thursday.getTime() - week1.getTime()) / (7 * 86_400_000)) + 1;
+}
+
+interface MonthFacts {
+  onTime: number;
+  late: number;
+  outside: number;
+  marked: number;
+  lastLate: { date: string; minutes: number | null } | null;
+  lastOutside: { date: string; why: string | null } | null;
+}
+
+/**
+ * This month's four tiles, counted from the days that are actually stored.
+ *
+ * The design's own numbers — "6 of 8 days", "Wed 4 Nov · 8 min", "Fri 6 Nov ·
+ * viewing" — are all of this month, not of the sixty-day window the endpoint
+ * returns, which is why they are counted here rather than off `mine.days`.
+ */
+function monthFacts(mine: Mine): MonthFacts {
+  const month = dubaiToday().slice(0, 7);
+  const rows = mine.days.filter((one) => one.on_date.startsWith(month));
+  const late = rows.filter((one) => Number(one.was_late) === 1);
+  const outside = rows.filter((one) => one.kind === 'outside');
+  const today = mine.today;
+
+  /* Today is in `today`, not in `days`, until tomorrow's read. */
+  const todayIn = today.marked && dubaiToday().startsWith(month)
+    && !rows.some((one) => one.on_date === dubaiToday());
+  const office = rows.filter((one) => one.kind === 'office').length
+    + (todayIn && today.marked === 'office' ? 1 : 0);
+  const lateCount = late.length + (todayIn && today.wasLate ? 1 : 0);
+  const outsideCount = outside.length + (todayIn && today.marked === 'outside' ? 1 : 0);
+
+  const lastLate = late[0] ?? null;
+  const lastOutside = outside[0] ?? null;
+
+  return {
+    onTime: Math.max(0, office - (todayIn && today.wasLate ? 1 : 0) - late.length),
+    late: lateCount,
+    outside: outsideCount,
+    marked: office + outsideCount,
+    lastLate: lastLate
+      ? { date: lastLate.on_date, minutes: minutesLate(lastLate, shiftOf(today)) }
+      : null,
+    lastOutside: lastOutside
+      ? { date: lastOutside.on_date, why: (lastOutside.note ?? '').split(' · ')[0] ?? null }
+      : null,
+  };
+}
+
+/** "Mon 18 – Fri 20 Nov", or one day on its own. */
+function range(from: string, to: string): string {
+  return from === to ? nice(from) : `${nice(from)} – ${nice(to)}`;
+}
+
+/** "Only on the office Wi-Fi “homes.me-Office”", when the owner named it. */
+function whereLine(names: string[] | undefined): string {
+  const clean = (names ?? []).filter(Boolean);
+  if (clean.length === 0) return 'Only on the office Wi-Fi';
+  if (clean.length === 1) return `Only on the office Wi-Fi “${clean[0]}”`;
+  return `Only on the office Wi-Fi: ${clean.map((one) => `“${one}”`).join(' or ')}`;
+}
+
+/** The shift, or blanks — never invented office hours. See `DayState.shift`. */
+const BLANK_SHIFT: Shift = {
+  start: '', end: '', satStart: '', satEnd: '', closedDays: [], graceMinutes: 0,
+};
+
+function shiftOf(day: DayState): Shift {
+  return day.shift ?? BLANK_SHIFT;
+}
+
+/** The design's month cell: "Late 09:18", "Outside 09:30", or just the time. */
+export function cellWord(mine: Mine, date: string, mark: Mark, off: boolean): string {
+  if (off || mark === 'future') return '';
+  const at = timeOn(mine, date);
+  if (mark === 'late') return at ? `Late ${at}` : 'Late';
+  if (mark === 'out') return at ? `Outside ${at}` : 'Outside';
+  if (mark === 'leave' || mark === 'asked') return WORD[mark];
+  if (at) return at;
+  return SHORT[mark] === '–' ? '' : SHORT[mark];
+}
+
+/** The first open day on or after tomorrow. */
+export function nextOpenDay(today: string, closedDays: number[]): string {
+  let at = addDays(today, 1);
+  for (let guard = 0; guard < 14 && closedDays.includes(dayOfWeek(at)); guard += 1) {
+    at = addDays(at, 1);
+  }
+  return at;
 }

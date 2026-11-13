@@ -598,3 +598,452 @@ that nobody can reset is worse than none). **B) Turn it on for owner and admin
 only**, which is about a day's work on the server plus the setup screen. It is
 a real protection: a password alone is all that stands between a leaked laptop
 and every lead in the company.
+
+---
+
+## 39. The inbox says "later phase" at the top, and the reply box still works
+
+`design/web/inbox.html` is the one page in the whole design package that
+marks itself as **not in the first build**. It draws a striped banner across
+the top — *"Not in the first build. For now WhatsApp and Telegram open on the
+agent's phone and every tap is logged"* — and its message box does nothing at
+all: every press pops up a note telling the agent to send from their phone.
+
+The build had no banner and a box that really sends.
+
+**What I built.** The banner, in the design's own words, with its button
+(the messaging report for you, My leads for an agent) and its line at the
+foot of the thread. **I did not take the reply box away.** Turning off a box
+that ten people may be typing into is not something a rebuild should do
+quietly, and today it is honest anyway: WhatsApp and email send nothing until
+their keys are set, and a message that could not go out is recorded as *not
+sent* rather than shown as sent.
+
+This is the same question `docs/v2/decisions.md` §3.3 has been holding open
+since the start of the rebuild — *"Inbox, Email, Templates: grey them out, or
+keep them working in the new look?"* — so it is yours either way.
+
+**A) Leave it as it is** (recommended) — the banner tells everyone where we
+are, and the box starts working the day the WhatsApp number is connected.
+**B) Make the box inert**, exactly as drawn: every press shows the design's
+note and nothing is ever sent from the CRM.
+
+---
+
+## 40. There is no Telegram chat in the CRM, and the design's filter finds nothing
+
+The design's chat filter is **All · WhatsApp · Telegram · Unread**. The CRM
+stores a message as WhatsApp, email, SMS or an internal note — there is no
+Telegram chat anywhere in it. Telegram in this CRM is a *tap*: the agent
+presses the Telegram button on a lead, it opens on their phone, and the tap
+is counted on the messaging report.
+
+**What I built.** The Telegram filter, because the design draws it. It finds
+nothing, and instead of an empty box it says why: *"No Telegram chat is in
+the CRM. On Telegram the agent writes from their own phone, and every tap is
+counted on the messaging report."*
+
+**A) Leave it** (recommended — it answers the question an agent would
+otherwise ask you). **B) Take the filter out** until Telegram is really
+connected. **C) Connect Telegram properly**, which is a bot, a number and
+about a week's work.
+
+---
+
+## 41. The three "ready messages" are not the design's words
+
+The design's three buttons are **Hello · Brochure · Payment plan**, and its
+payment-plan message says *"60% during construction, 40% on handover"*.
+
+That is a payment plan nobody set. `CLAUDE.md` is flat about it: never invent
+a price, a plan or a handover date. So the buttons are the ones the server
+writes, from the project the lead actually asked about, with no figure in
+them that is not in the project library.
+
+**What I built.** The server's openings, in the design's place, filling the
+message box when you press one (the design's behaviour — the build used to
+copy to the clipboard and ask you to paste). The link under them now counts
+the real templates: "All 12 templates".
+
+**A) Keep it** (recommended). **B) Use the design's three labels** — Hello,
+Brochure, Payment plan — and have the payment-plan one read the plan out of
+the project library, which only works for a project that has one saved.
+
+---
+
+## 42. "Annual leave left · 14 of 22 days" — nobody has told the CRM the 22
+
+The attendance screen draws three places where the allowance appears: a tile
+("Annual leave left · 14 · 3 days asked"), a card with a bar ("14 of 22 days
+this year"), and a chip in the request panel ("14 annual days left").
+
+**There is no allowance anywhere in this database.** Not in the attendance
+rules, not on a person. A number on that bar that nobody set is a number
+somebody books a flight around.
+
+**What I built.** The same three places, counting what is true: **annual
+leave taken** this year, the days already asked for, the sick days used and
+the last one. Everything else is the design's.
+
+**What I need from you.** The yearly allowance — one number for everybody, or
+a number per person (a lot of UAE contracts differ by length of service). Say
+the word and it becomes a field on the attendance rules page, and these three
+read "left" exactly as drawn.
+
+---
+
+## 43. Nobody checks out, so there are no hours
+
+The design has four states for the hero: not checked in, in office, outside,
+and **checked out** ("Day finished · in 08:55 · out 18:06 · 9 h 11 min"). It
+also writes "24 h 14 min so far" on the week, "Hours in the office: 60 h 12
+min" on the month, and gives the outside state an **"I'm back in the office"**
+button.
+
+All of that needs the CRM to record when somebody *leaves*. It records when
+they arrive and nothing else: one row a day, the first tap wins.
+
+**What I built.** Everything that can be worked out from the arrival —
+"worked today" counts from the morning's tap, the shift's end is shown, the
+timeline has its "Shift ends · 18:00" row, and the month totals now tell a
+day the office was shut from a day nobody came in. The hours, the "Day
+finished" state and the "I'm back" button are not there.
+
+**What this would cost.** One new column on the attendance table, and three
+decisions from you: may somebody check out and then check in again; does the
+day close by itself at the end of the shift; and is the hours figure
+something you want agents compared on. I did not add a column without asking,
+because `CLAUDE.md` says to ask before adding a field.
+
+**A) Leave it** (recommended for now — "one tap a day" is a simpler promise
+and it is what the screen says). **B) Add checking out**, about half a day's
+work once you answer the three questions.
+
+---
+
+## 44. Three of the design's six leave types cannot be stored
+
+The request panel offers **Annual · Sick · Personal · Half day · Work from
+home · Other**. The database column holds five values: annual, sick, unpaid,
+emergency, other. Personal, Half day and Work from home are not among them,
+and "Half day" also needs a morning-or-afternoon answer and a half-day count.
+
+**What I built.** The five that can be stored, with the design's wording
+where the two agree. The "which half" switch is not drawn, because a half day
+that is saved as a whole day is worse than one that cannot be asked for.
+
+**What I need from you.** Which six you actually want. Changing the list is a
+database change, so it needs your yes — and it is the kind that cannot be
+undone on a live system without care.
+
+---
+
+## 45. Sharing your location, and the sick note
+
+Two more fields on the design's panels have nowhere to go:
+
+- **"Share my location · one time only"**, which the design makes *required*
+  before an agent can say they are working outside.
+- **"Add the sick note · photo or PDF"**, needed from day 2 of sick leave.
+
+Nothing in this CRM stores a place or a file against a day or a leave
+request. Neither field is drawn; the sick-note rule is still said in words,
+and the outside panel asks where the agent is in writing instead.
+
+**What I need from you.** Whether you want either. The location is the bigger
+decision: it is personal data under UAE PDPL, it has to be stored, shown to
+you and deleted on a schedule, and the design's own promise — *"We read it
+once, now. We do not follow you"* — has to stay true.
+
+---
+
+## 46. "Performance this month · 86%" is a score against a target nobody set
+
+The profile hero draws a big percentage over a bar, explained as *"Calls,
+follow-ups on time, meetings and deals against your monthly target."* There
+are no monthly targets in this CRM.
+
+**What I built.** The same block, with a number that is counted:
+
+- **An agent** sees the badges they have earned — 4 of 10, 40% — which is
+  what the team wall already ranks on.
+- **You and the admin** see the share of this month's new leads that were
+  answered inside two hours, out of how many. It is the team number this
+  company is actually run on, and it is the dashboard's own figure, so the
+  two screens cannot disagree.
+
+Both say in a line underneath that no target is set.
+
+**What I need from you.** A monthly target per agent — deals, or viewings, or
+calls — and this becomes the design's bar exactly.
+
+---
+
+## 47. Small things on these three screens that are drawn and not built
+
+Each of these is one line, and each is a number or a thing the CRM does not
+hold. Say the word on any of them.
+
+- **The city a device signed in from** ("Dubai · active now") and the **"new
+  place"** warning on an unusual one. The device list is real now — it is
+  your own live sessions, and you can sign any of them out — but a session
+  records an address, not a town. Turning an address into a city needs an
+  outside service.
+- **"Month PDF"** on an agent's own attendance. The owner's monthly file is
+  being built separately; an agent's own is not.
+- **"Last changed 24 Sep 2026"** under the password. Nothing records when a
+  password was last changed.
+- **The sidebar's "Inbox · later" marker.** The design greys the Inbox row
+  out. It is the row ten people use to reach the screen, and the greying also
+  makes it unclickable, so I left it alone — it is also in the part of the
+  code another agent is working in.
+- **The design's demo switcher** at the foot of the attendance page ("see
+  each state: Not checked in · In office · Outside · Checked out"). It is a
+  way to flip the drawing between states; the real screen shows the state
+  that is true.
+
+---
+
+## 48. The office Wi-Fi: I ask for the name **and** the address
+
+`design/web/settings-attendance.html` lists office **Wi-Fi network names** —
+"homes.me-Office", "homes.me-Office-5G" — with the hint "Network name, exactly
+as on the phone".
+
+**No browser will tell a web page which Wi-Fi it is on.** Not Chrome, not
+Safari, not on any phone. It is not a setting somebody forgot to turn on; it
+is deliberately not available, on every platform.
+
+What the server *can* see is the address the office's internet line is seen
+from, and that is what check-in has always compared.
+
+**What I built.** Each row carries both. The name is what you read and type —
+the list looks exactly like the design — and the address sits underneath it in
+small grey type, because that is the thing the gate actually matches. Removing
+the address and keeping only the name would be a check-in gate that lets
+anybody in from anywhere.
+
+Under the list it says so in one line, and offers you the address this computer
+is seen from, so you can add the office without knowing what an address is.
+
+**What I need from you.** Nothing, unless you would rather the address were
+hidden. I would keep it: when the internet provider changes it — which they do
+— the only way anybody finds out is that nobody can check in, and this row is
+where you would look.
+
+---
+
+## 49. "Download Excel" gives you a CSV, and the button says so
+
+Three screens have an export the design calls an Excel file: the month on
+Attendance rules, and "Export file" on the Feedback inbox.
+
+They produce a **.csv**. Excel, Numbers and Google Sheets all open one by
+double-clicking it, and it keeps your columns, your filters and your sorting.
+
+Why not a real .xlsx: writing one needs a spreadsheet library installed on the
+server, and every library on the server is one more thing that can stop a
+deploy — on a CRM ten people use from nine in the morning. For one button that
+is a poor trade.
+
+The buttons read "Download file (CSV)" and "Export file" rather than promising
+Excel.
+
+**What I need from you.** Say the word if you want real .xlsx files and I will
+add the library.
+
+---
+
+## 50. The logo takes PNG, JPG or WebP — not SVG
+
+The Company screen's logo row says "PNG or SVG" in the design. The server
+accepts PNG, JPG and WebP and refuses SVG.
+
+An SVG is not a picture, it is a small program, and this logo is served to
+every client who opens one of your sales offers. Accepting one would mean
+anything inside it runs on our own web address, in the same place as the CRM.
+
+The hint on the screen says "PNG, JPG or WebP, square, at least 512 px", so
+nobody picks a file that will be refused.
+
+**What I need from you.** Nothing. If your mark only exists as an SVG, export
+it once at 1024 px as a PNG and it will look identical.
+
+---
+
+## 51. Homes AI's company text is six boxes, not one
+
+`design/web/ai-settings.html` has one box, "What Homes AI should know about
+us", with a counter that reads "N of 1,500 letters".
+
+The CRM already stores this in six named sections — about us, what we sell,
+how we talk to clients, things we never say, the questions clients ask, how we
+work — and **the AI reads a different set of them for each job**: writing a
+message uses the tone and the never-say list, judging a lead uses what we
+sell. One box would have to be sent in full to everything, which costs more
+and makes the answers vaguer.
+
+**What I built.** One box per section, each with the design's own counter, its
+own required minimum ("Write at least one full sentence.") and its own
+too-long guard. The rules are the design's; the number beside each is that
+section's own length.
+
+**What I need from you.** Nothing, unless you would rather have the single box
+back.
+
+---
+
+## 52. Feedback: one screenshot and one voice note per report
+
+`design/web/feedback.html` lets an agent attach up to three screenshots. The
+side panel in `feedback-inbox.html` draws one screenshot block and one voice
+note.
+
+I built one of each. Three would need a gallery in the panel that the design
+does not draw, and in a bug report the second and third picture are almost
+always the same screen again.
+
+**What I need from you.** Say so if agents ask for more.
+
+---
+
+## 53. The banner cover styles are numbered, not named after projects
+
+The home-banners form offers five cover styles. The design labels them with
+four of your projects — The Archive, Shahrukhz, Damac Islands, Valia — and
+"Plain".
+
+They are not photographs of those projects. They are five coloured gradients,
+and putting a project's name on a coloured rectangle that has nothing to do
+with it is the sort of small lie that ends up on an agent's screen.
+
+**What I built.** Five styles, unnamed, plus **Upload** — which now works, and
+is how a real photograph of a real project gets onto a banner. The upload is
+the part that was missing: the picture column has been in the database since
+the start and nothing could fill it.
+
+**What I need from you.** If you want the five to be your projects' real cover
+photos, I can read them from the project library instead. It is a small job
+once you say which projects.
+
+---
+
+## 54. "Invite a person" hands over a password; it does not send an email
+
+The invite dialog in `settings-team.html` says "They get an email with a link
+to set a password."
+
+Nothing in the CRM can send that email: there is no outgoing mail server
+configured, and a dialog that promises an email which never arrives is worse
+than one that tells the truth.
+
+**What I built.** The account is made at once and the screen shows a one-time
+password, once, with a Copy button. The person must change it the first time
+they sign in. The dialog says exactly that.
+
+This is also why the "People" card counts **people who have never signed in**
+rather than the design's "0 invites waiting": there is no invited-but-not-yet
+state to count, and never-signed-in is the same question answered from what we
+actually have.
+
+**What I need from you.** An email server (`SETUP_NEEDED.md` §12), and this
+becomes the design's flow exactly.
+
+---
+
+## 55. "Blocked in phone settings" and "Switched off" read the same here
+
+The notifications tab in `settings-team.html` shows four states for a person's
+phone: **On · iPhone**, **Not installed**, **Blocked in phone settings**,
+**Switched off**.
+
+The last two are states of the phone's own notification permission. **The
+phone never tells a server which one it is.** What the server knows is whether
+any device has ever registered for alerts.
+
+**What I built.** Three states. "Not installed" covers all three ways of not
+getting alerts, and a line under the table says so plainly, so nobody reads it
+as "they have not installed the app" when they have.
+
+The **Remind** button is real: it writes "Turn on notifications" into that
+person's bell, which they see on My Day. It does not send a push, because the
+whole reason they are on the list is that a push cannot reach them.
+
+---
+
+## 56. The thirty-day bars on System health start empty
+
+The health page draws thirty days of bars per service, an uptime percentage
+and a list of past problems.
+
+Until today **nothing recorded any of it**, so those bars would have been
+thirty green rectangles drawn because nobody was counting.
+
+**What I built.** A check that runs every five minutes — which is what the
+design's own sub-line promises — measuring six things and writing down what it
+found: the website and sign-in, the database, notifications, tracked links,
+file storage and Homes AI. The bars, the percentages and the list of past
+problems are all read back from those rows.
+
+**On the morning after this goes live the bars will be empty**, and the page
+says so in a line rather than looking perfect. They fill in over the following
+month.
+
+Two numbers the design shows are still missing, because nobody tells the CRM
+them: the database's **last backup time**, and the **total size** of the file
+storage ("6.2 of 50 GB" — we show the 6.2, not the 50). Both are facts about
+the hosting account, not about the CRM.
+
+---
+
+## 57. Two of these pages are not inside Settings
+
+`feedback-inbox.html` and `home-banners.html` are drawn as **full-width pages
+with a back link**, not as panels inside the Settings shell — the design marks
+them `data-back="settings.html"` and `data-back="projects.html"`.
+
+I built them that way. The feedback table is seven columns and about 1,050px
+wide; inside the Settings shell it ran off the right-hand edge of a 1440px
+screen. They are still in the Settings menu and the address has not changed.
+
+---
+
+## 58. The shift times are typed boxes, not the browser's time picker
+
+The office shift on Attendance rules was reading **"7:00 PM"**, in a CRM
+whose own rule is 24-hour everywhere.
+
+That is not something we had got wrong. A browser draws
+`<input type="time">` in **its own** language, the one chosen in the
+browser's settings, and nothing on the page changes it: I set `lang` on the
+field, on its parent and on the whole document, and all three still drew
+"07:00 PM". So an agent whose laptop is set to US English sees the office
+shift in AM/PM and an agent whose laptop is set to UK English sees the same
+shift as 19:00.
+
+The design hit this before us and solved it in its own script —
+`design/web/app.js` says, in its own words, *"a native time field shows AM/PM
+on some computers"* — by turning the field into a plain text box that only
+accepts `HH:MM`. The build now does exactly the same: type `0930` and it
+becomes `09:30`, type `9` and it becomes `09:00`, type anything else and the
+box goes back to the time that was there. It reads the same on every
+computer in the office.
+
+**The dates are a different matter and are not fixed.** A date field has no
+such trick available — it draws the day and month in whichever order the
+reader's browser prefers, so the banner dates can read 03/14/2027 on one
+laptop and 14/03/2027 on another. Nothing is lost or mis-saved either way
+(the value the browser sends is always `2027-03-14`), but two people can read
+the same banner differently. Making those day-first too would mean three
+typed boxes instead of a date picker, which is worse for a date somebody has
+to pick off a calendar. **I would leave the date pickers alone and make sure
+every office laptop is set to UK English, which fixes the whole CRM at once
+rather than one field at a time.** Printed dates and times are already
+correct everywhere — `web/src/lib/format.ts` does those itself.
+
+**The rest of v2 has the same time-field problem.** Three other screens use
+the browser's time picker and will read "7:00 PM" in the same way — Calling
+(`web/src/v2/Calling.tsx`), and the two older settings screens
+`components/RoutingSettings.tsx` and `components/AttendanceSettings.tsx`.
+They are in somebody else's slice this week; each is one component swap.
+Written down in `docs/v2/questions-settings.md` §4.1.

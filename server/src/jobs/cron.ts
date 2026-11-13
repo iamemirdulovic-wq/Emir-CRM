@@ -61,6 +61,13 @@ const SCHEDULES: Schedule[] = [
   { name: 'task_reminders', type: 'task.reminder_sweep', everyMinutes: 5 },
   { name: 'cleanup', type: 'maintenance.cleanup', everyMinutes: 60 },
   /*
+   * The health page's own sub-line says "Checked by itself every 5 minutes",
+   * so it is. Each run is six cheap local measurements and six inserts —
+   * nothing leaves the building, because a check that depends on Google being
+   * up would report Google's weather rather than ours, 288 times a day.
+   */
+  { name: 'health_check', type: 'health.check', everyMinutes: 5 },
+  /*
    * The owners' morning summary. 09:00 Dubai, because it is written to be
    * read with the first coffee and a summary that lands at 3am is read at
    * 3pm, by which point the day it describes is over.

@@ -3083,3 +3083,200 @@
 .v2 .p-login .v2-login-note svg{ margin-top:2px; color:var(--ink-3); }
 /* The drawn size of the shield on the second step, which is built and off. */
 .v2 .p-login .v2-login-shield{ width:48px; height:48px; border-radius:16px; }
+
+/* ── the attendance tiles, the guide's sixth dot, and the device list ──────
+ * Appended at the end of the file ON PURPOSE: everything from line 224 to
+ * 2931 is inside a media query somewhere, and a rule written there does
+ * nothing at the width it was meant for. These four apply at every width.
+ */
+
+/*
+ * The design's four tiles are `<a class="card tile" data-goto="month">`.
+ * They are buttons here — they move a tab rather than a page — and a button
+ * does not inherit the card's own box, so it is said again for the element
+ * we really render. The same shape as the port's `i`/`svg` duplication.
+ */
+.v2 button.d-tile{
+  display:flex; flex-direction:column; align-items:flex-start; gap:0;
+  font:inherit; text-align:left; cursor:pointer; width:100%;
+}
+
+/* The guide's last dot is "Day off or not yet", which is drawn in the
+   design with `style="background:var(--line-2)"` — a colour, not a class. */
+.v2 .v2-dot-none{ background:var(--line-2); }
+
+/* The signed-in devices list on the profile's Security tab. `.d-dev` is the
+   design's own class and is ported under `.p-profile`; this is the row's
+   right-hand side, which the design leaves to `.btn-row`. */
+.v2 .v2-dev-when{ font-variant-numeric:tabular-nums; }
+
+/* The hero's first chip can be "Agent · Off-plan · Dubai Marina", which is
+   longer than the column it sits in; the design's is three short words. It
+   truncates rather than running under the performance bar beside it. */
+.v2 .p-profile .v2-pf-chips{ min-width:0; }
+.v2 .p-profile .v2-pf-chip{ min-width:0; max-width:100%; }
+.v2 .p-profile .v2-pf-chip-text{
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* ── The owner's settings screens, rebuilt from their design files ───────
+ *
+ * `design/web/settings-team.html`, `company.html`, `feedback-inbox.html`,
+ * `system-health.html`, `settings-attendance.html`, `home-banners.html`,
+ * `ai-settings.html` and `automations.html`. Everything structural in them is
+ * ported into `v2-ui.css` and `v2-home.css`; these are the few places where
+ * the design draws a state with its demo script rather than with CSS, or
+ * where a control exists here that the design's standalone page did not need.
+ *
+ * This block is at the END of the file, outside every media query. The bottom
+ * half of this file used to be inside `@media (max-width:767px)` and three
+ * fixes written for the computer were lost down there in silence; the phone
+ * overrides for these rules are in their own `@media` block at the very
+ * bottom, each one repeating its `p-*` class so it still wins.
+ */
+
+/* ── Homes AI ─────────────────────────────────────────────────────────── */
+
+/* The hero's foot is dark-on-dark, so it takes the hero's own ink. */
+.v2 .p-ai-settings .v2-ai-foot { color:var(--hero-ink-2); }
+
+/* ── Attendance rules ─────────────────────────────────────────────────── */
+
+/*
+ * The network row's two fields. The design has one box — the Wi-Fi name —
+ * because its demo did not have to match anything; this has the name and the
+ * address it is seen from, since a browser cannot read the name and the
+ * address is what check-in compares. See `settings/Attendance.tsx`.
+ */
+.v2 .p-set-attendance .v2-wifi-add { align-items:flex-start; }
+.v2 .p-set-attendance .v2-wifi-ip { width:200px; flex:none; }
+.v2 .p-set-attendance .v2-wifi-btn { align-self:flex-start; }
+/* The month picker, at the design's own width. */
+.v2 .p-set-attendance .v2-rep-month { width:180px; }
+
+/* ── Team and roles ───────────────────────────────────────────────────── */
+
+/* `.role-sel{min-width:104px}` in the design's own page styles. */
+.v2 .p-set-team .v2-role-sel { min-width:104px; }
+/* `.own-ask{margin-left:6px}` — the second tap, beside the select it guards. */
+.v2 .p-set-team .v2-own-ask { margin-left:6px; }
+/* The actions cell holds either a sentence or the ⋯ button; both stay on one
+   line rather than wrapping the row taller than its 56px. */
+.v2 .p-set-team .v2-tm-actions { white-space:nowrap; }
+/*
+ * The row menu. The design has one menu element that it moves to whichever
+ * row was clicked; React renders it inside the row, so it is positioned
+ * against the cell instead of against the page.
+ */
+.v2 .v2-tm-menu-wrap { position:relative; display:inline-block; }
+.v2 .v2-tm-menu {
+  position:absolute; top:calc(100% + 6px); right:0; z-index:60;
+  min-width:220px; text-align:left; white-space:normal;
+}
+/* An item that cannot be pressed looks it. The design does this with
+   `opacity:.4` on the Deactivate item when the person is an owner, and a red
+   "Deactivate" that quietly does nothing is worse than one that is greyed. */
+.v2 .d-menu-item:disabled { opacity:.4; cursor:default; }
+.v2 .d-menu-item:disabled:hover { background:none; }
+
+/* "N open leads go to Incoming. Notes and history stay." — the design's
+   `#m-why`, which wraps and is the reason the menu is worth opening. */
+.v2 .v2-tm-menu .v2-tm-why { padding:4px 10px 8px; max-width:230px; white-space:normal; }
+/* The attendance dot: the design's `.av[data-status]` has five states and
+   `v2-face` had three. A person with no mark today is grey, which is the
+   wrapper's own default, and "off" (deactivated) never gets a dot at all. */
+.v2 .v2-face-late::after { background:var(--amber); }
+.v2 .v2-face-absent::after { background:var(--red); }
+
+/* ── Feedback inbox ──────────────────────────────────────────────────── */
+
+/* The tab strip sits in the page head beside the export button, so it must
+   not also carry the card's bottom margin. */
+.v2 .p-feedback-inbox .v2-fb-tabs { margin:0; border-bottom:0; }
+/* A row is a button for the panel, so it says so. */
+.v2 .p-feedback-inbox .v2-fb-table tbody tr { cursor:pointer; }
+.v2 .p-feedback-inbox .v2-fb-table tbody tr.v2-fb-open { background:var(--accent-soft); }
+/* The report's own words, in the panel. */
+.v2 .p-feedback-inbox .v2-fb-text { font-size:14.5px; line-height:1.5; white-space:pre-wrap; }
+/* A real player rather than a drawn waveform: the recording exists, so it
+   can be played. It takes the width the design gives the waveform. */
+.v2 .p-feedback-inbox .v2-fb-audio { flex:1; min-width:0; height:34px; }
+/* `design/web/feedback.html` lays the title and the "where" at 1.6fr / 1fr. */
+.v2 .p-feedback .v2-fb-grid { grid-template-columns:1.6fr 1fr; }
+/*
+ * The report table scrolls inside its own card rather than pushing the page.
+ *
+ * Seven columns is about 1,050px, which is what `design/web/feedback-inbox.html`
+ * lays out at and more than the room a sidebar leaves at 1440. Same fix and
+ * same reason as the project and messaging tables above. Under 768px the
+ * table is not a table at all — `v2-d-cards` turns each row into a card, as
+ * `OwnerFeedback.dc.html` draws them.
+ */
+.v2 .p-feedback-inbox .d-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+/* The number is the card's heading on a phone, beside the title. */
+.v2.v2-phone .p-feedback-inbox .v2-fb-table td.d-t-mono,
+.v2.v2-phone .p-feedback-inbox .v2-fb-table td.d-tt{ grid-column:1 / -1; }
+.v2.v2-phone .p-feedback-inbox .v2-fb-table td.d-act{ grid-column:1 / -1; }
+/* The row buttons are always there on a phone: there is no hover to reveal
+   them, and `Plan it` and `Mark fixed` are the two taps this screen is for. */
+.v2.v2-phone .p-feedback-inbox .d-row-actions{ opacity:1; justify-content:flex-start; }
+
+/* The × on an attachment chip, which is how one is taken off again. */
+.v2 .v2-fb-x { display:inline-flex; margin-left:2px; color:var(--ink-3); }
+.v2 .v2-fb-x svg.lucide { width:13px; height:13px; }
+.v2 .v2-fb-x:hover { color:var(--red-ink); }
+
+/* ── System health ───────────────────────────────────────────────────── */
+
+/*
+ * A day in the thirty-day strip that nobody checked.
+ *
+ * This is the rule that keeps the bars honest. The design has three colours —
+ * up, slow, down — and no fourth for "no sample", because its bars were drawn
+ * rather than measured. On a server deployed yesterday, twenty-nine of the
+ * thirty days have no sample, and painting them green would be the page
+ * telling the owner something nobody counted.
+ */
+.v2 .p-health .d-hl-strip i.v2-hl-none { background:var(--line-2); opacity:1; }
+
+/* ── Home banners ────────────────────────────────────────────────────── */
+
+/* The desk picker, which appears only when "One desk" is chosen. */
+.v2 .p-banners .v2-bn-desk { width:auto; }
+
+/* ── Company ─────────────────────────────────────────────────────────── */
+
+/* The uploaded logo, inside the design's rounded square and inside the
+   business-card preview's little mark. Both crop rather than squash. */
+.v2 .p-company .v2-co-logo-img {
+  width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block;
+}
+
+/* ── These pages on a phone ──────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  /* Each rule repeats its `p-*` class: the ported page CSS is
+     `.v2 .p-X .d-foo`, three classes, so a two-class override loses whatever
+     the media query says. */
+  .v2 .p-set-attendance .v2-wifi-ip { width:100%; }
+  .v2 .p-set-attendance .v2-wifi-btn { width:100%; }
+  .v2 .p-set-attendance .v2-rep-month { width:100%; }
+  .v2 .p-banners .d-hb { grid-template-columns:minmax(0,1fr); }
+  .v2 .p-feedback .v2-fb-grid { grid-template-columns:minmax(0,1fr); }
+  /* The menu would hang off the right edge of a phone. */
+  .v2 .v2-tm-menu { right:auto; left:0; min-width:200px; }
+  .v2 .p-set-team .v2-tm-actions { white-space:normal; }
+}
+
+/*
+ * A field that cannot be edited, drawn as the design's `.msg-box`.
+ *
+ * `d-msg-box` is ported under `.p-calendar` and `.p-project` only, so on the
+ * profile it is a class name that styles nothing — the exact trap the
+ * generated sheets set: three classes deep, and a `d-` name that exists
+ * somewhere else looks right in the code and draws bare text.
+ */
+.v2 .v2-readonly-box{
+  background:var(--surface-2); border-radius:14px; padding:12px 14px;
+  font-size:13.5px; line-height:1.5; color:var(--ink-2);
+}

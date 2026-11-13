@@ -1,5 +1,6 @@
 import { COMPANY_LOCALITY_AR, COMPANY_LOCALITY_EN, COMPANY_NAME } from './constants.js';
 import { setting } from './secrets.js';
+import { getPool, queryOne, type Executor } from '../db/client.js';
 
 /**
  * The company, as it introduces itself to a client.
@@ -30,7 +31,16 @@ export interface CompanyDetails {
   licenceNo: string;
   /** ISO date. The CRM warns before it expires. */
   licenceExpiry: string;
+  /**
+   * The office, as two lines.
+   *
+   * `design/web/company.html` asks for "Line 1" and "Line 2" with the note
+   * "Two short lines fit on the business card", and the card's own layout
+   * puts the street on one line and the area and city on the next. One field
+   * meant the card had to guess where to break, by splitting on a comma.
+   */
   address: string;
+  addressLine2: string;
   phone: string;
   whatsapp: string;
   email: string;
@@ -40,7 +50,7 @@ export interface CompanyDetails {
 
 export const COMPANY_FIELDS = [
   'legalName', 'tradingName', 'localityEn', 'localityAr', 'trn', 'orn', 'licenceNo',
-  'licenceExpiry', 'address', 'phone', 'whatsapp', 'email', 'website', 'logoUrl',
+  'licenceExpiry', 'address', 'addressLine2', 'phone', 'whatsapp', 'email', 'website', 'logoUrl',
 ] as const;
 
 export type CompanyField = (typeof COMPANY_FIELDS)[number];
@@ -56,6 +66,7 @@ export const COMPANY_SETTING: Record<CompanyField, string> = {
   licenceNo: 'COMPANY_LICENCE_NO',
   licenceExpiry: 'COMPANY_LICENCE_EXPIRY',
   address: 'COMPANY_ADDRESS',
+  addressLine2: 'COMPANY_ADDRESS_LINE_TWO',
   phone: 'COMPANY_PHONE',
   whatsapp: 'COMPANY_WHATSAPP',
   email: 'COMPANY_EMAIL',
@@ -81,6 +92,7 @@ export const COMPANY_DEFAULTS: CompanyDetails = {
   licenceNo: '',
   licenceExpiry: '',
   address: '',
+  addressLine2: '',
   phone: '',
   whatsapp: '',
   email: '',
@@ -99,6 +111,7 @@ export const MAX_LENGTH: Partial<Record<CompanyField, number>> = {
   licenceNo: 40,
   licenceExpiry: 10,
   address: 240,
+  addressLine2: 120,
   phone: 32,
   whatsapp: 32,
   email: 160,
@@ -157,6 +170,9 @@ export function companyIssues(company: CompanyDetails, today: Date = new Date())
   }
   if (!company.trn) {
     issues.push('No TRN yet. It has to appear on every tax invoice.');
+  }
+  if (company.address.trim() && !company.addressLine2.trim()) {
+    issues.push('No second address line. The business card has room for the area and city.');
   }
   if (company.orn && !/^\d{1,8}$/.test(company.orn.replace(/\s/g, ''))) {
     issues.push('The ORN should be the RERA office number — digits only.');
@@ -232,6 +248,31 @@ export const RENAME_WARNING =
  * has a local variable called `company`, and a shadowed import is the kind of
  * thing that compiles and then sends the wrong name to a client.
  */
+/**
+ * When the company record last changed, and who changed it.
+ *
+ * `design/web/company.html`'s save bar reads "Saved · last change 3 Nov by
+ * Emir", which is the line that answers "who put the wrong TRN on our
+ * invoices". `app_settings` has recorded both since migration 0009 and
+ * nothing was reading them.
+ */
+export async function companyLastChange(
+  exec: Executor = getPool(),
+): Promise<{ at: string; by: string | null } | null> {
+  const names = COMPANY_FIELDS.map((field) => COMPANY_SETTING[field]);
+  const row = await queryOne<{ updated_at: string; name: string | null }>(
+    `SELECT s.updated_at, u.name
+       FROM app_settings s
+       LEFT JOIN users u ON u.id = s.updated_by_user_id
+      WHERE s.name IN (${names.map(() => '?').join(',')})
+      ORDER BY s.updated_at DESC
+      LIMIT 1`,
+    names,
+    exec,
+  );
+  return row ? { at: String(row.updated_at), by: row.name ?? null } : null;
+}
+
 export async function companyDetails(): Promise<CompanyDetails> {
   const entries = await Promise.all(
     COMPANY_FIELDS.map(async (field) => [field, await setting(COMPANY_SETTING[field] as never)] as const),
@@ -260,12 +301,15 @@ export function brandingFrom(company: CompanyDetails): {
 } {
   const legal = company.legalName.trim();
   const shown = displayName(company);
+  /* Both lines, joined, for the places that take one string. */
+  const address = [company.address.trim(), company.addressLine2.trim()]
+    .filter(Boolean).join(', ');
   return {
     companyName: shown,
     /* Only when it adds something: "Emigeo Homes (Emigeo Homes)" in a footer
        is noise, and the legal name is the one that matters on a document. */
     companyLegalName: legal && legal !== shown ? legal : null,
-    address: company.address.trim() || null,
+    address: address || null,
     licenceNo: company.licenceNo.trim() || null,
     website: company.website.trim() || null,
     logoUrl: company.logoUrl.trim() || null,

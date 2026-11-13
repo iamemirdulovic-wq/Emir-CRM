@@ -5,6 +5,7 @@ import { useAsync, useDebounced } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { connectRealtime } from '../lib/realtime.js';
 import { formatTime } from '../lib/format.js';
+import { clockIn, originOf } from '../lib/dialling.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ErrorNote, Spinner, useToast } from '../design/ui.js';
 import { useFullAttention, usePhoneHead } from './phone.js';
@@ -43,7 +44,7 @@ import type {
  */
 
 type Scope = 'mine' | 'unassigned' | 'all';
-type Channel = 'any' | 'whatsapp' | 'email';
+type Channel = 'any' | 'whatsapp' | 'telegram' | 'email';
 type Mode = 'whatsapp' | 'email' | 'note';
 
 const STAGE_LABEL: Record<string, string> = {
@@ -114,6 +115,10 @@ export function V2Inbox() {
    */
   useFullAttention(openId !== null);
   const [version, setVersion] = useState(0);
+  /* A ready message fills the composer, as the design has it: the button is
+     in the side panel and the box is in the thread, so the text travels
+     through here. The stamp is what makes pressing the same one twice work. */
+  const [prefill, setPrefill] = useState<{ text: string; at: number } | null>(null);
   const search = useDebounced(typed);
 
   /* An owner owns almost no conversations, so "Mine" shows them an empty
@@ -128,7 +133,9 @@ export function V2Inbox() {
   const list = useAsync<{ items: Conversation[]; total: number }>(
     () => api.get(`/api/inbox/conversations${qs({
       filter: scope,
-      channel: channel === 'any' ? undefined : channel,
+      /* `telegram` is not one of the server's channels, so it is never sent
+         there: the list comes back whole and the filter below empties it. */
+      channel: channel === 'any' || channel === 'telegram' ? undefined : channel,
       unread: unreadOnly ? '1' : undefined,
       search,
       pageSize: 60,
@@ -143,7 +150,8 @@ export function V2Inbox() {
     return () => live.close();
   }, []);
 
-  const items = list.data?.items ?? [];
+  /* The Telegram filter is the design's and matches nothing: see below. */
+  const items = channel === 'telegram' ? [] : (list.data?.items ?? []);
   const unreadCount = items.filter((one) => one.unread_count > 0).length;
 
   /* On a computer the thread is always on screen, so open the first chat
@@ -155,12 +163,59 @@ export function V2Inbox() {
   }, [narrow, openId, items]);
 
   const open = items.find((one) => one.id === openId) ?? null;
+
+  /*
+   * The lead behind the open chat, fetched once for the whole screen.
+   *
+   * It was fetched inside the thread on a phone and inside the side panel on
+   * a computer, which meant the computer's thread header could not link to
+   * the lead at all — and the design's one button up there is "Open the
+   * lead". One request, two places.
+   */
+  const detail = useAsync<Contact360 | null>(
+    () => (open ? api.get(`/api/contacts/${open.contact_id}`) : Promise.resolve(null)),
+    [open?.contact_id],
+  );
+  const openings = useAsync<{ openings: Array<{ key: string; label: string; text: string }> } | null>(
+    () => (open
+      ? api.get(`/api/email/whatsapp-openings/${open.contact_id}`)
+      : Promise.resolve(null)),
+    [open?.contact_id],
+  );
   const showList = !narrow || !open;
   const showThread = !narrow || Boolean(open);
   const filtered = Boolean(search.trim()) || channel !== 'any' || unreadOnly;
 
   return (
     <div className="v2-inbox p-inbox">
+      {/*
+        * The design's first element on this page, and the one the audit
+        * found missing: `design/web/inbox.html` marks the whole screen a
+        * later phase, in these words, with one button per role.
+        *
+        * It is still the truth of today. WhatsApp and email go nowhere
+        * without their keys (`SETUP_NEEDED.md` §12), so what actually
+        * happens is what the banner says: the agent opens the chat on their
+        * phone and the tap is logged, which is the messaging report.
+        *
+        * On the computer only: under 768px this screen is `Inbox.dc.html`,
+        * which draws no banner.
+        */}
+      {!phone && (
+        <div className="d-later-banner">
+          <span className="d-tag">LATER PHASE</span>
+          <p>
+            <b>Not in the first build.</b> For now WhatsApp and Telegram open on the
+            agent&apos;s phone and every tap is logged.
+          </p>
+          <span className="d-grow" />
+          {seesEveryone ? (
+            <Link className="d-btn d-sm" to="/v2/messaging">Open the messaging report</Link>
+          ) : (
+            <Link className="d-btn d-sm" to="/v2/leads">Open My leads</Link>
+          )}
+        </div>
+      )}
       <div className="d-ib">
         {showList && (
           <section className="d-card d-pad-0 v2-ib-list">
@@ -196,7 +251,21 @@ export function V2Inbox() {
               </div>
 
               <div className="d-chips d-mt-8">
-                {([['any', 'All'], ['whatsapp', 'WhatsApp'], ['email', 'Email']] as Array<[Channel, string]>)
+                {([
+                  ['any', 'All'],
+                  ['whatsapp', 'WhatsApp'],
+                  /*
+                   * The design's third channel. There is no Telegram chat in
+                   * this CRM — `messages.channel` is whatsapp, email, sms or
+                   * note, and Telegram is a tap on the agent's own phone,
+                   * counted on the messaging report. The filter is drawn
+                   * because the design draws it, and what it finds is
+                   * nothing, with the empty state saying why rather than
+                   * leaving somebody to wonder.
+                   */
+                  ['telegram', 'Telegram'],
+                  ['email', 'Email'],
+                ] as Array<[Channel, string]>)
                   .map(([value, label]) => (
                     <button
                       key={value}
@@ -226,7 +295,13 @@ export function V2Inbox() {
                 <div className="d-empty">
                   <span className="d-ic"><Icon name="message-circle" /></span>
                   <b>No chats here</b>
-                  <p>{filtered ? 'Try another filter.' : 'A chat appears as soon as a lead writes in.'}</p>
+                  <p>
+                    {channel === 'telegram'
+                      ? 'No Telegram chat is in the CRM. On Telegram the agent writes from '
+                        + 'their own phone, and every tap is counted on the messaging report.'
+                      : filtered ? 'Try another filter.'
+                        : 'A chat appears as soon as a lead writes in.'}
+                  </p>
                 </div>
               )}
               {items.map((one) => (
@@ -247,6 +322,9 @@ export function V2Inbox() {
             chat={open}
             narrow={narrow}
             phone={phone}
+            detail={detail.data}
+            openings={openings.data?.openings ?? []}
+            prefill={prefill}
             onBack={() => setOpenId(null)}
             onChanged={() => setVersion((n) => n + 1)}
           />
@@ -262,7 +340,14 @@ export function V2Inbox() {
           </section>
         )}
 
-        {showThread && open && !phone && <LeadSide contactId={open.contact_id} />}
+        {showThread && open && !phone && (
+          <LeadSide
+            detail={detail.data}
+            error={detail.error}
+            openings={openings.data?.openings ?? []}
+            onUse={(text) => setPrefill({ text, at: Date.now() })}
+          />
+        )}
       </div>
     </div>
   );
@@ -303,6 +388,18 @@ function ChatRow({ chat, on, onOpen }: { chat: Conversation; on: boolean; onOpen
   );
 }
 
+/**
+ * "WhatsApp", "Email", "Note" — the word the design's chat header carries
+ * before the number. The CRM's `messages.channel` is one of four; "Telegram"
+ * is never one of them, which is why the filter beside it finds nothing.
+ */
+function channelWord(channel: string | null): string {
+  if (channel === 'email') return 'Email';
+  if (channel === 'note') return 'Note';
+  if (channel === 'sms') return 'SMS';
+  return 'WhatsApp';
+}
+
 /** The little green square in the design, one per channel. */
 function ChannelMark({ channel }: { channel: string | null }) {
   if (channel === 'email') {
@@ -317,11 +414,14 @@ function ChannelMark({ channel }: { channel: string | null }) {
 /* ── the thread ────────────────────────────────────────────────────────── */
 
 function Thread({
-  chat, narrow, phone, onBack, onChanged,
+  chat, narrow, phone, detail, openings, prefill, onBack, onChanged,
 }: {
   chat: Conversation;
   narrow: boolean;
   phone: boolean;
+  detail: Contact360 | null;
+  openings: Array<{ key: string; label: string; text: string }>;
+  prefill: { text: string; at: number } | null;
   onBack: () => void;
   onChanged: () => void;
 }) {
@@ -342,20 +442,10 @@ function Thread({
    * On a phone the lead panel is gone, so the two things it carried that the
    * design keeps on the chat itself come here: the name as a link to the
    * lead page, and the ready messages as a row of chips above the composer.
-   * Both are fetched only on a phone — on a computer the panel beside the
-   * thread already has them.
+   * Both are handed down from the screen, which fetches them once for the
+   * thread and the side panel together.
    */
-  const side = useAsync<Contact360 | null>(
-    () => (phone ? api.get(`/api/contacts/${chat.contact_id}`) : Promise.resolve(null)),
-    [phone, chat.contact_id],
-  );
-  const openings = useAsync<{ openings: Array<{ key: string; label: string; text: string }> } | null>(
-    () => (phone
-      ? api.get(`/api/email/whatsapp-openings/${chat.contact_id}`)
-      : Promise.resolve(null)),
-    [phone, chat.contact_id],
-  );
-  const leadId = side.data?.opportunities?.[0]?.id ?? null;
+  const leadId = detail?.opportunities?.[0]?.id ?? null;
 
   const [mode, setMode] = useState<Mode>('whatsapp');
   const [draft, setDraft] = useState('');
@@ -371,6 +461,11 @@ function Thread({
     const box = scroller.current;
     if (box) box.scrollTop = box.scrollHeight;
   }, [thread.data?.messages.length]);
+
+  /* A ready message pressed in the side panel lands in the box here. */
+  useEffect(() => {
+    if (prefill) setDraft(prefill.text);
+  }, [prefill]);
 
   /* Opening a chat is reading it. */
   useEffect(() => {
@@ -463,9 +558,11 @@ function Thread({
           ) : (
             <b className="d-bold d-truncate">{chat.full_name ?? 'Unknown'}</b>
           )}
+          {/* The design's line is the channel and the number — "WhatsApp ·
+              +39 333 455 4821". The channel word had gone missing, and it is
+              the one thing on the line that says which way a reply leaves. */}
           <div className="d-small d-muted d-truncate">
-            {chat.phone_e164 ?? chat.email ?? '—'}
-            {chat.assignee_name ? ` · ${chat.assignee_name}` : ' · nobody yet'}
+            {channelWord(chat.last_channel)} · {chat.phone_e164 ?? chat.email ?? '—'}
           </div>
         </div>
         {/* `Chat.dc.html` puts a round call button in the thread header: the
@@ -487,6 +584,12 @@ function Thread({
           </button>
         )}
         <WindowChip conversation={conversation} />
+        {/* The design's one button up here: "Open the lead". It was moved to
+            the foot of the side panel, which a narrow window does not show
+            at all. Both are kept — this is the design's. */}
+        {leadId && !phone && (
+          <Link className="d-btn d-sm" to={`/v2/leads/${String(leadId)}`}>Open the lead</Link>
+        )}
       </div>
 
       <div className="d-ib-msgs" ref={scroller}>
@@ -568,9 +671,9 @@ function Thread({
           CRM does not hold; these are the server's openings, written from
           the project the lead actually asked about, and tapping one fills
           the box rather than sending anything. */}
-      {phone && !templateOnly && mode === 'whatsapp' && (openings.data?.openings ?? []).length > 0 && (
+      {phone && !templateOnly && mode === 'whatsapp' && openings.length > 0 && (
         <div className="v2-b-quick">
-          {(openings.data?.openings ?? []).map((one) => (
+          {openings.map((one) => (
             <button
               key={one.key}
               type="button"
@@ -622,8 +725,30 @@ function Thread({
             : 'Nothing goes out until you press Send.'}
       </div>
 
+      {/* The design's own foot line, which says what today really is. The
+          line above it is Meta's 24-hour rule, which the drawing has no
+          state for and which can get the company's number banned. */}
+      {!phone && (
+        <div className="d-ib-foot d-lt-note">
+          In this later phase messages go out from the company WhatsApp number. Today
+          the agent presses send on the phone.
+        </div>
+      )}
+
       {gate.banner}
     </section>
+  );
+}
+
+/** "Italy 11:55" beside the stage, from the dialling code and nothing else. */
+function LocalTime({ phone }: { phone: string | null }) {
+  const origin = originOf(phone);
+  const clock = clockIn(origin?.timeZone ?? null);
+  if (!origin || !clock) return null;
+  return (
+    <span className="d-small d-muted" title={clock.offset}>
+      {origin.zoneLabel ?? origin.name} {clock.time}
+    </span>
   );
 }
 
@@ -695,25 +820,28 @@ function Ticks({ status }: { status: Message['status'] }) {
 
 /* ── the lead, beside the thread ───────────────────────────────────────── */
 
-function LeadSide({ contactId }: { contactId: string }) {
+function LeadSide({ detail, error, openings, onUse }: {
+  detail: Contact360 | null;
+  error: string | null;
+  openings: Array<{ key: string; label: string; text: string }>;
+  onUse: (text: string) => void;
+}) {
   const toast = useToast();
-  const detail = useAsync<Contact360>(() => api.get(`/api/contacts/${contactId}`), [contactId]);
-  const openings = useAsync<{ phone: string; openings: Array<{ key: string; label: string; text: string }> }>(
-    () => api.get(`/api/email/whatsapp-openings/${contactId}`),
-    [contactId],
-  );
+  /* The real count, so the link can say it the way the design does —
+     "All 16 templates". */
+  const templates = useAsync<{ items: TemplateRow[] }>(() => api.get('/api/templates'), []);
 
-  const contact = detail.data?.contact ?? null;
-  const lead = detail.data?.opportunities?.[0] ?? null;
-  const task = detail.data?.tasks?.find((one) => !one.completed_at) ?? null;
+  const contact = detail?.contact ?? null;
+  const lead = detail?.opportunities?.[0] ?? null;
+  const task = detail?.tasks?.find((one) => !one.completed_at) ?? null;
   const stage = (lead?.stage_key ?? null) as StageKey | null;
 
   return (
     <aside className="d-card d-ib-side v2-ib-side" aria-label="The lead">
       <h4>Lead</h4>
 
-      {detail.error && <ErrorNote>{detail.error}</ErrorNote>}
-      {!detail.data && !detail.error && <Spinner />}
+      {error && <ErrorNote>{error}</ErrorNote>}
+      {!detail && !error && <Spinner />}
 
       {contact && (
         <>
@@ -725,6 +853,18 @@ function LeadSide({ contactId }: { contactId: string }) {
                   {STAGE_LABEL[stage] ?? stage}
                 </span>
               )}
+              {/*
+                * The design's "Milan 11:55" — what the clock says where the
+                * client is, so nobody rings Moscow at six in the morning.
+                * §4.5 of the research, and it was on no screen here.
+                *
+                * The place is the country the dialling code names, or the
+                * city whose clock it is where a country spans several zones.
+                * The design writes a city for every lead; the CRM knows the
+                * number, not the town, and a town it does not know is not
+                * one it will invent.
+                */}
+              <LocalTime phone={contact.phone_e164} />
               <span className="d-small d-muted">Score {contact.lead_score}</span>
               {contact.dnc === 1 && <span className="d-chip d-red d-pip">Do not contact</span>}
             </div>
@@ -744,14 +884,17 @@ function LeadSide({ contactId }: { contactId: string }) {
               plan or handover date can creep into one. */}
           <h4 className="d-mt-8">Ready messages</h4>
           <div className="d-col d-gap-6">
-            {(openings.data?.openings ?? []).map((one) => (
+            {openings.map((one) => (
               <button
                 key={one.key}
                 type="button"
                 className="d-btn d-sm d-block"
+                /* The design fills the composer with it. It used to copy to
+                   the clipboard, because the box is in another component —
+                   which it still is, so the text goes up and across. */
                 onClick={() => {
-                  void navigator.clipboard?.writeText(one.text);
-                  toast('Copied. Paste it in the box and press Send.');
+                  onUse(one.text);
+                  toast('In the box. Change it if you like, then press Send.');
                 }}
               >
                 {one.label}
@@ -762,7 +905,9 @@ function LeadSide({ contactId }: { contactId: string }) {
                 Open the lead
               </Link>
             )}
-            <Link className="d-btn d-sm d-block d-ghost" to="/v2/templates">All templates</Link>
+            <Link className="d-btn d-sm d-block d-ghost" to="/v2/templates">
+              {templates.data ? `All ${templates.data.items.length} templates` : 'All templates'}
+            </Link>
           </div>
         </>
       )}

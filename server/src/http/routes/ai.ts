@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import {
-  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth, requireManager,
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth,
 } from '../middleware/auth.js';
 import {
   SECTIONS, buildKnowledge, completeness, loadKnowledge, restoreVersion, saveSection, sectionHistory,
@@ -38,9 +38,20 @@ export const aiRouter = Router();
 aiRouter.use(requireAuth, blockUntilPasswordChanged);
 
 /** The screen: the section definitions, what is saved, and the spend so far. */
+/*
+ * Owner and admin, not manager.
+ *
+ * This response carries the month's spend, the cap, which switches are on and
+ * where the key came from — the whole of the Homes AI settings page, which
+ * `design/web/ai-settings.html` marks `data-role="owner"`. A manager used to
+ * read the company's AI bill here. The three knowledge-writing endpoints
+ * below are tightened to match, because a page you cannot open is not a page
+ * you can save from, and `web/src/pages/Settings.tsx` no longer offers a
+ * manager the tab.
+ */
 aiRouter.get(
   '/knowledge',
-  requireManager,
+  requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     const rows = await loadKnowledge();
     const spend = await monthSpend();
@@ -98,7 +109,8 @@ aiRouter.get(
     keyFor: (req) => `ai-models:${currentUser(req).id}`,
     message: 'Checked too many times in a row. Wait a minute.',
   }),
-  requireManager,
+  /* Part of the key box on the Homes AI settings page, so it follows it. */
+  requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     const apiKey = await secret('GEMINI_API_KEY');
     if (!apiKey) {
@@ -151,7 +163,7 @@ aiRouter.post(
     keyFor: (req) => `ai-diagnose:${currentUser(req).id}`,
     message: 'Checked a few times already. Wait a few minutes.',
   }),
-  requireManager,
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const apiKey = await secret('GEMINI_API_KEY');
     if (!apiKey) {
@@ -342,7 +354,7 @@ const saveSchema = z.object({
 
 aiRouter.put(
   '/knowledge/:section',
-  requireManager,
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const body = saveSchema.parse(req.body);
     await saveSection(actorFrom(req), String(req.params.section), body.language, body.content);
@@ -352,7 +364,7 @@ aiRouter.put(
 
 aiRouter.get(
   '/knowledge/:section/history',
-  requireManager,
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const language = req.query.language === 'ar' ? 'ar' : 'en';
     res.json({ items: await sectionHistory(String(req.params.section), language) });
@@ -361,7 +373,7 @@ aiRouter.get(
 
 aiRouter.post(
   '/knowledge/restore/:versionId',
-  requireManager,
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     await restoreVersion(actorFrom(req), String(req.params.versionId));
     res.json({ ok: true });
@@ -384,7 +396,7 @@ const tryLimit = rateLimit({
 
 aiRouter.post(
   '/try',
-  requireManager,
+  requireAdmin,
   tryLimit,
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
@@ -501,7 +513,8 @@ aiRouter.delete(
  */
 aiRouter.get(
   '/usage',
-  requireManager,
+  /* The budget, for the same reason as `/knowledge` above. */
+  requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     const [spend, byFeature, features] = await Promise.all([
       monthSpend(),

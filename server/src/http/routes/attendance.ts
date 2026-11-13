@@ -9,6 +9,8 @@ import {
   attendanceMonth, dayState, dubaiDate, markOffice, markOutside,
 } from '../../attendance/attendance.js';
 import { attendanceSettings, saveAttendanceSettings } from '../../attendance/settings.js';
+import { attendanceCsv, monthSummary, recentMonths } from '../../attendance/report.js';
+import { query } from '../../db/client.js';
 
 /**
  * Checking in, and the month the owner reads.
@@ -104,8 +106,25 @@ attendanceRouter.get(
   '/settings',
   requireRole('owner', 'admin'),
   asyncHandler(async (req: Request, res: Response) => {
+    const settings = await attendanceSettings();
+    /*
+     * "Main office · 9 people on it now".
+     *
+     * The design puts a headcount under each network, and it is the line that
+     * tells an owner whether a saved address is still the office's: an
+     * address nobody has checked in from in a week is an address the internet
+     * provider has changed underneath them.
+     */
+    const seen = await query<{ seen_ip: string; n: number }>(
+      `SELECT seen_ip, COUNT(DISTINCT user_id) AS n
+         FROM attendance
+        WHERE on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00'))
+          AND seen_ip IS NOT NULL
+        GROUP BY seen_ip`,
+    );
     res.json({
-      ...(await attendanceSettings()),
+      ...settings,
+      onIpNow: Object.fromEntries(seen.map((row) => [row.seen_ip, Number(row.n)])),
       /* So an owner standing in the office can see what the server sees and
          save it without typing it, and can tell at a glance whether the
          stored address is still the right one. */
@@ -117,6 +136,7 @@ attendanceRouter.get(
 const settingsSchema = z.object({
   enabled: z.boolean().optional(),
   officeIps: z.array(z.string().max(45)).max(10).optional(),
+  officeNames: z.record(z.string().max(45), z.string().max(60)).optional(),
   start: z.string().max(5).optional(),
   end: z.string().max(5).optional(),
   satStart: z.string().max(5).optional(),
@@ -131,12 +151,64 @@ const settingsSchema = z.object({
   callAnyway: z.boolean().optional(),
 });
 
+/*
+ * Admin as well as owner.
+ *
+ * `design/web/research/sage.md` §1 is explicit that an admin does what an
+ * owner does on these screens, and the design's own nav marks Attendance
+ * rules `data-only="owner"` — meaning the owner group, which admin is in.
+ * Reading was already open to both; only saving was owner-only, so an admin
+ * got the whole form with a Save button that answered 403.
+ */
 attendanceRouter.put(
   '/settings',
-  requireRole('owner'),
+  requireRole('owner', 'admin'),
   asyncHandler(async (req: Request, res: Response) => {
     const input = settingsSchema.parse(req.body);
     const saved = await saveAttendanceSettings(actorFrom(req), input);
     res.json({ ...saved, yourIp: networkIp(req) });
+  }),
+);
+
+/* ── the monthly file ──────────────────────────────────────────────────── */
+
+const monthSchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() });
+
+/**
+ * Which months the picker offers, and what each one holds.
+ *
+ * The design's own line under the picker — "22 working days · 10 agents" —
+ * changes with the month, so the numbers come from here rather than being
+ * written into the screen.
+ */
+attendanceRouter.get(
+  '/report/months',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const months = recentMonths();
+    res.json({
+      months: await Promise.all(months.map((one) => monthSummary(one.key))),
+    });
+  }),
+);
+
+/**
+ * "Download Excel" — every agent, every day, late minutes, leave, outside
+ * work, as one file. §4.21.
+ *
+ * A CSV rather than a real workbook; the button says so. See
+ * `attendance/report.ts` and `docs/decisions-to-confirm.md`.
+ */
+attendanceRouter.get(
+  '/report.csv',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { month } = monthSchema.parse(req.query);
+    const key = month ?? recentMonths()[0]?.key ?? dubaiDate().slice(0, 7);
+    const { filename, csv } = await attendanceCsv(key);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    /* Excel reads a CSV as the machine's own code page unless it finds this. */
+    res.send(`﻿${csv}`);
   }),
 );

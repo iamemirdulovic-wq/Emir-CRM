@@ -38,12 +38,16 @@ import {
   officeRules, saveOfficeRules, saveSchema as rulesSchema,
 } from '../../v2/office-rules.js';
 import {
-  answerFeedback, answerSchema as feedbackAnswerSchema, feedbackInbox, myFeedback,
-  sendFeedback, sendSchema, type FeedbackStatus,
+  answerFeedback, answerSchema as feedbackAnswerSchema, attachToFeedback, feedbackCsv,
+  feedbackFile, feedbackInbox, myFeedback, sendFeedback, sendSchema, type FeedbackStatus,
 } from '../../v2/feedback.js';
 import {
-  bannerSchema, createBanner, deleteBanner, listBanners, reorderBanners, updateBanner,
+  BANNER_LABELS, BANNER_OPENS, BANNER_ROTATE_SECONDS, MAX_BANNERS, MAX_BANNER_IMAGE_BYTES,
+  bannerImage, bannerSchema, createBanner, deleteBanner, listBanners, reorderBanners,
+  saveBannerImage, updateBanner,
 } from '../../v2/banners.js';
+import { remindAboutAlerts, teamRoles } from '../../v2/team-roles.js';
+import { runChecks, serviceHistory } from '../../v2/health-checks.js';
 import { websiteConnection } from '../../services/integration-status.js';
 import {
   createSheet, deleteDraft, getSheet, listSheets, markAccepted, markShared,
@@ -365,10 +369,19 @@ v2Router.get(
     const from = new Date(Date.parse(`${to}T00:00:00Z`) - 59 * 86_400_000)
       .toISOString().slice(0, 10);
 
-    const [today, days, leave, taken] = await Promise.all([
+    const [today, days, leave, taken, answerers] = await Promise.all([
       dayState(user.id, networkIp(req)),
-      query<{ on_date: string; kind: string; was_late: number; note: string | null }>(
-        `SELECT DATE_FORMAT(on_date, '%Y-%m-%d') AS on_date, kind, was_late, note
+      /*
+       * `marked_at` as well as the date.
+       *
+       * `design/web/attendance.html` puts the check-in time in every cell of
+       * the week strip and the month grid, and the Late tile reads "1 · Wed 4
+       * Nov · 8 min" — none of which can be worked out from a date and a
+       * late flag. The column has always been there; this read left it out,
+       * so every cell showed a word instead of a time.
+       */
+      query<{ on_date: string; kind: string; marked_at: Date; was_late: number; note: string | null }>(
+        `SELECT DATE_FORMAT(on_date, '%Y-%m-%d') AS on_date, kind, marked_at, was_late, note
            FROM attendance
           WHERE user_id = ? AND on_date >= ?
           ORDER BY on_date DESC`,
@@ -376,9 +389,31 @@ v2Router.get(
       ),
       myLeave(user.id),
       leaveTakenThisYear(user.id),
+      /*
+       * Who answers a leave request, by name.
+       *
+       * The design says "Emir or George answers" — the real names, because
+       * "an owner answers" is the sentence that makes an agent ask a
+       * colleague who that is. First names only, of the people who can
+       * actually answer, and every one of them is on the Team page anyway.
+       */
+      query<{ name: string }>(
+        `SELECT name FROM users
+          WHERE is_active = 1 AND role IN ('owner','admin')
+          ORDER BY role = 'owner' DESC, name
+          LIMIT 4`,
+      ),
     ]);
 
-    res.json({ today, from, to, days, leave, taken });
+    res.json({
+      today,
+      from,
+      to,
+      days,
+      leave,
+      taken,
+      answerers: answerers.map((one) => one.name.split(' ')[0]).filter(Boolean),
+    });
   }),
 );
 
@@ -816,6 +851,41 @@ v2Router.get(
   }),
 );
 
+/**
+ * Team and roles, the owner's administrative view.
+ *
+ * Separate from `/team` above, and from `GET /api/users`, because those two
+ * are read by every screen that needs a colleague's name and so cannot be
+ * shut. This one carries email addresses, last sign-ins, open-lead counts and
+ * whose phone is registered for alerts, and is owner and admin only — on the
+ * server, not only in the nav. `web/src/v2/settings/Team.tsx` is its screen.
+ */
+v2Router.get(
+  '/team/roles',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await teamRoles());
+  }),
+);
+
+/**
+ * "Remind" — the button beside somebody with no phone registered.
+ *
+ * It writes "Turn on notifications" into their bell, which My Day reads. It
+ * does not send a push, because the whole reason they are on this list is
+ * that a push cannot reach them.
+ */
+v2Router.post(
+  '/team/remind-alerts',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({
+      userIds: z.array(z.string().max(36)).min(1).max(50),
+    }).parse(req.body);
+    res.json(await remindAboutAlerts(actorFrom(req), body.userIds));
+  }),
+);
+
 /* ── feedback ──────────────────────────────────────────────────────────── */
 
 /**
@@ -852,6 +922,82 @@ v2Router.get(
   }),
 );
 
+/**
+ * "Export file" — the whole inbox as a spreadsheet.
+ *
+ * The design's toast names an .xlsx; this is a CSV, which Excel and Numbers
+ * both open and which needs nothing installed on the server. The button says
+ * CSV so nobody is told otherwise. `docs/decisions-to-confirm.md`.
+ */
+v2Router.get(
+  '/feedback/export.csv',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const csv = await feedbackCsv();
+    const stamp = new Date(Date.now() + 4 * 3_600_000)
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+      .replace(' ', '-');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="feedback-${stamp}.csv"`);
+    /* Excel reads a CSV as the machine's own code page unless it finds this. */
+    res.send(`﻿${csv}`);
+  }),
+);
+
+/**
+ * A screenshot or a voice note on a report.
+ *
+ * The bytes come up as the request body with the type in the header, the same
+ * way every other upload in this CRM works. Everybody may attach to their own
+ * report; an owner may attach to anybody's.
+ */
+v2Router.post(
+  '/feedback/:id/:kind(screenshot|voice)',
+  rateLimit({
+    max: 20,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `feedback-file:${currentUser(req).id}`,
+    message: 'Too many attachments in a short time. Wait a few minutes.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const kind = String(req.params.kind) as 'screenshot' | 'voice';
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      /* Refused as it arrives rather than after the whole thing is in memory. */
+      if (size > 2 * 1024 * 1024) throw badRequest('That file is larger than 2 MB.');
+      chunks.push(chunk as Buffer);
+    }
+    const seconds = Number(req.get('x-duration-seconds'));
+    res.status(201).json(await attachToFeedback(actorFrom(req), String(req.params.id), {
+      userId: user.id,
+      kind,
+      contentType: req.get('content-type') ?? '',
+      body: Buffer.concat(chunks),
+      seconds: Number.isFinite(seconds) ? seconds : null,
+    }));
+  }),
+);
+
+v2Router.get(
+  '/feedback/:id/:kind(screenshot|voice)',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const { file, contentType } = await feedbackFile(
+      String(req.params.id),
+      String(req.params.kind) as 'screenshot' | 'voice',
+      { id: user.id, role: user.role },
+    );
+    res.setHeader('Content-Type', contentType);
+    /* Never cached by a shared cache: it can carry a client's name. */
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(file);
+  }),
+);
+
 v2Router.patch(
   '/feedback/:id',
   requireRole('owner', 'admin'),
@@ -870,7 +1016,16 @@ v2Router.get(
   '/banners',
   requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
-    res.json({ items: await listBanners() });
+    /* The desks come with them: the form's "One desk" picker needs the real
+       list, and a desk typed by hand is a banner nobody sees. */
+    res.json({
+      items: await listBanners(),
+      desks: await listDesks(),
+      labels: BANNER_LABELS,
+      opens: BANNER_OPENS,
+      max: MAX_BANNERS,
+      rotateSeconds: BANNER_ROTATE_SECONDS,
+    });
   }),
 );
 
@@ -900,6 +1055,40 @@ v2Router.delete(
   }),
 );
 
+/**
+ * The banner's picture.
+ *
+ * Owner and admin to change it; everybody may fetch it, because My Day draws
+ * it for every agent and an image the page cannot load is a blank card.
+ */
+v2Router.post(
+  '/banners/:id/image',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > MAX_BANNER_IMAGE_BYTES) throw badRequest('That picture is larger than 4 MB.');
+      chunks.push(chunk as Buffer);
+    }
+    res.status(201).json(await saveBannerImage(
+      actorFrom(req), String(req.params.id), req.get('content-type') ?? '', Buffer.concat(chunks),
+    ));
+  }),
+);
+
+v2Router.get(
+  '/banners/:id/image',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { file, contentType } = await bannerImage(String(req.params.id));
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(file);
+  }),
+);
+
 v2Router.post(
   '/banners/order',
   requireRole('owner', 'admin'),
@@ -924,15 +1113,36 @@ v2Router.get(
   '/health',
   requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
-    const [setup, website, push] = await Promise.all([
-      setupChecklist(), websiteConnection(), pushReadiness(),
+    const [report, setup, website, push] = await Promise.all([
+      serviceHistory(), setupChecklist(), websiteConnection(), pushReadiness(),
     ]);
     res.json({
-      services: setup.items,
-      outstanding: setup.outstanding,
+      /* The six the design draws, each with its thirty days of recorded
+         checks. `setup` is the separate "what has never been switched on"
+         list, kept because email and WhatsApp templates are on it and are
+         not services this page measures. */
+      ...report,
+      setup: setup.items,
+      setupOutstanding: setup.outstanding,
       website,
       push,
     });
+  }),
+);
+
+/**
+ * "Run a check now."
+ *
+ * The same six checks the `health.check` job runs every five minutes, run on
+ * demand and written down the same way, so pressing the button adds a sample
+ * rather than showing a different number from a different place.
+ */
+v2Router.post(
+  '/health/check',
+  requireRole('owner', 'admin'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    await runChecks();
+    res.json(await serviceHistory());
   }),
 );
 
@@ -977,13 +1187,16 @@ v2Router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const rows = await query<{
       id: string; name: string; project: string | null; isVip: number;
-      returnedAt: string; agentName: string | null;
+      returnedAt: string; agentName: string | null; source: string | null;
     }>(
+      /* `source` so the row can say "· import", which is how the design
+         tells the two take-back clocks apart on sight. */
       `SELECT o.id,
               c.full_name    AS name,
               o.project_name AS project,
               o.is_vip       AS isVip,
               o.returned_at  AS returnedAt,
+              o.source       AS source,
               u.name         AS agentName
          FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL

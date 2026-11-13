@@ -1,11 +1,12 @@
 import { useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
 import { feedbackSub } from './subs.js';
+import { VoiceRecorder, canRecord, formatDuration } from '../lib/recorder.js';
 
 /**
  * Report a bug or an idea.
@@ -22,20 +23,32 @@ import { feedbackSub } from './subs.js';
 
 interface Ticket {
   id: string;
+  ref: number | null;
   kind: string;
+  kindWord: string;
+  title: string;
   body: string;
   screen: string | null;
   status: 'new' | 'planned' | 'fixed' | 'declined';
+  urgency: 'low' | 'normal' | 'blocking';
   blocking: boolean;
   reply: string | null;
   repliedBy: string | null;
   createdAt: string;
 }
 
+/* The four the design draws, with the design's own wording under each. */
 const KINDS: Array<{ value: string; title: string; note: string; icon: IconName }> = [
-  { value: 'bug', title: 'Something is broken', note: 'It does not work, or it does the wrong thing', icon: 'alert-triangle' },
-  { value: 'question', title: 'Hard to use', note: 'It works, but it is awkward or confusing', icon: 'help-circle' },
-  { value: 'idea', title: 'An idea', note: 'Something missing, or a thought for later', icon: 'sparkles' },
+  { value: 'bug', title: 'Bug', note: 'Something is broken', icon: 'alert-triangle' },
+  { value: 'issue', title: 'Issue', note: 'Works, but hard to use', icon: 'help-circle' },
+  { value: 'feature', title: 'New feature', note: 'Something is missing', icon: 'plus' },
+  { value: 'idea', title: 'Idea', note: 'A thought for later', icon: 'sparkles' },
+];
+
+const URGENCIES = [
+  { value: 'low' as const, label: 'Low' },
+  { value: 'normal' as const, label: 'Normal' },
+  { value: 'blocking' as const, label: 'Blocking my work' },
 ];
 
 /**
@@ -53,11 +66,6 @@ const SCREENS = [
   'Homes AI', 'Business card', 'Settings', 'Phone app', 'Other',
 ];
 
-/** What each kind is called on a sent report, as the design writes it. */
-const KIND_WORD: Record<string, string> = {
-  bug: 'Bug', question: 'Issue', idea: 'Idea',
-};
-
 const STATUS: Record<Ticket['status'], { label: string; chip: string }> = {
   new: { label: 'Not looked at yet', chip: 'd-chip' },
   planned: { label: 'On the list', chip: 'd-chip d-blue' },
@@ -68,13 +76,23 @@ const STATUS: Record<Ticket['status'], { label: string; chip: string }> = {
 export function V2Feedback() {
   const location = useLocation();
   const [kind, setKind] = useState('bug');
+  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [where, setWhere] = useState('');
-  const [blocking, setBlocking] = useState(false);
+  const [urgency, setUrgency] = useState<'low' | 'normal' | 'blocking'>('normal');
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [sent, setSent] = useState(false);
+  /** The ticket the design's thank-you quotes: "Thank you · ticket #1042". */
+  const [sent, setSent] = useState<Ticket | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  /* A screenshot and a voice note, held until the report exists to attach
+     them to — a file cannot be attached to a report that has no id yet. */
+  const [shot, setShot] = useState<File | null>(null);
+  const [voice, setVoice] = useState<{ blob: Blob; seconds: number; mimeType: string } | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const recorder = useRef<VoiceRecorder | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
   const mine = useAsync<{ items: Ticket[] }>(() => api.get('/api/v2/feedback/mine'), []);
@@ -98,25 +116,82 @@ export function V2Feedback() {
      referrer is more useful than this page's own address. */
   const from = (location.state as { from?: string } | null)?.from ?? document.referrer ?? null;
 
+  /* The microphone is released when the page goes away, whatever state it is
+     in — otherwise the recording dot stays lit in the tab all afternoon. */
+  useEffect(() => () => recorder.current?.release(), []);
+
+  /* The timer while recording, which is the only way to know it is running. */
+  useEffect(() => {
+    if (!recording) return undefined;
+    const timer = window.setInterval(() => setRecordSeconds((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  async function toggleRecording() {
+    setProblem(null);
+    if (recording) {
+      setRecording(false);
+      try {
+        const got = await recorder.current?.stop();
+        if (got && got.seconds >= 1) setVoice(got);
+        else toast('Too short. Hold the recording for at least 1 second.');
+      } catch (err) {
+        setProblem(err instanceof Error ? err.message : 'The recording did not save.');
+      }
+      return;
+    }
+    recorder.current = new VoiceRecorder();
+    try {
+      await recorder.current.start();
+      setRecordSeconds(0);
+      setRecording(true);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'Could not start recording.');
+    }
+  }
+
   async function send() {
     setTouched(true);
-    if (body.trim().length < 10) return;
+    /* A voice note stands in for the text, as the design's own validator
+       does: somebody who cannot work has most to say out loud. */
+    const needsText = !voice;
+    if (title.trim().length < 4) return;
+    if (needsText && body.trim().length < 10) return;
     setBusy(true);
     setProblem(null);
     try {
-      await api.post('/api/v2/feedback', {
+      const made = await api.post<Ticket>('/api/v2/feedback', {
         kind,
-        body: body.trim(),
+        title: title.trim(),
+        body: body.trim() || 'Sent as a voice note.',
         /* What they chose, or else the page they came from. */
         screen: where || (from ? String(from).slice(0, 160) : null),
-        blocking,
+        urgency,
       });
+      /* The attachments go up second, against the report that now exists.
+         A failure here does not lose the report — it says so and keeps it. */
+      try {
+        if (shot) await api.upload(`/api/v2/feedback/${made.id}/screenshot`, shot);
+        if (voice) {
+          await api.upload(
+            `/api/v2/feedback/${made.id}/voice`,
+            new File([voice.blob], 'voice-note', { type: voice.mimeType }),
+            { 'X-Duration-Seconds': String(voice.seconds) },
+          );
+        }
+      } catch (err) {
+        toast(err instanceof Error
+          ? `Report sent, but the attachment did not: ${err.message}`
+          : 'Report sent, but the attachment did not.');
+      }
+      setTitle('');
       setBody('');
       setWhere('');
-      setBlocking(false);
+      setUrgency('normal');
+      setShot(null);
+      setVoice(null);
       setTouched(false);
-      setSent(true);
-      toast('Sent. The owners see it straight away.');
+      setSent(made);
       mine.reload();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That did not send.');
@@ -141,17 +216,18 @@ export function V2Feedback() {
         <section className="d-card">
           <div className="d-empty">
             <span className="d-ic"><Icon name="check-circle-2" size={28} /></span>
-            <b>Thank you.</b>
+            <b>Thank you · ticket #{sent.ref ?? '—'}</b>
             <p>
-              Your report is with the owners. You get a notification when it is planned and
-              when it is fixed, and it is in the list below until then.
+              We got your report. You will see the status in the list below and get an alert
+              when it changes.
             </p>
+            <span className="d-chip d-green d-lg">+15 points</span>
             <button
               type="button"
-              className="d-btn d-sm d-primary"
-              onClick={() => setSent(false)}
+              className="d-btn d-sm d-primary d-mt-8"
+              onClick={() => setSent(null)}
             >
-              <Icon name="plus" />Send another
+              <Icon name="plus" />Write another
             </button>
           </div>
         </section>
@@ -161,6 +237,7 @@ export function V2Feedback() {
       <section className="d-card">
         <div className="d-card-head">
           <h2 className="d-grow">Tell us what to fix or build</h2>
+          <span className="d-chip d-green">+15 points for each report</span>
         </div>
 
         <div className="d-col d-gap-16">
@@ -184,54 +261,144 @@ export function V2Feedback() {
             </div>
           </div>
 
-          {/* `design/web/feedback.html` asks where, from a list of every
-              screen. It fills the same `screen` field the page address fills
-              by itself, so a report that happened somewhere else can say so. */}
-          <div className="d-field">
-            <label htmlFor="fb-where">Where in the CRM?</label>
-            <select
-              id="fb-where"
-              className="d-select"
-              value={where}
-              onChange={(e) => setWhere(e.target.value)}
+          {/* A short title and where, side by side, then what happened —
+              the design's own 1.6fr / 1fr grid. The title is what the owner's
+              inbox scans by: without one, the body became the heading and a
+              long report filled the row. */}
+          <div className="d-form-grid v2-fb-grid">
+            <div className={touched && title.trim().length < 4 ? 'd-field d-invalid' : 'd-field'}>
+              <label htmlFor="fb-title">Short title <span className="d-req">*</span></label>
+              <input
+                id="fb-title"
+                className="d-input"
+                value={title}
+                aria-label="Short title"
+                placeholder="Call button does nothing on the lead page"
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <span className="d-error">Write a short title.</span>
+            </div>
+
+            <div className="d-field">
+              <label htmlFor="fb-where">Where</label>
+              <select
+                id="fb-where"
+                className="d-select"
+                value={where}
+                onChange={(e) => setWhere(e.target.value)}
+              >
+                <option value="">Choose a page…</option>
+                {SCREENS.map((one) => <option key={one} value={one}>{one}</option>)}
+              </select>
+            </div>
+
+            <div className={touched && !voice && body.trim().length < 10
+              ? 'd-field d-full d-invalid' : 'd-field d-full'}
             >
-              <option value="">The page I came from</option>
-              {SCREENS.map((one) => <option key={one} value={one}>{one}</option>)}
-            </select>
+              <label>
+                {kind === 'bug' ? 'What happened?' : kind === 'idea' ? 'What would help?' : 'What is awkward?'}
+                {' '}{!voice && <span className="d-req">*</span>}
+              </label>
+              <textarea
+                className="d-textarea v2-fb-text"
+                value={body}
+                aria-label="What happened?"
+                placeholder={kind === 'bug'
+                  ? 'What did you do, what did you see, and what did you expect instead?'
+                  : 'Say it however you like. Short is fine.'}
+                onChange={(e) => setBody(e.target.value)}
+              />
+              <span className="d-error">Write what happened, at least 10 letters.</span>
+            </div>
           </div>
 
-          <div className="d-field">
-            <label>
-              {kind === 'bug' ? 'What happened?' : kind === 'idea' ? 'What would help?' : 'What is awkward?'}
-              {' '}<span className="d-req">*</span>
-            </label>
-            <textarea
-              className="d-textarea v2-fb-text"
-              value={body}
-              aria-label="What happened?"
-              placeholder={kind === 'bug'
-                ? 'What did you do, what did you see, and what did you expect instead?'
-                : 'Say it however you like. Short is fine.'}
-              onChange={(e) => setBody(e.target.value)}
-            />
-            {touched && body.trim().length < 10 && (
-              <span className="v2-field-error">Write a little more — at least a sentence.</span>
+          {/* A screenshot and a voice note. Both end up on the report the
+              owner opens, and the voice note can stand in for the text. */}
+          <div className="d-row d-gap-8 d-wrap">
+            <button
+              type="button"
+              className="d-btn d-sm"
+              disabled={recording}
+              onClick={() => picker.current?.click()}
+            >
+              <Icon name="image-up" />Add a screenshot
+            </button>
+            {canRecord() && (
+              <button
+                type="button"
+                className={recording ? 'd-btn d-sm d-danger d-solid' : 'd-btn d-sm'}
+                onClick={() => void toggleRecording()}
+              >
+                <Icon name="mic" />
+                {recording
+                  ? `Stop · ${formatDuration(recordSeconds)}`
+                  : voice ? 'Record again' : 'Record a voice note'}
+              </button>
             )}
+            <span className="d-small d-muted">
+              Or press Print Screen and paste here with Ctrl V.
+            </span>
           </div>
+
+          {(shot || voice) && (
+            <div className="d-row d-gap-8 d-wrap">
+              {shot && (
+                <span className="d-chip">
+                  <Icon name="image-up" />
+                  {shot.name} · {Math.round(shot.size / 1024)} KB
+                  <button
+                    type="button" className="v2-fb-x" aria-label="Remove the screenshot"
+                    onClick={() => setShot(null)}
+                  >
+                    <Icon name="x" />
+                  </button>
+                </span>
+              )}
+              {voice && (
+                <span className="d-chip">
+                  <Icon name="mic" />
+                  Voice note · {formatDuration(voice.seconds)}
+                  <button
+                    type="button" className="v2-fb-x" aria-label="Remove the voice note"
+                    onClick={() => setVoice(null)}
+                  >
+                    <Icon name="x" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          <input
+            ref={picker}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            aria-label="Choose a screenshot"
+            onChange={(e) => {
+              const chosen = e.target.files?.[0];
+              if (chosen) setShot(chosen);
+              if (picker.current) picker.current.value = '';
+            }}
+          />
 
           <div className="d-field">
             <span className="d-field-label">How urgent?</span>
             <div className="d-row d-gap-16 d-wrap">
               <div className="d-seg" role="group" aria-label="How urgent">
-                <button type="button" className={blocking ? undefined : 'd-on'} onClick={() => setBlocking(false)}>
-                  Normal
-                </button>
-                <button type="button" className={blocking ? 'd-on' : undefined} onClick={() => setBlocking(true)}>
-                  It stops me working
-                </button>
+                {URGENCIES.map((one) => (
+                  <button
+                    key={one.value}
+                    type="button"
+                    className={urgency === one.value ? 'd-on' : undefined}
+                    onClick={() => setUrgency(one.value)}
+                  >
+                    {one.label}
+                  </button>
+                ))}
               </div>
-              <span className="d-small d-muted">
-                {blocking
+              <span className={urgency === 'blocking' ? 'd-small d-t-red' : 'd-small d-muted'}>
+                {urgency === 'blocking'
                   ? 'This goes to the top of the owners’ list, above everything else.'
                   : 'We read every report within 2 working days.'}
               </span>
@@ -259,14 +426,18 @@ export function V2Feedback() {
             {mine.data?.items.map((one) => (
               <div className="d-list-row v2-fb-mine" key={one.id}>
                 <span className="d-grow">
-                  <b className="d-bold">{one.body.slice(0, 90)}{one.body.length > 90 ? '…' : ''}</b>
+                  <b className="d-bold">{one.title}</b>
                   {/* The design's line is kind, then where, then the date —
                       "Bug · Lead page · 4 Nov". The build showed the date
                       alone, so three reports read the same. */}
                   <div className="d-small d-muted">
-                    {[KIND_WORD[one.kind] ?? one.kind, screenWord(one.screen), when(one.createdAt)]
-                      .filter(Boolean).join(' · ')}
-                    {one.blocking ? ' · stopped you working' : ''}
+                    {[
+                      one.ref ? `#${one.ref}` : null,
+                      one.kindWord,
+                      screenWord(one.screen),
+                      when(one.createdAt),
+                    ].filter(Boolean).join(' · ')}
+                    {one.urgency === 'blocking' ? ' · stopped you working' : ''}
                   </div>
                   {one.reply && (
                     <div className="d-msg-box d-mt-8">

@@ -16,7 +16,7 @@ import { newId } from '../lib/ids.js';
 import { badRequest, forbidden } from '../lib/errors.js';
 import { DUBAI_OFFSET_MINUTES } from '../routing/hours.js';
 import {
-  attendanceSettings, isOfficeIp, type AttendanceSettings,
+  attendanceSettings, isOfficeIp, normaliseIp, type AttendanceSettings,
 } from './settings.js';
 import { countedAgentSql } from '../users/counting.js';
 
@@ -51,6 +51,27 @@ export function startFor(day: number, s: AttendanceSettings): number | null {
   return toMinutes(day === 6 ? s.satStart : s.start);
 }
 
+/**
+ * The shift, as an agent's own screen needs to say it.
+ *
+ * `design/web/attendance.html` writes three facts the agent screen could not
+ * reach: "Shift 09:00 – 18:00, Monday to Friday", "Late · check-in after
+ * 09:10", and the warning in the hero that a check-in at this hour counts as
+ * late. All three are in `attendanceSettings`, and that endpoint is owner and
+ * admin only — rightly, because it also carries the office's addresses. What
+ * is here is when the office is open and when a tap counts as late, and
+ * nothing else. Nothing in it says where the office is.
+ */
+export interface ShiftFacts {
+  start: string;
+  end: string;
+  satStart: string;
+  satEnd: string;
+  /** JS day numbers, 0 = Sunday. */
+  closedDays: number[];
+  graceMinutes: number;
+}
+
 export interface DayState {
   /** The office is shut today, so nothing is expected of anyone. */
   closed: boolean;
@@ -65,8 +86,31 @@ export interface DayState {
   seenIp: string | null;
   /** Attendance is off until an owner has set an address. */
   enabled: boolean;
+  /**
+   * What the office network this caller is on is called — the design's
+   * "OFFICE WI-FI FOUND · homes.me-Office". Null when they are not on one,
+   * or when the owner has saved an address without naming it.
+   *
+   * The name only. The addresses stay on the owner's settings endpoint: an
+   * agent's screen has no business carrying the office's IP around.
+   */
+  officeName: string | null;
+  /** Every office network's name, for "Only on the office Wi-Fi “X”". */
+  officeNames: string[];
   /** "10:00" today, so the screen can say what on-time means. */
   startsAt: string | null;
+  /** "19:00" today, or null when the office is shut. */
+  endsAt: string | null;
+  /** "10:10" today: a tap after this is late. Null when the office is shut. */
+  lateAfter: string | null;
+  /** The whole week's shift, for the "How check-in works" panel. */
+  shift: ShiftFacts;
+}
+
+/** "10:00" plus 10 minutes is "10:10". Past midnight it stops at 23:59. */
+function plusMinutes(clock: string, minutes: number): string {
+  const total = Math.min(toMinutes(clock) + minutes, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export async function dayState(
@@ -87,8 +131,13 @@ export async function dayState(
     exec,
   );
 
+  const closed = settings.closedDays.includes(day);
+  const startsAt = closed ? null : (day === 6 ? settings.satStart : settings.start);
+  const names = settings.officeNames ?? {};
+  const here = normaliseIp(seenIp);
+
   return {
-    closed: settings.closedDays.includes(day),
+    closed,
     marked: row?.kind ?? null,
     markedAt: row?.marked_at ?? null,
     wasLate: row?.was_late === 1,
@@ -96,9 +145,19 @@ export async function dayState(
     onOfficeNetwork: isOfficeIp(seenIp, settings.officeIps),
     seenIp,
     enabled: settings.enabled,
-    startsAt: settings.closedDays.includes(day)
-      ? null
-      : (day === 6 ? settings.satStart : settings.start),
+    officeName: here ? names[here] ?? null : null,
+    officeNames: [...new Set(Object.values(names))],
+    startsAt,
+    endsAt: closed ? null : (day === 6 ? settings.satEnd : settings.end),
+    lateAfter: startsAt ? plusMinutes(startsAt, settings.graceMinutes) : null,
+    shift: {
+      start: settings.start,
+      end: settings.end,
+      satStart: settings.satStart,
+      satEnd: settings.satEnd,
+      closedDays: settings.closedDays,
+      graceMinutes: settings.graceMinutes,
+    },
   };
 }
 

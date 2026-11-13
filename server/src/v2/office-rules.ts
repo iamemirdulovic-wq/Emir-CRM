@@ -22,7 +22,8 @@
 import { z } from 'zod';
 import { saveSetting, setting, type SettingName } from '../config/secrets.js';
 import type { AuditActor } from '../audit/audit.js';
-import { getPool, type Executor } from '../db/client.js';
+import { getPool, queryOne, type Executor } from '../db/client.js';
+import { attendanceSettings } from '../attendance/settings.js';
 
 interface Rule {
   key: string;
@@ -31,6 +32,33 @@ interface Rule {
   note: string;
   /** Off unless an owner turns it on. Everything else starts on. */
   startsOff?: boolean;
+  /**
+   * A count the note ends with, read from the database.
+   *
+   * `design/web/automations.html` writes "No call, no message and no plan for
+   * 7 days · 12 leads now" — the switch plus how many rows it would touch
+   * right now. That number is what makes it a decision instead of a guess,
+   * and it cannot be written into the file.
+   */
+  countSql?: string;
+  countNote?: (n: number) => string;
+  /**
+   * The title with the office's own times in it.
+   *
+   * The design writes "Check-in reminder at 09:00", "Mark late after 09:10"
+   * and "Tell owners about an absent agent at 10:00". Those three times are
+   * the saved shift, so they are filled in here rather than hard-coded —
+   * hard-coding them would make the page say 09:00 to an office that opens
+   * at 10:00, which is what it actually does.
+   */
+  titleWithTimes?: (shift: { start: string; graceMinutes: number }) => string;
+}
+
+/** "09:00" plus n minutes, as "09:10". */
+function plus(hhmm: string, minutes: number): string {
+  const [h = '0', m = '0'] = hhmm.split(':');
+  const total = (Number(h) * 60 + Number(m) + minutes + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export const RULE_GROUPS: Array<{ key: string; title: string; rules: Rule[] }> = [
@@ -42,19 +70,30 @@ export const RULE_GROUPS: Array<{ key: string; title: string; rules: Rule[] }> =
         key: 'warnBeforeBack',
         name: 'AUTO_WARN_BEFORE_BACK',
         title: 'Warn the agent before a lead goes back',
-        note: '10 minutes before a VIP lead, an hour before an imported one',
+        note: '10 min before for a VIP lead, 1 hour before for an imported lead',
       },
       {
         key: 'markGoingCold',
         name: 'AUTO_MARK_GOING_COLD',
         title: 'Mark leads as “going cold”',
         note: 'No call, no message and no plan for 7 days',
+        /* The design puts a live count after the note — "· 12 leads now" —
+           which is what makes the switch a decision rather than a guess. The
+           number comes from the database, appended by `officeRules`. */
+/* The same condition as the "Going cold" tab in `leads/tabs.ts`, word for
+           word, so the switch and the list it fills mean the same thing. */
+        countSql: `SELECT COUNT(*) AS n FROM opportunities o
+                    WHERE o.status = 'open' AND o.deleted_at IS NULL
+                      AND o.next_step_at IS NULL
+                      AND COALESCE(o.last_contact_at, o.created_at)
+                          < DATE_SUB(NOW(3), INTERVAL 7 DAY)`,
+        countNote: (n: number) => `${n} lead${n === 1 ? '' : 's'} now`,
       },
       {
         key: 'askWhatHappened',
         name: 'AUTO_ASK_WHAT_HAPPENED',
         title: 'Ask “What happened?” after WhatsApp or Telegram',
-        note: 'The agent answers. Open ones show on My Day.',
+        note: 'The agent must answer. Open ones show on My Day and in the messaging report.',
       },
     ],
   },
@@ -66,25 +105,25 @@ export const RULE_GROUPS: Array<{ key: string; title: string; rules: Rule[] }> =
         key: 'followupDue',
         name: 'AUTO_FOLLOWUP_REMINDER',
         title: 'Remind the agent when a follow-up is due',
-        note: 'At the planned time, and again after an hour',
+        note: 'At the planned time, and again after 1 hour',
       },
       {
         key: 'meetingSoon',
         name: 'AUTO_MEETING_REMINDER',
         title: 'Remind 2 hours before a meeting',
-        note: 'The agent only. The client message is ready; the agent presses send.',
+        note: 'Agent only. The client message is ready, the agent presses send.',
       },
       {
         key: 'howDidItGo',
         name: 'AUTO_ASK_HOW_IT_WENT',
         title: 'Ask “How did it go?” after each meeting',
-        note: 'Answered before 21:00. Owners see who did not answer.',
+        note: 'Answer before 21:00. Owners see who did not answer.',
       },
       {
         key: 'flagNoShows',
         name: 'AUTO_FLAG_NO_SHOWS',
         title: 'Red flag after 2 no-shows',
-        note: 'A cancelled meeting is not a no-show',
+        note: 'Cancelled is not a no-show',
       },
     ],
   },
@@ -95,20 +134,39 @@ export const RULE_GROUPS: Array<{ key: string; title: string; rules: Rule[] }> =
       {
         key: 'checkInReminder',
         name: 'AUTO_CHECKIN_REMINDER',
-        title: 'Remind people to check in',
-        note: 'At the start of the shift, on working days, only if they have not',
+        title: 'Check-in reminder',
+        titleWithTimes: (shift) => `Check-in reminder at ${shift.start}`,
+        note: 'Only on working days, only if not checked in',
       },
       {
         key: 'markLate',
         name: 'AUTO_MARK_LATE',
-        title: 'Mark somebody late',
-        note: 'After the grace minutes. The agent can write a reason.',
+        title: 'Mark late',
+        titleWithTimes: (shift) => `Mark late after ${plus(shift.start, shift.graceMinutes)}`,
+        note: 'The agent can write a reason',
       },
       {
         key: 'tellOwnersAbsent',
         name: 'AUTO_TELL_OWNERS_ABSENT',
         title: 'Tell owners about an absent agent',
-        note: 'An hour into the shift, with no check-in and no leave',
+        titleWithTimes: (shift) => `Tell owners about an absent agent at ${plus(shift.start, 60)}`,
+        note: 'No check-in and no leave',
+      },
+      /*
+       * The fourth.
+       *
+       * `sage.md` §1 item 40 says ATTENDANCE (4) and the design draws four
+       * switches here. The build had three, because this one had been moved
+       * to Attendance rules — where it also belongs, since that page is about
+       * working outside. It is the same stored setting read from both places,
+       * not a second switch: whichever page you move it on, the other shows
+       * the new state.
+       */
+      {
+        key: 'askBackInOffice',
+        name: 'ATT_OUTSIDE_ASK_BACK',
+        title: 'Ask “Are you back in the office?”',
+        note: 'Asked once at the back-by time',
       },
     ],
   },
@@ -146,6 +204,7 @@ export interface OfficeRules {
   }>;
   vipChoices: readonly number[];
   importChoices: readonly number[];
+  shift: { start: string; end: string; graceMinutes: number };
 }
 
 /** Unset means never chosen, which is the default — not false. */
@@ -168,6 +227,18 @@ export async function officeRules(exec: Executor = getPool()): Promise<OfficeRul
     ...ALL_RULES.map((rule) => setting(rule.name, exec)),
   ]);
 
+  /* The office's own hours, for the three Attendance switches that name a
+     time, and the counts the design puts at the end of a note. */
+  const shift = await attendanceSettings(exec);
+  const counts = new Map<string, number>();
+  await Promise.all(ALL_RULES.filter((rule) => rule.countSql).map(async (rule) => {
+    /* A count that fails is a count left off the note, never a page that
+       will not load. */
+    const row = await queryOne<{ n: number }>(rule.countSql as string, [], exec)
+      .catch(() => null);
+    if (row) counts.set(rule.key, Number(row.n ?? 0));
+  }));
+
   return {
     takeBack: {
       enabled: flag(enabled, TAKE_BACK_DEFAULTS.enabled),
@@ -180,10 +251,20 @@ export async function officeRules(exec: Executor = getPool()): Promise<OfficeRul
     groups: RULE_GROUPS.map((group) => ({
       key: group.key,
       title: group.title,
-      rules: group.rules.map((rule) => ({ key: rule.key, title: rule.title, note: rule.note })),
+      rules: group.rules.map((rule) => {
+        const n = counts.get(rule.key);
+        const extra = n !== undefined && rule.countNote ? ` · ${rule.countNote(n)}` : '';
+        return {
+          key: rule.key,
+          title: rule.titleWithTimes ? rule.titleWithTimes(shift) : rule.title,
+          note: `${rule.note}${extra}`,
+        };
+      }),
     })),
     vipChoices: VIP_MINUTES,
     importChoices: IMPORT_HOURS,
+    /* The shift the clock strip and the warning notes are drawn from. */
+    shift: { start: shift.start, end: shift.end, graceMinutes: shift.graceMinutes },
   };
 }
 

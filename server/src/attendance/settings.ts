@@ -29,6 +29,21 @@ export interface AttendanceSettings {
    * arrive.
    */
   officeIps: string[];
+  /**
+   * What each office network is called, keyed by its address.
+   *
+   * `design/web/settings-attendance.html` lists **network names** —
+   * "homes.me-Office", "homes.me-Office-5G" — with the hint "Network name,
+   * exactly as on the phone". No browser on any platform will tell a web page
+   * the Wi-Fi name, so the thing check-in can actually match on is the address
+   * the office's line is seen from, which is what it has always matched on.
+   *
+   * Both, then: the name is what the owner reads and types, the address is
+   * what the gate compares. A name with no address behind it would be a gate
+   * that lets everybody in, which is why the name is a label on an address
+   * rather than a replacement for one. `docs/decisions-to-confirm.md`.
+   */
+  officeNames: Record<string, string>;
   /** Weekday start and end, "HH:MM" in Dubai time. */
   start: string;
   end: string;
@@ -70,6 +85,7 @@ export interface AttendanceSettings {
 export const ATTENDANCE_DEFAULTS: AttendanceSettings = {
   enabled: false,
   officeIps: [],
+  officeNames: {},
   start: '10:00',
   end: '19:00',
   satStart: '11:00',
@@ -170,16 +186,42 @@ function list(raw: string | null): string[] {
   }
 }
 
+/**
+ * The stored names, trimmed to the addresses that still exist.
+ *
+ * A name left behind by a removed address is read as nothing rather than
+ * carried forward: the list on screen is built from the addresses, and a name
+ * with no address is a label on a network nobody can check in from.
+ */
+function nameMap(raw: string | null, ips: string[]): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const ip = normaliseIp(key);
+      if (ip && ips.includes(ip) && typeof value === 'string' && value.trim()) {
+        out[ip] = value.trim().slice(0, 60);
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export async function attendanceSettings(
   exec: Executor = getPool(),
 ): Promise<AttendanceSettings> {
   const [
-    enabled, ips, start, end, satStart, satEnd, closed, grace,
+    enabled, ips, names, start, end, satStart, satEnd, closed, grace,
     outsideAllowed, outsideLocationOnce, outsideAskBack, outsideTellOwners,
     callNeedsCheckIn, callAnyway,
   ] = await Promise.all([
     setting('ATT_ENABLED', exec),
     setting('ATT_OFFICE_IPS', exec),
+    setting('ATT_OFFICE_NAMES', exec),
     setting('ATT_START', exec),
     setting('ATT_END', exec),
     setting('ATT_SAT_START', exec),
@@ -195,6 +237,7 @@ export async function attendanceSettings(
   ]);
 
   const officeIps = list(ips);
+  const officeNames = nameMap(names, officeIps);
   const graceMinutes = Number(grace);
 
   return {
@@ -202,6 +245,7 @@ export async function attendanceSettings(
        against would refuse everybody, every day, with no way in. */
     enabled: enabled === '1' && officeIps.length > 0,
     officeIps,
+    officeNames,
     start: clock(start) ?? ATTENDANCE_DEFAULTS.start,
     end: clock(end) ?? ATTENDANCE_DEFAULTS.end,
     satStart: clock(satStart) ?? ATTENDANCE_DEFAULTS.satStart,
@@ -222,6 +266,7 @@ export async function attendanceSettings(
 export interface AttendanceInput {
   enabled?: boolean;
   officeIps?: string[];
+  officeNames?: Record<string, string>;
   start?: string;
   end?: string;
   satStart?: string;
@@ -254,6 +299,20 @@ export async function saveAttendanceSettings(
       if (ip && !clean.includes(ip)) clean.push(ip);
     }
     put('ATT_OFFICE_IPS', JSON.stringify(clean.slice(0, 10)));
+  }
+  if (input.officeNames !== undefined) {
+    /* Only names for addresses that are actually saved, so removing a network
+       takes its name with it rather than leaving an orphan behind. */
+    const keep = input.officeIps
+      ? input.officeIps.map((one) => normaliseIp(one)).filter((one): one is string => Boolean(one))
+      : (await attendanceSettings(exec)).officeIps;
+    const clean: Record<string, string> = {};
+    for (const [rawIp, rawName] of Object.entries(input.officeNames)) {
+      const ip = normaliseIp(rawIp);
+      const name = String(rawName ?? '').trim().slice(0, 60);
+      if (ip && name && keep.includes(ip)) clean[ip] = name;
+    }
+    put('ATT_OFFICE_NAMES', JSON.stringify(clean));
   }
   if (input.start !== undefined) put('ATT_START', clock(input.start) ?? ATTENDANCE_DEFAULTS.start);
   if (input.end !== undefined) put('ATT_END', clock(input.end) ?? ATTENDANCE_DEFAULTS.end);

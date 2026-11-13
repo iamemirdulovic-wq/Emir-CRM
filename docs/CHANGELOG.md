@@ -2,6 +2,61 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The owner's eight settings screens, rebuilt from their design files
+
+`docs/v2/audit-4.md` and `audit-2.md` counted 101 things the owner's own
+screens were missing against `design/web/*.html`. Not small things: the
+feedback inbox had no reference number and no reply thread, Team and roles had
+no row menu, System health drew thirty-day bars over nothing recorded, Home
+banners had no label, no button and no audience, and Homes AI had the budget
+but nowhere to put the key.
+
+Eight screens rebuilt from the design file, not from the spec: Team and roles,
+Company, Feedback inbox, System health, Attendance rules, Home banners,
+Homes AI, Automations. Each is beside its design in `docs/v2/proof/`.
+
+**Most of what was missing was missing because nothing held it.**
+`0039_owner_settings.sql` adds the feedback reference, title, urgency and
+attachments, a `feedback_replies` thread, the banner label, button, target and
+audience, `banner_views` for "seen by 9 of 10", and `service_checks` — one row
+per service per check, every five minutes, which is what makes the health bars
+a record rather than a drawing. Additive only: `feedback_tickets.kind` is left
+alone and `kind_v2` sits beside it, the shape `0038_lead_screens.sql` uses, so
+a migration cannot fail on the way up on ten people mid-morning.
+
+**Four rules that nothing enforced now do**, with integration tests: an owner
+can never be deactivated; an admin cannot change, deactivate or sign out an
+owner, nor make anybody an owner; the AI budget is owner and admin, not
+manager (`/api/ai/usage`, `/knowledge`, `/models`, `/diagnose` were
+`requireManager`, so a manager read the company's AI bill); and the owner's
+roster is a guarded endpoint of its own. One guard was deliberately loosened —
+an admin may save Attendance rules, having previously been shown the form and
+a Save button that answered 403.
+
+**The Homes AI key box says who wins.** The server reads `GEMINI_API_KEY` from
+the environment first and the stored key second, so a key typed into the CRM
+while one is set in the hosting panel would be saved and never used. The card
+says so, and refuses to pretend otherwise. It shows whether a key is set and
+its last four characters, never the key.
+
+**The shift times are typed boxes, not the browser's time picker.** They were
+reading "7:00 PM". `<input type="time">` draws itself in the browser's own
+language and ignores `lang` — proved three ways in a real Chromium before
+believing it — and the design had already solved this in its own `app.js` by
+turning the field into a text box that only takes `HH:MM`. Date pickers still
+follow the reader's browser; that one is in `decisions-to-confirm.md` §58 for
+Emir to decide.
+
+**`scripts/computer-proof.mjs` was shooting some pages mid-load**, which is a
+picture of a spinner that looks exactly like a page nobody built. It now waits
+for a screen to be quiet and stay quiet, says so under "problems" when a page
+never settles, and gives every build page its own browser context — sharing
+one made `company.jpg` come out right alone and wrong in a run of eight.
+
+Web suite 866 → 868. Server suite 3,049 with a database. Everything that could
+not be built is written down in `docs/decisions-to-confirm.md` §48–58 and
+`docs/v2/questions-settings.md`.
+
 ## A green integration run can be trusted again
 
 One test in eighteen failed in `meetings.integration.test.ts`, a different one

@@ -92,6 +92,26 @@ export async function askForLeave(
     throw badRequest('Those days are already days off — there is nothing to ask for.');
   }
 
+  /*
+   * The same days cannot be asked for twice.
+   *
+   * Yuliia found it on the prototype — "the same leave days could be
+   * requested twice" (`docs/v2/tester-rules.md` §52, rule R31), and the rule
+   * she drew out of it is that leave is enforced on the data and not only in
+   * the form. The screen shows the clash as a red banner before the button
+   * is pressed; this is the half that holds when the screen is not there.
+   */
+  const clash = await queryOne<{ kind: string; from_date: string; to_date: string }>(
+    `SELECT kind, from_date, to_date FROM leave_requests
+      WHERE user_id = ? AND status IN ('pending','approved')
+        AND from_date <= ? AND to_date >= ?
+      LIMIT 1`,
+    [user.id, input.toDate, input.fromDate],
+  );
+  if (clash) {
+    throw badRequest('You already asked for these days.');
+  }
+
   const id = newId();
   await execute(
     `INSERT INTO leave_requests

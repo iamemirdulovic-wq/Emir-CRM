@@ -7,6 +7,7 @@ import { attendanceSettings } from '../attendance/settings.js';
 import { DAY_END, DAY_START, DUBAI, TODAY } from './dubai.js';
 import { STAGE_STRIP } from './dashboard.js';
 import { countedAgentSql } from '../users/counting.js';
+import { recordBannerViews } from './banners.js';
 
 /**
  * Everything the home screen shows, in one answer.
@@ -232,18 +233,41 @@ function dubaiNow(at: Date = new Date()): string {
   }).format(at);
 }
 
-async function banners() {
-  return await query<{ id: string; title: string; body: string | null; link_url: string | null }>(
-    `SELECT id, title, body, link_url
-       FROM banners
-      WHERE is_active = 1
-        AND (starts_at IS NULL OR starts_at <= NOW(3))
-        AND (ends_at IS NULL OR ends_at >= NOW(3))
-      ORDER BY position ASC, created_at DESC
+/**
+ * The banners at the top of My Day.
+ *
+ * Who sees one is now the owner's choice — everyone, agents only, or one desk
+ * (`design/web/home-banners.html`, "Who sees it"). The filter is applied here
+ * rather than only offered on the form, because a banner that is meant for the
+ * Arabic desk and shows to the whole office is not a setting, it is a lie.
+ *
+ * Being shown one is recorded once per person, which is what "seen by 9 of 10"
+ * on the banners screen counts.
+ */
+async function banners(userId: string, role: string) {
+  const rows = await query<{ id: string; title: string; body: string | null; link_url: string | null }>(
+    `SELECT b.id, b.title, b.body, b.link_url
+       FROM banners b
+      WHERE b.is_active = 1
+        AND (b.starts_at IS NULL OR b.starts_at <= NOW(3))
+        AND (b.ends_at IS NULL OR DATE(b.ends_at) >= DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')))
+        AND (
+          b.audience = 'everyone'
+          OR (b.audience = 'agents' AND ? = 'agent')
+          OR (b.audience = 'desk' AND EXISTS (
+                SELECT 1 FROM desk_members dm
+                 WHERE dm.desk_id = b.desk_id AND dm.user_id = ?))
+        )
+      ORDER BY b.position ASC, b.created_at DESC
       LIMIT 5`,
-  ).then((rows) => rows.map((r) => ({
+    [role, userId],
+  );
+  /* Never allowed to break My Day: a view that cannot be written is a lost
+     statistic, not a reason for the morning screen to fail. */
+  await recordBannerViews(userId, rows.map((row) => row.id)).catch(() => {});
+  return rows.map((r) => ({
     id: r.id, title: r.title, body: r.body, linkUrl: r.link_url,
-  })));
+  }));
 }
 
 async function unreadCount(userId: string): Promise<number> {
@@ -422,7 +446,7 @@ export async function agentHome(user: SessionUser, seenIp: string | null): Promi
       [me],
     ),
     unreadCount(me),
-    banners(),
+    banners(me, user.role),
     streak(me),
     queryOne<{ n: number }>(
       `SELECT COUNT(*) AS n FROM kudos
@@ -754,7 +778,7 @@ export async function ownerHome(
         LIMIT 1`,
     ).catch(() => null),
     unreadCount(user.id),
-    banners(),
+    banners(user.id, user.role),
     query<{ stage_key: string; n: number }>(
       `SELECT stage_key, COUNT(*) AS n
          FROM opportunities

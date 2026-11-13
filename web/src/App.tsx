@@ -78,6 +78,7 @@ import { V2Live } from './v2/Live.js';
 import { V2Lead } from './v2/Lead.js';
 import { V2VipGiven } from './v2/VipGiven.js';
 import { V2PersonalInfo } from './v2/PersonalInfo.js';
+import { V2Profile, V2MyInfo } from './v2/Profile.js';
 import { V2SettingsSecurity } from './v2/settings/Security.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 import { OwnerOnly } from './v2/OwnerOnly.js';
@@ -228,10 +229,14 @@ export function App() {
           {/* The old address kept working, since it is in the nav of every
               screen already shipped. */}
           <Route path="/v2/automations" element={<OwnerOnly><V2Automations /></OwnerOnly>} />
-          <Route path="/v2/profile" element={<V2Person />} />
+          {/* `design/web/profile.html`: the hero, the shortcuts and the two
+              tabs, inside the settings shell the design draws around them.
+              On a phone the three prototypes behind this keep their own
+              screens — see `Profile.tsx`. */}
+          <Route path="/v2/profile" element={<V2Profile />} />
           {/* Where the settings list's "My profile · Photo, BRN, card" row
               points. It pointed nowhere until now. */}
-          <Route path="/v2/me" element={<V2PersonalInfo />} />
+          <Route path="/v2/me" element={<V2MyInfo />} />
           <Route path="/v2/more" element={<V2More />} />
           {/* Messages: the shared inbox, the client emails and the WhatsApp
               templates. They were drawn as a later phase and are built now. */}

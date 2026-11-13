@@ -134,6 +134,39 @@ async function noWebFonts(page) {
    high is unreadable and enormous. Noted on the picture when it bites. */
 const MAX_HEIGHT = 5200;
 
+/**
+ * Wait for the screen's own data, not just for the network to go quiet.
+ *
+ * `networkidle` plus a fixed pause is enough for a page with one fetch and
+ * not enough for a page with two: the Homes AI and Attendance rules shots
+ * came out as the word "Loading" beside a complete design, three times over,
+ * and all three times the page was perfectly fine a second later. A picture
+ * of a spinner proves nothing, and it proves it silently.
+ *
+ * Waiting for "no Loading on the page" is not enough either, and that was
+ * the second wrong answer: `networkidle` fires before React has mounted the
+ * panel at all, so the check passed against a page that had not started yet
+ * and the shot landed on the spinner that appeared a moment later. Hence the
+ * 800ms head start — long enough for the screen to be on the page and have
+ * asked for its data — and then three clean reads in a row, so a screen that
+ * loads in two steps is not caught in the gap between them.
+ *
+ * A page that never finishes still gets shot, still showing its spinner,
+ * which is then a real finding rather than a timing accident.
+ */
+async function settled(page, limitMs = 9000) {
+  await page.waitForTimeout(800);
+  const started = Date.now();
+  let clean = 0;
+  while (Date.now() - started < limitMs) {
+    const text = await page.evaluate(() => document.body.innerText).catch(() => '');
+    clean = text.length > 200 && !/\bLoading\b/.test(text) ? clean + 1 : 0;
+    if (clean >= 3) return true;
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+
 async function shoot(page, file) {
   await page.waitForTimeout(1200);
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -187,15 +220,31 @@ for (const [key, route, listRole] of list) {
   if (await shoot(dPage, path.join(SHOTS, `${key}-design.png`))) trimmed.add(key);
   await dPage.close();
 
-  /* The build, at the same width, light theme, as the right person. */
-  const bPage = await browser.newPage({
+  /*
+   * The build, at the same width, light theme, as the right person — and in
+   * a browser of its own.
+   *
+   * `browser.newPage()` shares one storage jar with every other page in the
+   * run, so the preview's own notion of who is signed in carries from one
+   * screen to the next. Shot one at a time, Company came out right; shot in
+   * a run of eight, the same page came out as the word "Loading" beside a
+   * complete design, over and over. A context per page is what a person
+   * opening the CRM fresh actually gets, and it costs a few milliseconds.
+   */
+  const bContext = await browser.newContext({
     viewport: { width: WIDTH, height: 1000 }, deviceScaleFactor: 1, colorScheme: 'light',
   });
+  const bPage = await bContext.newPage();
   await noWebFonts(bPage);
   const errors = [];
   bPage.on('pageerror', (e) => errors.push(String(e.message).slice(0, 160)));
   await bPage.goto(`${BASE}/?as=${role}#${route}`, { waitUntil: 'networkidle' }).catch(() => {});
+  const ready = await settled(bPage);
   await bPage.waitForTimeout(900);
+  /* Said out loud, not left to whoever opens the picture: a shot taken while
+     the screen was still fetching is a picture of a spinner, and it looks
+     exactly like a page that was never built. */
+  if (!ready) missed.push(`${key}: shot while the screen was still loading — the picture is not proof`);
   if (await shoot(bPage, path.join(SHOTS, `${key}-build.png`))) trimmed.add(key);
   if (errors.length > 0) missed.push(`${key}: the build threw — ${errors[0]}`);
   /* The design puts a line under the title on most pages — the date, the
@@ -207,6 +256,7 @@ for (const [key, route, listRole] of list) {
     if (shown === 0) subs.push(`${key}: "${head.sub}"`);
   }
   await bPage.close();
+  await bContext.close();
 
   process.stdout.write('.');
 }

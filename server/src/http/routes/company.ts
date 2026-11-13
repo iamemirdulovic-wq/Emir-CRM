@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { rateLimit } from '../middleware/rate-limit.js';
 import { saveSetting } from '../../config/secrets.js';
 import {
   COMPANY_FIELDS, COMPANY_SETTING, MAX_LENGTH, RENAME_WARNING, companyDetails, companyIssues,
-  type CompanyField,
+  companyLastChange, type CompanyField,
 } from '../../config/company.js';
 import {
   MAX_BOT_PAUSE_HOURS, MAX_PER_24H_CEILING, MESSAGING_DEFAULTS, MIN_BOT_PAUSE_HOURS,
@@ -65,6 +65,12 @@ companyRouter.get(
     res.json({
       company,
       issues: companyIssues(company),
+      /* "Saved · last change 3 Nov by Emir" on the save bar. */
+      lastChange: await companyLastChange(),
+      /* "homes-me-mark.png · 4 KB" under the logo, read off the file itself
+         rather than remembered from the upload — a note that disagrees with
+         the file on disk is worse than no note. */
+      logoFile: await logoFile(),
       renameWarning: RENAME_WARNING,
       messaging: {
         ...rules,
@@ -271,6 +277,14 @@ companyRouter.get(
 
 function brandingDir(): string {
   return uploadDir('branding');
+}
+
+/** The stored logo's name and size, for the line under the preview. */
+async function logoFile(): Promise<{ name: string; bytes: number } | null> {
+  const file = await findLogo();
+  if (!file) return null;
+  const info = await stat(file).catch(() => null);
+  return info ? { name: path.basename(file), bytes: info.size } : null;
 }
 
 /** The one logo on disk, whatever extension it has. */

@@ -9,51 +9,78 @@ import { SettingsShell, SettingsTitle } from './Shell.js';
 /**
  * Settings → System health.
  *
- * From `design/web/system-health.html`, with one honest difference: the
- * design draws a thirty-day bar per service and a timeline of past
- * incidents. **Nothing records uptime history**, so those bars would be
- * decoration — drawn green because nobody is counting. They are left out and
- * the screen says what it does check instead.
+ * Built from `design/web/system-health.html`: the big status, six services
+ * each with thirty days of history, a response time and a status chip, then
+ * what to do about whatever is not green, and a timeline of past problems.
  *
- * What it does check is real and is the point: each of these fails silently
- * and separately. Email answers "SMTP is not configured" inside a
- * conversation nobody is reading. WhatsApp follow-ups never send because no
- * template was approved, so the workflows show zero runs and look idle rather
- * than blocked. Push has no devices registered, so the five-minute rule only
- * works while somebody has the CRM open.
+ * Those bars are the part that had to be earned. They used to be left out,
+ * because **nothing recorded uptime** — thirty green rectangles drawn because
+ * nobody was counting is worse than no bars at all. Now a job measures all six
+ * every five minutes and writes a row (`server/src/v2/health-checks.ts`,
+ * `service_checks`), so a bar is a day that was actually sampled, a grey bar
+ * is a day nobody checked, and the percentage in the tooltip is arithmetic on
+ * real rows. On the first morning after a deploy there is no history, and the
+ * page says so rather than looking perfect.
+ *
+ * **No key or secret ever appears here.** The server returns whether one is
+ * set and, for the AI, what the month cost. Never a value, never a hint.
  */
+
+type State = 'ok' | 'slow' | 'down';
 
 interface Service {
   key: string;
   title: string;
-  consequence: string;
-  ready: boolean;
+  about: string;
   to: string;
+  plural?: boolean;
+  state: State;
+  ms: number | null;
+  note: string | null;
+  checkedAt: string | null;
+  days: Array<{ date: string; state: State | null }>;
+  upPercent: number | null;
+  samples: number;
+}
+
+interface Incident {
+  service: string;
+  title: string;
+  state: State;
+  detail: string | null;
+  from: string;
+  to: string | null;
+  open: boolean;
 }
 
 interface Health {
   services: Service[];
   outstanding: number;
-  website: {
-    configured: boolean;
-    lastLeadAt: string | null;
-    leadsLast7Days: number;
-  };
-  push: {
-    configured: boolean;
-    agentsWithoutDevice: number;
-    agentsTotal: number;
-    missing: string[];
-  };
+  fine: number;
+  checkedAt: string | null;
+  incidents: Incident[];
+  neverChecked: boolean;
+  days: number;
+  setup: Array<{ key: string; title: string; consequence: string; ready: boolean; to: string }>;
+  setupOutstanding: number;
+  website: { configured: boolean; lastLeadAt: string | null; leadsLast7Days: number };
+  push: { configured: boolean; agentsWithoutDevice: number; agentsTotal: number; missing: string[] };
 }
 
 const ICONS: Record<string, IconName> = {
+  site: 'globe',
+  database: 'list',
+  notifications: 'bell',
+  links: 'link',
+  storage: 'files',
+  ai: 'sparkles',
   email: 'mail',
   whatsapp: 'message-circle',
   push: 'bell',
-  ai: 'sparkles',
   attendance: 'pin',
 };
+
+const WORD: Record<State, string> = { ok: 'Fine', slow: 'Slow', down: 'Not working' };
 
 export function V2SettingsHealth() {
   const got = useAsync<Health>(() => api.get('/api/v2/health'), []);
@@ -67,88 +94,207 @@ export function V2SettingsHealth() {
     return <SettingsShell page="p-health"><div className="d-set-body"><Spinner /></div></SettingsShell>;
   }
 
-  const { services, outstanding, push, website } = got.data;
-  const fine = services.length - outstanding;
-  const allFine = outstanding === 0;
+  const health = got.data;
+  const allFine = health.outstanding === 0;
+  const worst = health.services.find((one) => one.state === 'down')
+    ?? health.services.find((one) => one.state === 'slow');
+
+  async function runCheck() {
+    setChecking(true);
+    try {
+      await api.post('/api/v2/health/check');
+      got.reload();
+      toast(health.services.length === health.fine
+        ? `Check finished · all ${health.services.length} services are fine`
+        : 'Check finished');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'The check did not run.');
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <SettingsShell page="p-health">
       <div className="d-set-body">
         <SettingsTitle
           title="System health"
-          note="What is connected, and what is quietly doing nothing."
+          note="Is everything working? Checked by itself every 5 minutes."
         />
 
         <section className="d-card d-hl-top">
-          <span className={allFine ? 'd-hl-big' : 'd-hl-big v2-hl-warn'}>
-            <Icon name={allFine ? 'check' : 'alert-triangle'} />
+          <span className={[
+            'd-hl-big',
+            allFine ? 'd-ok' : '',
+            checking ? 'd-run' : '',
+          ].join(' ').trim()}>
+            <Icon name={checking ? 'refresh-cw' : 'check'} />
           </span>
           <div className="d-grow">
-            <h2>{fine} of {services.length} services are set up</h2>
+            <h2>
+              {checking
+                ? `Checking ${health.services.length} services…`
+                : allFine
+                  ? `All ${health.services.length} services are fine`
+                  : `${health.fine} of ${health.services.length} services are fine`}
+            </h2>
             <p className="d-muted d-mt-4">
-              {allFine
-                ? 'Everything that can reach a client is connected.'
-                : 'What is not set up does not fail loudly — it just never happens.'}
+              {checking ? 'This takes a few seconds.' : (
+                <>
+                  {worst ? `${verb(worst)}. ${worst.note ?? ''} ` : 'Everything that can reach a client is answering. '}
+                  {health.checkedAt
+                    ? `Last check ${clock(health.checkedAt)}.`
+                    : 'Nothing has been checked yet.'}
+                </>
+              )}
             </p>
           </div>
           <button
             type="button"
             className="d-btn d-primary"
             disabled={checking}
-            onClick={async () => {
-              setChecking(true);
-              got.reload();
-              window.setTimeout(() => { setChecking(false); toast('Checked just now'); }, 600);
-            }}
+            onClick={() => void runCheck()}
           >
-            <Icon name="refresh-cw" />{checking ? 'Checking…' : 'Check now'}
+            <Icon name="refresh-cw" />{checking ? 'Checking…' : 'Run a check now'}
           </button>
         </section>
 
         <section className="d-card">
           <div className="d-card-head">
             <h3>Services</h3>
-            <span className="d-small d-muted">Read from where the features read</span>
+            <span className="d-small d-muted">Bars: last {health.days} days</span>
           </div>
           <div className="d-divide">
-            {services.map((one) => (
-              <div className="d-hl-row" key={one.key}>
+            {health.services.map((one) => (
+              <div className={checking ? 'd-hl-row d-checking' : 'd-hl-row'} key={one.key}>
                 <span className="d-card-icon"><Icon name={ICONS[one.key] ?? 'shield'} /></span>
                 <div className="d-hl-name">
                   <b>{one.title}</b>
-                  <span>{one.consequence}</span>
+                  <span>{[one.about, one.note].filter(Boolean).join(' · ')}</span>
                 </div>
-                <span className="d-grow" />
-                {one.ready
-                  ? <span className="d-chip d-green d-pip">Connected</span>
+                {/* One bar per day. Grey is a day with no sample, which on a
+                    freshly deployed server is most of them. */}
+                <div
+                  className="d-hl-strip"
+                  title={one.upPercent === null
+                    ? `Last ${health.days} days · nothing recorded yet`
+                    : `Last ${health.days} days · ${one.upPercent}% up · ${one.samples} checks`}
+                >
+                  {one.days.map((day) => (
+                    <i key={day.date} className={barClass(day.state)} />
+                  ))}
+                </div>
+                <span className="d-hl-ms">
+                  {checking ? '' : one.ms === null ? '' : one.ms >= 1000
+                    ? `${(one.ms / 1000).toFixed(1)} s`
+                    : `${one.ms} ms`}
+                </span>
+                {checking
+                  ? <span className="d-chip d-hl-chip">Checking…</span>
                   : (
-                    <>
-                      <Link className="d-btn d-xs" to={one.to}>Set it up</Link>
-                      <span className="d-chip d-amber d-pip">Not set up</span>
-                    </>
+                    <span className={`d-chip d-pip d-hl-chip ${
+                      one.state === 'ok' ? 'd-green' : one.state === 'slow' ? 'd-amber' : 'd-red'}`}
+                    >
+                      {WORD[one.state]}
+                    </span>
                   )}
               </div>
             ))}
           </div>
+          {health.neverChecked && (
+            <div className="d-card-foot">
+              No check has run yet, so the bars are empty. One runs every five minutes from now,
+              or press “Run a check now”.
+            </div>
+          )}
         </section>
 
-        {/* Push needs two things and the checklist only counts one. A server
-            with credentials and nobody's phone registered sends nothing. */}
-        {push.agentsWithoutDevice > 0 && (
+        {/* ── what to do ─────────────────────────────────────────────── */}
+        <section className="d-card">
+          <div className="d-card-head"><h3>What to do</h3></div>
+
+          {worst ? (
+            <div className={worst.state === 'down' ? 'd-banner d-red' : 'd-banner d-amber'}>
+              <Icon name="alert-triangle" />
+              <span className="d-grow">
+                <b>
+                  {verb(worst)}
+                  {worst.checkedAt ? ` since ${clock(worst.checkedAt)}` : ''}.
+                </b>{' '}
+                {advice(worst)}
+              </span>
+              <Link className="d-btn d-xs" to={worst.to}>{action(worst.key)}</Link>
+            </div>
+          ) : (
+            <div className="d-banner d-green">
+              <Icon name="check" />
+              <span className="d-grow">
+                <b>Nothing to do.</b> Every service answered on the last check.
+              </span>
+            </div>
+          )}
+
+          {/* Still-off things that are not one of the six: email sending and
+              an approved WhatsApp template are not services this page can
+              measure, they are set-up steps nobody has done. */}
+          {health.setupOutstanding > 0 && (
+            <div className="d-mini-list d-mt-16">
+              {health.setup.filter((one) => !one.ready).map((one) => (
+                <div key={one.key}>
+                  <span className="d-grow">
+                    <b>{one.title}</b> — {one.consequence}
+                  </span>
+                  <span className="d-chip d-amber d-pip">Not set up</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {health.incidents.length > 0 ? (
+            <div className="d-timeline d-mt-16">
+              {health.incidents.map((one) => (
+                <div className="d-tl-item" key={`${one.service}-${one.from}`}>
+                  <span className={`d-tl-dot ${one.state === 'down' ? 'd-red' : one.open ? '' : 'd-green'}`}>
+                    <Icon name={one.state === 'down' ? 'x' : one.open ? 'alert-triangle' : 'check'} />
+                  </span>
+                  <div className="d-tl-body">
+                    <b>{one.title}</b>
+                    <p>{one.detail ?? 'No detail was recorded.'}</p>
+                    <span className="d-tl-time">
+                      {stamp(one.from)}
+                      {one.to ? ` – ${clock(one.to)} · closed` : ' · still open'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="d-small d-muted d-mt-16">
+              No problem has been recorded in the last {health.days} days.
+            </p>
+          )}
+
+        </section>
+
+        {/* Push needs two things and the service check only knows one of them
+            as a number: a server with credentials and nobody's phone
+            registered sends nothing, and these are the names to go and ask. */}
+        {health.push.agentsWithoutDevice > 0 && (
           <section className="d-card">
             <div className="d-card-head"><h3>Who will not hear an alert</h3></div>
             <div className="d-banner d-amber">
               <Icon name="alert-triangle" />
               <span className="d-grow">
-                <b>{push.agentsWithoutDevice} of {push.agentsTotal} have no phone registered.</b>{' '}
+                <b>{health.push.agentsWithoutDevice} of {health.push.agentsTotal} have no phone
+                registered.</b>{' '}
                 A VIP lead given to one of them can run out of time with nobody hearing a thing.
               </span>
             </div>
-            {push.missing.length > 0 && (
+            {health.push.missing.length > 0 && (
               <p className="d-small d-muted d-mt-12">
-                {push.missing.join(' · ')}
-                {push.agentsWithoutDevice > push.missing.length
-                  ? ` and ${push.agentsWithoutDevice - push.missing.length} more`
+                {health.push.missing.join(' · ')}
+                {health.push.agentsWithoutDevice > health.push.missing.length
+                  ? ` and ${health.push.agentsWithoutDevice - health.push.missing.length} more`
                   : ''}
               </p>
             )}
@@ -163,35 +309,27 @@ export function V2SettingsHealth() {
           <div className="d-mini-list">
             <div>
               <span className="d-grow">Connected</span>
-              <b>{website.configured ? 'Yes' : 'No key set'}</b>
+              <b>{health.website.configured ? 'Yes' : 'No key set'}</b>
             </div>
             <div>
               <span className="d-grow">Leads in the last 7 days</span>
-              <b>{website.leadsLast7Days}</b>
+              <b>{health.website.leadsLast7Days}</b>
             </div>
             <div>
               <span className="d-grow">Last one</span>
-              <b>{website.lastLeadAt ? ago(website.lastLeadAt) : 'None yet'}</b>
+              <b>{health.website.lastLeadAt ? ago(health.website.lastLeadAt) : 'None yet'}</b>
             </div>
           </div>
-          {website.configured && website.leadsLast7Days === 0 && (
+          {health.website.configured && health.website.leadsLast7Days === 0 && (
             <div className="d-card-foot">
               Connected but silent for a week. Worth checking the form on the website itself.
             </div>
           )}
         </section>
 
-        <div className="d-banner">
-          <Icon name="info" />
-          <span className="d-grow">
-            Nothing here records history yet, so there are no uptime bars and no list of past
-            problems. What you see is true right now, checked when you open the page.
-          </span>
-        </div>
-
         <div className="d-row">
           <span className="d-small d-muted d-grow">
-            Something else wrong? Send it as a report marked “It stops me working”.
+            Something else is wrong? Tell us with a bug report marked “Blocking my work”.
           </span>
           <Link className="d-btn" to="/v2/feedback">
             <Icon name="message-square" />Report a problem
@@ -200,6 +338,69 @@ export function V2SettingsHealth() {
       </div>
     </SettingsShell>
   );
+}
+
+/**
+ * "Notifications are slow", "File storage is not working".
+ *
+ * The design writes "are" for the two service names that are plural, and a
+ * page that tells the owner of the company "Notifications is slow" reads as
+ * carelessly as it sounds.
+ */
+function verb(service: Service): string {
+  const be = service.plural ? 'are' : 'is';
+  return `${service.title} ${be} ${service.state === 'down' ? 'not working' : 'slow'}`;
+}
+
+/** The class on one day's bar. Nothing recorded is grey, not green. */
+function barClass(state: State | null): string {
+  if (state === null) return 'v2-hl-none';
+  if (state === 'down') return 'd-bad';
+  if (state === 'slow') return 'd-warn';
+  return 'd-ok';
+}
+
+/** What an owner can do about this service being down, in plain words. */
+function advice(service: Service): string {
+  switch (service.key) {
+    case 'notifications':
+      return 'A VIP lead alert can come late or not at all. Phone the agent when you give a VIP '
+        + 'lead, until this is green again.';
+    case 'ai':
+      return 'Every Homes AI answer comes back as an error, for everybody.';
+    case 'storage':
+      return 'Brochures, IDs and booking forms cannot be uploaded. Nothing already saved is lost.';
+    case 'database':
+      return 'Leads, notes and history cannot be read or written. Nobody can work.';
+    case 'links':
+      return 'A client opening a brochure link is not recorded, so nobody is told.';
+    default:
+      return 'Press “Run a check now” to see whether it has come back.';
+  }
+}
+
+function action(key: string): string {
+  if (key === 'notifications') return 'Who has notifications on';
+  if (key === 'ai') return 'Open Homes AI';
+  return 'Look at it';
+}
+
+/** 24-hour, Dubai. The CRM is one office in one timezone. */
+function clock(at: string): string {
+  const dubai = new Date(new Date(at).getTime() + 4 * 3600_000);
+  return `${String(dubai.getUTCHours()).padStart(2, '0')}:${String(dubai.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/** "Today 14:20" or "Thu 29 Oct 11:05". */
+function stamp(at: string): string {
+  const when = new Date(at);
+  const dubaiToday = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 10);
+  const dubaiThen = new Date(when.getTime() + 4 * 3600_000).toISOString().slice(0, 10);
+  if (dubaiThen === dubaiToday) return `Today ${clock(at)}`;
+  const date = when.toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Dubai',
+  });
+  return `${date} ${clock(at)}`;
 }
 
 function ago(at: string): string {

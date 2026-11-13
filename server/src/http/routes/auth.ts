@@ -7,7 +7,12 @@ import { queryOne, execute } from '../../db/client.js';
 import { badRequest, tooManyRequests, unauthorized } from '../../lib/errors.js';
 import { normalizeEmail } from '../../lib/email.js';
 import { assertPasswordPolicy, hashPassword, verifyPassword } from '../../auth/password.js';
-import { createSession, destroySession, destroyAllSessionsForUser } from '../../auth/sessions.js';
+import {
+  createSession, destroySession, destroyAllSessionsForUser, destroyOtherSessionsForUser,
+  destroySessionForUser, listSessionsForUser,
+} from '../../auth/sessions.js';
+import { deviceName } from '../../auth/devices.js';
+import { hashToken } from '../../lib/crypto.js';
 import { clearFailures, getLockState, isIpRateLimited, recordLoginAttempt, registerFailure } from '../../auth/lockout.js';
 import { permissionsFor, type Role } from '../../auth/rbac.js';
 import { getOnboarding } from '../../onboarding/store.js';
@@ -429,5 +434,96 @@ authRouter.post(
     });
 
     res.json({ ok: true });
+  }),
+);
+
+/* ── My signed-in devices ───────────────────────────────────────────────── */
+
+/**
+ * The device list `design/web/profile.html` draws, with real sessions in it.
+ *
+ * `listSessionsForUser` has existed since the first migration and nothing
+ * served it to the person whose sessions they are, so the Security tab said
+ * "the CRM does not yet show you your other devices". It does now.
+ *
+ * Two things the design shows that are not here, both because the row would
+ * be a guess: the **place** ("Dubai · active now") — nothing in this CRM
+ * turns an address into a city, and the stored address is not shown either —
+ * and the **"new place"** flag on an unusual device, which needs a history of
+ * places to be unusual against. `docs/v2/questions-inbox.md`.
+ *
+ * Own sessions only, by construction: the query is scoped to the caller and
+ * there is no route that reads anybody else's.
+ */
+authRouter.get(
+  '/sessions',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const here = req.sessionToken ? hashToken(req.sessionToken) : null;
+    const rows = await listSessionsForUser(user.id);
+    res.json({
+      items: rows.map((row) => {
+        const named = deviceName(row.user_agent);
+        return {
+          id: row.id,
+          current: row.id === here,
+          device: named.label,
+          handheld: named.handheld,
+          lastSeenAt: row.last_seen_at,
+          createdAt: row.created_at,
+          expiresAt: row.expires_at,
+        };
+      }),
+    });
+  }),
+);
+
+/** Sign one of my own devices out. Never this one — that is "Sign out here". */
+authRouter.delete(
+  '/sessions/:id',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const id = String(req.params.id ?? '');
+    const here = req.sessionToken ? hashToken(req.sessionToken) : null;
+    if (id === here) throw badRequest('That is this device. Use “Sign out here”.');
+
+    const gone = await destroySessionForUser(user.id, id);
+    if (!gone) throw badRequest('That device is already signed out.');
+
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'auth.session_revoked',
+      entityType: 'session',
+      entityId: id,
+      before: { signedIn: true },
+      after: { signedIn: false, byUser: true },
+    });
+    res.json({ ok: true });
+  }),
+);
+
+/** Sign out everywhere but here. The design's "Sign out all others". */
+authRouter.delete(
+  '/sessions',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const here = req.sessionToken ? hashToken(req.sessionToken) : null;
+    /* Without a live session there is no "here" to keep, and ending every
+       session would sign this caller out too — which is not what the button
+       says. requireAuth has already made that impossible; this is the belt. */
+    if (!here) throw badRequest('Sign in again before signing other devices out.');
+
+    const count = await destroyOtherSessionsForUser(user.id, here);
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'auth.sessions_revoked',
+      entityType: 'user',
+      entityId: user.id,
+      after: { others: count, byUser: true },
+    });
+    res.json({ ok: true, signedOut: count });
   }),
 );

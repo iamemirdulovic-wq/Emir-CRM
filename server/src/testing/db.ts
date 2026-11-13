@@ -155,8 +155,13 @@ export const TRUNCATE_ORDER = [
   'desk_members',
   'desks',
   'live_projects',
+  // Children first: the views point at the banner, the replies at the ticket.
+  'banner_views',
   'banners',
+  'feedback_replies',
   'feedback_tickets',
+  // One row per service per check, written every five minutes by the worker.
+  'service_checks',
   'notification_prefs',
   'telegram_links',
   'website_leads',

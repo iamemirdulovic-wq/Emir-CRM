@@ -42,6 +42,9 @@ export type SettingName =
   /* Office attendance — see attendance/settings.ts. Owner-only. */
   | 'ATT_ENABLED'
   | 'ATT_OFFICE_IPS'
+  /* The name of each office network, as it appears on a phone. Keyed by the
+     address it belongs to; see `attendance/settings.ts`. */
+  | 'ATT_OFFICE_NAMES'
   | 'ATT_START'
   | 'ATT_END'
   | 'ATT_SAT_START'
@@ -91,6 +94,11 @@ export type SettingName =
   | 'COMPANY_LICENCE_NO'
   | 'COMPANY_LICENCE_EXPIRY'
   | 'COMPANY_ADDRESS'
+  /* No digit: every company setting is checked against /^COMPANY_[A-Z_]+$/
+     by `company.test.ts` and `company-source.test.ts`, and a digit is not in
+     that set. Written out rather than widening the pattern — the pattern is
+     what stops two fields quietly sharing a key. */
+  | 'COMPANY_ADDRESS_LINE_TWO'
   | 'COMPANY_PHONE'
   | 'COMPANY_WHATSAPP'
   | 'COMPANY_EMAIL'

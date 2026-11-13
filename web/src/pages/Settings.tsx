@@ -89,9 +89,21 @@ export function Settings() {
     ...(isManager
       ? ([
           { value: 'templates' as const, label: t('templates'), icon: 'layout-template' as const },
-          { value: 'ai' as const, label: 'Emir AI', icon: 'sparkles' as const },
           { value: 'health' as const, label: 'Health', icon: 'activity' as const },
         ])
+      : []),
+    /*
+     * Homes AI, owner and admin only.
+     *
+     * It was offered to a manager, and the endpoints behind it answered — so
+     * a manager read the company's monthly AI bill and the budget switches.
+     * `design/web/ai-settings.html` marks that page `data-role="owner"`, and
+     * `/api/ai/knowledge`, `/usage`, `/models` and `/diagnose` now refuse
+     * anybody below admin, so the tab follows them rather than rendering a
+     * dead panel. The name is Homes AI, not Emir AI — `server/src/ai/name.ts`.
+     */
+    ...(can('users:manage')
+      ? ([{ value: 'ai' as const, label: 'Homes AI', icon: 'sparkles' as const }])
       : []),
   ];
 

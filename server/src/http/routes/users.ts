@@ -14,6 +14,7 @@ import { writeAudit, diffFields } from '../../audit/audit.js';
 import { returnLeadsToIncoming } from '../../routing/handover.js';
 import { env } from '../../config/env.js';
 import { sendWelcomeEmail } from '../../users/welcome-email.js';
+import { signOutEverywhere } from '../../v2/team-roles.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth, blockUntilPasswordChanged);
@@ -249,6 +250,36 @@ usersRouter.patch(
     );
     if (!before) throw notFound('User not found');
 
+    /*
+     * An owner can never be deactivated.
+     *
+     * `design/web/settings-team.html` disables the menu item and says so —
+     * "An owner cannot be deactivated." — and §4.13 of the spec names the
+     * rule. The screen had neither, and neither did this endpoint: a PATCH
+     * with `isActive: false` would end an owner's sessions and empty their
+     * leads into Incoming. On an installation with one owner that locks
+     * everybody out of their own CRM, with no way back in.
+     */
+    if (body.isActive === false && before.role === 'owner') {
+      throw badRequest('An owner cannot be deactivated.');
+    }
+
+    /*
+     * And an admin cannot touch an owner at all.
+     *
+     * The design's own footnote: "Admin can do the same as an owner, but
+     * cannot remove or change owners." Without this an admin could demote
+     * every owner to agent and be the only one left who can let them back in.
+     */
+    if (actingUser.role === 'admin' && !isSelf) {
+      if (before.role === 'owner') {
+        throw badRequest('An admin cannot change an owner. Ask an owner to do it.');
+      }
+      if (body.role === 'owner') {
+        throw badRequest('Only an owner can make somebody else an owner.');
+      }
+    }
+
     const patch: Record<string, unknown> = {};
     if (body.name !== undefined) patch.name = body.name;
     if (body.role !== undefined) patch.role = body.role;
@@ -344,6 +375,34 @@ usersRouter.post(
     });
 
     res.json({ temporaryPassword: temporary });
+  }),
+);
+
+/**
+ * End every session this person has, without changing their password.
+ *
+ * `design/web/settings-team.html` puts "Sign out everywhere" in the row menu
+ * beside the password reset, and it is the right thing to reach for when a
+ * laptop is left in a taxi: the laptop forgets them, they keep their password.
+ * There was no endpoint, so the only way to do it was to reset the password
+ * and make them pick a new one.
+ */
+usersRouter.post(
+  '/:id/sign-out-everywhere',
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const targetId = String(req.params.id);
+    const actingUser = currentUser(req);
+    const target = await queryOne<{ id: string; role: string }>(
+      'SELECT id, role FROM users WHERE id = ?', [targetId],
+    );
+    if (!target) throw notFound('User not found');
+    /* The same rule as everywhere else on this router: an admin does not
+       reach into an owner's account. */
+    if (actingUser.role === 'admin' && target.role === 'owner' && targetId !== actingUser.id) {
+      throw badRequest('An admin cannot sign an owner out. Ask an owner to do it.');
+    }
+    res.json(await signOutEverywhere(actorFrom(req), targetId));
   }),
 );
 

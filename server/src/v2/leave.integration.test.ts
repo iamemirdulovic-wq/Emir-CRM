@@ -63,6 +63,42 @@ describeWithDb('leave', () => {
     expect(Number(kept?.working_days), 'the number is stored, not recomputed later').toBe(6);
   });
 
+  /*
+   * `docs/v2/tester-rules.md` §52 and rule R31: Yuliia asked for the same
+   * days twice on the prototype and both requests were taken. The screen
+   * shows the clash in a red banner before the button is pressed; this is
+   * the half of the rule that holds when the screen is not there.
+   */
+  it('will not take the same days twice', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const cookie = await signIn(base, agent);
+    const first = await send('POST', '/api/v2/leave', cookie, {
+      kind: 'annual', fromDate: day(7), toDate: day(10), reason: 'Family wedding',
+    });
+    expect(first.status).toBe(201);
+
+    /* Right across it, and overlapping only its last day. */
+    for (const range of [[day(7), day(10)], [day(10), day(14)], [day(5), day(8)]]) {
+      const again = await send('POST', '/api/v2/leave', cookie, {
+        kind: 'annual', fromDate: range[0], toDate: range[1], reason: 'Again',
+      });
+      expect(again.status, `${range[0]} to ${range[1]}`).toBe(400);
+      expect(await again.text()).toContain('You already asked for these days.');
+    }
+
+    /* Days after it are fine, and so is somebody else asking for the same. */
+    const after = await send('POST', '/api/v2/leave', cookie, {
+      kind: 'annual', fromDate: day(20), toDate: day(21), reason: 'Trip',
+    });
+    expect(after.status).toBe(201);
+
+    const colleague = await createTestUser({ role: 'agent' });
+    const theirs = await send('POST', '/api/v2/leave', await signIn(base, colleague), {
+      kind: 'annual', fromDate: day(7), toDate: day(10), reason: 'Same week',
+    });
+    expect(theirs.status).toBe(201);
+  });
+
   it('refuses leave that starts in the past', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const res = await send('POST', '/api/v2/leave', await signIn(base, agent), {

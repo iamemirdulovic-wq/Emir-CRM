@@ -273,7 +273,7 @@ export function V2PersonalInfo() {
               />
             ) : (
               <>
-                <div className="d-msg-box">{me.name}</div>
+                <div className="v2-readonly-box">{me.name}</div>
                 <span className="d-hint">Your name is on your account. Ask an owner to change it.</span>
               </>
             )}

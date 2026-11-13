@@ -128,6 +128,48 @@ export async function destroyAllSessionsForUser(userId: string, exec: Executor =
   return result.affectedRows;
 }
 
+/**
+ * Sign one of my own devices out.
+ *
+ * Scoped to the user as well as to the session id, so the id alone — which is
+ * the hash of somebody's live token — can never end a session that is not
+ * theirs. Returns false when the row is not theirs or is already gone, and
+ * the caller says so rather than reporting a sign-out that did not happen.
+ */
+export async function destroySessionForUser(
+  userId: string,
+  sessionId: string,
+  exec: Executor = getPool(),
+): Promise<boolean> {
+  const result = await execute(
+    'DELETE FROM sessions WHERE id = ? AND user_id = ?',
+    [sessionId, userId],
+    exec,
+  );
+  if (result.affectedRows > 0) await recordSignOut(sessionId, exec);
+  return result.affectedRows > 0;
+}
+
+/** Everything but the device asking. The design's "Sign out all others". */
+export async function destroyOtherSessionsForUser(
+  userId: string,
+  keepSessionId: string,
+  exec: Executor = getPool(),
+): Promise<number> {
+  const others = await query<{ id: string }>(
+    'SELECT id FROM sessions WHERE user_id = ? AND id <> ?',
+    [userId, keepSessionId],
+    exec,
+  );
+  for (const one of others) await recordSignOut(one.id, exec);
+  const result = await execute(
+    'DELETE FROM sessions WHERE user_id = ? AND id <> ?',
+    [userId, keepSessionId],
+    exec,
+  );
+  return result.affectedRows;
+}
+
 export async function purgeExpiredSessions(exec: Executor = getPool()): Promise<number> {
   const result = await execute('DELETE FROM sessions WHERE expires_at <= NOW(3)', [], exec);
   return result.affectedRows;

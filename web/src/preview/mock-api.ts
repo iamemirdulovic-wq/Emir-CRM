@@ -496,6 +496,34 @@ const PREVIEW_HEADLINES: Record<string, string> = {
  * with one person who is often out and one who misses days, because a grid
  * where everybody is perfect shows nothing.
  */
+/* The device list on the profile's Security tab. */
+let previewSessions = [
+  {
+    id: 'sess-here',
+    current: true,
+    device: 'Chrome on Windows',
+    handheld: false,
+    lastSeenAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+  },
+  {
+    id: 'sess-phone',
+    current: false,
+    device: 'Safari on iPhone',
+    handheld: true,
+    lastSeenAt: new Date(Date.now() - 9 * 3_600_000).toISOString(),
+    createdAt: new Date(Date.now() - 20 * 86_400_000).toISOString(),
+  },
+  {
+    id: 'sess-mac',
+    current: false,
+    device: 'Safari on Mac',
+    handheld: false,
+    lastSeenAt: new Date(Date.now() - 4 * 86_400_000).toISOString(),
+    createdAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+  },
+];
+
 const previewAttendance = {
   marked: null as 'office' | 'outside' | null,
   at: null as string | null,
@@ -521,6 +549,14 @@ const previewAttendance = {
       seenIp: '203.0.113.10',
       enabled: true,
       startsAt: '10:00',
+      endsAt: '19:00',
+      lateAfter: '10:10',
+      officeName: 'homes.me-Office',
+      officeNames: ['homes.me-Office'],
+      shift: {
+        start: '10:00', end: '19:00', satStart: '11:00', satEnd: '15:00',
+        closedDays: [0], graceMinutes: 10,
+      },
     };
   },
 };
@@ -1033,7 +1069,8 @@ const companyState = {
   orn: '41234',
   licenceNo: 'CN-4821907',
   licenceExpiry: '2027-03-14',
-  address: 'Office 1204, Bay Square 11, Business Bay, Dubai, UAE',
+  address: 'Office 1204, Bay Square 11',
+  addressLine2: 'Business Bay, Dubai, UAE',
   phone: '+971 4 123 4567',
   whatsapp: '+971 50 123 4567',
   email: 'hello@homes.me',
@@ -1042,8 +1079,14 @@ const companyState = {
 };
 
 const attendanceState = {
-  enabled: false,
-  officeIps: [] as string[],
+  enabled: true,
+  /* The documentation range (203.0.113.0/24), which belongs to nobody. A real
+     office address never appears in this file. */
+  officeIps: ['203.0.113.17', '203.0.113.18'] as string[],
+  officeNames: {
+    '203.0.113.17': 'homes.me-Office',
+    '203.0.113.18': 'homes.me-Office-5G',
+  } as Record<string, string>,
   start: '10:00',
   end: '19:00',
   satStart: '11:00',
@@ -1067,6 +1110,8 @@ const knowledgeState = {
   company: `We are homes.me, a real estate brokerage in Business Bay, Dubai. We sell off-plan projects in Dubai and Abu Dhabi.
 Our clients are mostly investors from the GCC, Europe, India and CIS countries. Agents speak English, Arabic, Russian, Hindi, Urdu and Serbian.
 Write short and simple English. Say "booking", not other words for it. Never promise a price, a discount or a return.`,
+  whatWeSell: `Off-plan only, Dubai and Abu Dhabi. Strongest with Emaar, Aldar and Danube.
+Most of our buyers are investors from India, the UK and Russia.`,
 };
 
 /* ── sales offers ───────────────────────────────────────────────────────
@@ -1164,26 +1209,27 @@ const rulesState = {
   rules: {
     warnBeforeBack: true, markGoingCold: true, askWhatHappened: true,
     followupDue: true, meetingSoon: true, howDidItGo: true, flagNoShows: true,
-    checkInReminder: true, markLate: false, tellOwnersAbsent: true,
+    checkInReminder: true, markLate: false, tellOwnersAbsent: true, askBackInOffice: true,
   } as Record<string, boolean>,
 };
 
 const RULE_GROUPS = [
   { key: 'leads', title: 'Leads', rules: [
-    { key: 'warnBeforeBack', title: 'Warn the agent before a lead goes back', note: '10 minutes before a VIP lead, an hour before an imported one' },
-    { key: 'markGoingCold', title: 'Mark leads as “going cold”', note: 'No call, no message and no plan for 7 days' },
-    { key: 'askWhatHappened', title: 'Ask “What happened?” after WhatsApp or Telegram', note: 'The agent answers. Open ones show on My Day.' },
+    { key: 'warnBeforeBack', title: 'Warn the agent before a lead goes back', note: '10 min before for a VIP lead, 1 hour before for an imported lead' },
+    { key: 'markGoingCold', title: 'Mark leads as “going cold”', note: 'No call, no message and no plan for 7 days · 12 leads now' },
+    { key: 'askWhatHappened', title: 'Ask “What happened?” after WhatsApp or Telegram', note: 'The agent must answer. Open ones show on My Day and in the messaging report.' },
   ] },
   { key: 'followups', title: 'Follow-ups and meetings', rules: [
-    { key: 'followupDue', title: 'Remind the agent when a follow-up is due', note: 'At the planned time, and again after an hour' },
-    { key: 'meetingSoon', title: 'Remind 2 hours before a meeting', note: 'The agent only. The client message is ready; the agent presses send.' },
-    { key: 'howDidItGo', title: 'Ask “How did it go?” after each meeting', note: 'Answered before 21:00. Owners see who did not answer.' },
-    { key: 'flagNoShows', title: 'Red flag after 2 no-shows', note: 'A cancelled meeting is not a no-show' },
+    { key: 'followupDue', title: 'Remind the agent when a follow-up is due', note: 'At the planned time, and again after 1 hour' },
+    { key: 'meetingSoon', title: 'Remind 2 hours before a meeting', note: 'Agent only. The client message is ready, the agent presses send.' },
+    { key: 'howDidItGo', title: 'Ask “How did it go?” after each meeting', note: 'Answer before 21:00. Owners see who did not answer.' },
+    { key: 'flagNoShows', title: 'Red flag after 2 no-shows', note: 'Cancelled is not a no-show' },
   ] },
   { key: 'attendance', title: 'Attendance', rules: [
-    { key: 'checkInReminder', title: 'Remind people to check in', note: 'At the start of the shift, on working days, only if they have not' },
-    { key: 'markLate', title: 'Mark somebody late', note: 'After the grace minutes. The agent can write a reason.' },
-    { key: 'tellOwnersAbsent', title: 'Tell owners about an absent agent', note: 'An hour into the shift, with no check-in and no leave' },
+    { key: 'checkInReminder', title: 'Check-in reminder at 10:00', note: 'Only on working days, only if not checked in' },
+    { key: 'markLate', title: 'Mark late after 10:10', note: 'The agent can write a reason' },
+    { key: 'tellOwnersAbsent', title: 'Tell owners about an absent agent at 11:00', note: 'No check-in and no leave' },
+    { key: 'askBackInOffice', title: 'Ask \u201cAre you back in the office?\u201d', note: 'Asked once at the back-by time' },
   ] },
 ];
 
@@ -1193,6 +1239,12 @@ function previewRules() {
     groups: RULE_GROUPS,
     vipChoices: [15, 30, 60, 120],
     importChoices: [4, 24, 48, 72],
+    /* The clock strip and the three Attendance titles read the real shift. */
+    shift: {
+      start: attendanceState.start,
+      end: attendanceState.end,
+      graceMinutes: attendanceState.graceMinutes,
+    },
   };
 }
 
@@ -1932,23 +1984,44 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^\/api\/v2\/attendance\/me$/, handler: () => {
     const today = new Date();
     const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const days: Array<{ on_date: string; kind: string; was_late: number; note: string | null }> = [];
+    const days: Array<{
+      on_date: string; kind: string; marked_at: string | null; was_late: number; note: string | null;
+    }> = [];
     for (let back = 1; back < 60; back += 1) {
       const at = new Date(today.getTime() - back * 86_400_000);
-      if (at.getUTCDay() === 0) continue;
+      /* The office is shut on Saturday and Sunday in this sample, and the
+         shift below says so, so no day is marked on one. */
+      if (at.getUTCDay() === 0 || at.getUTCDay() === 6) continue;
       if (back % 11 === 0) continue;
+      const late = back % 9 === 4;
+      /* A real time, because the week strip and the month grid both print
+         the check-in time and the Late tile prints the minutes. */
+      const markedAt = new Date(Date.UTC(
+        at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate(),
+        late ? 5 : 4, late ? 18 : 50 + (back % 9),
+      ));
       days.push({
         on_date: iso(at),
         kind: back % 7 === 3 ? 'outside' : 'office',
-        was_late: back % 9 === 4 ? 1 : 0,
-        note: back % 7 === 3 ? 'Emaar sales centre' : null,
+        marked_at: markedAt.toISOString(),
+        was_late: late ? 1 : 0,
+        note: back % 7 === 3 ? 'Site visit · Emaar sales centre · back by 17:30' : null,
       });
     }
     return {
       today: {
         closed: false, marked: null, markedAt: null, wasLate: false, note: null,
-        onOfficeNetwork: true, enabled: true, startsAt: '09:00',
+        onOfficeNetwork: true, enabled: true, startsAt: '09:00', endsAt: '18:00',
+        lateAfter: '09:10',
+        officeName: 'homes.me-Office',
+        officeNames: ['homes.me-Office'],
+        shift: {
+          start: '09:00', end: '18:00', satStart: '11:00', satEnd: '15:00',
+          closedDays: [0, 6], graceMinutes: 10,
+        },
       },
+      /* The design's "Emir or George answers". */
+      answerers: ['Emir', 'George'],
       from: iso(new Date(today.getTime() - 59 * 86_400_000)),
       to: iso(today),
       days,
@@ -1959,12 +2032,14 @@ const ROUTES: Route[] = [
           fromDate: iso(new Date(today.getTime() + 20 * 86_400_000)),
           toDate: iso(new Date(today.getTime() + 24 * 86_400_000)),
           workingDays: 4, reason: 'Family wedding', status: 'pending', decisionNote: null,
+          createdAt: new Date(today.getTime() - 3 * 3_600_000).toISOString(),
         },
         {
           id: 'lv-2', userId: 'u-1', kind: 'sick',
           fromDate: iso(new Date(today.getTime() - 30 * 86_400_000)),
           toDate: iso(new Date(today.getTime() - 30 * 86_400_000)),
           workingDays: 1, reason: null, status: 'approved', decisionNote: 'Get well.',
+          createdAt: new Date(today.getTime() - 31 * 86_400_000).toISOString(),
         },
       ],
     };
@@ -2026,6 +2101,7 @@ const ROUTES: Route[] = [
       },
       {
         id: 'o-2', name: 'Lina Rahimi', project: 'Damac Islands', isVip: false,
+        source: 'import',
         returnedAt: new Date(Date.now() - 112 * 60_000).toISOString(), agentName: 'Shan',
       },
     ] : [],
@@ -2271,6 +2347,10 @@ const ROUTES: Route[] = [
   }) },
 
   { method: 'GET', pattern: /^\/api\/company$/, handler: () => ({
+    /* "Saved · last change 3 Nov by Emir" on the save bar, and the line under
+       the logo. Both come from the real endpoint. */
+    lastChange: { at: new Date(Date.now() - 8 * 86_400_000).toISOString(), by: 'Emir Dulovic' },
+    logoFile: null,
     company: { ...companyState },
     issues: companyState.trn.trim()
       ? []
@@ -2287,12 +2367,18 @@ const ROUTES: Route[] = [
 
   { method: 'GET', pattern: /^\/api\/attendance\/settings$/, handler: () => ({
     ...attendanceState,
+    /* "Main office · 9 people on it now", under each network. */
+    onIpNow: { '203.0.113.17': 9, '203.0.113.18': 2 },
     /* The documentation range, never a real office address. */
     yourIp: '203.0.113.17',
   }) },
   { method: 'PUT', pattern: /^\/api\/attendance\/settings$/, handler: ({ body }) => {
     Object.assign(attendanceState, (body ?? {}) as Record<string, unknown>);
-    return { ...attendanceState, yourIp: '203.0.113.17' };
+    return {
+      ...attendanceState,
+      onIpNow: { '203.0.113.17': 9, '203.0.113.18': 2 },
+      yourIp: '203.0.113.17',
+    };
   } },
 
   { method: 'GET', pattern: /^\/api\/ai\/usage$/, handler: () => ({
@@ -2324,20 +2410,54 @@ const ROUTES: Route[] = [
     return { capUsd: String(aiState.capUsd.toFixed(2)), features: { ...aiState.features } };
   } },
 
+  /* The real shape: the section definitions, what is saved against each, and
+     where the key came from. The screen's key box reads the last of these. */
   { method: 'GET', pattern: /^\/api\/ai\/knowledge$/, handler: () => ({
     sections: [
       {
-        section: 'company',
-        title: 'About us',
-        language: 'en',
-        content: knowledgeState.company,
+        key: 'company',
+        label: 'About us',
+        help: 'Who the company is. Stops the AI inventing details about you.',
+        placeholder: 'Emigeo Homes Real Estate LLC, Dubai. Office in Business Bay.',
+        bilingual: false,
+        softLimit: 1500,
+      },
+      {
+        key: 'what_we_sell',
+        label: 'What we sell',
+        help: 'Which developers, which areas, which kind of buyer.',
+        placeholder: 'Off-plan only, Dubai and Abu Dhabi.',
+        bilingual: false,
+        softLimit: 1000,
       },
     ],
+    values: [
+      { section_key: 'company', language: 'en', content: knowledgeState.company },
+      { section_key: 'what_we_sell', language: 'en', content: knowledgeState.whatWeSell },
+    ],
+    provider: {
+      name: 'gemini',
+      ready: true,
+      model: 'gemini-2.5-flash',
+      /* 'crm' so the preview shows the key box rather than the "set in the
+         hosting panel" banner; both states are worth seeing and this is the
+         one with controls in it. */
+      keySource: 'crm',
+      keyEndsWith: '9f2c',
+      keyUnreadable: false,
+      capUsd: String(aiState.capUsd),
+    },
   }) },
-  { method: 'PUT', pattern: /^\/api\/ai\/knowledge\/([^/]+)$/, handler: ({ body }) => {
-    knowledgeState.company = ((body ?? {}) as { content?: string }).content ?? '';
+  { method: 'PUT', pattern: /^\/api\/ai\/knowledge\/([^/]+)$/, handler: ({ params, body }) => {
+    const text = ((body ?? {}) as { content?: string }).content ?? '';
+    if (params[0] === 'what_we_sell') knowledgeState.whatWeSell = text;
+    else knowledgeState.company = text;
     return { saved: true };
   } },
+  { method: 'PUT', pattern: /^\/api\/ai\/connection$/, handler: () => ({
+    ok: true, ready: true, works: true,
+  }) },
+  { method: 'DELETE', pattern: /^\/api\/ai\/connection$/, handler: () => ({ ok: true }) },
 
   { method: 'GET', pattern: /^\/api\/integrations\/setup-checklist$/, handler: () => ({
     outstanding: 1,
@@ -3055,6 +3175,21 @@ const ROUTES: Route[] = [
   /* The owner's view. Written out rather than derived, because the point of
      the preview is to show the three states side by side: finished, part way
      and never started. */
+  /* --- my signed-in devices ------------------------------------------------
+   * `design/web/profile.html` lists three, so the preview has three: this
+   * one, a phone and an old laptop. Held in memory, so signing one out on
+   * the preview does what it does on the real thing.
+   */
+  { method: 'GET', pattern: /^\/api\/auth\/sessions$/, handler: () => ({ items: previewSessions }) },
+  { method: 'DELETE', pattern: /^\/api\/auth\/sessions\/([^/]+)$/, handler: ({ params }) => {
+    previewSessions = previewSessions.filter((one) => one.id !== params[0]);
+    return { ok: true };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/auth\/sessions$/, handler: () => {
+    const gone = previewSessions.filter((one) => !one.current).length;
+    previewSessions = previewSessions.filter((one) => one.current);
+    return { ok: true, signedOut: gone };
+  } },
   // --- attendance ----------------------------------------------------------
   /* Held in memory so the preview can be walked: tap "I am here" and the card
      changes, the way it does on the real thing. */

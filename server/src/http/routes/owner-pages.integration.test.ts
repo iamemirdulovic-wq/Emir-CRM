@@ -62,6 +62,18 @@ describeWithDb('an owner page refuses an agent', () => {
     ['GET', '/api/teams'],
     ['GET', '/api/automations'],
     ['GET', '/api/v2/rules'],
+    /* The owner's settings screens, rebuilt from their design files on
+       13 Nov. Each one of these is new, and each one carries something an
+       agent has no business reading: colleagues' email addresses and last
+       sign-ins, who has no phone registered for alerts, what every service
+       is doing, and the whole team's feedback with the reporters' names. */
+    ['GET', '/api/v2/team/roles'],
+    ['GET', '/api/v2/health'],
+    ['POST', '/api/v2/health/check'],
+    ['GET', '/api/v2/feedback'],
+    ['GET', '/api/v2/feedback/export.csv'],
+    ['GET', '/api/v2/banners'],
+    ['GET', '/api/attendance/report/months'],
   ];
 
   for (const [method, path] of SHUT) {

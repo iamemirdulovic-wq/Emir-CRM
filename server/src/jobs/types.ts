@@ -34,6 +34,14 @@ export const JOB_TYPES = [
   'ai.review_lead',
   /** Summarise the notes on one lead, when they have changed. */
   'ai.notes_digest',
+  /**
+   * Is everything working? Six services, measured and written down.
+   *
+   * `design/web/system-health.html` promises "Checked by itself every 5
+   * minutes", and the thirty-day bars on that page are only honest if
+   * something actually records a sample that often.
+   */
+  'health.check',
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
