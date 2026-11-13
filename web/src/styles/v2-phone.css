@@ -367,10 +367,19 @@
    * screen's one action, instead of the 30px one on its own line. Follow-ups
    * and the inbox draw it this way, because the list below wants the height.
    */
-  .v2.v2-phone .v2-ptitle-compact {
+  /*
+   * `.v2-ptop` is in the selector only to match the weight of the 30px rule
+   * near the top of this file — four classes against four. Without it this
+   * rule is three and loses, so every screen that asked for the compact
+   * title got the 30px one and nothing in the code looked wrong. Seven
+   * screens were wrong that way: Follow-ups, the inbox, Notifications,
+   * Transfers, Templates, Attendance and Search.
+   */
+  .v2.v2-phone .v2-ptop .v2-ptitle-compact {
     flex: 1;
     min-width: 0;
     margin: 0;
+    line-height: 1.3;
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.01em;

@@ -27,29 +27,6 @@
  */
 
 @media (max-width: 767px) {
-
-  /* ══ The compact header — a shell bug, patched from here ════════════════
-   *
-   * `usePhoneHead({ compact: true })` is meant to give the 17px centred
-   * title of §1.4 pattern A, and five screens ask for it — Follow-ups, the
-   * inbox, Notifications, Transfers, Templates. It renders at 30px on all of
-   * them: `v2-phone.css` sets `.v2.v2-phone .v2-ptop .v2-title { font-size:
-   * 30px }`, four classes, and the compact rule two lines below it is
-   * `.v2.v2-phone .v2-ptitle-compact`, three. The small one loses and the
-   * code reads correctly.
-   *
-   * This file may not change `v2-phone.css`, so the fix is an override of
-   * equal specificity from here, where source order decides. **It belongs in
-   * `v2-phone.css` beside the rule it is correcting** — this is a patch, not
-   * a home, and it is written down in `docs/v2/phone-questions-b.md`.
-   */
-  .v2.v2-phone .v2-ptop .v2-ptitle-compact {
-    font-size: 17px; font-weight: 700;
-    letter-spacing: -.01em; line-height: 1.3;
-    margin: 0;
-    white-space: nowrap;
-  }
-
   /* ══ Calendar ═══════════════════════════════════════════════════════════
    *
    * The one rule this whole file exists to prove. `v2-shell.css` already
@@ -267,6 +244,15 @@
   .v2.v2-phone .v2-b-fu-top > .d-btn.d-icon .lucide { width: 19px; height: 19px; }
   .v2.v2-phone .v2-b-fu-btns { display: flex; gap: 8px; }
   .v2.v2-phone .v2-b-fu-btns > .d-btn { flex: 1; justify-content: center; }
+  /* The design fills Done and outlines Move to tomorrow; the build had the
+     weights the other way round, so the quiet answer looked like the main
+     one. */
+  .v2.v2-phone .v2-b-fu-btns > .d-btn:first-child {
+    background: var(--green-soft); color: var(--green-ink); box-shadow: none;
+  }
+  .v2.v2-phone .v2-b-fu-btns > .d-btn.d-ghost {
+    box-shadow: inset 0 0 0 1px var(--line-2);
+  }
 
   /* ══ Calling ════════════════════════════════════════════════════════════ */
 
