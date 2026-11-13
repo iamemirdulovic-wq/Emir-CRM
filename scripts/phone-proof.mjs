@@ -113,6 +113,18 @@ mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch();
 const missed = [];
 
+/**
+ * Every prototype asks Google for Inter and Manrope, and every one of those
+ * requests goes out through the container's proxy — about a second each,
+ * three loads per screen, 59 screens. The comparison is layout, order and
+ * wording, not the typeface, so the request is answered locally with
+ * nothing.
+ */
+async function noWebFonts(page) {
+  await page.route('**://fonts.googleapis.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  await page.route('**://fonts.gstatic.com/**', (r) => r.abort());
+}
+
 async function shoot(page, file) {
   await page.waitForTimeout(1400);
   await page.screenshot({ path: file });
@@ -121,6 +133,7 @@ async function shoot(page, file) {
 for (const [key, design, route, role, how = {}] of list) {
   /* The design. Many prototypes play a state on load; let them. */
   const d = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  await noWebFonts(d);
   await d.goto(`file://${path.join(ROOT, 'design/screens', `${design}.dc.html`)}`, {
     waitUntil: 'networkidle',
   }).catch(() => missed.push(`${key}: no design file ${design}.dc.html`));
@@ -188,10 +201,17 @@ for (const [key, design, route, role] of list) {
   </div>`;
   const tmp = path.join(SHOTS, `${key}.html`);
   writeFileSync(tmp, html);
-  const page = await browser.newPage({ viewport: { width: 1290, height: 1000 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({ viewport: { width: 1290, height: 1000 } });
   await page.goto(`file://${tmp}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(250);
-  await page.screenshot({ path: path.join(OUT, `${key}.png`), fullPage: true });
+  /*
+   * One device pixel per CSS pixel, and JPEG. Each panel is captured at two
+   * and drawn into 390px here, so it is downsampled from a sharp source and
+   * reads exactly as it does on a phone. At two and PNG the 59 pictures came
+   * to 51MB, and every re-run would add another 51MB to this repository for
+   * ever.
+   */
+  await page.screenshot({ path: path.join(OUT, `${key}.jpg`), fullPage: true, type: 'jpeg', quality: 88 });
   await page.close();
 }
 
