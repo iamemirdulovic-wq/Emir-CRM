@@ -561,40 +561,8 @@
   .v2 .d-crow{ flex-wrap:wrap; height:auto; padding:8px; }
   .v2 .d-mini-stats{ flex-wrap:wrap; }
 
-/*
- * The owner's home draws the same "Team today" tiles as My Day, and the
- * design's own stylesheet defines them only under `.p-my-day` — so on the
- * owner's home they were four unstyled links and the block read
- * "2In office1Late1Outside1Not marked" as one run-on line. The phone half
- * was fixed with the phone sheet; this is the computer half.
- *
- * Two classes, so `.v2 .p-my-day .d-mini-stats` still wins on My Day and
- * that page is untouched.
- */
-.v2 .d-mini-stats{ display:flex; gap:8px; margin-bottom:6px }
-.v2 .d-mini-stats a{
-  flex:1; border-radius:14px; background:var(--surface-2); padding:10px 12px;
-  font-size:12px; color:var(--ink-3); transition:background .15s;
-}
-.v2 .d-mini-stats a:hover{ background:var(--surface-3) }
-.v2 .d-mini-stats b{
-  display:block; font-size:24px; font-weight:720; letter-spacing:-.03em;
-  line-height:1.05; color:var(--ink);
-}
 
-/*
- * The same again for the row list. The design defines it only under
- * `.p-import`, so System health and Team rendered theirs as "ConnectedYes"
- * and "Leads in the last 7 days23" — on the computer too, not only on a
- * phone. Two classes, so the import page keeps its own.
- */
-.v2 .d-mini-list{ display:flex; flex-direction:column }
-.v2 .d-mini-list>div{
-  display:flex; align-items:center; gap:10px; padding:9px 0;
-  font-size:13px; min-width:0;
-}
-.v2 .d-mini-list>div+div{ border-top:1px solid var(--line) }
-.v2 .d-mini-list .d-grow{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
 
   .v2 .d-num-hero{ font-size:56px; }
   .v2 .d-ring.d-lg{ --size:120px; }
@@ -2945,3 +2913,68 @@
   .v2 .p-my-day .d-hero-phone,
   .v2 .p-owner-home .d-hero-phone { font-size: 26px; }
 }
+
+/* ── out of the phone's media query, where these three belong ──────────────
+ * Each fixes something that is wrong at every width, and each was written
+ * inside `@media (max-width:767px)` by accident, so none of them did
+ * anything on a computer. The layout comparison found it, not a test: the
+ * settings nav's Sign out stayed 61 pixels out of place on every settings
+ * page while the suite was green.
+ */
+
+/*
+ * The owner's home draws the same "Team today" tiles as My Day, and the
+ * design's own stylesheet defines them only under `.p-my-day` — so on the
+ * owner's home they were four unstyled links and the block read
+ * "2In office1Late1Outside1Not marked" as one run-on line. The phone half
+ * was fixed with the phone sheet; this is the computer half.
+ *
+ * Two classes, so `.v2 .p-my-day .d-mini-stats` still wins on My Day and
+ * that page is untouched.
+ */
+.v2 .d-mini-stats{ display:flex; gap:8px; margin-bottom:6px }
+.v2 .d-mini-stats a{
+  flex:1; border-radius:14px; background:var(--surface-2); padding:10px 12px;
+  font-size:12px; color:var(--ink-3); transition:background .15s;
+}
+.v2 .d-mini-stats a:hover{ background:var(--surface-3) }
+.v2 .d-mini-stats b{
+  display:block; font-size:24px; font-weight:720; letter-spacing:-.03em;
+  line-height:1.05; color:var(--ink);
+}
+
+/*
+ * The same again for the row list. The design defines it only under
+ * `.p-import`, so System health and Team rendered theirs as "ConnectedYes"
+ * and "Leads in the last 7 days23" — on the computer too, not only on a
+ * phone. Two classes, so the import page keeps its own.
+ */
+.v2 .d-mini-list{ display:flex; flex-direction:column }
+.v2 .d-mini-list>div{
+  display:flex; align-items:center; gap:10px; padding:9px 0;
+  font-size:13px; min-width:0;
+}
+.v2 .d-mini-list>div+div{ border-top:1px solid var(--line) }
+.v2 .d-mini-list .d-grow{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+/*
+ * The settings nav styles its rows by element name — `.v2 .d-set-nav a` —
+ * which is the design's own sheet and cannot be edited. Sign out had to
+ * become a button (it pointed at `/logout`, which is not a route), and a
+ * button is not an `a`: it lost every rule and the nav's last row changed
+ * height by 61px on every settings page.
+ *
+ * The same shape as the port's own `i`/`svg` duplication: say it again for
+ * the element we really render.
+ */
+.v2 .d-set-nav button{
+  display:flex; align-items:center; gap:10px; height:35px; padding:0 12px;
+  border:none; background:transparent; width:100%;
+  border-radius:11px; font:inherit; font-size:13.5px; font-weight:560;
+  color:var(--ink-2); white-space:nowrap; text-align:left; cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.v2 .d-set-nav button:hover{ background:var(--surface-3); color:var(--ink) }
+.v2 .d-set-nav button.d-set-out{ margin-top:12px; color:var(--red-ink) }
+.v2 .d-set-nav button svg{ width:16px; height:16px; color:var(--ink-3) }
+.v2 .d-set-nav button.d-set-out svg{ color:var(--red-ink) }

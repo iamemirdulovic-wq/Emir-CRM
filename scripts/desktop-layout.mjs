@@ -32,31 +32,60 @@ if (process.argv[2] === '--diff') {
   const before = JSON.parse(readFileSync(beforeFile, 'utf8'));
   const after = JSON.parse(readFileSync(afterFile, 'utf8'));
 
+  /*
+   * Align by name, not by position.
+   *
+   * The first version walked the two lists index by index, so one element
+   * inserted near the top reported every element after it as moved: 70 of
+   * 102 screens "changed" when a handful really had. Keying each element by
+   * its tag-and-classes plus how many of that kind came before it compares
+   * like with like, and an insertion shows up as what it is — one element
+   * added — rather than as a hundred that moved.
+   */
+  const key = (list) => {
+    const seen = new Map();
+    const out = new Map();
+    for (const one of list) {
+      const n = (seen.get(one.what) ?? 0) + 1;
+      seen.set(one.what, n);
+      out.set(`${one.what}#${n}`, one);
+    }
+    return out;
+  };
+
   const moved = [];
   const gone = [];
   const added = [];
 
-  for (const key of Object.keys(before)) {
-    if (!(key in after)) { gone.push(key); continue; }
-    const a = before[key];
-    const b = after[key];
-    if (a.length !== b.length) {
-      moved.push(`${key}: ${a.length} elements became ${b.length}`);
-      continue;
-    }
-    let worst = null;
-    for (let i = 0; i < a.length; i += 1) {
-      if (a[i].what !== b[i].what) { worst = `${a[i].what} became ${b[i].what}`; break; }
+  for (const name of Object.keys(before)) {
+    if (!(name in after)) { gone.push(name); continue; }
+    const a = key(before[name]);
+    const b = key(after[name]);
+
+    let worst = 0;
+    let worstWhat = '';
+    let shifted = 0;
+    for (const [k, box] of a) {
+      const other = b.get(k);
+      if (!other) continue;
       const d = Math.max(
-        Math.abs(a[i].x - b[i].x), Math.abs(a[i].y - b[i].y),
-        Math.abs(a[i].w - b[i].w), Math.abs(a[i].h - b[i].h),
+        Math.abs(box.x - other.x), Math.abs(box.y - other.y),
+        Math.abs(box.w - other.w), Math.abs(box.h - other.h),
       );
       /* A pixel of rounding is not a layout change. */
-      if (d > 1) { worst = `${a[i].what} moved ${d}px`; break; }
+      if (d > 1) { shifted += 1; if (d > worst) { worst = d; worstWhat = k; } }
     }
-    if (worst) moved.push(`${key}: ${worst}`);
+    const onlyBefore = [...a.keys()].filter((k) => !b.has(k));
+    const onlyAfter = [...b.keys()].filter((k) => !a.has(k));
+
+    if (shifted === 0 && onlyBefore.length === 0 && onlyAfter.length === 0) continue;
+    const parts = [];
+    if (shifted > 0) parts.push(`${shifted} moved, worst ${worst}px (${worstWhat})`);
+    if (onlyBefore.length > 0) parts.push(`${onlyBefore.length} gone: ${onlyBefore.slice(0, 3).join(', ')}`);
+    if (onlyAfter.length > 0) parts.push(`${onlyAfter.length} new: ${onlyAfter.slice(0, 3).join(', ')}`);
+    moved.push(`${name}: ${parts.join(' · ')}`);
   }
-  for (const key of Object.keys(after)) if (!(key in before)) added.push(key);
+  for (const name of Object.keys(after)) if (!(name in before)) added.push(name);
 
   if (moved.length === 0 && gone.length === 0 && added.length === 0) {
     console.log(`all ${Object.keys(before).length} computer screens have the same shape`);

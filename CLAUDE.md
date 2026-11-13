@@ -912,6 +912,16 @@ Three things about that port that have each already cost a day:
 - **Class names are checked for collisions.** Two stylesheets quietly defining
   the same bare class is what broke the pipeline board once. Add a modifier
   (`.thread-unread`, not `.unread`).
+- **A rule appended to `v2-shell.css` lands wherever you put it, and the
+  bottom half of that file is inside `@media (max-width:767px)`.** Three
+  fixes written for the computer went in there and did nothing at any width
+  above 767px, in silence, with the suite green. `scripts/desktop-layout.mjs`
+  is what caught it. Check which block your rule is in before believing it.
+- **`scripts/desktop-layout.mjs` records the shape of every computer page**
+  so "768px and wider did not change" can be shown rather than claimed.
+  Record a baseline before the work, record again after, `--diff` the two.
+  It aligns elements by name and occurrence, not by position, because one
+  inserted element reported as a hundred moved.
 - **`npm run polish`** drives a real browser over 27 routes × 2 screen sizes ×
   2 themes and fails on anything overflowing, clipped or undersized. Run it
   after touching layout. The preview server must be started from inside `web/`.
