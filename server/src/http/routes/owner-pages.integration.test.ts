@@ -55,6 +55,13 @@ describeWithDb('an owner page refuses an agent', () => {
     ['GET', '/api/imports/mappings/all'],
     ['PATCH', '/api/automations/auto-assign'],
     ['GET', '/api/company/lead-data'],
+    /* The three that an agent really could read: the office's team
+       structure, the owner's automation switches, and the take-back rules
+       behind the Automations page. Proven open by a probe against a real
+       server before they were shut. */
+    ['GET', '/api/teams'],
+    ['GET', '/api/automations'],
+    ['GET', '/api/v2/rules'],
   ];
 
   for (const [method, path] of SHUT) {
@@ -73,6 +80,17 @@ describeWithDb('an owner page refuses an agent', () => {
       expect(body, `${method} ${path} showed the raw role list`).not.toContain('requires one of');
     });
   }
+
+  it('leaves an agent the things that are theirs', async () => {
+    /* The pool is an agent's own work, and it lives on the same router as
+       the team list that was just shut. Locking a whole router rather than
+       the route is how "Claim next lead" would have been taken away from
+       the people it is for. */
+    const agent = await createTestUser({ role: 'agent' });
+    const cookie = await signIn(base, agent);
+    const res = await fetch(`${base}/api/teams/pool`, { headers: { Cookie: cookie } });
+    expect(res.status, 'an agent lost the shared pool').toBe(200);
+  });
 
   it('lets an owner through the same doors', async () => {
     const owner = await createTestUser({ role: 'owner' });

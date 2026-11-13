@@ -17,6 +17,10 @@ teamsRouter.use(requireAuth, blockUntilPasswordChanged);
 
 teamsRouter.get(
   '/',
+  /* Manager and above: every caller of this is an owner's screen — the
+     assignment picker, the import wizard, Team and roles. The pool routes
+     below stay open, because claiming a lead is an agent's own work. */
+  requireManager,
   asyncHandler(async (_req: Request, res: Response) => {
     const teams = await query<{ id: string; name: string; description: string | null; manager_name: string | null }>(
       `SELECT t.id, t.name, t.description, u.name AS manager_name

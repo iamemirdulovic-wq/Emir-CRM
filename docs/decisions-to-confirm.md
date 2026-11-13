@@ -336,3 +336,21 @@ the top so it fills the phone, which is most of the way there.
 
 **A) Leave it as a tab** (recommended — one less screen to go back from).
 **B) Give it its own address**, exactly as the design has it.
+
+## 23. An agent can no longer read the take-back rules
+
+Three things an agent could read by typing the address are shut now: the
+office's **team structure**, your **automation switches**, and the
+**take-back rules** behind the Automations page. You asked for every owner
+page shut on the server as well as on the screen, and these were the three
+that really were open.
+
+One of them has a cost worth naming. The take-back rules used to be
+readable by everyone, on purpose, with this reason written beside the code:
+*"an agent whose lead went back deserves to know the rule that took it."*
+That is fair, and the message an agent gets when a lead goes back still
+says what happened — but they can no longer look up the rule itself.
+
+**A) Keep it shut** (recommended — it is your switch panel, and the
+take-back message already explains itself). **B) Let agents read the rules
+but not change them**, as it was.

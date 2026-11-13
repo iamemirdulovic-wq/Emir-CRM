@@ -7,9 +7,16 @@ import { listAutomations, setAutomationActive } from '../../services/automations
 export const automationsRouter = Router();
 automationsRouter.use(requireAuth, blockUntilPasswordChanged);
 
-/** Everyone may see what is running; the specification puts the switches with the owner and admin. */
+/*
+ * Owner and admin, read as well as write.
+ *
+ * This said "everyone may see what is running", and an agent who typed
+ * /v2/settings/automations read the lot. The owner asked for every owner
+ * page shut on the server as well as on the screen.
+ */
 automationsRouter.get(
   '/',
+  requireAdmin,
   asyncHandler(async (_req: Request, res: Response) => {
     res.json({ items: await listAutomations() });
   }),

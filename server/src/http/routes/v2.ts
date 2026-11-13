@@ -816,6 +816,12 @@ v2Router.get(
  */
 v2Router.get(
   '/rules',
+  /* Shut to agents with the rest of the Automations page. It used to be open
+     on the grounds that "an agent whose lead went back deserves to know the
+     rule that took it" — which is true, and is why the take-back message
+     says what happened. Reading the owner's switch panel is a different
+     thing. Noted in docs/decisions-to-confirm.md. */
+  requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(await officeRules());
   }),
