@@ -504,7 +504,7 @@ function PhoneTop() {
           count the design puts there rather than in a strip of its own. */}
       {!atHome && (
         <>
-          <h1 className="v2-title">{titleFor(pathname, user?.role ?? 'agent')}</h1>
+          <h1 className="v2-title">{head.title ?? titleFor(pathname, user?.role ?? 'agent')}</h1>
           {head.sub && <p className="v2-psub">{head.sub}</p>}
         </>
       )}

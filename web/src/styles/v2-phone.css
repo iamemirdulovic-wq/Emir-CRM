@@ -309,3 +309,24 @@
   .v2.v2-phone .v2-gate-any .v2-gate-dot { color: var(--amber-ink); }
   .v2.v2-phone .v2-gate-foot { text-align: center; margin-top: 12px; }
 }
+
+@media (max-width: 767px) {
+  /*
+   * Settings, on the phone.
+   *
+   * `.d-set` is a 216px nav beside the panel — at 390px that leaves 142px
+   * for the panel, so every settings screen was unusable. The phone design
+   * has no side nav at all: `Settings.dc.html` is a list of sections, and
+   * tapping one opens that section on its own, with the back button as the
+   * way out. So the nav does not render here and the grid is one column.
+   *
+   * The list itself is the Settings screen's own work, not the shell's.
+   */
+  .v2.v2-phone .d-set {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: 0;
+  }
+  .v2.v2-phone .d-set-nav { display: none }
+  .v2.v2-phone .d-set-body { gap: 12px }
+}

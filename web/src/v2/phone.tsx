@@ -73,6 +73,16 @@ export function FullAttentionProvider(
 /* ── what a screen puts in its own header ───────────────────────────────── */
 
 export interface PhoneHead {
+  /**
+   * What the header calls this screen. Overrides the name derived from the
+   * address, which only knows the first part of it — so `/v2/settings/team`
+   * and `/v2/settings/security` both read "Settings" without this.
+   *
+   * A screen that sets a title must not draw one of its own as well: the
+   * header is static and the page scrolls under it, so two titles appear at
+   * once rather than one scrolling away.
+   */
+  title?: string;
   /** The live count under the title — "62 open · 12 to call today". */
   sub?: string;
   /**

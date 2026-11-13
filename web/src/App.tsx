@@ -75,6 +75,9 @@ import { V2Activity } from './v2/Activity.js';
 import { V2Dashboard } from './v2/Dashboard.js';
 import { V2Live } from './v2/Live.js';
 import { V2Lead } from './v2/Lead.js';
+import { V2VipGiven } from './v2/VipGiven.js';
+import { V2PersonalInfo } from './v2/PersonalInfo.js';
+import { V2SettingsSecurity } from './v2/settings/Security.js';
 import { TestCopyBanner } from './components/TestCopyBanner.js';
 
 /** Everything behind the login, with the temporary-password gate in front. */
@@ -146,6 +149,10 @@ export function App() {
               same numbers — a second list of the same rows is a second chance to
               disagree with itself. */}
           <Route path="/v2/follow-ups" element={<V2Leads fixedTab="overdue" />} />
+          {/* The owner's record of the VIP leads they handed out, from
+              `design/screens/OwnerAssign.dc.html` — a screen, not the assign
+              dialog it was read as. */}
+          <Route path="/v2/vip" element={<V2VipGiven />} />
           <Route path="/v2/pipeline" element={<V2Pipeline />} />
           <Route path="/v2/calling" element={<V2Calling />} />
           <Route path="/v2/transfers" element={<V2Transfers />} />
@@ -194,11 +201,15 @@ export function App() {
           <Route path="/v2/settings/health" element={<V2SettingsHealth />} />
           <Route path="/v2/settings/feedback" element={<V2FeedbackInbox />} />
           <Route path="/v2/settings/banners" element={<V2SettingsBanners />} />
+          <Route path="/v2/settings/security" element={<V2SettingsSecurity />} />
           <Route path="/v2/feedback" element={<V2Feedback />} />
           {/* The old address kept working, since it is in the nav of every
               screen already shipped. */}
           <Route path="/v2/automations" element={<V2Automations />} />
           <Route path="/v2/profile" element={<V2Person />} />
+          {/* Where the settings list's "My profile · Photo, BRN, card" row
+              points. It pointed nowhere until now. */}
+          <Route path="/v2/me" element={<V2PersonalInfo />} />
           <Route path="/v2/more" element={<V2More />} />
           {/* Messages: the shared inbox, the client emails and the WhatsApp
               templates. They were drawn as a later phase and are built now. */}
