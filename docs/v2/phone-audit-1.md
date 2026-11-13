@@ -340,4 +340,6 @@ Each of the three is a full-width row with a round coloured icon on the left, a 
 - **Same: 1** — `Incoming`.
 - **Different: 9** — `Main`, `OwnerHome`, `OwnerDashboard`, `Leads`, `AllLeads`, `Lead`, `AddLead`, `Dialer`, `Pipeline`.
 - **No address in the build: 2** — `Notes`, `OwnerAssign`.
-- **Missing items listed: 139.**
+- **Missing items listed: 128** (counting the seven that describe the whole of `Notes` and the seven that describe the whole of `OwnerAssign`, since neither screen exists at all).
+
+*The build was being edited by other agents while this was written: `web/src/v2/Leads.tsx`, `Shell.tsx`, `phone.tsx` and `web/src/styles/v2-phone.css` all changed on disk during the audit. Everything above is the preview and the source as they stood on the afternoon of 13 Nov.*
