@@ -2886,3 +2886,16 @@
   .v2 .p-tasks .d-trow > a.d-btn { order: 2; margin-left: auto; }
   .v2 .p-tasks .d-trow .d-ty { width: auto; }
 }
+
+@media (max-width: 900px) {
+  /* The VIP card's phone number is 46px and `white-space:nowrap`, which is
+     13 digits at about 29px each — wider than a 390px screen, so the last
+     digit of the number the agent is meant to ring was cut off. The one
+     thing on that card that must be readable. */
+  .v2 .p-my-day .d-hero-phone,
+  .v2 .p-owner-home .d-hero-phone { font-size: 30px; letter-spacing: -.03em; }
+}
+@media (max-width: 360px) {
+  .v2 .p-my-day .d-hero-phone,
+  .v2 .p-owner-home .d-hero-phone { font-size: 26px; }
+}
