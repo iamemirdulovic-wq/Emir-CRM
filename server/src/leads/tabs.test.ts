@@ -108,6 +108,26 @@ describe('the tab definitions', () => {
     }
   });
 
+  /*
+   * The owner's screen opens on their book, and the tab beside All is "Going
+   * cold" — `design/web/all-leads.html`'s second tab, which had no definition
+   * anywhere. It is the office rule's own wording: no call, no message and no
+   * plan for seven days (`v2/office-rules.ts`, `markGoingCold`), so the tab
+   * and the automation cannot mean two different things.
+   */
+  it('defines going cold the way the office rule does', () => {
+    const cold = TABS.cold;
+    expect(cold.label).toBe('Going cold');
+    /* A lead with a plan is not going cold however long ago it was spoken to:
+       somebody is coming back to it on a day they chose. */
+    expect(cold.where).toContain('o.next_step_at IS NULL');
+    expect(cold.where).toContain('INTERVAL 7 DAY');
+    /* Counted from the day it arrived for a lead nobody has ever rung. */
+    expect(cold.where).toContain('COALESCE(o.last_contact_at, o.created_at)');
+    /* Coldest first: the longest anybody has been left waiting. */
+    expect(cold.orderBy).toContain('ASC');
+  });
+
   it('recognises only real tab names', () => {
     expect(isLeadTab('today')).toBe(true);
     expect(isLeadTab('no_next_step')).toBe(true);
