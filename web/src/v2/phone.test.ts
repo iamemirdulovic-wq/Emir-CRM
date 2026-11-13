@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -54,16 +54,87 @@ describe('the four full-attention screens', () => {
   });
 });
 
-describe('nothing in the phone stylesheet escapes the phone', () => {
+/**
+ * The phone's stylesheets: the shell's own, and one per group of screens so
+ * that four people working at once cannot write the same file. Both guards
+ * below run over every one of them, so a new group's file is covered the
+ * moment it is created.
+ */
+const SHEETS = readdirSync(path.join(HERE, '../styles'))
+  .filter((f) => /^v2-phone(-[a-z])?\.css$/.test(f))
+  .sort();
+
+/** Only what is left after the phone's own blocks are cut out. */
+function outsideThePhone(css: string): string[] {
+  let rest = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const at of ['@media (max-width: 767px)', '@media (prefers-reduced-motion: reduce)']) {
+    let from = rest.indexOf(at);
+    while (from !== -1) {
+      let depth = 0;
+      let i = rest.indexOf('{', from);
+      for (; i < rest.length; i += 1) {
+        if (rest[i] === '{') depth += 1;
+        else if (rest[i] === '}') { depth -= 1; if (depth === 0) break; }
+      }
+      rest = rest.slice(0, from) + rest.slice(i + 1);
+      from = rest.indexOf(at);
+    }
+  }
+  rest = rest.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
+  return rest.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+}
+
+/** Selectors too light to beat a ported page rule. */
+function tooLight(css: string): string[] {
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const weak: string[] = [];
+  for (const line of body.split('\n')) {
+    const sel = line.trim();
+    if (!sel.startsWith('.')) continue;
+    for (const one of sel.replace(/[,{].*$/, '').split(',')) {
+      const part = one.trim();
+      if (part.length === 0) continue;
+      if (!part.startsWith('.v2.v2-phone')) weak.push(part);
+    }
+  }
+  return weak;
+}
+
+describe('nothing in the phone stylesheets escapes the phone', () => {
   /*
    * The owner's words: "Do not change the computer layout (768 px and wider)."
-   * Every rule in `v2-phone.css` has to be inside its media query. A rule that
+   * Every rule in a phone sheet has to be inside its media query. A rule that
    * slips outside would land on every computer screen in the company, and the
    * only way anyone would find out is by looking at all of them.
    */
   const css = read('../styles/v2-phone.css');
 
-  it('has every rule inside @media (max-width: 767px)', () => {
+  it.each(SHEETS)('%s keeps every rule inside @media (max-width: 767px)', (file) => {
+    const stray = outsideThePhone(read(`../styles/${file}`));
+    expect(stray, `these lines in ${file} are outside the phone's media query:\n${stray.join('\n')}`)
+      .toEqual([]);
+  });
+
+  it.each(SHEETS)('%s writes every rule heavily enough to beat a page style', (file) => {
+    /*
+     * The ported page styles are `.v2 .p-calendar .d-cal-layout` — three
+     * classes. A phone rule written `.v2-phone .d-cal-layout` is two, so it
+     * loses, and the calendar grid computes to 26 pixels wide at 390px with
+     * nothing in the code looking wrong. The audit found exactly that on the
+     * calendar. So every selector carries `.v2.v2-phone`, which ties at three
+     * and wins on source order because these files load last.
+     */
+    const weak = tooLight(read(`../styles/${file}`));
+    expect(weak, `these in ${file} would lose to a page style:\n${weak.join('\n')}`).toEqual([]);
+  });
+
+  it('has a sheet for the shell and one for each group of screens', () => {
+    /* A group's file imported nowhere styles nothing, in silence. */
+    const index = read('../styles/index.css');
+    for (const file of SHEETS) expect(index).toContain(`@import './${file}'`);
+  });
+
+  it('the shell sheet: every rule inside the media query', () => {
     /* Strip comments, then the one allowed outside: the keyframes, which
        style nothing on their own, and the reduce-motion block, which only
        switches the phone's own animations off. */
@@ -103,29 +174,6 @@ describe('nothing in the phone stylesheet escapes the phone', () => {
        wasted screen, so it is tied to the class the shell sets. */
     expect(css).toMatch(/padding-bottom: calc\(108px/);
     expect(css).toMatch(/\.v2\.v2-phone:not\(\.v2-has-bar\) \.v2-page/);
-  });
-
-  it('writes every rule with enough weight to beat a page style', () => {
-    /*
-     * The ported page styles are `.v2 .p-calendar .d-cal-layout` — three
-     * classes. A phone rule written `.v2-phone .d-cal-layout` is two, so it
-     * loses, and the calendar grid computes to 26 pixels wide at 390px with
-     * nothing in the code looking wrong. The audit found exactly that on the
-     * calendar. So every selector here carries `.v2.v2-phone`, which ties at
-     * three and wins on source order because this file loads last.
-     */
-    const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
-    const weak = [];
-    for (const line of body.split('\n')) {
-      const sel = line.trim();
-      if (!sel.startsWith('.')) continue;
-      for (const one of sel.replace(/[,{].*$/, '').split(',')) {
-        const part = one.trim();
-        if (part.length === 0) continue;
-        if (!part.startsWith('.v2.v2-phone')) weak.push(part);
-      }
-    }
-    expect(weak, `these would lose to a page style:\n${weak.join('\n')}`).toEqual([]);
   });
 
   it('gives a thumb 44px', () => {

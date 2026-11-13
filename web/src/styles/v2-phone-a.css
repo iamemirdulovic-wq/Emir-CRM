@@ -1,0 +1,28 @@
+/*
+ * The phone, group A:
+ *   My Day, the owner home, My Leads, the lead page, Add lead, Incoming
+ *
+ * `v2-phone.css` holds the shell — the bottom bar, the sheets, the header,
+ * the rise-in. This file holds what these screens need on top of it, and
+ * nothing else touches it.
+ *
+ * Two rules, both enforced by `web/src/v2/phone.test.ts`:
+ *
+ * 1. Every rule lives inside `@media (max-width: 767px)`. The promise to the
+ *    owner is that the computer layout does not change, and a rule that slips
+ *    outside the media query lands on every screen in the company with
+ *    nothing in the code looking wrong.
+ *
+ * 2. Every selector starts `.v2.v2-phone`. The ported page styles are
+ *    `.v2 .p-leads .d-card` — three classes. A phone rule written
+ *    `.v2-phone .d-card` is two, so it loses, and the box computes to the
+ *    wrong width with the code reading correctly. `.v2.v2-phone` ties at
+ *    three and wins on source order, because this file loads last.
+ *
+ * New class names of your own carry a `v2-a-` prefix, so that two groups
+ * cannot quietly define the same bare class — which is what broke the
+ * pipeline board once. `css-collisions.test.ts` checks it.
+ */
+
+@media (max-width: 767px) {
+}

@@ -30,3 +30,9 @@
 /* The phone, last of all: under 768px it overrides the four above, and above
    768px it is empty. See the head of the file. */
 @import './v2-phone.css';
+/* Then the four groups of screens, each in its own file so that work on one
+   group cannot touch another's. Same two rules as above. */
+@import './v2-phone-a.css';
+@import './v2-phone-b.css';
+@import './v2-phone-c.css';
+@import './v2-phone-d.css';
