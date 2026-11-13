@@ -64,3 +64,24 @@ preview uses gained two fields the real CRM has always sent: whether a lead
 is **VIP**, and whether it **came back to you**. So the VIP tag and the
 "Came back to you" line appear in the preview now. On the real CRM they
 always did.
+
+---
+
+# A second round, after Emir sent pictures of the designs
+
+*Rendering the prototypes drew every state stacked, so small differences
+were invisible. With the owner's own pictures as the left panel, the four
+groups went through all 59 again. Seven more changes reach the computer,
+each because the **computer** design asks for it.*
+
+| Page | What changed above 768px | Why |
+|---|---|---|
+| Team and roles | **"Invite a person"** — a button and a form. There was no way to add anybody to the CRM from inside it. | Both designs draw it, and `POST /api/users` has existed all along. |
+| Team activity | A **Activity · Live · Messaging** row. | It was the only one of the three reports with no way out of it. The computer design has the row. |
+| Messaging report | The same row gained its missing **Live** link. | Same. |
+| Feedback inbox | The filter words are **New · Planned · Fixed · All**, each with its count, and each card has **Plan it** and **Mark fixed**. | Both designs say those words. The build had invented five of its own, and the only way to change a report's state was through the reply box. |
+| Feedback inbox | **"Answer"** is now **"Reply"**. | Both designs. |
+| Phone app | Step 1 prints the real address — **crm.homes.me** — instead of "the same address you use here". | The design prints it, and an agent setting up a new phone needs to read it. |
+| Team | The second tab is **Best of Homes**, not "Team wall", and goes there. | `design/web/team.html` draws that pair, and Best of Homes already drew the same row the other way round. The two disagreed. |
+
+Everything else the groups changed is inside `@media (max-width: 767px)`.

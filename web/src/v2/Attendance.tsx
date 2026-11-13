@@ -1244,11 +1244,17 @@ function OwnerMine({ mine, reload, onAsk }: { mine: Mine; reload: () => void; on
 
 /* ── the two side panels ───────────────────────────────────────────────── */
 
-/* The six `WorkOutside.dc.html` offers, in its order and its words. The note
-   the server keeps is one free line, so these are the design's exactly. */
+/*
+ * The six reasons, in `design/web/attendance.html`'s words.
+ *
+ * `WorkOutside.dc.html` names four of them differently — Developer sales
+ * centre, Client meeting, Event / roadshow, Bank / paperwork — and the
+ * computer design is the newer of the two, so these are its. The last one
+ * was "Something else" in the build and is "Other" in both designs.
+ */
 const WHY_OUTSIDE = [
-  'Viewing with client', 'Developer sales centre', 'Client meeting',
-  'Event / roadshow', 'Bank / paperwork', 'Other',
+  'Viewing with a client', 'Site visit', 'Meeting at the developer',
+  'Event or expo', 'Bank or papers', 'Other',
 ];
 
 function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
@@ -1317,10 +1323,11 @@ function OutsidePanel({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <span className="d-error">Choose why you are outside.</span>
           </div>
 
-          {/* The design asks who before where: "With who?" is a row of
-              leads, then "Where exactly" is the free line under it. */}
+          {/* Both designs ask who before where: "With who" is a lead name,
+              then "Where exactly" is the free line under it. The build had
+              the two the other way round. */}
           <div className="d-field">
-            <label htmlFor="v2-out-who">With who?</label>
+            <label htmlFor="v2-out-who">With who</label>
             <input
               id="v2-out-who"
               className="d-input"
@@ -1510,7 +1517,7 @@ function AskPanel({ onClose, onAsked }: { onClose: () => void; onAsked: () => vo
           <button type="button" className="d-btn d-ghost" onClick={onClose}>Cancel</button>
           <span className="d-grow" />
           <button type="button" className="d-btn d-primary" disabled={busy} onClick={send}>
-            {busy ? 'Sending…' : 'Send request'}
+            {busy ? 'Sending…' : 'Send the request'}
           </button>
         </div>
       </aside>

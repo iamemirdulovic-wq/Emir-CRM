@@ -37,7 +37,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PROOF_BASE_URL ?? 'http://127.0.0.1:5182';
 const OUT = path.join(ROOT, 'docs/v2/phone-proof');
-const SHOTS = path.join(OUT, '.shots');
+/*
+ * One scratch folder per run, not one shared by all of them. Four groups
+ * shooting their own screens at once emptied each other's folder at the end
+ * of a run and killed the stitch step half way through.
+ */
+const SHOTS = path.join(OUT, `.shots-${process.pid}`);
 
 /**
  * Every one of the 59 phone screens, against where it lives in the build.

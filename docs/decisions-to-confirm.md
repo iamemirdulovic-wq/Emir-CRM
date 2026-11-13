@@ -281,3 +281,58 @@ phones and computers you are signed in on, sign one out. Nothing in the CRM
 reached it. There is now an address for it and the screen is being built,
 but nothing links to it yet except the settings list. Is Settings the right
 place for it, or do you want it on your profile page as well?
+
+## 19. How a new person gets their password
+
+There is now an **Invite a person** button on Team and roles — your design
+has one and the CRM never had any way to add somebody.
+
+Your design's form says *"They get an email with a link to set a
+password."* What the CRM actually does is different: it makes the account
+and shows you a **one-time password once**, for you to send them yourself.
+The form says that, with a copy button.
+
+There is a second way in the system that really does send an email, but it
+only takes an address and makes the name up from the part before the @ —
+so "Full name" would have to go.
+
+**A) Keep it as it is** (recommended — you hand the password over on
+WhatsApp, which is what happens today anyway, and the name is right).
+**B) Send the email instead**, and lose the name field.
+**C) Build the proper one**: an email with a link, and the name kept. Half
+a day of server work.
+
+## 20. "From your phone, computer or Google Drive"
+
+Your phone design says that under the import box. Your computer design says
+*"or click to choose a file from this computer"*, and the computer wins, so
+that is what is built. But "this computer" is wrong when somebody is
+standing in a lift with their phone.
+
+**A) Change both to "from your phone, computer or Google Drive"**
+(recommended). **B) Leave it.**
+
+## 21. Alerts on a locked phone — are the Firebase keys set?
+
+My Day now has the **"Turn on notifications"** card your design draws, and
+it asks the phone properly. But a message only reaches a phone that is
+locked and in a pocket if the push keys are set on the server, and I cannot
+see from here whether they are on crm.homes.me.
+
+Right now the card says exactly that and nothing more: *"This phone will
+show alerts. Leads on the lock screen need one more switch from the
+office."*
+
+**A) Set the keys** (recommended — it is the difference between an agent
+seeing a VIP lead in thirty seconds and seeing it when they next open the
+CRM). `SETUP_NEEDED.md` lists which ones. **B) Hide the card** until they
+are set, so nobody is promised something that does not happen.
+
+## 22. Should Notes be its own screen?
+
+Your phone design draws **Notes** as a screen of its own. In the build it
+is a tab on the lead, two screenfuls down — tapping it now scrolls it to
+the top so it fills the phone, which is most of the way there.
+
+**A) Leave it as a tab** (recommended — one less screen to go back from).
+**B) Give it its own address**, exactly as the design has it.
