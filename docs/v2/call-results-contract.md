@@ -47,6 +47,30 @@ Answers **200** with the lead's whole no-answer state afterwards:
   client's language. **The server never sends it.** The agent taps Send
   WhatsApp himself (A.3).
 
+## 1b. Taking one back
+
+```
+DELETE /api/v2/leads/:opportunityId/call-result
+```
+
+Undoes the **most recent** result on that lead and answers with the same
+state block as §1.
+
+Added 14 Nov, after the leads agent pointed out that C.2's toast ("Saved ·
+next try tomorrow 11:00 · Undo") and C.4's bulk Undo had nothing to call. It
+has to be its own thing: undoing by saving one of the four ending results
+would record a result the agent never gave, and the timeline would then say
+something untrue about a client.
+
+- It removes the attempt, puts `tries` back, and restores whatever
+  `nextTryAt` stood before it — including back to none.
+- Only the agent who saved it, or an owner or admin, may undo it.
+- Only while it is still the latest result on that lead, and only within a
+  short window (10 minutes is enough for a toast). After that it answers 409
+  and the screen says so rather than failing silently.
+- The undo is itself written to `audit_log`. Nothing is erased from history;
+  the attempt is marked taken back.
+
 ## 2. When the next try is
 
 From Automations, so the owner can change it (A.7). Defaults:
