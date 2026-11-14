@@ -171,7 +171,7 @@ export const LeadNoteBox = forwardRef<NoteBoxHandle, {
     setProblem(null);
     const text = body.trim();
     try {
-      const created = await api.post<{ id: string; movedStage: { to: string } | null }>(
+      const created = await api.post<{ id: string; movedStage?: { to: string } | null }>(
         `/api/notes/${contactId}`,
         {
           /* A voice note or a photo is the whole note: asking for words as
@@ -207,7 +207,9 @@ export const LeadNoteBox = forwardRef<NoteBoxHandle, {
       setMore(false);
       onSaved(
         remind ? 'Note saved, and you will be reminded.' : 'Note saved.',
-        created.movedStage !== null,
+        /* `!= null` on purpose: an older build of the endpoint leaves the
+           field off altogether rather than sending null. */
+        created.movedStage != null,
       );
     } catch (err) {
       setProblem(err instanceof ApiError ? plain(err.message) : 'That note did not save.');

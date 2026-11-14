@@ -278,9 +278,11 @@ export function CallResultBar({
             >
               Cancel
             </button>
+            {/* Black, not orange: orange is kept for Save note, Change,
+                More and Undo, and this is none of them. */}
             <button
               type="button"
-              className="d-btn d-sm d-primary"
+              className="d-btn d-sm d-dark"
               disabled={when === '' || busy !== null}
               onClick={() => { void save('call_back', new Date(when).toISOString()); }}
             >
