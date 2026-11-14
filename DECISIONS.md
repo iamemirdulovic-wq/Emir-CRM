@@ -5,6 +5,114 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-14 — everything — **Production is MariaDB; the tests are MySQL 8, and
+that gap caused four separate outages in one day** — Written here because it
+will cause a fifth otherwise.
+
+The calendar answered "Internal server error" for every person on every device
+for days. It took three diagnoses and two wrong ones. Along the way: the KPI
+500 months ago (an aggregate named by its alias in HAVING, which MySQL allows
+and MariaDB rejects), and a date bound into a query as the browser's raw
+`2026-12-01T00:00:00.000Z` string, which MySQL truncates with warning 1292 and
+MariaDB refuses outright.
+
+**Never bind a date to a query as a string — always `new Date(x)`. Never name
+an aggregate by its alias in HAVING or ORDER BY. When something breaks only on
+the live site, suspect this difference before suspecting the data.**
+
+2026-11-14 — migrations — **A migration must add one column at a time, and
+only where it is missing** — `0038_meeting_results.sql` took the calendar down
+for days.
+
+It added ten columns in ONE `ALTER TABLE`. The live database already had some
+of them, so it failed on the first duplicate and — being a single statement —
+added none of the rest. A migration is only recorded in `schema_migrations`
+after it succeeds, so it was retried on every boot, failed identically every
+time, and **blocked every migration queued behind it**. It could never have
+recovered on its own and no amount of redeploying would have helped.
+
+0038 was rewritten in place rather than repaired by a new file: migrations are
+keyed by FILENAME, so a database where the old version completed skips it
+untouched, while one where it failed has no record and runs the corrected
+version. A new file could not have helped — the broken one would still have
+thrown first and blocked it.
+
+MariaDB has `ADD COLUMN IF NOT EXISTS` and MySQL 8 does not, so the check goes
+through `information_schema` and a prepared statement, which both understand.
+Never anchor a new column with `AFTER some_other_column`: that is what makes a
+migration fail on a database missing that neighbour.
+
+2026-11-14 — everywhere — **A screen may fall back when the database is behind
+the code, and the fallback must be visible** — Twice in one day, and I dislike
+both.
+
+My Day and the calendar now ask for the newest columns separately and still
+draw without them. This hides a fault, which is normally the wrong thing to
+do. It is allowed here because one stuck migration had left ten people with no
+calendar for days, and because **System health now names every stuck migration
+and what the database said**, so the hiding place is visible rather than
+silent. Take the fallbacks out once the schema has caught up.
+
+2026-11-14 — calling — **The no-answer rule added no table and no column** —
+Everything it needed was already there, and that is why it works on a site
+whose migrations are stuck.
+
+The count is `opportunities.no_answer_count` (0017), the next try is
+`next_step_at` — the one promise a lead carries, which the Today and Overdue
+tabs are already built from — and the undo's before-state is `audit_log`'s own
+before/after journal. A second "next try" column would have been a second
+answer to the same question.
+
+Found while doing it: `no_answer_count` has been counted **up** since January
+and never once counted **down**. A lead rung three times in March still read 3
+after the client answered in April. Invisible while it only fed an AI prompt;
+not invisible now it says "try 2 of 5" on an agent's screen.
+
+2026-11-14 — calling — **One tap means one follow-up time, whichever screen it
+was pressed on** — `finishCall` delegates to `saveCallResult` rather than
+keeping its own schedule.
+
+The dialler had hard-coded retries (120 minutes for a no-answer, 60 for a
+busy) and ignored the ladder, the client's waking hours and Automations
+entirely. Moving the screen to the new endpoint instead would have left the old
+path alive for the next caller to find — which is exactly the `taps/:id` scar:
+that endpoint existed for months with nothing calling it, so every WhatsApp was
+recorded as a tap and never as an outcome.
+
+2026-11-14 — calling — **`call_logs.outcome` stores `interested` when the agent
+said `answered`, and this is a fib that must not become permanent** — Widening
+the ENUM is `ALTER … MODIFY`, which the migration guard refuses and is right
+to.
+
+The documented safe pattern is an additive `outcome_v2 VARCHAR(24)`. It needs a
+migration, and while 0038 is stuck no new migration can reach the live database
+at all. Written up in `docs/v2/no-answer-rule.md` as a waiting fix with the
+reason it is waiting. The only reader treats the column as "the call
+connected", and the lead moves by action `call`, so nothing claims the client
+is interested.
+
+2026-11-14 — leads — **The owner's book keeps the ⋯ menu alone; only the
+agent's list and the No answer tab get Call / WhatsApp / No answer on the row**
+— Emir's C.1 says "every row with a phone", and this is the one place it is not
+literal.
+
+The owner's ten columns are already over-subscribed at 1280. Three buttons
+there would cut the next-step text, which is the complaint that started the
+whole rebuild. Put to Emir to overrule; the alternative is dropping Last
+contact, which the Attention column half repeats.
+
+2026-11-14 — search — **A phone search matches anywhere in the number, from
+five digits** — It used to need six and only matched the end.
+
+So `99693` could never find `+919969342716` at any length, and the screen
+offered "Add as a new lead" instead: the duplicate trap, on a client we already
+have. The tail-anchored match is kept above nine digits, where it still earns
+its place — `+971 0 50 123 4567`, which people do write, is not a substring of
+the stored number.
+
+Note this reaches the **live v1 CRM** too: one endpoint serves both front ends.
+It only ever finds more, never different.
+
 2026-11-10 — leads — **The X on the new-lead card hides it for ten minutes,
 it does not accept the lead** — Emir chose this over "closing it means I've
 got it".
