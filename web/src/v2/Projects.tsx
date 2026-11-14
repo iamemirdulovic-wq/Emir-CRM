@@ -426,8 +426,11 @@ export function V2Project() {
       ? [str(project?.developer_name) ?? str(project?.developer), str(project?.community),
         emirateWord(str(project?.emirate))].filter(Boolean).join(' · ') || 'In the project library'
       : undefined,
+    /* `/v2/projects/manage` and not `/projects/{id}`, which is an address
+       no route has ever matched: it opened "That page does not exist". The
+       edit form lives on the manage screen, on this project's row. */
     action: canEdit && got.data
-      ? { icon: 'pencil', label: 'Edit project', to: `/projects/${id}` }
+      ? { icon: 'pencil', label: 'Edit project', to: '/v2/projects/manage' }
       : undefined,
   });
 
@@ -455,7 +458,7 @@ export function V2Project() {
         <Link className="d-btn d-sm" to="/v2/projects"><Icon name="arrow-left" />Projects</Link>
         <span className="d-grow" />
         {canEdit && (
-          <Link className="d-btn d-sm" to={`/projects/${id}`}>
+          <Link className="d-btn d-sm" to="/v2/projects/manage">
             <Icon name="pencil" />Edit project
           </Link>
         )}

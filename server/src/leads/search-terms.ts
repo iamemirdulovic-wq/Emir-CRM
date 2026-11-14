@@ -22,8 +22,15 @@ export function digitsOf(input: string): string {
   return out;
 }
 
-/** The fewest digits worth matching a number on. Below this, it is a year. */
-export const MIN_PHONE_DIGITS = 6;
+/**
+ * The fewest digits worth matching a number on. Below this, it is a year.
+ *
+ * Five, because five is what an agent reads off a missed-call screen before
+ * ringing back. It was six, and six is the reason "99693" — the middle of a
+ * lead already in the CRM — found nothing and offered to create the client a
+ * second time.
+ */
+export const MIN_PHONE_DIGITS = 5;
 
 /**
  * The `LIKE` pattern for a phone search, or null when the query is not one.
@@ -32,11 +39,52 @@ export const MIN_PHONE_DIGITS = 6;
  * once the country code and any leading zero are gone. Matching from the right
  * means a stored "+971501234567" is found by "0501234567", "501234567",
  * "+971 50 123 4567" and "1234567" alike.
+ *
+ * On its own it is not enough — see `phonePatterns`.
  */
 export function phoneTail(input: string, maxDigits = 9): string | null {
   const digits = digitsOf(input).replace(/^0+/, '');
   if (digits.length < MIN_PHONE_DIGITS) return null;
   return `%${digits.slice(-maxDigits)}`;
+}
+
+/**
+ * The `LIKE` pattern that finds those digits *anywhere* in the number.
+ *
+ * `phone_e164` holds "+919969342716" — a plus and then digits, no spaces — so
+ * a run of digits read off a screen is a substring of it wherever it came
+ * from in the number.
+ */
+export function phoneAnywhere(input: string): string | null {
+  const digits = digitsOf(input).replace(/^0+/, '');
+  if (digits.length < MIN_PHONE_DIGITS) return null;
+  return `%${digits}%`;
+}
+
+/**
+ * Every pattern a phone search has to try, or none when it is not one.
+ *
+ * Two, and each catches what the other misses:
+ *
+ *  - **Anywhere** is what a person actually types. They read five or six
+ *    digits off a missed call and want the lead those digits are *inside* of.
+ *    A right-hand-end match cannot answer that: "99693" sits in the middle of
+ *    +919969342716, so matching from the end found nothing and the agent was
+ *    offered a new contact for a client we already had.
+ *  - **The tail** is still needed for a number typed with a country code and
+ *    then a national zero — "+971 0 50 123 4567" — which no run of its digits
+ *    is a substring of the stored "+971501234567".
+ *
+ * When the query is nine digits or fewer the tail match is a subset of the
+ * anywhere match, so only one pattern comes back and the query stays short.
+ */
+export function phonePatterns(input: string, maxDigits = 9): string[] {
+  const anywhere = phoneAnywhere(input);
+  if (!anywhere) return [];
+  const digits = digitsOf(input).replace(/^0+/, '');
+  if (digits.length <= maxDigits) return [anywhere];
+  const tail = phoneTail(input, maxDigits);
+  return tail ? [anywhere, tail] : [anywhere];
 }
 
 /**

@@ -76,6 +76,7 @@ import { V2Activity } from './v2/Activity.js';
 import { V2Dashboard } from './v2/Dashboard.js';
 import { V2Live } from './v2/Live.js';
 import { V2Lead } from './v2/Lead.js';
+import { V2Contact } from './v2/Contact.js';
 import { V2VipGiven } from './v2/VipGiven.js';
 import { V2PersonalInfo } from './v2/PersonalInfo.js';
 import { V2Profile, V2MyInfo } from './v2/Profile.js';
@@ -162,6 +163,14 @@ export function App() {
           <Route path="/v2/leads" element={<V2Leads />} />
           <Route path="/v2/leads/new" element={<V2AddLead />} />
           <Route path="/v2/leads/:id" element={<V2Lead />} />
+          {/*
+            * A notification carries the person, not the enquiry, because the
+            * same row feeds the live CRM. This is the hop from one to the
+            * other: it opens that person's newest lead. Without it every
+            * notification about a lead, and every search result, landed on
+            * "That page does not exist" — Emir, 14 Nov.
+            */}
+          <Route path="/v2/contacts/:id" element={<V2Contact />} />
           {/*
             * Follow-ups is a tab of Tasks, which is where both designs put it
             * and where the menu already points. This address showed the leads

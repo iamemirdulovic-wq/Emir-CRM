@@ -7,6 +7,7 @@ import { Avatar } from '../design/ui.js';
 import type { Role } from '../lib/types.js';
 import { extraScreensFor, groupsFor, pinnedFor } from './nav.js';
 import { usePhoneHead } from './phone.js';
+import { v2Path } from './links.js';
 
 /**
  * One search across everything: the palette, and the page behind it.
@@ -49,13 +50,17 @@ const KIND_WORD: Record<Kind, string> = { lead: 'Leads', project: 'Projects', sc
 /**
  * Where a hit goes.
  *
- * The search service answers with live-CRM paths (`/contacts/c-1`), because it
- * is the live CRM's endpoint. In v2 the same record lives under `/v2`, so the
- * path is moved across rather than a second search being written — one
- * search, two front ends.
+ * The search service answers with live-CRM paths (`/contacts/c-1?lead=o-7`),
+ * because it is the live CRM's endpoint. In v2 the same record lives under
+ * `/v2`, so the path is moved across rather than a second search being
+ * written — one search, two front ends.
+ *
+ * The move is `links.ts`, not `/v2` + the path: a lead's record is at
+ * `/v2/leads/{the enquiry}`, and writing `/v2` in front of `/contacts/c-1`
+ * made every lead in these results a dead link.
  */
 function where(to: string): string {
-  return to.startsWith('/v2') ? to : `/v2${to}`;
+  return v2Path(to);
 }
 
 /**

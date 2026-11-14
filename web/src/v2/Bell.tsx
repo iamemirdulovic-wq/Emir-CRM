@@ -5,6 +5,7 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../design/ui.js';
 import { usePhoneHead } from './phone.js';
+import { v2Path } from './links.js';
 
 /**
  * The bell, the panel behind it, and the whole page behind that.
@@ -481,10 +482,13 @@ export function V2Notifications() {
  * The server writes live-CRM paths (`/contacts/c-1`) because the same row
  * feeds both front ends. In v2 the same record lives under `/v2`, so the path
  * is moved across rather than a second column being added to the table.
+ *
+ * The move is `links.ts` and not `/v2` + the path, which is what this was and
+ * which made `/v2/contacts/c-1` — an address the router has never known. Every
+ * notification about a lead ended on "That page does not exist".
  */
 function where(link: string | null): string {
-  if (!link) return '/v2';
-  return link.startsWith('/v2') ? link : `/v2${link}`;
+  return v2Path(link);
 }
 
 /**

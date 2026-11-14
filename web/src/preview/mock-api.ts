@@ -146,6 +146,73 @@ const DEMO_PHONES = [
    anybody asked; '' is a lead with nothing recorded at all. */
 const DEMO_LANGUAGES = ['en', 'en', 'ar', 'en', 'ru', 'en', 'hi', 'en', '', 'ar', 'en', 'en'];
 
+/*
+ * ── Why the fixtures below are deliberately unkind ───────────────────────
+ *
+ * On 14 November an agent measured this screen at 1280, 1440 and 1920 and
+ * reported "nothing is cut at 1440". The measurement was right and the
+ * conclusion was wrong: it measured against the preview's own test data,
+ * where the longest project is "Emaar Beachfront" (114px) and no lead has a
+ * next-step note at all. Emir then looked at the real site, on his own 2,037
+ * leads, and the project name, the Given date and the Last contact header
+ * were all cut at 1440.
+ *
+ * A preview whose data is kinder than the real book cannot find a column
+ * that is too narrow. So these four lists are modelled on the shape of the
+ * real one: shouty developer project names, agents whose first name alone is
+ * eleven letters, next steps with a real sentence on them, and a last
+ * contact that fills its column rather than reading "Yesterday".
+ *
+ * They are example data like everything else in this file — nothing here is
+ * a real client, a real number or a real price.
+ */
+
+/*
+ * Project names in the shape the real book holds them: as the developer
+ * writes them, in the developer's own capitals, sometimes with the developer
+ * in the name twice. "ROSE HILL BY EMAAR" is the one Emir named.
+ */
+const DEMO_PROJECTS = [
+  'ROSE HILL BY EMAAR',
+  'Shams Abu Dhabi',
+  'Emaar Beachfront',
+  'Saadiyat Lagoons by Aldar',
+  'Sobha Hartland II',
+  'THE OASIS — PALMIERA BY EMAAR',
+  'Damac Lagoons',
+  'Yas Golf Collection',
+  'Reem Hills Townhouses',
+  'Mohammed Bin Rashid City District One',
+];
+
+/*
+ * Agent names. The Agent column draws the first name alone, so the list has
+ * to hold first names that are long on their own — "Abdulrahman" is 11
+ * letters and is a name three of Emir's agents' clients share.
+ */
+const DEMO_AGENTS = [
+  'Layla Hassan',
+  'Abdulrahman Al Shamsi',
+  'Yuliia Kovalenko',
+  'Omar Farouk',
+  'Priya Nair',
+  'Mohammed Siddiqui',
+];
+
+/*
+ * What an agent really writes on a next step. The column shows
+ * "Overdue 14 Nov, 09:12 · <this>", so a note is what makes that column the
+ * longest string on the row.
+ */
+const DEMO_NEXT_NOTES = [
+  null,
+  'Send the 60/40 payment plan and confirm the handover date',
+  'Call back after 18:00 — he is at work until then',
+  'Waiting on the developer to confirm unit 1204 is still held',
+  null,
+  'Second viewing at the sales centre, bring the floor plans',
+];
+
 function myLeadRows() {
   const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
   return Array.from({ length: DEMO_LEAD_ROWS }, (_unused, index) => {
@@ -162,7 +229,13 @@ function myLeadRows() {
     contact_id: lead.contactId,
     stage_key: index % 4 === 0 ? 'new_lead' : index % 3 === 0 ? 'appointment_scheduled' : 'engaged_qualified',
     status: 'open',
-    project_name: lead.project,
+    /*
+     * The nine real preview leads keep their own project, so the lead pages
+     * and the project library still agree with each other. Everything behind
+     * them takes a name out of `DEMO_PROJECTS`, which is where the long ones
+     * are — see the note above that list.
+     */
+    project_name: index < LEADS.length ? lead.project : DEMO_PROJECTS[index % DEMO_PROJECTS.length]!,
     source: lead.source,
     budget_max_aed: lead.budgetMax,
     lead_score: lead.score,
@@ -172,8 +245,19 @@ function myLeadRows() {
     /* One overdue, one due today, one later, one with nothing promised —
        so every state on the row has something to show. */
     next_step_at: index % 5 === 4 ? null : at([-3, 4, 30, 54][index % 4] as number),
-    next_step_note: null,
-    last_contact_at: index % 6 === 5 ? null : at(-index * 9 - 2),
+    /* A real note on two in six, which is what makes the Next step column
+       the longest string on the row. */
+    next_step_note: index % 5 === 4 ? null : DEMO_NEXT_NOTES[index % DEMO_NEXT_NOTES.length]!,
+    /*
+     * When they were last spoken to.
+     *
+     * `whenShort` reads "Today 14:30" for today, "Yesterday" for yesterday
+     * and "9 Nov" for anything older, so the column's own worst case is a
+     * lead spoken to today. One in three is, rather than only the first row:
+     * a column measured against "Yesterday" is a column measured against the
+     * short answer.
+     */
+    last_contact_at: index % 6 === 5 ? null : at(index % 3 === 0 ? -2 : -index * 9 - 2),
     /*
      * How many times we have rung and not spoken to them — the No answer
      * tab, its pill and the "No answer 3+ times" filter all read this.
@@ -201,7 +285,9 @@ function myLeadRows() {
        which is the "Not known" chip. */
     language: index < LEADS.length ? lead.language : DEMO_LANGUAGES[index % DEMO_LANGUAGES.length]!,
     email: null,
-    owner_name: lead.owner ? 'Layla Hassan' : null,
+    /* A spread of agents rather than "Layla Hassan" on every row, and with
+       first names long enough to find the column's real width. */
+    owner_name: lead.owner ? DEMO_AGENTS[index % DEMO_AGENTS.length]! : null,
     /* Group A, phone build: the real list endpoint sends these two and the
        VIP screens read them -- `is_vip` on the lead card and "VIP leads I
        gave", `returned_at` for a hand-off that came back. */
@@ -2726,6 +2812,27 @@ const ROUTES: Route[] = [
    * second "No answer" on the same lead really reads "try 2 of 5", and the
    * toast's Undo really puts it back.
    */
+  /*
+   * The same block, without changing anything — what the result bar reads
+   * when a lead page or the quick panel opens, so the strip can say "try 2
+   * **of 5**" and know the run is used up before the next tap. A row carries
+   * only the count and the two times (contract §3).
+   */
+  { method: 'GET', pattern: /^\/api\/v2\/leads\/([^/]+)\/call-result$/, handler: ({ params }) => {
+    const id = params[0] ?? '';
+    const row = myLeadRows().find((one) => one.id === id);
+    const tries = previewTries.get(id) ?? row?.no_answer_count ?? 0;
+    return {
+      tries,
+      maxTries: 5,
+      lastTryAt: tries > 0 ? new Date(Date.now() - 3 * 3_600_000).toISOString() : null,
+      nextTryAt: tries > 0 ? row?.next_step_at ?? null : null,
+      exhausted: tries >= 5,
+      /* Null on a plain read, like the live endpoint: the "I tried to call
+         you" text is handed back on a save, which is when it is needed. */
+      whatsapp: null,
+    };
+  } },
   { method: 'POST', pattern: /^\/api\/v2\/leads\/([^/]+)\/call-result$/, handler: ({ params, body }) => {
     const id = params[0] ?? '';
     const result = String((body as { result?: string }).result ?? 'no_answer');
@@ -2779,7 +2886,15 @@ const ROUTES: Route[] = [
        in the preview narrows the list it says it narrows. */
     const country = query.get('country');
     const language = query.get('language');
+    /*
+     * "No answer 3+ times" — H.2. The live clause is `o.no_answer_count >= ?`
+     * in `buildFilters`, over the whole book; here it is the same comparison
+     * over the whole preview list, so the count line and the total the screen
+     * draws are the server's answer in both worlds.
+     */
+    const minTries = Number(query.get('tries') ?? '0');
     const matching = myLeadRows().filter((row) => {
+      if (minTries > 0 && row.no_answer_count < minTries) return false;
       if (project && row.project_name !== project) return false;
       if (country) {
         const iso2 = originOf(row.phone_e164)?.iso2 ?? 'unknown';
@@ -3433,6 +3548,12 @@ const ROUTES: Route[] = [
    * What Cmd+K asks for. The same two-list shape the real endpoint returns,
    * matched the same way: a name, an email, a project, or a phone number in
    * whatever shape it was typed.
+   *
+   * Phone matching mirrors `server/src/leads/search-terms.ts` exactly —
+   * five digits is enough and they may sit anywhere inside the number, so
+   * "50123" finds +971501234567. Matching only the right-hand end is what
+   * made the live search offer to create a second contact for a client we
+   * already had.
    */
   { method: 'GET', pattern: /^\/api\/search$/, handler: ({ query }) => {
     const q = (query.get('q') ?? '').trim().toLowerCase();
@@ -3443,14 +3564,18 @@ const ROUTES: Route[] = [
       if (lead.name.toLowerCase().includes(q)) return true;
       if ((lead.email ?? '').toLowerCase().includes(q)) return true;
       if ((lead.project ?? '').toLowerCase().includes(q)) return true;
-      return digits.length >= 6 && lead.phone.replace(/\D/g, '').endsWith(digits.slice(-9));
+      if (digits.length < 5) return false;
+      const held = lead.phone.replace(/\D/g, '');
+      return held.includes(digits) || held.endsWith(digits.slice(-9));
     })
       .slice(0, 6)
       .map((lead) => ({
         id: lead.id,
         label: lead.name,
         hint: [lead.project, STAGES.find((stage) => stage.key === lead.stage)?.name].filter(Boolean).join(' · ') || null,
-        to: `/contacts/${lead.contactId}`,
+        /* The enquiry as well as the person, as the real endpoint sends it:
+           v2 opens the lead, not a contact page it does not have. */
+        to: `/contacts/${lead.contactId}?lead=${lead.id}`,
       }));
 
     const projects = PROJECTS.filter((project) =>

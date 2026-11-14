@@ -4,7 +4,7 @@ import { asyncHandler } from '../middleware/error.js';
 import { blockUntilPasswordChanged, currentUser, requireAuth } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { query } from '../../db/client.js';
-import { likeTerm, looksLikePhone, phoneTail } from '../../leads/search-terms.js';
+import { likeTerm, looksLikePhone, phonePatterns } from '../../leads/search-terms.js';
 
 /**
  * What the command palette asks the server.
@@ -54,8 +54,10 @@ searchRouter.get(
 async function searchLeads(q: string, visible: string[] | null, limit: number): Promise<SearchHit[]> {
   const scope = ownerPredicate('o.owner_user_id', visible);
   const like = likeTerm(q);
-  /* Only add the phone clause when the query is actually a number. */
-  const tail = looksLikePhone(q) ? phoneTail(q) : null;
+  /* Only add the phone clauses when the query is actually a number. There are
+     two of them and `phonePatterns` says why; the short answer is that an
+     agent types the middle of a number, not the end of it. */
+  const phones = looksLikePhone(q) ? phonePatterns(q) : [];
 
   const rows = await query<{
     opportunity_id: string;
@@ -78,10 +80,10 @@ async function searchLeads(q: string, visible: string[] | null, limit: number): 
        JOIN contacts c ON c.id = o.contact_id
       WHERE o.deleted_at IS NULL AND ${scope.sql}
         AND (c.full_name LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?
-             ${tail ? 'OR c.phone_e164 LIKE ?' : ''})
+             ${phones.map(() => 'OR c.phone_e164 LIKE ?').join(' ')})
       ORDER BY o.last_contact_at IS NULL, o.last_contact_at DESC, o.created_at DESC
       LIMIT ?`,
-    [...scope.params, like, like, like, ...(tail ? [tail] : []), limit],
+    [...scope.params, like, like, like, ...phones, limit],
   );
 
   return rows.map((row) => ({
