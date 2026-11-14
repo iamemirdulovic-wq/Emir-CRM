@@ -494,17 +494,33 @@ v2Router.get(
     const ids = scope === 'mine' ? [user.id] : visible;
     const fence = ownerPredicate('m.user_id', ids);
 
-    const [tasks, meetings] = await Promise.all([
-      tasksInRange(user.id, visible, { from, to, scope: scope === 'mine' ? 'mine' : 'team' }),
-      query<Record<string, unknown>>(
-        `SELECT m.id, m.opportunity_id AS opportunityId, m.contact_id AS contactId,
-                m.kind, m.title, m.starts_at AS startsAt,
-                m.ends_at AS endsAt, m.all_day AS allDay, m.place, m.result, m.interest,
-                m.result_note AS resultNote, m.result_by AS resultBy,
-                m.reminder_minutes AS reminderMinutes,
+    /*
+     * The ten columns migration 0038 adds, named separately.
+     *
+     * On 14 Nov the live calendar had answered "Internal server error" for
+     * every person on every device for days with `Unknown column
+     * 'm.booked_project'`: the database was stuck on 0038, so the columns
+     * this query names were simply not there. The migration is repaired, but
+     * a repair only helps once it has run, and until then the screen is
+     * blank for ten people. So the booking columns are now asked for
+     * separately, and if they are missing the calendar still draws - every
+     * plan, every time, every result - with the booking detail absent rather
+     * than the whole month gone.
+     *
+     * This hides a fault, which I would normally refuse to do. System health
+     * names every stuck migration, so it is visible rather than silent.
+     */
+    const BOOKED = `m.result_by AS resultBy,
                 m.booked_project AS bookedProject,
                 m.booked_unit AS bookedUnit, m.booked_price_aed AS bookedPriceAed,
-                m.booked_paid_aed AS bookedPaidAed, m.receipt_name AS receiptName,
+                m.booked_paid_aed AS bookedPaidAed, m.receipt_name AS receiptName,`;
+
+    const meetingSql = (booked: string) => `SELECT m.id, m.opportunity_id AS opportunityId, m.contact_id AS contactId,
+                m.kind, m.title, m.starts_at AS startsAt,
+                m.ends_at AS endsAt, m.all_day AS allDay, m.place, m.result, m.interest,
+                m.result_note AS resultNote,
+                m.reminder_minutes AS reminderMinutes,
+                ${booked}
                 m.user_id AS userId,
                 /* How many times this lead has not turned up, all of them, so
                    the no-show form can say "No-show 2" and mean it. */
@@ -520,7 +536,12 @@ v2Router.get(
           WHERE m.deleted_at IS NULL AND ${fence.sql}
             AND m.starts_at < ? AND m.ends_at > ?
           ORDER BY m.starts_at ASC
-          LIMIT 500`,
+          LIMIT 500`;
+
+    const plans = async () => {
+      try {
+        return await query<Record<string, unknown>>(
+          meetingSql(BOOKED),
         /*
          * `Date`, never the raw `…T00:00:00.000Z` string the browser sent.
          *
@@ -532,8 +553,19 @@ v2Router.get(
          * while the whole suite stayed green. `tasksInRange`, the other half
          * of this same handler, already passed Dates; only this query did not.
          */
-        [...fence.params, new Date(to), new Date(from)],
-      ),
+          [...fence.params, new Date(to), new Date(from)],
+        );
+      } catch {
+        return query<Record<string, unknown>>(
+          meetingSql(''),
+          [...fence.params, new Date(to), new Date(from)],
+        );
+      }
+    };
+
+    const [tasks, meetings] = await Promise.all([
+      tasksInRange(user.id, visible, { from, to, scope: scope === 'mine' ? 'mine' : 'team' }),
+      plans(),
     ]);
 
     res.json({
