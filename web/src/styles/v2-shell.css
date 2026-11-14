@@ -2349,12 +2349,74 @@
  * to the card rather than to the page: at `top:var(--tb-h)` it lands 68px down
  * inside the card, on top of the first row. Inside this range it sits still.
  */
-@media (max-width: 1399px) {
-  .v2 .p-my-leads .d-table-wrap,
-  .v2 .p-all-leads .d-table-wrap{ overflow-x:auto; }
-  .v2 .p-my-leads .d-table.d-sticky th,
-  .v2 .p-all-leads .d-table.d-sticky th{ top:0; }
+/*
+ * The card is a scrollport at every width now, so a sticky header sticks to
+ * the card rather than to the page. At `top:var(--tb-h)` it landed 68px down
+ * inside the card, sitting on top of the first row — which is exactly what
+ * the owner photographed. Pinned to the card's own top, it behaves.
+ */
+.v2 .p-my-leads .d-table.d-sticky th,
+.v2 .p-all-leads .d-table.d-sticky th{ top:0; }
+
+/*
+ * The leads table reads like a sheet.
+ *
+ * It used to be squeezed into whatever width was left beside the sidebar, so
+ * every column was cut: "Muhammad AbuBakkar Chee…", "Today 08:1(" with the
+ * ending gone, and the pinned right-hand cell drawing over the column beside
+ * it. The owner sent a photograph of exactly that and said there was too much
+ * data and it did not look good. He was right -- but the answer is not fewer
+ * columns, it is letting the table be as wide as it needs.
+ *
+ * So: the card scrolls sideways, every column keeps a width it can actually
+ * hold, and the two that must never scroll away are pinned -- the name on the
+ * left, so you never lose which row you are reading, and the row's buttons on
+ * the right, so Call is always reachable. The owner asked for no shadow on
+ * those edges, so they are marked with the same hairline the rows use.
+ */
+.v2 .p-my-leads .d-table-wrap,
+.v2 .p-all-leads .d-table-wrap{ overflow-x:auto; }
+
+/* No squeezing. Each column gets room for its longest honest value. */
+.v2 .p-my-leads .d-id-leads td:first-child,
+.v2 .p-all-leads .d-id-leads td:first-child{ max-width:none; overflow:visible; }
+.v2 .p-my-leads .d-id-leads td:nth-child(3),
+.v2 .p-all-leads .d-id-leads td:nth-child(3){ max-width:none; overflow:visible; }
+.v2 .p-my-leads .d-id-leads td.d-nm,
+.v2 .p-all-leads .d-id-leads td.d-nm{ min-width:250px; }
+.v2 .p-my-leads .d-id-leads .d-t-main,
+.v2 .p-all-leads .d-id-leads .d-t-main{ overflow:visible; text-overflow:clip; white-space:nowrap; }
+
+/* The name, pinned, with the hairline the rows use and no shadow. */
+.v2 .p-my-leads .d-id-leads td.d-nm,
+.v2 .p-all-leads .d-id-leads td.d-nm,
+.v2 .p-my-leads .d-id-leads th:nth-child(2),
+.v2 .p-all-leads .d-id-leads th:nth-child(2){
+  position:sticky; left:0; z-index:2; background:var(--surface);
+  border-right:1px solid var(--line-2);
 }
+.v2 .p-my-leads .d-id-leads th:nth-child(2),
+.v2 .p-all-leads .d-id-leads th:nth-child(2){ z-index:3; }
+/* The checkbox column sits to its left, so it is pinned too or the name
+   slides underneath it. */
+.v2 .p-all-leads .d-id-leads td.d-t-check,
+.v2 .p-all-leads .d-id-leads th.d-t-check{
+  position:sticky; left:0; z-index:3; background:var(--surface);
+}
+.v2 .p-all-leads .d-id-leads td.d-nm,
+.v2 .p-all-leads .d-id-leads th:nth-child(2){ left:46px; }
+/* The cell that scrolls out from under the pinned name needs a little room,
+   or the leading "+" of every number is shaved off by the edge. */
+.v2 .p-my-leads .d-id-leads td.d-t-mono,
+.v2 .p-all-leads .d-id-leads td.d-t-mono,
+.v2 .p-my-leads .d-id-leads th:nth-child(3),
+.v2 .p-all-leads .d-id-leads th:nth-child(3){ padding-left:16px; }
+
+/* A hovered row has its own colour; the pinned cells have to take it too or
+   they read as a different row. */
+.v2 .p-my-leads .d-id-leads tbody tr:hover td.d-nm,
+.v2 .p-all-leads .d-id-leads tbody tr:hover td.d-nm,
+.v2 .p-all-leads .d-id-leads tbody tr:hover td.d-t-check{ background:var(--surface-2); }
 
 /* The lead page: the design's inline styles, in one place. */
 .v2-leadpage{ min-width:0; }
@@ -3308,6 +3370,64 @@
 }
 .v2 .v2-given.v2-given-old{ color:var(--amber-ink); font-weight:650; }
 .v2 .v2-given.v2-given-none{ color:var(--ink-4); font-style:italic; }
+/* The second line of the table cell: "21 h ago", "2 days ago". */
+.v2 .v2-given-ago{
+  display:block; font-size:11.5px; color:var(--ink-3);
+  font-variant-numeric:tabular-nums; line-height:1.25;
+}
+
+/*
+ * The one cell in the leads table that is allowed to wrap.
+ *
+ * Every other cell is `white-space:nowrap`, so each column is as wide as its
+ * widest line and the table can only grow. A column holding "Yesterday 16:30
+ * · 21 h ago" on one line pushed the owner's book 104px past the right edge
+ * of the page at 1440px, out of the card it sits in. Wrapping makes the
+ * column's smallest width its widest *word* instead of its widest line, so
+ * it gives way when the rest of the table needs the room.
+ *
+ * Three classes and two elements, so it beats the ported
+ * `.v2 .p-my-leads .d-id-leads td` — three classes and one.
+ */
+.v2 .d-id-leads td.v2-given-cell,
+.v2 .d-id-leads th.v2-given-cell{
+  white-space:normal; max-width:132px; line-height:1.3;
+}
+.v2 .d-id-leads th.v2-given-cell{ max-width:none; }
+/*
+ * Two lines: the day in the reading weight, how long it has waited under it.
+ * On one line the pair ran to "12 Nov 18:57 · 2 days ago", which is the
+ * length at which a column stops being scannable.
+ */
+.v2 .v2-given .v2-given-when{ display:block; font-weight:700; font-size:13.5px; line-height:1.3; }
+.v2 .v2-given .v2-given-ago{ display:block; font-size:12px; font-weight:500; margin-top:2px; opacity:.78; }
+.v2 .v2-given.v2-given-none .v2-given-when{ font-weight:600; font-size:12.5px; }
+
+/* Where the lead came from, under its name in the table. The design draws it
+   there, and it is the question asked straight after "who is this". */
+.v2 .d-id-leads td.d-nm .v2-t-from{
+  display:block; font-size:12px; font-weight:500; color:var(--ink-4); margin-top:3px;
+}
+/* The rows carry two lines in two columns now, so they need the height. */
+.v2 .d-id-leads tbody td{ padding-top:13px; padding-bottom:13px; }
+/* Name and source beside the face, as one block — on a span inside the cell,
+   never on the cell, or the row's bottom border draws at the content's
+   height and every name gets a short line under it. */
+.v2 .d-id-leads td.d-nm .v2-t-cell{ display:flex; align-items:center; gap:11px; min-width:0; }
+.v2 .d-id-leads td.d-nm .v2-t-who{ min-width:0; display:block; }
+.v2 .d-id-leads td.d-nm .v2-t-nm{ display:flex; align-items:center; gap:7px; min-width:0; }
+.v2 .d-id-leads td.d-nm .v2-t-from{ margin-top:2px; }
+/*
+ * A number is read aloud, so it never wraps. "+971 50 123 / 4567" split over
+ * two lines is how a digit gets dropped between them. The `td.d-t-mono`
+ * carries both classes on purpose: the ported page rule is `.v2 .p-X
+ * .d-id-leads td`, which matches on the same count, and whichever loses on
+ * source order wins by surprise.
+ */
+.v2 .d-id-leads td.d-t-mono{ white-space:nowrap !important; }
+/* The lead column is the widest thing on the row; give it the room rather
+   than letting the name squeeze to "Sara Al Mans…". */
+.v2 .d-id-leads td.d-nm, .v2 .d-id-leads th:nth-child(2){ min-width:230px; }
 
 /*
  * The day heading between the groups of the leads table.

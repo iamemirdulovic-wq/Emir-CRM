@@ -8,7 +8,7 @@ import { Avatar, Spinner, ErrorNote, budgetLabel, useToast } from '../design/ui.
 import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction, type CallActions } from './call.js';
-import { SOURCE_STYLES } from '../design/stages.js';
+import { SOURCE_STYLES, sourceStyle } from '../design/stages.js';
 import { clockIn, originOf } from '../lib/dialling.js';
 import { given, groupByGivenDay } from '../lib/assigned.js';
 
@@ -280,13 +280,49 @@ function whenShort(value: string | null): string {
  */
 function GivenLine({ at, label }: { at: string | null; label?: string }) {
   const line = given(at);
+  /*
+   * Two lines, not one: the day in the reading weight on top and how long it
+   * has been waiting under it in grey. On one line the pair ran to
+   * "12 Nov 18:57 · 2 days ago", which is the length that makes a column stop
+   * being scannable — and the "2 days ago" is the half an agent actually
+   * acts on, so it earns a line of its own rather than a tail after a dot.
+   */
   return (
     <span
       className={line.stale ? 'v2-given v2-given-old' : line.missing ? 'v2-given v2-given-none' : 'v2-given'}
       title={line.exact ?? undefined}
     >
-      {label && !line.missing ? `${label} ` : ''}{line.text}
+      <span className="v2-given-when">
+        {label && !line.missing ? `${label} ` : ''}{line.when}
+      </span>
+      {line.ago && <span className="v2-given-ago">{line.ago}</span>}
     </span>
+  );
+}
+
+/**
+ * The same thing in a table cell, on two short lines.
+ *
+ * One line would be right, and one line does not fit: the leads table sizes
+ * its columns to their content and every cell in it is `nowrap`, so a column
+ * holding "Yesterday 16:30 · 21 h ago" pushed the owner's book 104px past the
+ * right edge of the page at 1440px. Measured, not guessed — see
+ * `docs/v2/questions-dates.md`.
+ *
+ * So the day and time sit on the first line and how long it has been sitting
+ * on the second, and this cell alone wraps rather than staying on one line.
+ * That gives the column an elastic width: about 110px when there is room, and
+ * as little as 84px when the rest of the table needs it, instead of forcing
+ * the whole table wider than the card it sits in.
+ */
+function GivenCell({ at }: { at: string | null }) {
+  const line = given(at);
+  const tone = line.stale ? ' v2-given-old' : line.missing ? ' v2-given-none' : '';
+  return (
+    <>
+      <span className={`v2-given${tone}`} title={line.exact ?? undefined}>{line.when}</span>
+      {line.ago && <span className="v2-given-ago">{line.ago}</span>}
+    </>
   );
 }
 
@@ -1103,9 +1139,18 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   <th>Phone</th>
                   <th>Project</th>
                   <th>Stage</th>
-                  {/* The column Talha asked for. "Given out" on a book of
-                      everybody's leads; "Given to you" on your own list. */}
-                  <th>{book ? 'Given out' : 'Given to you'}</th>
+                  {/*
+                    * The column Talha asked for. One word, because the header
+                    * is 11px uppercase with letter-spacing and "GIVEN TO YOU"
+                    * set the whole column's width — the title attribute says
+                    * the rest.
+                    */}
+                  <th
+                    className="v2-given-cell"
+                    title={book ? 'When the lead was given to its agent' : 'When the lead was given to you'}
+                  >
+                    Given
+                  </th>
                   {wide
                     ? <>{!isAgent && <th>Agent</th>}<th>Last contact</th></>
                     : <th>Local time</th>}
@@ -1673,8 +1718,27 @@ function LeadRow({
       {wide
         ? (
           <td className="d-nm">
-            <Link className="d-t-main" to={to} dir="auto">{row.full_name ?? 'Unnamed lead'}</Link>
-            {row.is_vip === 1 && <> <span className="d-vip-tag">VIP</span></>}
+            {/*
+              * The flex lives on this span, never on the `td`. Flexing a table
+              * cell makes it stop behaving like one: its bottom border drew at
+              * the height of the content instead of the row, so every name had
+              * a short line under it that stopped before the phone column.
+              */}
+            <span className="v2-t-cell">
+              {/* A face on the owner's book too. Scanning two thousand rows by
+                  name alone is reading; with a face it is recognising. */}
+              <Avatar name={row.full_name ?? '?'} size={34} />
+              <span className="v2-t-who">
+                <span className="v2-t-nm">
+                  <Link className="d-t-main" to={to} dir="auto">{row.full_name ?? 'Unnamed lead'}</Link>
+                  {row.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
+                </span>
+                {/* Where it came from, under the name. The design puts it
+                    there, and it is the question asked straight after "who is
+                    this". */}
+                {row.source && <span className="v2-t-from">{sourceStyle(row.source).label}</span>}
+              </span>
+            </span>
           </td>
         )
         : (
@@ -1703,11 +1767,12 @@ function LeadRow({
       </td>
 
       {/*
-        * When it was given out. The column is headed, so the cell says only
-        * the date — the time alone on today's, the day and the time plus how
-        * long it has been sitting on anything older, in warm amber.
+        * When it was given out. The column is headed, so the cell drops the
+        * "Given to you" and says only the date: the time alone on today's,
+        * the day and time plus how long it has been sitting on anything
+        * older, in warm amber.
         */}
-      <td><GivenLine at={row.assigned_at} /></td>
+      <td className="v2-given-cell"><GivenCell at={row.assigned_at} /></td>
 
       {wide
         ? (
