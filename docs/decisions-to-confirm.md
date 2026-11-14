@@ -1047,3 +1047,28 @@ the browser's time picker and will read "7:00 PM" in the same way — Calling
 `components/RoutingSettings.tsx` and `components/AttendanceSettings.tsx`.
 They are in somebody else's slice this week; each is one component swap.
 Written down in `docs/v2/questions-settings.md` §4.1.
+
+## 59. "All" no longer means every row, and Won gets a tab the design does not draw
+
+**14 November. Decided by Emir, after an agent asked.** An agent sent him a
+screenshot of My Leads and asked why the leads he had marked Lost months ago
+were still in his list — *"they must be somewhere archived"*.
+
+They were not. The `all` tab read `o.deleted_at IS NULL` and nothing else, so
+it meant every row in the table: a lead marked Lost in March sat in the
+working list for ever, and the same lead appeared twice, once in All and once
+under Lost. A list that never empties is a list nobody trusts.
+
+Emir chose: **All is every lead still worth a call.** Lost and Won each keep a
+tab of their own, so nothing is hidden — it is filed. Won is new; without it,
+narrowing All would have hidden closed deals rather than tidying them.
+
+**This is a deliberate step away from the design.** `all-leads.html` draws six
+tabs and `my-leads.html` does not draw a Won either. Both now carry a seventh.
+The design's All presumably meant every row, which is the behaviour the agent
+complained about.
+
+It changes what ten people see every morning on the live CRM as well as in v2,
+which is why it was asked rather than assumed. Open question, if the lists
+ever feel short: whether Won should also appear in All, which was option B at
+the time and was not chosen.

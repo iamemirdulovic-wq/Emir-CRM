@@ -55,9 +55,17 @@ describe('whose screen the leads list is', () => {
 
   it('gives the owner the design’s tabs and not the agent’s', () => {
     const owner = OWNER_TABS.map((one) => one.key);
-    /* `all-leads.html` draws six: All, Going cold, Overdue, No next step,
-       VIP, Lost. Today and New are the agent's and belong on their screen. */
-    expect(owner).toEqual(['all', 'cold', 'overdue', 'no_next_step', 'vip', 'lost']);
+    /*
+     * `all-leads.html` draws six: All, Going cold, Overdue, No next step,
+     * VIP, Lost. Today and New are the agent's and belong on their screen.
+     *
+     * **Won is a seventh the design does not draw**, and it is here on the
+     * owner's instruction of 14 Nov, not by oversight. All used to mean every
+     * row, so a closed deal was already in the list; once All was narrowed to
+     * live leads, Won needed somewhere to go or it would have been hidden
+     * rather than filed. `docs/decisions-to-confirm.md` has it.
+     */
+    expect(owner).toEqual(['all', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'won']);
     expect(owner).not.toContain('today');
     expect(owner).not.toContain('new');
     expect(OWNER_TABS[0]?.label).toBe('All');
@@ -65,8 +73,10 @@ describe('whose screen the leads list is', () => {
   });
 
   it('leaves the agent’s own tabs alone', () => {
+    /* Won sits beside Lost, before All -- the two looking-back tabs together
+       at the end of the work. Same 14 Nov decision as above. */
     expect(AGENT_TABS.map((one) => one.key))
-      .toEqual(['today', 'new', 'overdue', 'no_next_step', 'vip', 'lost', 'all']);
+      .toEqual(['today', 'new', 'overdue', 'no_next_step', 'vip', 'lost', 'won', 'all']);
   });
 
   /* An owner's screen is the wide one on every tab, not only on All: without

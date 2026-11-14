@@ -22,7 +22,7 @@
  * the live one keeps showing its six.
  */
 export const LEAD_TABS = [
-  'today', 'new', 'hot', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'all',
+  'today', 'new', 'hot', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'won', 'all',
 ] as const;
 export type LeadTab = (typeof LEAD_TABS)[number];
 
@@ -164,10 +164,37 @@ export const TABS: Record<LeadTab, TabDefinition> = {
 
   all: {
     label: 'All',
-    where: 'o.deleted_at IS NULL',
+    /*
+     * Every lead still worth a call -- not every row in the table.
+     *
+     * This read `o.deleted_at IS NULL` alone, so a lead marked Lost in March
+     * sat in the working list next to a live one for ever, and the same lead
+     * appeared twice: once here and once under Lost. An agent asked why his
+     * lost leads were still there and said they "must be somewhere archived".
+     * They are: that is what the Lost and Won tabs are for. A list that never
+     * empties is a list nobody trusts.
+     *
+     * Nothing is hidden by this -- both the other statuses have a tab of
+     * their own, and the owner's All leads screen reaches every one.
+     */
+    where: OPEN,
     orderBy: 'o.created_at DESC',
     emptyTitle: 'No leads yet',
     emptyHint: 'Add one with the + button, or wait for the next enquiry.',
+  },
+
+  won: {
+    label: 'Won',
+    /*
+     * The other half of the archive. Deliberately not `OPEN`, for the same
+     * reason as Lost: this is the looking-back list, and a deal you closed is
+     * not work you still owe.
+     */
+    where: "o.status = 'won' AND o.deleted_at IS NULL",
+    /* Newest first: the deal you just closed is the one you want to see. */
+    orderBy: 'o.stage_changed_at DESC',
+    emptyTitle: 'No deals yet',
+    emptyHint: 'Leads you mark Won collect here, with what was paid.',
   },
 };
 

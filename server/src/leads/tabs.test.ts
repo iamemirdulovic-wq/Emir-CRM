@@ -66,12 +66,22 @@ describe('the tab definitions', () => {
    * Won and Lost leads are history, not work. A tab that counts them is a tab
    * that never reaches zero, and a counter nobody can clear gets ignored.
    *
-   * Two tabs are history on purpose and say so in their names: All, and Lost,
-   * which v2 adds. Naming them here rather than loosening the rule keeps the
-   * rule meaning what it says -- a third exemption has to be argued for in
-   * this file, not slipped in beside a new tab.
+   * Two tabs are history on purpose and say so in their names: Lost and Won.
+   * Naming them here rather than loosening the rule keeps the rule meaning
+   * what it says -- a third exemption has to be argued for in this file, not
+   * slipped in beside a new tab.
+   *
+   * **All used to be the third**, and that was the bug. It read
+   * `o.deleted_at IS NULL` alone, so a lead marked Lost in March sat in the
+   * working list for ever and appeared twice, once there and once under Lost.
+   * An agent asked the owner why his lost leads were still there and said
+   * they "must be somewhere archived" -- 14 Nov. The owner chose: All is
+   * every lead still worth a call, and each closed state keeps a tab of its
+   * own so nothing is hidden, only filed. Won was added at the same time,
+   * because taking the closed leads out of All without somewhere for them to
+   * go would have hidden them rather than tidied them.
    */
-  const HISTORY_TABS = new Set(['all', 'lost']);
+  const HISTORY_TABS = new Set(['lost', 'won']);
 
   it('keeps closed leads out of every working tab', () => {
     for (const tab of LEAD_TABS) {
@@ -133,5 +143,40 @@ describe('the tab definitions', () => {
     expect(isLeadTab('no_next_step')).toBe(true);
     expect(isLeadTab('everything')).toBe(false);
     expect(isLeadTab(null)).toBe(false);
+  });
+});
+
+/**
+ * The working list only holds work.
+ *
+ * `all` read `o.deleted_at IS NULL` and nothing else, so a lead marked Lost
+ * months ago stayed in an agent's list for ever and showed up twice — once in
+ * All and once under Lost. An agent asked the owner why his lost leads were
+ * still there and said they "must be somewhere archived".
+ *
+ * The rule now: All is every lead still worth a call, and each closed state
+ * has a tab of its own, so nothing is hidden — it is filed.
+ */
+describe('All means live leads, not every row', () => {
+  it('leaves out the leads that are finished', () => {
+    expect(TABS.all.where).toContain("o.status = 'open'");
+    expect(TABS.all.where).toContain('o.deleted_at IS NULL');
+  });
+
+  it('gives each finished state a tab of its own, so nothing vanishes', () => {
+    expect(TABS.lost.where).toContain("o.status = 'lost'");
+    expect(TABS.won.where).toContain("o.status = 'won'");
+    /* Neither may be fenced to open, or it would always be empty. */
+    expect(TABS.lost.where).not.toContain("o.status = 'open'");
+    expect(TABS.won.where).not.toContain("o.status = 'open'");
+  });
+
+  it('shows the newest closed lead first on both', () => {
+    expect(TABS.lost.orderBy).toContain('DESC');
+    expect(TABS.won.orderBy).toContain('DESC');
+  });
+
+  it('counts won as a real tab the screens can ask for', () => {
+    expect(isLeadTab('won')).toBe(true);
   });
 });

@@ -20,7 +20,16 @@ import { useShellSearch } from '../components/Layout.js';
  * Follow-up today rather than All.
  */
 
-type Tab = 'today' | 'new' | 'hot' | 'overdue' | 'no_next_step' | 'all';
+/*
+ * `lost` and `won` are here because `all` stopped meaning "every row".
+ *
+ * It used to, and an agent asked why the leads he had marked Lost months ago
+ * were still in his working list -- "they must be somewhere archived". They
+ * are now: All is what is still worth a call, and the two closed states have
+ * a tab each. Taking them out of All without giving them somewhere to go
+ * would have hidden them instead of tidying them.
+ */
+type Tab = 'today' | 'new' | 'hot' | 'overdue' | 'no_next_step' | 'lost' | 'won' | 'all';
 
 interface Lead {
   id: string;
@@ -70,6 +79,9 @@ const TAB_LABELS: Record<Tab, string> = {
   hot: 'Hot',
   overdue: 'Overdue',
   no_next_step: 'No next step',
+  /* The looking-back pair, after the work and before All. */
+  lost: 'Lost',
+  won: 'Won',
   all: 'All',
 };
 

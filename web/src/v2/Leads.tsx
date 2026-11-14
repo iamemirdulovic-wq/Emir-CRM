@@ -85,6 +85,7 @@ export const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = 
   { key: 'no_next_step', label: 'No next step' },
   { key: 'vip', label: 'VIP' },
   { key: 'lost', label: 'Lost' },
+  { key: 'won', label: 'Won' },
   { key: 'all', label: 'All' },
 ];
 
@@ -95,10 +96,11 @@ export const OWNER_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = 
   { key: 'no_next_step', label: 'No next step' },
   { key: 'vip', label: 'VIP' },
   { key: 'lost', label: 'Lost' },
+  { key: 'won', label: 'Won' },
 ];
 
 export type TabKey =
-  | 'today' | 'new' | 'hot' | 'cold' | 'overdue' | 'no_next_step' | 'vip' | 'lost' | 'all';
+  | 'today' | 'new' | 'hot' | 'cold' | 'overdue' | 'no_next_step' | 'vip' | 'lost' | 'won' | 'all';
 
 const PAGE = 50;
 
