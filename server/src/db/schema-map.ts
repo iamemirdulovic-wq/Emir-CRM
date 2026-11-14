@@ -21,6 +21,43 @@ const CREATE = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([a-z_][a-z0-9_]*)`?
        ADD COLUMN deleted_by_user_id CHAR(36) NULL AFTER deleted_at;
    Matching only the first is how `deleted_by_user_id` went missing. */
 const ALTER_TABLE = /ALTER\s+TABLE\s+`?([a-z_][a-z0-9_]*)`?([\s\S]*?);/gi;
+
+/*
+ * Columns a migration adds through a prepared statement rather than a plain
+ * `ALTER TABLE`, which the matcher above cannot see inside.
+ *
+ * The shape, from `0038_meeting_results.sql`:
+ *
+ *     SET @t := 'meetings';
+ *     SET @c := 'booked_project';
+ *     SET @sql := (SELECT IF(COUNT(*) = 0,
+ *       CONCAT('ALTER TABLE `', @t, '` ADD COLUMN `', @c, '` VARCHAR(160) NULL'),
+ *       'DO 0') FROM information_schema.COLUMNS WHERE …);
+ *     PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+ *
+ * The table and the column are in variables, so neither can be read from the
+ * CONCAT alone. Walking the assignments in order and pairing each `@c` with
+ * the `@t` in force above it is what recovers them. A column only counts
+ * when a CONCAT that really says ADD COLUMN follows it, so an unrelated
+ * `SET @c` cannot invent one.
+ */
+const SET_VARIABLE = /SET\s+@(t|c)\s*:?=\s*'([a-z_][a-z0-9_]*)'\s*;/gi;
+const BUILDS_A_COLUMN = /CONCAT\([^;]*ADD\s+COLUMN/i;
+
+function builtColumns(sql: string): Array<{ table: string; column: string }> {
+  const found: Array<{ table: string; column: string }> = [];
+  let table = '';
+  let pending = '';
+  for (const match of sql.matchAll(SET_VARIABLE)) {
+    const value = (match[2] ?? '').toLowerCase();
+    if ((match[1] ?? '').toLowerCase() === 't') { table = value; continue; }
+    pending = value;
+    /* Only believe it if the statement that follows really builds DDL. */
+    const after = sql.slice((match.index ?? 0) + match[0].length, (match.index ?? 0) + match[0].length + 400);
+    if (table && pending && BUILDS_A_COLUMN.test(after)) found.push({ table, column: pending });
+  }
+  return found;
+}
 const ADD_COLUMN = /\bADD\s+(?:COLUMN\s+)?`?([a-z_][a-z0-9_]*)`?/gi;
 const DROP_TABLE = /DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?([a-z_][a-z0-9_]*)`?/gi;
 
@@ -114,6 +151,25 @@ export function buildSchema(migrations: string[]): Schema {
         columns.add(column);
       }
       if (columns.size > 0) schema.set(table, columns);
+    }
+
+    /*
+     * Columns added conditionally, through a prepared statement.
+     *
+     * `0038_meeting_results.sql` has to add its columns one at a time and
+     * only where they are missing — it brought the live calendar down for
+     * days by trying to add all ten at once against a database that already
+     * had some. MariaDB can say `ADD COLUMN IF NOT EXISTS`; MySQL 8, which
+     * the tests run on, cannot. So the DDL is built as a string and run with
+     * PREPARE, and the plain `ALTER TABLE` matcher above cannot see inside
+     * it. Without this, every one of those columns looks like it does not
+     * exist and `schema-map.test.ts` fails on the queries that read them.
+     */
+    for (const built of builtColumns(sql)) {
+      if (NOT_A_COLUMN.has(built.column)) continue;
+      const columns = schema.get(built.table) ?? new Set<string>();
+      columns.add(built.column);
+      schema.set(built.table, columns);
     }
 
     for (const match of sql.matchAll(DROP_TABLE)) {

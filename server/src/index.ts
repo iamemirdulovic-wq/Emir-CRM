@@ -2,8 +2,39 @@ import { createApp } from './http/app.js';
 import { env } from './config/env.js';
 import { logger, errorContext } from './lib/logger.js';
 import { closePool } from './db/client.js';
+import { runMigrations } from './db/migrate.js';
 import { startWorker, type WorkerHandle } from './jobs/worker.js';
 import { migrateState, stateDir } from './config/state.js';
+
+/**
+ * Bring the database up to the code, here, in the server's own boot.
+ *
+ * `scripts/start.mjs` already does this — but only if the host actually runs
+ * `npm start`. On 14 Nov the live site was found serving code that expected
+ * `meetings.booked_project`, a column migration 0038 adds and which was not
+ * there: the calendar returned "Internal server error" for everybody, for
+ * days, because the process that boots in production never applied it. Doing
+ * it here means it no longer matters which command the hosting panel is set
+ * to run.
+ *
+ * A failure is logged loudly and the server still starts. That is deliberate.
+ * Refusing to boot is the textbook answer and it is the wrong one here: ten
+ * people use this CRM all day, and turning one broken screen into no CRM at
+ * all is a worse morning than the one we are fixing. The error is loud, and
+ * every 500 now tells the owner what is missing.
+ */
+async function migrateOnBoot(): Promise<void> {
+  try {
+    const { applied } = await runMigrations();
+    if (applied.length) logger.warn('applied pending migrations at boot', { applied });
+    else logger.info('database schema is up to date');
+  } catch (err) {
+    logger.error('MIGRATIONS FAILED — the database is behind the code', {
+      ...errorContext(err),
+      note: 'Screens that use the newest columns will return 500 until this is fixed.',
+    });
+  }
+}
 
 async function main(): Promise<void> {
   const cfg = env();
@@ -29,6 +60,10 @@ async function main(): Promise<void> {
     uploads: cfg.UPLOAD_DIR,
     note: 'These must survive a deploy. If they are inside the app folder, every deploy loses them.',
   });
+
+  /* Schema before traffic: the calendar outage of 14 Nov was the server
+     answering requests against a database that was two columns behind it. */
+  await migrateOnBoot();
 
   const app = createApp();
   const server = app.listen(cfg.PORT, cfg.HOST, () => {
