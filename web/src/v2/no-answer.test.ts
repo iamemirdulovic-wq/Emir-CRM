@@ -288,9 +288,21 @@ describe('the 3+ tries filter — H.2 and B.6', () => {
     expect(LEADS).toContain('<option value="3">No answer 3+ times</option>');
   });
 
-  it('says how many rows it looked at, rather than borrowing the server’s total', () => {
-    /* It narrows the rows in hand — `/api/my-leads` takes no minimum-tries
-       parameter — so the count line has to be honest about that. */
-    expect(LEADS).toContain('loaded tried 3+ times');
+  it('narrows the whole book on the server, not the rows on the page', () => {
+    /*
+     * H.2 is a question about 2,037 leads. It used to be answered over the
+     * fifty rows the page had in hand, with the count line saying so in
+     * words — "12 of the 50 loaded tried 3+ times" — which was honest about
+     * what it had done and still the wrong answer.
+     *
+     * `/api/my-leads` takes `tries` now (`o.no_answer_count >= ?` inside
+     * `buildFilters`), so the list, the total, the tab counts and the chips
+     * are all narrowed by it, and the screen can say the plain number again.
+     */
+    expect(LEADS).toContain("if (manyTries) next.set('tries', '3');");
+    /* Narrowed once, by the server. Nothing filters the rows here. */
+    expect(LEADS).not.toContain('triesOf(row) >= 3');
+    /* And the sentence that apologised for it is gone with it. */
+    expect(LEADS).not.toContain('loaded tried 3+ times');
   });
 });

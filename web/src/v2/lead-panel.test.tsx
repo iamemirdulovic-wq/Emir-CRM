@@ -179,19 +179,26 @@ function button(label: string): HTMLButtonElement | undefined {
 }
 
 describe('the leads quick panel', () => {
-  it('reads the lead, its brief and its notes, and nothing else', async () => {
+  it('reads the lead, its brief, its notes and its call run, and nothing else', async () => {
     await show();
     /*
      * Sorted, not in order. The notes read moved into the shared notes list
-     * on 14 Nov, and a child's effects run before its parent's, so the three
-     * requests no longer arrive in the order the panel declares them. What
-     * matters is that there are three and no more — one read per thing the
-     * panel shows, and nothing fetched twice.
+     * on 14 Nov and the call run into the shared result bar, and a child's
+     * effects run before its parent's, so the four requests no longer arrive
+     * in the order the panel declares them. What matters is that there are
+     * four and no more — one read per thing the panel shows, and nothing
+     * fetched twice.
+     *
+     * The run is read rather than taken off the row because a row carries
+     * only the count and the two times (contract §3); the bar needs the
+     * limit as well, or the strip says "try 2" where the picture says
+     * "try 2 of 5".
      */
     expect([...asked].sort()).toEqual([
       'GET /api/my-leads/o-1',
       'GET /api/my-leads/o-1/brief',
       'GET /api/notes/c-1',
+      'GET /api/v2/leads/o-1/call-result',
     ].sort());
   });
 

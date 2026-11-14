@@ -101,7 +101,16 @@ describe('the v2 computer table', () => {
 
   it('renders the row’s cell through the shared helper', () => {
     const text = read(path.join(HERE, 'Leads.tsx'));
-    expect(text).toContain('<td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>');
+    /*
+     * `short` since 14 Nov: in the table the cell carries the clock and how
+     * long the lead has been sitting, and not the day. Every row is under a
+     * heading that says the day — "Today", "Yesterday", "Wednesday 12 Nov" —
+     * and on one line the pair measured 174px against an 84px column, so two
+     * rows in three were cut at the 1440 Emir works at. The whole date is in
+     * the hover. The phone card, which has no day heading over it, still
+     * passes the long form; see the card's own test below.
+     */
+    expect(text).toContain('<td className="v2-given-cell"><GivenLine at={row.assigned_at} short /></td>');
     expect(text, 'the one helper, so the three screens word it the same')
       .toContain("from '../lib/assigned.js'");
   });
@@ -114,7 +123,9 @@ describe('the v2 computer table', () => {
      */
     const text = read(path.join(HERE, 'Leads.tsx'));
     expect(text.match(/function Given/g) ?? [], 'exactly one of them').toHaveLength(1);
-    expect(text, 'the whole date is one hover away').toContain('title={line.exact ?? undefined}');
+    /* The whole date is one hover away — and where there is no date at all,
+       the hover says so in the one sentence the three screens share. */
+    expect(text).toContain('title={line.missing ? NOT_GIVEN : (line.exact ?? undefined)}');
   });
 });
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -167,8 +167,49 @@ const SHEET_HEAD: Record<Outcome, { title: string; sub: string; icon: IconName }
   not_interested: { title: 'Not interested', sub: 'Pick a reason · the lead goes to Lost', icon: 'x' },
 };
 
+/**
+ * Which list the dialler is walking, and what to call it on screen.
+ *
+ * B.7: *"Call these one by one"* at the top of the No answer tab. The screen
+ * reads `?tab=` and hands it to `/api/v2/queue`, which builds the queue from
+ * that tab of My Leads — one definition of "which leads", in
+ * `server/src/leads/tabs.ts`, shared by the table and the dialler.
+ *
+ * Only the two that are a calling list. Every other tab either is not a
+ * queue of calls (Won, Lost) or is already reachable as one of these, and a
+ * dialler that would walk any tab is a dialler that can be sent at the whole
+ * book by a hand-typed URL. Anything else falls back to Today, which is what
+ * the button has always opened.
+ *
+ * No raw code reaches the screen: the words below are what the agent reads.
+ */
+const QUEUES = {
+  today: {
+    title: 'Power dialler',
+    /* What the list of leads is called, in the sheet and on the computer. */
+    listTitle: "Today's list",
+    /* The empty state, in the agent's own terms. */
+    emptyTitle: 'Nothing to call today',
+    emptyHint: 'Every follow-up you promised is done. Worth a look at your hot leads.',
+  },
+  no_answer: {
+    title: 'Second tries',
+    listTitle: 'Leads to try again',
+    emptyTitle: 'Nobody is waiting on a second try',
+    emptyHint: 'Every lead you have rung has either answered or been closed off.',
+  },
+} as const;
+
+type QueueKey = keyof typeof QUEUES;
+
 export function V2Calling() {
-  const queue = useAsync<{ items: QueueLead[] }>(() => api.get('/api/v2/queue'), []);
+  const [params] = useSearchParams();
+  const asked = params.get('tab') ?? '';
+  const which: QueueKey = asked === 'no_answer' ? 'no_answer' : 'today';
+  const queue = useAsync<{ items: QueueLead[] }>(
+    () => api.get(`/api/v2/queue?tab=${which}`),
+    [which],
+  );
   /* The gate belongs to the screen, not to one lead: the design puts its
      amber bar at the very top, above the count and the progress bar. */
   const gate = useCheckIn();
@@ -204,7 +245,7 @@ export function V2Calling() {
   usePhoneHead({
     title: items.length > 0 ? `Lead ${at + 1} of ${items.length}` : 'Calling',
     sub: items.length > 0
-      ? `Power dialler · ${left === 0 ? 'last one' : `${left} left after this`}`
+      ? `${QUEUES[which].title} · ${left === 0 ? 'last one' : `${left} left after this`}`
       : 'Nothing in the queue',
   });
 
@@ -218,8 +259,8 @@ export function V2Calling() {
       <div className="d-card">
         <div className="d-empty">
           <span className="d-ic"><Icon name="check-check" size={26} /></span>
-          <b>Nothing to call today</b>
-          <p>Every follow-up you promised is done. Worth a look at your hot leads.</p>
+          <b>{QUEUES[which].emptyTitle}</b>
+          <p>{QUEUES[which].emptyHint}</p>
           <Link className="d-btn d-sm" to="/v2/leads?tab=hot">See my hot leads</Link>
         </div>
       </div>
@@ -232,7 +273,7 @@ export function V2Calling() {
             <Icon name="x" />
           </button>
           <div className="v2-a-dial-head">
-            <span className="v2-a-dial-kicker">POWER DIALLER</span>
+            <span className="v2-a-dial-kicker">{QUEUES[which].title.toUpperCase()}</span>
             <span className="v2-a-dial-big">Nothing to call</span>
           </div>
         </header>
@@ -282,7 +323,8 @@ export function V2Calling() {
           </button>
           <div className="v2-a-dial-head">
             <span className="v2-a-dial-kicker">
-              POWER DIALLER · {left === 0 ? 'LAST ONE' : `${left} LEFT AFTER THIS`}
+              {QUEUES[which].title.toUpperCase()}
+              {' · '}{left === 0 ? 'LAST ONE' : `${left} LEFT AFTER THIS`}
             </span>
             <span className="v2-a-dial-big">Lead {at + 1} of {items.length}</span>
           </div>
@@ -295,7 +337,7 @@ export function V2Calling() {
           <button
             type="button"
             className="v2-a-dial-list"
-            aria-label="Today's list"
+            aria-label={`${QUEUES[which].listTitle} · ${items.length} leads`}
             onClick={() => setListOpen(true)}
           >
             <Icon name="list" />
@@ -330,10 +372,10 @@ export function V2Calling() {
         {listOpen && (
           <>
             <div className="d-scrim d-show" onClick={() => setListOpen(false)} aria-hidden />
-            <div className="d-dialog d-open" role="dialog" aria-label="Today's list">
+            <div className="d-dialog d-open" role="dialog" aria-label={QUEUES[which].listTitle}>
               <div className="d-dialog-head">
                 <div className="d-grow">
-                  <h3>Today&apos;s list</h3>
+                  <h3>{QUEUES[which].listTitle}</h3>
                   <p>VIP first · {done.size} of {items.length} done</p>
                 </div>
                 <button
@@ -428,7 +470,7 @@ export function V2Calling() {
 
         <aside className="d-card d-q v2-queue">
           <div className="d-card-head v2-queue-head">
-            <h3>Today&apos;s list</h3>
+            <h3>{QUEUES[which].listTitle}</h3>
             <span className="d-small d-muted">VIP first</span>
           </div>
           <div>
@@ -442,7 +484,7 @@ export function V2Calling() {
   );
 }
 
-/** Today's list, the same rows on the computer and inside the phone's sheet. */
+/** The queue's rows, the same on the computer and inside the phone's sheet. */
 function QueueRows({ items, at, done, skipped, onPick }: {
   items: QueueLead[];
   at: number;
@@ -478,7 +520,7 @@ function QueueRows({ items, at, done, skipped, onPick }: {
   );
 }
 
-/** The line under a name in today's list: why this lead is on it. */
+/** The line under a name in the queue: why this lead is on it. */
 function whyOf(lead: QueueLead): string {
   if (lead.nextStepNote) return lead.nextStepNote;
   if (lead.noAnswerCount > 0) {

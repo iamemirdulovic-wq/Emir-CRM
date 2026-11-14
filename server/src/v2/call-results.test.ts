@@ -196,20 +196,40 @@ describe('the field every lead row carries', () => {
     expect(noAnswerOf({})).toBeNull();
   });
 
-  it('carries the count, the last try and the next one', () => {
+  it('carries the count, the last try, the next one and which result it was', () => {
     const last = dubai(16, 10, 0);
     const next = dubai(16, 12, 0);
-    expect(noAnswerOf({ no_answer_count: 2, last_try_at: last, next_step_at: next })).toEqual({
+    expect(noAnswerOf({
+      no_answer_count: 2, last_try_at: last, next_step_at: next, last_result: 'busy',
+    })).toEqual({
       tries: 2,
       lastTryAt: last.toISOString(),
       nextTryAt: next.toISOString(),
+      /* So the Tries column can read "Busy ×2" rather than "No answer ×2":
+         the count is a total of the two results and could never say which. */
+      lastResult: 'busy',
     });
   });
 
   it('says nothing rather than guessing when a lead has run out of tries', () => {
     expect(noAnswerOf({ no_answer_count: 5, last_try_at: null, next_step_at: null })).toEqual({
-      tries: 5, lastTryAt: null, nextTryAt: null,
+      tries: 5, lastTryAt: null, nextTryAt: null, lastResult: null,
     });
+  });
+
+  it('reads no result at all rather than inventing one', () => {
+    /*
+     * A try logged before the result was recorded on the timeline row, or by
+     * a path that does not go through `saveCallResult`, has nothing to read.
+     * Null, and the screen then says "No answer" — which is what the action
+     * means and what every row said before this field existed.
+     */
+    const row = { no_answer_count: 1, last_try_at: null, next_step_at: null };
+    expect(noAnswerOf(row)?.lastResult).toBeNull();
+    expect(noAnswerOf({ ...row, last_result: 'answered' })?.lastResult).toBeNull();
+    expect(noAnswerOf({ ...row, last_result: 42 })?.lastResult).toBeNull();
+    /* A driver that hands JSON back quoted is stripped, never shown. */
+    expect(noAnswerOf({ ...row, last_result: '"busy"' })?.lastResult).toBe('busy');
   });
 });
 

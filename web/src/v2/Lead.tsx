@@ -84,12 +84,12 @@ interface Lead {
   won_unit: string | null;
   lost_reason_v2: string | null;
   /**
-   * Where the "did we reach them" run stands — the shape in
-   * `docs/v2/call-results-contract.md` §3. Optional because the endpoint that
-   * sends it is another pair of hands this week: until it does, the bar draws
-   * its six results and no strip, rather than a strip full of invented zeroes.
+   * Where the "did we reach them" run stands, as a lead *row* carries it —
+   * `docs/v2/call-results-contract.md` §3, which is the count and the two
+   * times and nothing else. The bar reads the rest for itself; this is what
+   * it draws while that read is in the air.
    */
-  noAnswer?: NoAnswerState | null;
+  noAnswer?: Partial<NoAnswerState> | null;
 }
 
 interface Task {
@@ -226,8 +226,6 @@ export function V2Lead() {
    * that row and the call result.
    */
   const [asking, setAsking] = useState<Asking | null>(null);
-  /** The run, as the last answer left it. Null until something is known. */
-  const [run, setRun] = useState<NoAnswerState | null>(null);
   /** The results answered while this page has been open, for the notes list. */
   const [justSaved, setJustSaved] = useState<CallResultLine[]>([]);
   /** Bumped when a note is saved, so the list below re-reads itself. */
@@ -310,9 +308,8 @@ export function V2Lead() {
    */
 
   /** A call result was saved: redraw the lead, and keep the line for the list. */
-  function afterResult(told: string, state: NoAnswerState | null, result: CallResultLine) {
+  function afterResult(told: string, result: CallResultLine) {
     setSaid(plain(told));
-    setRun(state);
     setAsking(null);
     setJustSaved((was) => [result, ...was]);
     detail.reload();
@@ -627,7 +624,7 @@ export function V2Lead() {
           <CallResultBar
             opportunityId={lead.id}
             lead={lead}
-            state={run ?? lead.noAnswer ?? null}
+            state={lead.noAnswer ?? null}
             asking={asking}
             dial={dial}
             onDismiss={() => setAsking(null)}
@@ -642,7 +639,7 @@ export function V2Lead() {
               if (tab === 'notes') tabBox.current?.focus('call_summary');
               else box.current?.focus('call_summary');
             }}
-            onSaved={(told, state, result) => afterResult(told, state, {
+            onSaved={(told, state, result) => afterResult(told, {
               id: `just-${Date.now()}`,
               result,
               tries: state && state.tries > 0 ? state.tries : null,

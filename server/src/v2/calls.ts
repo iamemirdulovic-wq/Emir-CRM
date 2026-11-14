@@ -6,7 +6,7 @@ import { runLeadAction } from '../leads/actions.js';
 import { saveCallResult, savedWords, type NoAnswerState } from './call-results.js';
 import { visibleUserIds, ownerPredicate } from '../auth/scope.js';
 import type { SessionUser } from '../auth/sessions.js';
-import { TABS } from '../leads/tabs.js';
+import { TABS, type LeadTab } from '../leads/tabs.js';
 import { DAY_END, DAY_START } from './dubai.js';
 
 /**
@@ -66,16 +66,47 @@ export interface QueueLead {
 }
 
 /**
- * The day's queue: everything promised for today, VIP first.
+ * The queue the dialler walks: everything in one tab of My Leads, VIP first.
  *
- * The same rows as the Today tab, in a different order, from the same clause —
- * so "Start calling · 12 ready" and the list behind it can never be different
+ * The same rows as that tab, in a different order, from the same clause — so
+ * "Start calling · 12 ready" and the list behind it can never be different
  * numbers.
+ *
+ * `tab` is Today unless told otherwise, which is what it always was. Emir's
+ * B.7 asks for a second one: *"Call these one by one"* at the top of the No
+ * answer tab, so the whole second-try list can be worked without going back
+ * to the table between calls. There was no way to ask for it — this function
+ * was hard-wired to `TABS.today.where` and `/api/v2/queue` took no arguments
+ * — so the button could not be built at all.
+ *
+ * It takes a tab and not a list of ids on purpose. A set of ids would be a
+ * second answer to "which leads", a snapshot of a list that is about to
+ * change: a lead rung and answered while the queue is open has left the No
+ * answer tab, and the queue should agree with the tab rather than remember
+ * what it held a minute ago. `TABS` is the one place either of them is
+ * defined.
  */
-export async function callQueue(user: SessionUser): Promise<QueueLead[]> {
+export async function callQueue(
+  user: SessionUser,
+  tab: LeadTab = 'today',
+): Promise<QueueLead[]> {
   const visible = await visibleUserIds(user);
   const scope = ownerPredicate('o.owner_user_id', visible);
+  const definition = TABS[tab];
 
+  /*
+   * VIP first, then the tab's own order, then the id so two leads that share
+   * a minute cannot swap places between one request and the next — which on
+   * its own is enough to make a walk repeat a lead.
+   *
+   * The tab's own order rather than next_step_at flat: the No answer tab is
+   * sorted by when to try again, soonest first, and its clause puts the leads
+   * with nothing planned last instead of letting the NULLs float to the top.
+   *
+   * Nothing goes in the SQL as a comment. A backtick inside a template
+   * literal ends it, and one in an explanation of next_step_at cost ten
+   * minutes of reading a syntax error on the wrong line.
+   */
   const rows = await query<Record<string, unknown>>(
     `SELECT o.id, o.contact_id AS contactId, c.full_name AS name, c.phone_e164 AS phone,
             o.project_name AS project, o.unit_type AS unitType,
@@ -90,8 +121,8 @@ export async function callQueue(user: SessionUser): Promise<QueueLead[]> {
                    ) AS calledToday
        FROM opportunities o
        JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
-      WHERE ${scope.sql} AND ${TABS.today.where}
-      ORDER BY o.is_vip DESC, o.next_step_at ASC, o.id ASC
+      WHERE ${scope.sql} AND ${definition.where}
+      ORDER BY o.is_vip DESC, ${definition.orderBy}, o.id ASC
       LIMIT 200`,
     [user.id, ...scope.params],
   );

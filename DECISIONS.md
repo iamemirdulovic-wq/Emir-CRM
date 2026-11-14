@@ -1426,3 +1426,57 @@ ten people at once.
 If the duplicate ever genuinely has to go, the safe shape is a new, higher-
 numbered migration that does the renaming inside `schema_migrations` itself —
 not a `git mv`.
+
+## Column widths are counted, not argued — 14 Nov 2026
+
+Emir, on the live site at 1440px: *"project name, Given date and 'Last
+contact' header are still cut."* That was the third time a column budget on
+the leads table had been changed, and the second time it was changed by
+reading the CSS and reasoning about it rather than by looking.
+
+`scripts/leads-columns.mjs` now counts the cells whose text is actually
+clipped — `scrollWidth > clientWidth` — per column, per role, at any width.
+A column change is justified by its number or it does not go in.
+`docs/v2/leads-1440.md` is the table of every plan tried and why the one
+that shipped won.
+
+Three things it caught that reading could not:
+
+- **The best-scoring plan was the wrong plan twice over.** Narrowing the
+  row's buttons to 96px scored 18 cut cells against 29 and was the buttons
+  sitting on top of the next-step sentence: the cell renders 124px whatever
+  is declared on it, because `overflow:visible` lets them spill rather than
+  shrink. Shaving the Lead column scored 19 and cut "Mariam Al Suwaidi".
+- **168px on the next step is not a preference.** It is what "Overdue 14
+  Nov, 12:50" measures. Every plan that gave the Project more than 166 took
+  it from there and cut the red call-them-now line at the clock.
+- **A whole band of screen widths had never been looked at.** See below.
+
+## The row's buttons get their words at 1920, not 1700 — 14 Nov 2026
+
+At a 1700px window the next-step column was **30px** — fifty cut cells on
+one screen, where 1699 had 232px and cut eight. From 1700 the Project
+widened to 214 and the buttons took their words (344px) on a card of 1,392,
+with the Stage already at 204 from 1600.
+
+Nobody had seen it because 1440 and 1920 are the two widths anybody tests
+and both are fine. **A MacBook Pro 16" is 1728 by default**, so this was
+live, on a real screen, for anyone on one.
+
+`TIGHT` in `Leads.tsx` and the rule in `v2-no-answer.css` are the same
+number and must stay so — it decides both the buttons' words and whether
+the next-step sentence is the short two-line form.
+
+## The agent's project name is still cut at 1440, on purpose — 14 Nov 2026
+
+Ten of the longest project names — "Saadiyat Lagoons by Aldar", "THE OASIS
+— PALMIERA BY EMAAR" — do not fit one line on the agent's list at 1440 and
+five of them do not fit at 2560. The owner's book was fixed by wrapping its
+project cell to two lines; the agent's cell cannot, because its second line
+is the unit and budget (§2.3) and a 52px row holds two lines, not three.
+
+Three things would fix it and each removes something Emir asked for: the
+budget sub-line (§2.3), the Local time column, or the Given column (§2.5 —
+and the design's own `my-leads` has no Given column at all, seven columns
+where we draw eight). **This is his to choose**, so it is in the report
+rather than decided here. The full name is on hover and on the lead page.

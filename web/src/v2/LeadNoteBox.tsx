@@ -74,9 +74,7 @@ export const LeadNoteBox = forwardRef<NoteBoxHandle, {
    * with the toast until somebody reloads.
    */
   onSaved: (said: string, moved: boolean) => void;
-  /** The quick panel and the phone: the same box, a little tighter. */
-  compact?: boolean;
-}>(function LeadNoteBox({ contactId, opportunityId, who, onSaved, compact = false }, ref) {
+}>(function LeadNoteBox({ contactId, opportunityId, who, onSaved }, ref) {
   const [body, setBody] = useState('');
   const [type, setType] = useState<NoteType>('general');
   const [more, setMore] = useState(false);
@@ -412,7 +410,10 @@ export const LeadNoteBox = forwardRef<NoteBoxHandle, {
         >
           <Icon name="bell" size={14} />Remind me
         </button>
-        {!compact && <span className="v2-ln-kbd">Ctrl + Enter to save</span>}
+        {/* Printed on screen, not only bound to the keys — E.6. Where the
+            row is too narrow for it the stylesheet drops it onto a line of
+            its own, and on a phone it goes, because a phone has no Ctrl. */}
+        <span className="v2-ln-kbd">Ctrl + Enter to save</span>
         <span className="d-grow" />
         <button
           type="button"
@@ -434,7 +435,7 @@ function kindOf(staged: Staged[]): 'voice' | 'image' | 'file' {
   return 'file';
 }
 
-/** The three times an agent picks nine times out of ten, and tomorrow. */
+/** The three times an agent picks nine times out of ten. */
 const REMIND_SOON: Array<{ label: string; at: () => Date }> = [
   { label: 'In 1 hour', at: () => new Date(Date.now() + 3_600_000) },
   { label: 'Tonight 19:00', at: () => atClock(0, 19) },

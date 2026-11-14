@@ -33,7 +33,7 @@ import {
 import { toCsvRow } from '../../imports/csv.js';
 import { writeAudit } from '../../audit/audit.js';
 import { leadFacets } from '../../leads/facets.js';
-import { LAST_TRY_SQL, noAnswerOf } from '../../v2/call-results.js';
+import { LAST_RESULT_SQL, LAST_TRY_SQL, noAnswerOf } from '../../v2/call-results.js';
 import { DAILY_GOALS } from '../../v2/home.js';
 import { DAY_END, DAY_START } from '../../v2/dubai.js';
 
@@ -75,6 +75,20 @@ const listSchema = z.object({
   /* `namespace:value`, e.g. `batch:expo-2026-30oct-a3f2` — how one upload is
      found again after the fact. */
   tag: z.string().max(160).optional(),
+  /*
+   * "No answer 3+ times" — H.2, and the filter B.6 puts on the No answer tab.
+   *
+   * The fewest unanswered tries a lead must have. It was narrowed in the
+   * browser, over the fifty rows the page had in hand, and the screen said so
+   * in words — "12 of the 50 loaded tried 3+ times" — because saying it was
+   * better than implying the whole book had been searched. Over 2,037 leads
+   * that is not a filter, it is a filter on a sample.
+   *
+   * A number rather than the screen's `3`, so the owner's "3+" and anything
+   * Automations might offer later are the same parameter. Bounded at 50
+   * because `no_answer_count` is a count of calls a person made.
+   */
+  tries: z.coerce.number().int().min(1).max(50).optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(30),
 });
@@ -243,6 +257,17 @@ function buildFilters(
     args.push(params.band);
   }
   /*
+   * "No answer 3+ times", over the whole book (H.2).
+   *
+   * `o.no_answer_count` is the same column the No answer tab is built from
+   * and the same one the row's pill reads, so the filter, the tab and the
+   * tag cannot disagree. Bound as a number, never interpolated.
+   */
+  if (params.tries !== undefined) {
+    where.push('o.no_answer_count >= ?');
+    args.push(params.tries);
+  }
+  /*
    * EXISTS rather than a join: a contact can carry a dozen tags, and joining
    * would multiply every lead by its tag count before the DISTINCT that would
    * then be needed to undo it.
@@ -304,6 +329,12 @@ const SELECT = `
           * never been rung without an answer.
           */
          ${LAST_TRY_SQL} AS last_try_at,
+         /*
+          * And which of the two it was, so the Tries column can read
+          * "Busy ×1" as the owner's picture draws it rather than always
+          * "No answer ×N" — the count is a total of both.
+          */
+         ${LAST_RESULT_SQL} AS last_result,
          c.full_name, c.phone_e164, c.email, c.language, c.dnc, c.last_inbound_at,
          u.name AS owner_name
     FROM opportunities o

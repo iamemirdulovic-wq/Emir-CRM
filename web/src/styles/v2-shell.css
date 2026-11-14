@@ -2434,15 +2434,166 @@
  */
 .v2 .d-id-leads.v2-cols-mine th:nth-child(1){ width:230px; }
 .v2 .d-id-leads.v2-cols-mine th:nth-child(2){ width:148px; }
-.v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:7.6%; }
-.v2 .d-id-leads.v2-cols-mine th:nth-child(4){ width:88px; }
-.v2 .d-id-leads.v2-cols-mine th:nth-child(5){ width:84px; }
-/* "Karachi 16:59" with its clock face is 109px; 128 is that plus the
-   padding and a little air. */
+/*
+ * ── Re-measured 14 Nov, against data as unkind as the real book ─────────
+ *
+ * Emir, on the live site at 1440px with 2,037 leads: *"Leads list: project
+ * name, Given date and 'Last contact' header are still cut at 1440 px."* The
+ * measurement that said nothing was cut was taken against the preview's own
+ * test data, where the longest project is "Emaar Beachfront" and no lead has
+ * a next-step note at all. With the preview's fixtures widened to his shape
+ * (`preview/mock-api.ts`), at 1440 on the owner's book:
+ *
+ *   | column       | box | needs |
+ *   |--------------|-----|-------|
+ *   | Project      | 102 |   267 |  49 of 50 rows cut
+ *   | Stage        |  88 |   107 |  the "Interested" pill, clipped mid-word
+ *   | Given        |  84 |   174 |  33 of 50
+ *   | Agent        |  91 |   143 |  a first name of 11 letters
+ *   | Last contact |  74 |   110 |  the HEADER, wider than its own column
+ *   | Next step    | 246 |   533 |  6 of 50, the ones carrying a note
+ *
+ * Those needs add up to more than the table has, so the fix is not only
+ * wider columns. Two of them come down instead, at no cost to anything:
+ *
+ *  - **Given** carries the clock and how long it has been sitting, on two
+ *    lines, rather than "Yesterday 16:51 · 25 h ago" on one. Every row sits
+ *    under a heading that already says the day. 174 → 66.
+ *  - **Project**, on the owner's book only, wraps to two lines. 144px of
+ *    column is 256px of text, which holds every name in the data. The
+ *    agent's list cannot: its second line is the budget.
+ *  - **Last contact's header** wraps to two lines, which costs the header
+ *    row a few pixels once instead of the column 36px on every row.
+ *
+ * The three that go up — Project, Stage, Last contact — are in pixels rather
+ * than shares, so they take what they need at 1440 and give 1920 back to the
+ * next step: it has 613px there, exactly as before. At 1440 it comes down
+ * from 246 to about 170, which is what "Overdue 14 Nov, 11:26" measures, so
+ * the part of that column an agent acts on still reads whole and only the
+ * note after it ellipsises — as it did at every width before this.
+ *
+ * Below 1400 the old, tighter budget stands (the `max-width:1399px` block),
+ * because at 1280 there is no 80px to find: taking it would have left the
+ * next step 58px. 1280 still gains the three free fixes above.
+ */
+/*
+ * The agent's Project is 14px wider than the owner's, and for the opposite
+ * reason: the owner's cell wraps to two lines and this one cannot — its
+ * second line is the unit and budget (§2.3), and three lines do not fit a
+ * 52px row. So the whole name has to go on one line or be cut.
+ *
+ * The 8px come off the row's four icon buttons, which had that much spare
+ * padding; the next step keeps its 168, which is what "Overdue 14 Nov,
+ * 11:58" measures. They were taken off the Local time column as well for a
+ * while, and put back: 6px there turned 2 cut cells into 15, which is a
+ * worse trade than the 6 project names it bought.
+ */
+.v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:152px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(4){ width:108px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(5){ width:78px; }
+/*
+/* "Karachi 16:59" with its clock face is 109px; 124 is that plus the
+   padding and a little air. Measured at 118 on the way past, to give the
+   Project 6px: it took 15 of the 50 cities on screen down to "London 14…"
+   where 2 had been cut before, so it went back. */
 .v2 .d-id-leads.v2-cols-mine th:nth-child(6){ width:124px; }
 .v2 .d-id-leads.v2-cols-mine th:nth-child(7){ width:auto; }
 /* Call, WhatsApp and ⋯: 176px with their words, 96 as icons. */
 .v2 .d-id-leads.v2-cols-mine th:nth-child(8){ width:176px; }
+
+/*
+ * A big screen: the agent's Project takes what the table has spare.
+ *
+ * It is a pixel width rather than a share because at 1440 every pixel of it
+ * is taken off the next step — but at 1920 the next step has 428px and the
+ * Project was still cutting "ROSE HILL BY EMAAR" at 152. 220px holds every
+ * name in the book but the longest, and the next step keeps 360.
+ */
+@media (min-width:1700px){
+  /*
+   * 214 and not 220: the next-step sentence goes back to one line on a wide
+   * screen, and "No answer ×2 · try again 16 Nov 00:26" measures 267, which
+   * was three pixels more than the column had. The six come off here, where
+   * they cost nothing — only the one 37-character name in the data is wider
+   * than 214 either way.
+   *
+   * "A wide screen" was 1700 when this was written and is 1920 now: at 1700
+   * the one-line sentence and the buttons' words together left the next
+   * step 30px. `TIGHT` in `Leads.tsx` is the number, and it decides both.
+   * Between 1700 and 1919 the Project is 214 and the sentence is still the
+   * short two-line one, which the 270px there holds easily.
+   */
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:214px; }
+}
+
+/*
+ * The owner's book — tick · Lead · Phone · Project · Stage · Given · Agent ·
+ * Last contact · Attention · ⋯.
+ *
+ * Three more columns than the agent's and the same width to put them in, so
+ * the row carries the ⋯ menu alone: picture 02 draws no buttons on the row
+ * at all, and three of them would leave the next step 112px at 1440px. A row
+ * click opens the quick panel, where Call and WhatsApp are.
+ */
+/*
+ * The tick box: 30px, which is the 18px checkbox and its 6px each side.
+ * The 4px it gave up are part of the 13 the Agent column needed.
+ */
+.v2 .d-id-leads.v2-cols-book th:nth-child(1){ width:30px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(2){ width:230px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(3){ width:148px; }
+/* Project · Stage · Given · Agent · Last contact — see the note above the
+   agent's budget for where each of these numbers comes from. */
+.v2 .d-id-leads.v2-cols-book th:nth-child(4){ width:137px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:108px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(6){ width:78px; }
+/*
+ * The Agent column, in pixels and wide enough for a long first name.
+ *
+ * It was 8% — 91px at 1440 — and "Abdulrahman" came out as "Abdulra".
+ * A cut name is the complaint this rebuild started from, and it reads the
+ * same whether it is the client's name or the agent's.
+ *
+ * 104px is the measured width of the longest first name in the book plus the
+ * cell's padding, with no face beside it: with the face the cell wants 136
+ * and there is no 45px spare on a ten-column book at 1440. The 13px came
+ * from the tick box (4), Last contact (2), Attention (4) and the Project
+ * (3), none of which is cut by giving them up.
+ *
+ * In pixels rather than a share because the need does not change with the
+ * window — the same reason the Lead column is in pixels.
+ */
+.v2 .d-id-leads.v2-cols-book th:nth-child(7){ width:104px; }
+/*
+ * "Today 13:04" is 90px with the padding — and 90 is not enough.
+ *
+ * At exactly 90 the browser ellipsised it to "Today 13:…", because the text
+ * is 74.3px against 74 of content box and a measurement that rounds down
+ * reports a fit. Four pixels of slack, taken from the Project, which has
+ * them: a wrapped name has 2 × 121px of room and the longest real one is
+ * 229. Fit a column to its content exactly and it cuts.
+ *
+ * The header wraps to two lines inside the header row's own 38px rather than
+ * asking the column for the 110 "LAST CONTACT" wants on one.
+ */
+.v2 .d-id-leads.v2-cols-book th:nth-child(8){ width:94px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(9){ width:auto; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(10){ width:36px; }
+
+/*
+ * ── A laptop, where the budget above does not fit ────────────────────────
+ *
+ * This block must come AFTER both budgets, not between them.
+ *
+ * It sat between the agent's and the owner's, so for the ten rules it
+ * writes against `v2-cols-book` the plain rule further down the file won on
+ * source order and the media query did nothing — silently, at every width.
+ * It had been that way since the budget was written: the two rules in here
+ * meant to narrow the owner's Stage and Given at 1280 had never once
+ * applied. Found on 14 Nov by giving the Project a pixel width and watching
+ * the owner's next step collapse to 24px at 1280 with the card scrolling
+ * sideways, which is §2.9's own complaint back again.
+ */
 @media (max-width:1399px){
   .v2 .d-id-leads.v2-cols-mine th:nth-child(8){ width:96px; }
   /*
@@ -2461,29 +2612,135 @@
    */
   .v2 .d-id-leads.v2-cols-mine th:nth-child(4),
   .v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:84px; }
+  /* The Given cell is the clock and the waiting time on two short lines
+     now (`GivenLine short`), which measures 76px — so 78 holds it whole at
+     this width as well, and the column stops being one that is ever cut. */
   .v2 .d-id-leads.v2-cols-mine th:nth-child(5),
   .v2 .d-id-leads.v2-cols-book th:nth-child(6){ width:78px; }
+  /*
+   * The Project goes back to a share of the table below 1400.
+   *
+   * The 144px it gets at 1440 is 144px the next step does not get, and at
+   * 1280 the next step has only 124 to begin with: taking 60 of it would
+   * leave "Overdue 14…". The owner's book still gains here, because its
+   * Project cell wraps to two lines — 87px of column is 142px of text,
+   * which holds "ROSE HILL BY EMAAR" whole where one line never could.
+   */
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:7.6%; }
+  .v2 .d-id-leads.v2-cols-book th:nth-child(4){ width:9%; }
+  /*
+   * Last contact at 1280: 7.6% is 74px, which is exactly what the
+   * two-line "LAST / CONTACT" header needs. The cells still ellipsise
+   * "Today 12:26" at this width — 90px — and that is in the report as a
+   * gap rather than fixed by taking another 16px off the next step.
+   */
+  .v2 .d-id-leads.v2-cols-book th:nth-child(8){ width:7.6%; }
 }
 
 /*
- * The owner's book — tick · Lead · Phone · Project · Stage · Given · Agent ·
- * Last contact · Attention · ⋯.
+ * ── 1400–1699: the agent's project name, measured ────────────────────────
  *
- * Three more columns than the agent's and the same width to put them in, so
- * the row carries the ⋯ menu alone: picture 02 draws no buttons on the row
- * at all, and three of them would leave the next step 112px at 1440px. A row
- * click opens the quick panel, where Call and WhatsApp are.
+ * Emir, 14 Nov, on the live site: *"project name … still cut at 1440 px."*
+ * The owner's book was fixed by letting its project cell wrap to two lines.
+ * The agent's cannot: its second line is the unit and budget (§2.3), and a
+ * 52px row holds two 12.5px lines, not three. So the name fits one line or
+ * it is cut, and the only question is which column pays the 14px.
+ *
+ * Counted, at 1440, over the fifty rows on screen — cells whose text is
+ * actually clipped, by `scripts/leads-columns.mjs`, not by eye:
+ *
+ *     Lead 230 · Project 152 (as it was) ... 29   Project 21 · step  8
+ *     Lead 230 · Project 166 ............... 23   Project 10 · step 13 ✗
+ *     Lead 210 · Project 166 ............... 19   Project 10 · step  8 ✗
+ *     Lead 216 · Project 166 ............... 18   Project 10 · step  8 ✓
+ *
+ * The two marked ✗ score well and are both wrong, for opposite reasons, and
+ * each is a thing that has already been shipped once:
+ *
+ * - **Taking it from the next step.** 168px is not a preference, it is what
+ *   *"Overdue 14 Nov, 12:50"* measures. One pixel under and that cell reads
+ *   "Overdue 14 Nov, 12:…" — the red, overdue, call-them-now line, cut at
+ *   the clock. Every plan that gives the Project more than 166 does this.
+ * - **Taking it from the Lead.** At 210 the column cuts "Mariam Al
+ *   Suwaidi". A cut person's name is the complaint this whole rebuild
+ *   started from; it does not become acceptable one column to the left.
+ *
+ * 216 is the width where neither happens: the longest name in the data
+ * measures 184px, so the column keeps 32px of headroom — four characters or
+ * so — and the next step keeps 168 to the pixel. If a longer name turns up
+ * on the live site this is the number to raise, and the Project gives it
+ * back; the name is also on hover and on the lead page.
+ *
+ * The row's four buttons were tried as the donor first and cannot be one:
+ * the cell renders 124px whatever width is declared on it, because the
+ * buttons measure 116 and `overflow:visible` lets them spill across the
+ * sentence rather than shrink. Forcing it narrower in a test looked like a
+ * win and was the buttons sitting on top of the next step.
+ *
+ * Still cut at 166, and in the report for Emir: the ten longest project
+ * names — "Saadiyat Lagoons by Aldar" and up. One line cannot hold those at
+ * any width this table can spare. `docs/v2/leads-1440.md` has the two
+ * levers that would fix them and why neither was pulled without asking.
  */
-.v2 .d-id-leads.v2-cols-book th:nth-child(1){ width:34px; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(2){ width:230px; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(3){ width:148px; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(4){ width:9%; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:88px; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(6){ width:84px; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(7){ width:8%; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(8){ width:6.5%; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(9){ width:auto; }
-.v2 .d-id-leads.v2-cols-book th:nth-child(10){ width:36px; }
+@media (min-width:1400px) and (max-width:1699px){
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(1){ width:216px; }
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:166px; }
+}
+
+/*
+ * The clock face comes off Local time below 1700, not below 1400.
+ *
+ * The reasoning in the block above — the header already says LOCAL TIME, so
+ * the icon is 19px that says nothing — is just as true at 1440, where two
+ * cells read "Moscow 18:4…" because of it. The column keeps its 124px here
+ * and spends the 19 on the text instead: narrowed to 104 as well, the moon
+ * rows wrap onto two lines, which was six cells broken for the two it
+ * fixed.
+ *
+ * The moon stays at every width. It is not decoration, it is "do not ring
+ * them now".
+ */
+@media (max-width:1999px){
+  .v2 .d-id-leads .d-localtime > svg{ display:none; }
+}
+
+/*
+ * …and above 2000 it keeps the clock and buys the width for it.
+ *
+ * The icon is what makes the column read as a time rather than a place, so
+ * it is worth 20px wherever 20px are going spare. They are not spare at
+ * 1920: the row's buttons take their words there and the next step comes
+ * back to 270, which is three pixels over the 267 that "No answer ×2 · try
+ * again 16 Nov 00:26" needs on one line. Taking 20 of those puts that
+ * sentence back on the ellipsis, which is a worse trade than a clock face.
+ * By 2000 the next step has 330 and can spare them.
+ */
+@media (min-width:2000px){
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(6){ width:144px; }
+}
+
+/*
+ * And the other way: 1600px and wider. Placed here, after both budgets,
+ * for the reason the block above is — a media rule written between them
+ * loses to the plain rule that comes later in the file, in silence.
+ */
+/*
+ * ── 1600px and wider: the stage carries its tag beside it ────────────────
+ *
+ * B.5 asks for a small grey tag reading "No answer ×2" beside the stage
+ * pill. Side by side the two pills and the cell's padding measure 203px,
+ * and the Stage column has 108 at 1440 — the other 90 are not spare there,
+ * because the next step is already at the 167px "Overdue 14 Nov, 12:04"
+ * measures. From 1600 up the next step has 200px and more to give.
+ *
+ * Below this the tag is not drawn at all (`v2-no-answer.css`) and the column
+ * goes back to the width the stage pill alone needs. The sentence is on the
+ * row either way, in the Next step cell.
+ */
+@media (min-width:1600px){
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(4),
+  .v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:204px; }
+}
 
 /*
  * The owner's book carries ten columns, so the Agent column shows a face and
@@ -2559,15 +2816,65 @@
  * design's own middle dot between them. CSS rather than a second component,
  * so the two screens cannot word the same date two ways.
  */
+/*
+ * Two lines again, and for the opposite reason.
+ *
+ * One line was right while the cell said "12 Nov 18:57 · 2 days ago": the
+ * five-line version was what made the row 130px tall. But the cell now says
+ * the clock and the waiting time only — the day is in the heading above
+ * every row and in the hover — and those two are short. On one line they
+ * measured 174px against an 84px column, so two rows in three were cut at
+ * 1440px, which is what Emir reported. On two lines the pair needs 66px and
+ * reads whole, and two 12px lines sit inside the same 52px row.
+ */
 .v2 .d-id-leads td.v2-given-cell{ white-space:nowrap; }
-.v2 .d-id-leads td.v2-given-cell .v2-given{ display:block; line-height:1.3; }
+.v2 .d-id-leads td.v2-given-cell .v2-given{ display:block; line-height:1.25; }
 .v2 .d-id-leads td.v2-given-cell .v2-given-when{
-  display:inline; font-weight:600; font-size:12.5px;
+  display:block; font-weight:600; font-size:12.5px;
 }
 .v2 .d-id-leads td.v2-given-cell .v2-given-ago{
-  display:inline; font-size:12px; margin-top:0;
+  display:block; font-size:11.5px; margin-top:0; opacity:.82;
 }
-.v2 .d-id-leads td.v2-given-cell .v2-given-ago::before{ content:" · "; }
+
+/*
+ * The project name over two lines — the owner's book only.
+ *
+ * `-webkit-box` with a line clamp rather than a height and `overflow:hidden`,
+ * so a third line is cut with an ellipsis rather than half a line of text
+ * showing above the row's border. On a span, never on the `td`: a display
+ * other than `table-cell` on a cell makes it stop drawing its own bottom
+ * border at the row's height — the same trap the Lead cell's comment names.
+ *
+ * Not on the agent's list: its second line is the unit and budget (§2.3), and
+ * a 52px row holds two 12.5px lines, not three.
+ */
+.v2 .d-id-leads.v2-cols-book td.v2-t-proj{ white-space:normal; }
+.v2 .d-id-leads.v2-cols-book td.v2-t-proj .v2-t-projname{
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; line-height:1.22;
+}
+/* The agent's keeps one line and ellipsises, as every other cell does. */
+.v2 .d-id-leads.v2-cols-mine td.v2-t-proj .v2-t-projname{
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/*
+ * A column heading wraps rather than clips.
+ *
+ * Emir, 14 Nov, on the live site at 1440px: *"… and 'Last contact' header
+ * are still cut at 1440 px."* "LAST CONTACT" is 110px of 11px uppercase with
+ * the design's .06em letter-spacing and the column is 74px at 1280 and 92 at
+ * 1440; "ATTENTION · NEXT STEP" is 165px against 123 at 1280. `.d-table th`
+ * sets `nowrap`, so both were clipped mid-word.
+ *
+ * Two 11px lines measure 25px and the header row is 38px, so a wrapped
+ * heading costs nothing at all — not a pixel of the row, and not a pixel of
+ * any column. It is the one fix on this screen that was free.
+ *
+ * Every heading in this table rather than the two: a heading only wraps when
+ * it does not fit, and when it does not fit, two lines beat half a word.
+ */
+.v2 .d-id-leads thead th{ white-space:normal; line-height:1.15; }
 
 /*
  * The row's buttons, at the end of the row in a cell of their own.

@@ -19,6 +19,7 @@ import {
 import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
 import { leadTabCounts } from '../../leads/counts.js';
+import { isLeadTab, type LeadTab } from '../../leads/tabs.js';
 import {
   allLeave, answerLeave, askForLeave, cancelLeave, LEAVE_KINDS, leaveTakenThisYear, myLeave,
 } from '../../v2/leave.js';
@@ -170,11 +171,20 @@ v2Router.post(
 
 /* ── calling ───────────────────────────────────────────────────────────── */
 
-/** The day's queue: the Today list, VIP first. */
+/**
+ * The dialler's queue: one tab of My Leads, VIP first.
+ *
+ * `?tab=no_answer` is B.7's "Call these one by one" at the top of the No
+ * answer tab. Today unless asked, which is what it always was, and a tab
+ * name `isLeadTab` does not know falls back to Today rather than being
+ * refused — a hand-typed `?tab=x` should not empty somebody's calling list.
+ * The tab decides the rows and the order; see `callQueue`.
+ */
 v2Router.get(
   '/queue',
   asyncHandler(async (req: Request, res: Response) => {
-    res.json({ items: await callQueue(currentUser(req)) });
+    const tab: LeadTab = isLeadTab(req.query.tab) ? req.query.tab : 'today';
+    res.json({ tab, items: await callQueue(currentUser(req), tab) });
   }),
 );
 

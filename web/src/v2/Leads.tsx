@@ -10,7 +10,7 @@ import { usePhoneHead } from './phone.js';
 import { useCallAction, type CallActions } from './call.js';
 import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
-import { given, groupByGivenDay } from '../lib/assigned.js';
+import { NOT_GIVEN, given, groupByGivenDay } from '../lib/assigned.js';
 import { callNote, type LeadFacets } from '../lib/facets.js';
 /*
  * "No answer" — the tab, the tag and the row's third button, 14 Nov.
@@ -22,7 +22,8 @@ import { callNote, type LeadFacets } from '../lib/facets.js';
  */
 import {
   MENU_RESULTS, NoAnswerButton, RESULT_LABEL, StageTriesTag, TabNotReady, TriesPill,
-  dubaiMoment, lastTryText, nextStepWithTries, nextTryText, nextTryOf, saveCallResult,
+  dubaiMoment, lastResultLabel, lastTryText, nextStepWithTries, nextTryText, nextTryOf,
+  saveCallResult,
   saveRefused, savedLine, todayInDubai, tomorrowInDubai, triesOf, tryIsDue,
   undoCallResult, undoRefused, useTried,
   type CallResult, type RowNoAnswer, type TriedLeads,
@@ -86,8 +87,14 @@ const PHONE = 768;
  * the words now wait for a screen with room for both. The order of what
  * gives way is the owner's: a cut name first (never), then the next step,
  * then the buttons' words.
+ *
+ * Then 1700 the same day, and that number was guessed rather than counted.
+ * At 1700 the words leave the next step 30px — fifty cut cells on one
+ * screen, against eight at 1699 — because from 1700 up the Project also
+ * widens to 214 and the Stage is already 204. `v2-no-answer.css` has the
+ * arithmetic. 1920 is where both fit, so it waits for that.
  */
-const TIGHT = 1700;
+const TIGHT = 1920;
 
 function useIsPhone(): boolean {
   return useBelow(PHONE);
@@ -362,7 +369,29 @@ export function whenShort(value: string | null): string {
  * on it looks wrong at a glance. `label` is the prefix: "Given to you" on an
  * agent's own list, nothing in a column that is already headed.
  */
-function GivenLine({ at, label }: { at: string | null; label?: string }) {
+function GivenLine({ at, label, short }: {
+  at: string | null;
+  label?: string;
+  /**
+   * The table's own form: the clock alone, with the day left to the heading.
+   *
+   * Emir, 14 November, looking at the real site at 1440px on 2,037 leads:
+   * *"Leads list: project name, Given date and 'Last contact' header are
+   * still cut at 1440 px."* He is right, and the earlier measurement missed
+   * it because the preview's data was kinder than his — see the note in
+   * `preview/mock-api.ts`.
+   *
+   * Measured: "Yesterday 16:51 · 25 h ago" needs 174px and the column is
+   * 84px, so two rows in three were cut. The column cannot have 174px at
+   * 1440 — there is no 90px to take from anything that is not also cut —
+   * and the day in it is a word the table has already said: every row sits
+   * under a heading reading "Today", "Yesterday" or "Wednesday 12 Nov", and
+   * the never-given rows under one reading "Not given out yet". So in the
+   * table the cell carries the clock and how long it has been sitting, on
+   * two lines, and the whole date and time stays in the hover.
+   */
+  short?: boolean;
+}) {
   const line = given(at);
   /*
    * Two lines, not one: the day in the reading weight on top and how long it
@@ -371,13 +400,23 @@ function GivenLine({ at, label }: { at: string | null; label?: string }) {
    * being scannable — and the "2 days ago" is the half an agent actually
    * acts on, so it earns a line of its own rather than a tail after a dot.
    */
+  /*
+   * "Not yet" where there is no date at all, in the short form.
+   *
+   * Not a dash and not a blank: the same two words the Last contact column
+   * already uses for the same question, and the full sentence is in the
+   * hover and in the heading above the group.
+   */
+  const when = short
+    ? (line.missing ? 'Not yet' : line.clock)
+    : line.when;
   return (
     <span
       className={line.stale ? 'v2-given v2-given-old' : line.missing ? 'v2-given v2-given-none' : 'v2-given'}
-      title={line.exact ?? undefined}
+      title={line.missing ? NOT_GIVEN : (line.exact ?? undefined)}
     >
       <span className="v2-given-when">
-        {label && !line.missing ? `${label} ` : ''}{line.when}
+        {label && !line.missing ? `${label} ` : ''}{when}
       </span>
       {line.ago && <span className="v2-given-ago">{line.ago}</span>}
     </span>
@@ -794,13 +833,16 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * "No answer 3+ times" — H.2, and the filter B.6 puts on the owner's own
    * No answer tab.
    *
-   * Narrowed here rather than on the server, which is the one filter on this
-   * screen that is: `/api/my-leads` takes no minimum-tries parameter and
-   * `listSchema` drops a key it does not know, so sending one would have
-   * shown an unfiltered list under a filter chip. So it filters the rows in
-   * hand, and the count line says so in words rather than claiming the
-   * server's total. The whole-book version is one clause in `buildFilters`,
-   * in somebody else's file this week — it is in the report.
+   * On the server, like every other filter on this screen: `?tries=3` is
+   * `o.no_answer_count >= 3` inside `buildFilters`, so the list, the total,
+   * the tab counts, the country and language chips and "select all" are all
+   * narrowed by it.
+   *
+   * It used to be narrowed here instead, over the fifty rows the page had in
+   * hand, with the count line saying so in words — "12 of the 50 loaded
+   * tried 3+ times". That was honest about what it had done and still the
+   * wrong answer to the owner's question, which is about 2,037 leads and not
+   * about a page of them.
    */
   const manyTries = params.get('tries') === '3';
 
@@ -853,8 +895,11 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     if (country) next.set('country', country);
     if (language) next.set('language', language);
     if (added) next.set('added', added);
+    /* "No answer 3+ times" goes to the server with every other filter now —
+       H.2 over the whole book rather than over the page in hand. */
+    if (manyTries) next.set('tries', '3');
     return next.toString();
-  }, [tab, search, stage, project, agent, source, country, language, added]);
+  }, [tab, search, stage, project, agent, source, country, language, added, manyTries]);
 
   const leads = useAsync<ListResponse>(() => api.get(`/api/my-leads?${qs}`), [qs]);
   /* Deliberately unnarrowed, like it was: a tab says how many leads that
@@ -950,13 +995,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     }
   }
 
-  /*
-   * Everything the server sent for this question, before the one filter that
-   * is ours. `rows` below is what is drawn, and the two are told apart on
-   * purpose: the count line has to be able to say "12 of the 50 loaded".
-   */
-  const loadedRows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
-  const rows = manyTries ? loadedRows.filter((row) => triesOf(row) >= 3) : loadedRows;
+  /* Everything the server sent for this question — every filter, the minimum
+     tries included, has been applied by it. */
+  const rows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
   const total = leads.data?.total ?? 0;
   /*
    * Does the server know this tab yet?
@@ -979,6 +1020,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    */
   const inTryOrder = onNoAnswerTab ? [...rows].sort(bySoonestTry) : rows;
   const todayCount = counts.data?.today ?? 0;
+  /* The No answer tab's own count, for B.7's bar. The server's, over the
+     whole book — never the rows on this page. */
+  const noAnswerCount = counts.data?.no_answer ?? 0;
   /* The black bar's two other numbers, both from the counts endpoint: real
      calls out of Emir's own daily goal. No goal, no progress line. */
   const callsToday = counts.data?.callsToday ?? 0;
@@ -1062,8 +1106,6 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     const when = { today: 'Today', week: 'This week', month: 'This month' }[added] ?? added;
     chips.push({ key: 'added', text: `Added: ${when}` });
   }
-  /* The one chip whose number is counted here rather than by the server, so
-     it says which rows it looked at. */
   if (manyTries) chips.push({ key: 'tries', text: 'No answer 3+ times' });
 
   function dropChip(key: string) {
@@ -1080,16 +1122,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * narrowing happens here, over the rows in hand, so it says how many of
    * those were looked at rather than borrowing the server's total.
    */
-  const count = manyTries
-    ? (
-      <>
-        <b className="d-ink-2">{rows.length.toLocaleString()}</b> of the
-        {' '}{loadedRows.length.toLocaleString()} loaded tried 3+ times
-      </>
-    )
-    : rows.length < total
-      ? <><b className="d-ink-2">{rows.length.toLocaleString()}</b> of {total.toLocaleString()} leads</>
-      : <><b className="d-ink-2">{total.toLocaleString()}</b> {total === 1 ? 'lead' : 'leads'}</>;
+  const count = rows.length < total
+    ? <><b className="d-ink-2">{rows.length.toLocaleString()}</b> of {total.toLocaleString()} leads</>
+    : <><b className="d-ink-2">{total.toLocaleString()}</b> {total === 1 ? 'lead' : 'leads'}</>;
 
   /*
    * §1.4: the live count goes under the title in the shell's header, not in a
@@ -1131,11 +1166,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       : onNoAnswerTab ? ' · next try first' : '';
   const resultLine = search.trim()
     ? `${rows.length} found for “${search.trim()}”`
-    : manyTries
-      ? `${rows.length} of the ${loadedRows.length} loaded tried 3+ times${order}`
-      : rows.length < total
-        ? `${rows.length} shown of ${total.toLocaleString()}${order}`
-        : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
+    : rows.length < total
+      ? `${rows.length} shown of ${total.toLocaleString()}${order}`
+      : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
 
   /**
    * The people a lead may be given to, in the design's order: whoever can
@@ -1769,6 +1802,49 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       )}
 
       {/*
+        * B.7: *"Call these one by one."*
+        *
+        * The same bar at the top of the No answer tab, so the whole
+        * second-try list can be worked without coming back to the table
+        * between calls. The dialler reads `?tab=` and builds its queue from
+        * the same `TABS.no_answer` clause this list is built from — one
+        * definition of which leads, so the number on the button and the rows
+        * under it cannot disagree.
+        *
+        * The tab's own count and not `rows.length`, because the number has to
+        * be the answer to the question the button asks. The dialler walks the
+        * whole tab: with "No answer 3+ times" on, the table shows 28 of 83
+        * and the queue still holds all 83, so the bar says 83 and its second
+        * line says why — rather than promising 28 and handing over 83.
+        *
+        * The agent's list only, like the Start calling bar above it. A
+        * manager or owner on this tab is looking at other people's leads, and
+        * a dialler that walked the team's second tries is not a thing anybody
+        * asked for.
+        */}
+      {!book && onNoAnswerTab && rows.length > 0 && (
+        <div className="v2-callbar">
+          <span className="v2-callbar-ic"><Icon name="phone-off" /></span>
+          <div className="v2-callbar-main">
+            <b className="v2-callbar-head">
+              {noAnswerCount} {noAnswerCount === 1 ? 'lead is' : 'leads are'} waiting on another try
+            </b>
+            <span className="v2-callbar-sub">
+              {manyTries
+                ? 'one at a time, soonest first · the dialler walks the whole tab'
+                : 'one at a time, soonest first'}
+            </span>
+          </div>
+          <Link
+            className="d-btn d-primary v2-callbar-go"
+            to="/v2/calling?tab=no_answer"
+          >
+            <Icon name="phone" />Call these one by one
+          </Link>
+        </div>
+      )}
+
+      {/*
         * One row: search, the dropdowns, the count on the right. Emir's own
         * §2.7 — *"One filter row: search | Stage | Project | Country |
         * Language | lead count on the right"* — and the owner's §3 adds Agent,
@@ -2072,7 +2148,17 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                           ? (
                             <>
                               {!isAgent && <th>Agent</th>}
-                              <th title="When this lead was last spoken to">Last contact</th>
+                              {/*
+                                * "LAST CONTACT" is 110px of 11px uppercase
+                                * with the design's letter-spacing and the
+                                * column is 74px at 1440 — the header Emir
+                                * reported cut. Every header in this table
+                                * wraps rather than clips now; see
+                                * `v2-shell.css`.
+                                */}
+                              <th title="When this lead was last spoken to">
+                                Last contact
+                              </th>
                             </>
                           )
                           : <th>Local time</th>}
@@ -2152,13 +2238,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
           {rows.length > 0 && (
             <div className="d-table-foot">
-              {/* With the tries filter on, the server's total is not what is
-                  on screen, so the foot says what it really counted. */}
-              <span>
-                {manyTries
-                  ? `${rows.length.toLocaleString()} of the ${loadedRows.length.toLocaleString()} loaded`
-                  : `1–${rows.length.toLocaleString()} of ${total.toLocaleString()}`}
-              </span>
+              <span>{`1–${rows.length.toLocaleString()} of ${total.toLocaleString()}`}</span>
               <span className="d-small d-muted">· {PAGE} per page</span>
               <span className="d-grow" />
               {rows.length < total && (
@@ -2689,7 +2769,7 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
             the clock time — and the warm colour when it is not today's. */}
         <GivenLine at={row.assigned_at} label="Given" />
         {/* B.5's tag, on the owner's phone row as well. */}
-        <TriesPill tries={triesOf(row)} />
+        <TriesPill tries={triesOf(row)} said={lastResultLabel(row)} />
         {why.tone !== 'calm' && <span className="v2-a-warn">{why.text}</span>}
       </Link>
       <span className={movedTo ? 'v2-a-agpill v2-a-agpill-moved' : 'v2-a-agpill'}>
@@ -2972,8 +3052,22 @@ function LeadRow({
           : <span className="v2-t-nophone">No phone</span>}
       </td>
 
-      <td>
-        {row.project_name ?? '–'}
+      {/*
+        * The project.
+        *
+        * The name is in a span of its own so it can be clamped to two lines
+        * on the owner's book, where the cell carries nothing else: a
+        * developer writes "Saadiyat Lagoons by Aldar" and "ROSE HILL BY
+        * EMAAR", neither of which fits a 102px column on one line at
+        * 1440px, and both of which read whole over two. The agent's list
+        * keeps one line, because its second line is the budget — §2.3 of
+        * Emir's own list — and three lines do not fit a 52px row.
+        *
+        * `title` on the cell either way, so the longest names a 10-column
+        * book cannot hold are still one hover away.
+        */}
+      <td className="v2-t-proj" title={row.project_name ?? undefined}>
+        <span className="v2-t-projname">{row.project_name ?? 'No project yet'}</span>
         {!wide && wanted(row) && <span className="d-t-sub">{wanted(row)}</span>}
       </td>
 
@@ -2987,7 +3081,7 @@ function LeadRow({
             * words rather than as a guess or a dash.
             */
           <>
-            <td className="v2-na-c-tries"><TriesPill tries={tries} /></td>
+            <td className="v2-na-c-tries"><TriesPill tries={tries} said={lastResultLabel(row)} /></td>
             <td className="v2-na-c-last">
               <span className="v2-na-last">{lastTryText(lastTry)}</span>
             </td>
@@ -3044,7 +3138,7 @@ function LeadRow({
               * again tomorrow 11:00" — is in the Next step cell of this same
               * row, which is B.5's other half. Noted as a deviation.
               */}
-            <StageTriesTag tries={tries} />
+            <StageTriesTag tries={tries} said={lastResultLabel(row)} />
           </span>
         </td>
 
@@ -3054,7 +3148,7 @@ function LeadRow({
           * the day and time plus how long it has been sitting on anything
           * older, in warm amber.
           */}
-        <td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>
+        <td className="v2-given-cell"><GivenLine at={row.assigned_at} short /></td>
 
         {wide
           ? (
@@ -3065,15 +3159,34 @@ function LeadRow({
                    so the Undo in the toast is about something visible. */
                 <td className={movedTo ? 'd-pulse-row' : undefined}>
                   {/*
-                    * The first name, as picture 02 draws it — "Rocky",
-                    * "Nelson", "Talha", "Yuliia". The avatar carries the rest,
-                    * the full name is one hover away, and the column is 100px
-                    * wide on a book with nine other columns in it.
+                    * The first name — "Rocky", "Nelson", "Talha", "Yuliia" —
+                    * and no face beside it.
+                    *
+                    * Picture 02 draws a face here and the build had one, and
+                    * it was costing the name: the cell wants 136px with the
+                    * face and the column is 91 at 1440, so "Abdulrahman" came
+                    * out as "Abdulra" and "Mohammed" as "Moham". That is the
+                    * complaint this whole rebuild started from — a cut name —
+                    * one column over, and it does not matter whose name it
+                    * is.
+                    *
+                    * The face cannot be paid for: the 45px it would take are
+                    * not spare anywhere on a ten-column book at 1440 (the
+                    * next step is at its own measured minimum and every other
+                    * column is within a few pixels of its need). Without it
+                    * the cell wants 104, which the tick box, Last contact,
+                    * Attention and the Project could each give a few pixels
+                    * towards. So the name reads whole and the face is the
+                    * thing that goes, which is the way round that matches
+                    * "a person's name is never clipped".
+                    *
+                    * It is a deviation from picture 02 and it is in the
+                    * report, for Emir to overrule if he would rather have
+                    * the face and lose the long names.
                     */}
                   {(movedTo ?? row.owner_name)
                     ? (
                       <span className="d-person" title={(movedTo ?? row.owner_name) as string}>
-                        <Avatar name={(movedTo ?? row.owner_name) as string} size={26} />
                         {String(movedTo ?? row.owner_name).split(' ')[0]}
                       </span>
                     )
@@ -3127,19 +3240,26 @@ function LeadRow({
         <td
           className={[
             step.urgent ? 'd-next d-overdue' : step.none ? 'd-next d-muted' : 'd-next',
-            /* Two lines on a laptop — see below. */
-            withTries.tries > 0 && narrow ? 'v2-na-step2' : '',
+            /* Two lines under 1700px — see below. */
+            withTries.tries > 0 && tight ? 'v2-na-step2' : '',
           ].filter(Boolean).join(' ')}
           title={withTries.full}
         >
           {/*
-            * On a laptop this column is 136px and B.5's sentence is 218, so
-            * it is drawn as two short lines that both read whole rather than
-            * one that is cut after "No answer ×2 · to…". The row is 52px and
-            * two 12px lines fit inside it. One line again from 1400 up,
-            * where the sentence fits; the hover always carries it in full.
+            * B.5's sentence as two short lines that both read whole, rather
+            * than one that is cut after "No answer ×2 · to…". The row is
+            * 52px and two 12px lines fit inside it.
+            *
+            * Under 1700px rather than under 1400. It was under 1400, and the
+            * re-measurement on 14 November with the fixtures widened to the
+            * real book's shape showed why that was the wrong line: at 1440
+            * the column is about 170px and "No answer ×2 · 16 Nov 00:35"
+            * measures 204, so 39 rows in 50 were cut there — including, as
+            * always, the half an agent acts on. Two lines need 106. From
+            * 1700 up the column has 400px and more and the sentence goes
+            * back to one line; the hover carries it in full at every width.
             */}
-          {withTries.tries > 0 && narrow
+          {withTries.tries > 0 && tight
             ? (
               <>
                 <span className="v2-na-step-tag">{withTries.tag}</span>

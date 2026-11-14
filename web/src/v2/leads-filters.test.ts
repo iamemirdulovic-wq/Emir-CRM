@@ -23,6 +23,14 @@ const read = (file: string) => readFileSync(file, 'utf8');
 const LEADS = read(path.join(HERE, 'Leads.tsx'));
 const SHELL = read(path.join(HERE, '..', 'styles', 'v2-shell.css'));
 const PHONE_CSS = read(path.join(HERE, '..', 'styles', 'v2-phone-a.css'));
+/*
+ * The No answer rule's own stylesheet, which overrides two of the budget's
+ * columns. The agent's list always carries one of its two modifiers —
+ * `v2-na-acts` on every ordinary tab, `v2-na-cols` on the No answer tab — so
+ * a sum that reads `v2-shell.css` alone is a sum of a table that is never
+ * drawn: it counts 176px of buttons where 132 is in force.
+ */
+const NA_CSS = read(path.join(HERE, '..', 'styles', 'v2-no-answer.css'));
 
 /**
  * The code with its comments taken out.
@@ -313,27 +321,43 @@ describe('the leads table fits the card', () => {
     const NEED_NEXT = 167;
 
     for (const table of ['v2-cols-mine', 'v2-cols-book']) {
-      const shares = new Map<string, number>();
+      /*
+       * One width per column, whichever form it is written in.
+       *
+       * Pixels and shares were collected into two maps, and a column that is
+       * a pixel width at 1440 and a share below it — which three of them are
+       * since 14 Nov — was then counted twice: the budget read as 95px over
+       * what it is and the test failed on a table that fits. First occurrence
+       * in the file wins, which is the base block, which is what applies at
+       * the 1440 this sum is about: the `max-width:1399px` overrides come
+       * after it on purpose.
+       */
+      const widths = new Map<string, number>();
+      const card = 1148;
       for (const found of SHELL.matchAll(
-        new RegExp(`\\.v2 \\.d-id-leads\\.${table} th:nth-child\\((\\d+)\\)\\{ width:([\\d.]+)%; \\}`, 'g'),
+        new RegExp(`\\.v2 \\.d-id-leads\\.${table} th:nth-child\\((\\d+)\\)\\{ width:([\\d.]+)(px|%); \\}`, 'g'),
       )) {
-        if (!shares.has(found[1] as string)) shares.set(found[1] as string, Number(found[2]));
+        const column = found[1] as string;
+        if (widths.has(column)) continue;
+        const value = Number(found[2]);
+        widths.set(column, found[3] === '%' ? (value / 100) * card : value);
       }
-      /* One width per column: the file also carries a narrow-window override
-         for the buttons and the clock, and counting both would add two
-         columns to an eight-column table. */
-      const pixels = new Map<string, number>();
-      for (const found of SHELL.matchAll(
-        new RegExp(`\\.v2 \\.d-id-leads\\.${table} th:nth-child\\((\\d+)\\)\\{ width:(\\d+)px; \\}`, 'g'),
-      )) {
-        if (!pixels.has(found[1] as string)) pixels.set(found[1] as string, Number(found[2]));
+      /*
+       * The modifier the agent's list really carries. Four icon buttons, not
+       * three with their words, so the last column is 132px and not 176 —
+       * and the 44px is the difference between a next step that holds
+       * "Overdue 14 Nov, 09:12" and one that does not.
+       */
+      if (table === 'v2-cols-mine') {
+        const acts = NA_CSS.match(
+          /\.v2 \.d-id-leads\.v2-cols-mine\.v2-na-acts th:nth-child\((\d+)\)\{ width:(\d+)px; \}/,
+        );
+        if (acts) widths.set(acts[1] as string, Number(acts[2]));
       }
-      expect(shares.size + pixels.size, `${table}: most columns have a width`).toBeGreaterThan(6);
+      expect(widths.size, `${table}: most columns have a width`).toBeGreaterThan(6);
 
       /* At the owner's own 1,440px the card is 1,148px wide. */
-      const card = 1148;
-      const used = [...pixels.values()].reduce((a, b) => a + b, 0)
-        + [...shares.values()].reduce((a, b) => a + (b / 100) * card, 0);
+      const used = [...widths.values()].reduce((a, b) => a + b, 0);
       const next = card - used;
       expect(next, `${table}: the next step gets ${Math.round(next)}px of ${card}`)
         .toBeGreaterThanOrEqual(NEED_NEXT);
@@ -344,7 +368,7 @@ describe('the leads table fits the card', () => {
        * need is fixed. A share gave it 198px at 1280 (a cut name) and 249 at
        * 1440 (28px more than the longest name wants, off the next step).
        */
-      const lead = pixels.get(table === 'v2-cols-book' ? '2' : '1') ?? 0;
+      const lead = widths.get(table === 'v2-cols-book' ? '2' : '1') ?? 0;
       expect(lead, `${table}: the lead column is ${lead}px at every width`)
         .toBeGreaterThanOrEqual(NEED_NAME);
     }
@@ -367,9 +391,22 @@ describe('the leads table fits the card', () => {
   it('asks for 52px rows, and takes the two things that made them 130', () => {
     /* §2.6: "Rows about 52 px high. 12 leads fit on one screen." */
     expect(SHELL).toMatch(/height:52px; padding-top:6px; padding-bottom:6px;/);
-    /* The source line under every name, and the Given date on three lines. */
+    /* The source line under every name, and the Given date on five lines. */
     expect(LEADS).not.toContain('v2-t-from');
-    expect(SHELL).toContain('.v2 .d-id-leads td.v2-given-cell .v2-given-ago::before{ content:" · "; }');
+    /*
+     * The Given cell is two lines again, and that is not the five-line
+     * version coming back.
+     *
+     * It was flattened to one line with a middle dot between the halves,
+     * which was right while the cell said "12 Nov 18:57 · 2 days ago". It
+     * now says the clock and the waiting time only — the day is in the
+     * heading over every row — and on one line those two measured 174px
+     * against an 84px column, so two rows in three were cut at 1440. Two
+     * short lines need 66px, and two 12px lines sit inside a 52px row: the
+     * row height is what this test is really about and it is asserted above.
+     */
+    expect(SHELL).toContain('.v2 .d-id-leads td.v2-given-cell .v2-given{ display:block; line-height:1.25; }');
+    expect(SHELL).not.toContain('.v2-given-ago::before{ content:" · "; }');
   });
 
   it('drops the row buttons’ words before it drops the next step', () => {

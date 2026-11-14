@@ -63,33 +63,44 @@
 .v2-na-pill > svg{ width:12px; height:12px; color:var(--ink-3); flex:none; }
 
 /*
- * The same count beside the stage, on every other tab — B.5.
+ * The tag beside the stage pill — B.5, and Emir's own words for it.
  *
- * The stage column is 88px and the row is 52px, so the words do not fit
- * beside the pill at any width. This sits under it: the count, the phone-off
- * icon, and the words in the hover. The full sentence is in the Next step
- * cell of the same row.
+ * A grey pill on the same row as the stage pill, the same height, reading
+ * "No answer ×2" or "Busy ×1" in words. No icon: a phone-off glyph in front
+ * of the words "No answer" says nothing the next sixty pixels do not, and
+ * the icon version is the one he called messy.
+ *
+ * ── Why it is not there below 1600px ─────────────────────────────────────
+ *
+ * Measured: the stage pill reading "Interested" is 91px, this tag with its
+ * words is 85, and side by side with the cell's padding they want about
+ * 198px. The Stage column has 108 at 1440, and the other 90 are not spare —
+ * the Attention column next to it is at the 167px that "Overdue 14 Nov,
+ * 12:04" measures, and every other column on that book is within a few
+ * pixels of its own need.
+ *
+ * So below 1600 nothing is drawn in this cell. Not an icon, not a stacked
+ * second line, not "NA ×2": the Next step cell on the same row carries
+ * "No answer ×2 · try again tomorrow 11:00" at every width, so the fact is
+ * on the screen once, in full words. The half-measures were the problem.
  */
-.v2-na-stagetag{
-  display:inline-flex; align-items:center; gap:2px;
-  /*
-   * 14px tall and nothing above it, which is what keeps the row at 52.
-   *
-   * The stage pill is 24px and the cell has 6px of padding top and bottom,
-   * so the tag has 14px to live in: at 15px with 2px above it the row grew
-   * to 54 and §2.6's "12 leads fit on one screen" quietly became eleven.
-   * Measured in a browser, not guessed.
-   */
-  margin-top:0; height:14px; padding:0 5px; border-radius:999px;
-  background:var(--surface-3); color:var(--ink-3);
-  font-size:10px; font-weight:700; line-height:1; white-space:nowrap;
-}
-.v2-na-stagetag > svg{ width:10px; height:10px; flex:none; }
+.v2-na-stagetag{ display:none; }
 
-/* The stage cell stacks: the pill, then the tag under it. Both stay inside a
-   52px row — 24px and 14px, measured. */
+@media (min-width:1600px){
+  .v2 .d-id-leads td.v2-t-stage .v2-na-stagetag{
+    display:inline-flex; align-items:center;
+    /* The stage pill's own height, so the two read as one row rather than as
+       a pill with something stuck to it. */
+    height:22px; padding:0 8px; border-radius:999px;
+    background:var(--surface-3); color:var(--ink-3);
+    font-size:11px; font-weight:650; line-height:1; white-space:nowrap;
+  }
+}
+
+/* The stage cell is a row: the pill, then the tag beside it. It stacked them
+   in a column, which is what put a tiny symbol on a line of its own. */
 .v2 .d-id-leads td.v2-t-stage .v2-na-stageline{
-  display:flex; flex-direction:column; align-items:flex-start; gap:0; min-width:0;
+  display:flex; flex-direction:row; align-items:center; gap:6px; min-width:0;
 }
 
 /* ── the two time columns ───────────────────────────────────────────────── */
@@ -183,12 +194,30 @@
 /*
  * The actions column on the agent's list, now that it holds four.
  *
- * 132px as icons. The words come back above 1700px, where there is room for
- * them and for a next step that does not ellipsise — `TIGHT` in `Leads.tsx`
- * is the same number, and it is the one place it is decided.
+ * 124px as icons: four 26px buttons with a 3px gap is 113, and 8px of right
+ * padding makes 121. It was 132, and the spare 8px went to the Project, which
+ * was cutting a name at 1440. The words come back above 1920px, where there
+ * is room for them and for a next step that does not ellipsise — `TIGHT` in
+ * `Leads.tsx` is the same number, and it is the one place it is decided.
+ *
+ * 1920 and not 1700, which is what it said until it was measured.
+ *
+ * At a 1700px window the card is 1,392px, and from 1700 up the row already
+ * declares Lead 230 · Phone 148 · Project 214 · Stage 204 · Given 78 ·
+ * Local time 124. Giving the buttons their words takes the other 344 and
+ * leaves the next step **30px** — not ellipsised, gone: fifty cells on the
+ * screen cut, where at 1699 it had 232 and cut eight. The band was never
+ * looked at, because 1440 and 1920 were the two widths anybody tested and
+ * both of them happen to be fine. A MacBook Pro 16" is 1728 by default,
+ * which lands in the middle of it.
+ *
+ * The words need the next step to hold "No answer ×2 · try again 16 Nov
+ * 00:26" on one line, which is 267px: 1342 of declared columns plus 267 is
+ * 1,609 of card, and a card is the window less about 308. So 1920, and the
+ * icons cover everything below it.
  */
-.v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:132px; }
-@media (min-width:1700px){
+.v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:124px; }
+@media (min-width:1920px){
   .v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:344px; }
 }
 
@@ -292,12 +321,13 @@
 .v2-na-waiting p{ margin:0; max-width:440px; color:var(--ink-3); font-size:13px; line-height:1.5; }
 
 /*
- * B.7's "Call these one by one" has no rule here because it is not built.
+ * B.7's "Call these one by one" has no rule here because it needs none.
  *
- * The power dialler reads `/api/v2/queue`, which takes no arguments and is
- * hard-wired to `TABS.today`, and `Calling.tsx` never looks at the URL — so
- * there is no way to hand it a set of leads, and a button that opened the
- * wrong list would be worse than no button. It is in the report.
+ * Built on 14 Nov. It is the same `v2-callbar` as "Start calling" above the
+ * Today tab, with the phone-off icon and a link to `/v2/calling?tab=no_answer`
+ * — so there is one bar, styled once. `/api/v2/queue` takes a tab now and
+ * builds the queue from `TABS[tab]`, the same clause this list is built from,
+ * and `Calling.tsx` reads the tab off the URL.
  */
 /* ── the phone ──────────────────────────────────────────────────────────── */
 

@@ -39,6 +39,16 @@ export interface Given {
   stale: boolean;
   /** `11:42` today, `Yesterday 16:30`, `12 Nov 10:05`. */
   when: string;
+  /**
+   * The clock time alone — `16:30` — with no day in front of it.
+   *
+   * For a table whose rows already sit under a day heading. The leads table
+   * groups every row under "Today", "Yesterday" or "Wednesday 12 Nov", so a
+   * cell that repeats the day is spending the column's width saying what the
+   * line above it already said; at 1440px that is what made this column read
+   * "Yesterday 16…". Empty string when there is no date at all.
+   */
+  clock: string;
   /** `21 h ago`, `2 days ago`. Null on today's, where the time is enough. */
   ago: string | null;
   /** The whole line: `Yesterday 16:30 · 21 h ago`, or the missing sentence. */
@@ -97,7 +107,7 @@ export function given(value: string | Date | null | undefined, now = new Date())
   const key = givenDayKey(value);
   if (!key || !value) {
     return {
-      missing: true, stale: false, when: NOT_GIVEN, ago: null,
+      missing: true, stale: false, when: NOT_GIVEN, clock: '', ago: null,
       text: NOT_GIVEN, exact: null,
     };
   }
@@ -115,6 +125,7 @@ export function given(value: string | Date | null | undefined, now = new Date())
       missing: false,
       stale: false,
       when: clock,
+      clock,
       ago: null,
       text: clock,
       exact: exactly(at),
@@ -126,7 +137,7 @@ export function given(value: string | Date | null | undefined, now = new Date())
     : `${civil(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} ${clock}`;
   const ago = sittingFor(at, now, back);
   return {
-    missing: false, stale: true, when, ago,
+    missing: false, stale: true, when, clock, ago,
     text: `${when} · ${ago}`, exact: exactly(at),
   };
 }

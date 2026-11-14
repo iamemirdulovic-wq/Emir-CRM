@@ -35,6 +35,26 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* The strip below answers to the width of this card, not of the window:
+     it is ~470px in the lead page's middle column and ~415px in the quick
+     panel while the window is 1440px wide. */
+  container-type: inline-size;
+}
+
+/*
+ * The strip stacks when it is not wide enough for one row.
+ *
+ * The picture draws the sentence and the black message button side by side,
+ * and at a comfortable width that is what happens. Below about 560px they
+ * do not fit, and squeezing them produced three ragged lines with "Change"
+ * stranded on the last one — so the sentence takes the full width and the
+ * message button takes the line under it.
+ */
+@container (max-width: 560px) {
+  /* Only the message button drops. The icon and the sentence stay on one
+     line together — the icon belongs *to* the sentence, and an icon alone on
+     a line of its own reads as a bullet for nothing. */
+  .v2 .v2-ln-strip .d-btn.d-sm { flex: 1 0 100%; }
 }
 
 /*
@@ -210,10 +230,10 @@
   transition: box-shadow .15s var(--ease);
   min-width: 0;
   /*
-   * The bottom row answers to the width of the box, not of the window: the
-   * lead page's middle column is about 470px on a 1440px screen, which is
-   * narrower than the quick panel is on some, and a rule keyed to the window
-   * would hide the keyboard hint on the wrong one of the two.
+   * The bottom row answers to the width of *this box*, not of the window.
+   * The lead page's middle column is about 460px on a 1440px screen and the
+   * quick panel's box about 415px, so both are narrow while the window is
+   * wide, and a rule keyed to the window would have dressed them as roomy.
    */
   container-type: inline-size;
 }
@@ -735,12 +755,18 @@
 /* ── The phone ─────────────────────────────────────────────────────────── */
 
 /*
- * Under 768px the six result pills, six type pills and five quick phrases
- * cannot all wrap and still leave Save within a thumb's reach, so the two
- * pill rows scroll sideways and the quick phrases keep wrapping. The bottom
- * row stays one line with Save pinned to its right end: Save is the thing a
- * thumb has to find, and a wrapped bottom row puts it somewhere different
- * depending on how long the other three labels are.
+ * What a phone does with six result pills, six type pills, a chip row and
+ * four controls at 390px.
+ *
+ * The result pills join the type pills in scrolling sideways, one row each,
+ * bleeding to the card's own edge so a half-shown pill reads as "there is
+ * more". The quick phrases keep wrapping — they are a set to browse, not a
+ * sequence, and a sideways row of them hides the ones an agent uses least.
+ * The bottom row wraps, with **Save note across the whole second line**: the
+ * container query above puts it there at any box narrower than 430px, and
+ * the alternative was tried — one scrolling row at 390px leaves Save off the
+ * right-hand edge, which is the one control a thumb must be able to find
+ * after writing a note.
  *
  * Every selector repeats the `v2-ln-` class it is overriding, because these
  * rules have to beat the ones above them in this same file as well as the
@@ -752,8 +778,10 @@
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    /* Room for the ring on the chosen pill, which a tight clip would cut. */
-    padding: 2px 0;
+    /* Room for the ring on the chosen pill, which a tight clip would cut,
+       and the bleed to the card's own edge. */
+    margin: 0 calc(var(--pad) * -1);
+    padding: 2px var(--pad);
   }
 
   .v2 .v2-ln-pills::-webkit-scrollbar { display: none; }
@@ -764,20 +792,11 @@
     padding: 0 14px;
   }
 
-  /* The pills bleed to the card's own edge too, for the same reason. */
-  .v2 .v2-ln-bar .v2-ln-pills { margin: 0 calc(var(--pad) * -1); padding: 2px var(--pad); }
-
   /* A phone has no Ctrl key, so the hint is noise rather than help here. */
   .v2 .v2-ln-box .v2-ln-kbd { display: none; }
 
-  /*
-   * The strip stacks: the sentence on its own lines, then the one message
-   * across the full width. Side by side at 390px the sentence was squeezed
-   * into a four-word column beside the button, which is the same fault the
-   * blue tap line had before it was folded into this bar.
-   */
-  .v2 .v2-ln-strip { align-items: flex-start; }
-  .v2 .v2-ln-strip .d-btn.d-sm { width: 100%; }
+  /* The strip's stacking is a container query above, so it is right in the
+     quick panel on a 1440px screen as well as on a phone. */
 
   .v2 .v2-ln-note.v2-ln-note-pinned { padding: 12px; }
 

@@ -103,8 +103,9 @@ export function LeadPanel({
   const detail = useAsync<{
     lead: Row & {
       email: string | null; language: string | null; preferred_location: string | null;
-      /** The run, per `docs/v2/call-results-contract.md` §3, when sent. */
-      noAnswer?: NoAnswerState | null;
+      /** The run as a row carries it — contract §3: the count and the two
+          times. The bar reads the whole block itself. */
+      noAnswer?: Partial<NoAnswerState> | null;
     };
     /* The lead's history comes with the record and was being thrown away.
        It is where the call results already on the lead are read from. */
@@ -134,7 +135,6 @@ export function LeadPanel({
    * three components the lead page draws.
    */
   const [asking, setAsking] = useState<Asking | null>(null);
-  const [run, setRun] = useState<NoAnswerState | null>(null);
   const [justSaved, setJustSaved] = useState<CallResultLine[]>([]);
   /** Bumped when a note is saved, so the list under the box re-reads. */
   const [noteStamp, setNoteStamp] = useState(0);
@@ -368,15 +368,13 @@ export function LeadPanel({
           <CallResultBar
             opportunityId={row.id}
             lead={row}
-            state={run ?? detail.data?.lead.noAnswer ?? null}
+            state={detail.data?.lead.noAnswer ?? null}
             asking={asking}
             dial={dial}
-            compact
             onDismiss={() => setAsking(null)}
             onGiveUp={() => { setDoneStep(null); setDoing('lost'); }}
             onAnswered={() => box.current?.focus('call_summary')}
             onSaved={(said, state, result) => {
-              setRun(state);
               setAsking(null);
               setJustSaved((was) => [{
                 id: `just-${Date.now()}`,
@@ -399,7 +397,6 @@ export function LeadPanel({
               contactId={row.contact_id}
               opportunityId={row.id}
               who={firstName(name)}
-              compact
               onSaved={(said) => {
                 setNoteStamp((n) => n + 1);
                 brief.reload();

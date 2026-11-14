@@ -772,6 +772,17 @@ export async function saveCallResult(
     reason: input.reason?.trim() || REASON[input.result] || null,
     note: input.note ?? null,
     nextStep: nextStepFor(input.result, next.at, callBackAt, settings, tries),
+    /*
+     * Which of the six it was, on the timeline row itself.
+     *
+     * `ACTION` maps both Busy and No answer onto the same lead action, which
+     * is right — they both mean "did not speak to them" and both count a try
+     * — but it leaves the row unable to say which. The owner's picture shows
+     * the Tries column reading `Busy ×1`, so the row has to know. Written
+     * here, read by `LAST_RESULT_SQL`, and taken back by §1b's undo along
+     * with the rest of that row, because it is part of it.
+     */
+    meta: { result: input.result },
   });
 
   /*
@@ -985,10 +996,36 @@ export async function callResultState(
  */
 export function noAnswerOf(row: {
   no_answer_count?: unknown; last_try_at?: unknown; next_step_at?: unknown;
-}): { tries: number; lastTryAt: string | null; nextTryAt: string | null } | null {
+  last_result?: unknown;
+}): {
+  tries: number; lastTryAt: string | null; nextTryAt: string | null;
+  lastResult: 'no_answer' | 'busy' | null;
+} | null {
   const tries = Number(row.no_answer_count ?? 0);
   if (!Number.isFinite(tries) || tries <= 0) return null;
-  return { tries, lastTryAt: iso(row.last_try_at), nextTryAt: iso(row.next_step_at) };
+  return {
+    tries,
+    lastTryAt: iso(row.last_try_at),
+    nextTryAt: iso(row.next_step_at),
+    lastResult: lastResultOf(row.last_result),
+  };
+}
+
+/**
+ * Which of the two "did not speak to them" results the last try was.
+ *
+ * Only `busy` and `no_answer` can be the last try at all: every other result
+ * ends the run and puts `no_answer_count` back to zero, so a lead with tries
+ * on it was last either rung out or found engaged. Anything else that somehow
+ * reaches here reads as null, and the screen then says "No answer" — which is
+ * what every row said before this field existed.
+ */
+function lastResultOf(value: unknown): 'no_answer' | 'busy' | null {
+  /* MySQL's JSON_UNQUOTE gives a plain string; a driver that hands back the
+     quoted JSON instead is stripped rather than shown with its quotes. */
+  const said = typeof value === 'string' ? value.replace(/^"|"$/g, '') : '';
+  if (said === 'busy' || said === 'no_answer') return said;
+  return null;
 }
 
 /** The SQL that puts `last_try_at` on a lead row. */
@@ -997,6 +1034,31 @@ export const LAST_TRY_SQL = `
     SELECT MAX(a.created_at) FROM activities a
      WHERE a.opportunity_id = o.id AND a.type = 'no_answer'
        AND JSON_EXTRACT(a.meta, '$.undone') IS NULL
+  ) END`;
+
+/**
+ * And the SQL that puts `last_result` beside it — "Busy ×1" rather than
+ * "No answer ×1" where the last try was a busy line.
+ *
+ * The same row `LAST_TRY_SQL` reads, chosen the same way: the newest
+ * `no_answer` activity that has not been taken back. `saveCallResult` writes
+ * `result` into that row's `meta`. A try logged before this existed, or one
+ * logged by a path that does not go through `saveCallResult`, has no `result`
+ * in its meta and comes back null — and the screen says "No answer", which
+ * is both what it said before and what the action itself means.
+ *
+ * `created_at DESC, id DESC` rather than `MAX()`, because what is wanted is a
+ * column off the newest row and not the largest value of one; two tries
+ * inside the same millisecond are then still settled, which matters on
+ * MariaDB as much as on MySQL. No aggregate is named in ORDER BY.
+ */
+export const LAST_RESULT_SQL = `
+  CASE WHEN o.no_answer_count > 0 THEN (
+    SELECT JSON_UNQUOTE(JSON_EXTRACT(a.meta, '$.result')) FROM activities a
+     WHERE a.opportunity_id = o.id AND a.type = 'no_answer'
+       AND JSON_EXTRACT(a.meta, '$.undone') IS NULL
+     ORDER BY a.created_at DESC, a.id DESC
+     LIMIT 1
   ) END`;
 
 function iso(value: unknown): string | null {

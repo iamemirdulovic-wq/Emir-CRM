@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
+import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { formatTime } from '../lib/format.js';
 import { civil } from '../lib/calendar.js';
@@ -88,19 +89,22 @@ const TAP_OUTCOME: Record<CallResult, string> = {
 };
 
 export function CallResultBar({
-  opportunityId, lead, state, asking, dial, compact = false,
+  opportunityId, lead, state, asking, dial,
   onSaved, onAnswered, onDismiss, onGiveUp,
 }: {
   opportunityId: string;
   /** The lead itself, for the "I tried to call you" hand-off. */
   lead: CallableLead;
-  /** The run as the record holds it, or null when nothing is known yet. */
-  state: NoAnswerState | null;
+  /**
+   * The run as the lead row carries it, which is only part of it: contract
+   * §3 puts `{tries, lastTryAt, nextTryAt}` on a row and nothing more. The
+   * bar reads the whole block itself — see `whole` below — and falls back to
+   * this while that read is in the air, or if it fails.
+   */
+  state: Partial<NoAnswerState> | null;
   /** Set after a Call or WhatsApp tap; null when nothing is pending. */
   asking: Asking | null;
   dial: CallActions;
-  /** The quick panel and the phone: a tighter row, same buttons. */
-  compact?: boolean;
   /**
    * A result was written. The sentence is for a toast, the state is the run
    * as the endpoint now holds it, and the result is what was pressed — the
@@ -117,6 +121,23 @@ export function CallResultBar({
   const [busy, setBusy] = useState<CallResult | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [chosen, setChosen] = useState<CallResult | null>(null);
+  /**
+   * The whole run, read from the endpoint that answers with it.
+   *
+   * `GET /api/v2/leads/:id/call-result` gives the same shape a save does, so
+   * the strip can say "try 2 of 5" and know the run is used up on the first
+   * drawing of the page rather than only after the next tap — the row's own
+   * `noAnswer` block carries the count but neither the limit nor the end.
+   *
+   * It is allowed to fail quietly: the bar's six buttons are the point, and
+   * a lead with no run at all answers with tries 0, which draws no strip.
+   */
+  const whole = useAsync<NoAnswerState>(
+    () => api.get(`/api/v2/leads/${opportunityId}/call-result`),
+    [opportunityId],
+  );
+  /** What the last save answered with, which is fresher than either. */
+  const [saved, setSaved] = useState<NoAnswerState | null>(null);
   /** Open for Call back, and for Change on the strip. */
   const [picking, setPicking] = useState<null | 'call_back' | 'change'>(null);
   const [when, setWhen] = useState('');
@@ -153,6 +174,7 @@ export function CallResultBar({
         { result, ...(callBackAt ? { callBackAt } : {}) },
       );
       setChosen(result);
+      setSaved(next);
       setPicking(null);
 
       /*
@@ -188,15 +210,18 @@ export function CallResultBar({
     void save(result);
   }
 
-  const tries = state && state.tries > 0 ? state : null;
-  /* "nothing happens on its own now" only when the record says so. */
+  /* Freshest first: what this bar just saved, then what it read, then the
+     part the row carried in. */
+  const run: Partial<NoAnswerState> | null = saved ?? whole.data ?? state ?? null;
+  const tries = run && (run.tries ?? 0) > 0 ? run : null;
+  /* The approved "I tried to call you" text, when the endpoint sent one. */
   const message = tries?.whatsapp?.text ?? null;
 
   return (
     <section
       ref={card}
       className={asking ? 'd-card v2-ln-bar v2-ln-bar-asking' : 'd-card v2-ln-bar'}
-      aria-label="What happened on the call"
+      aria-label="What happened on the call or the message"
     >
       <div className="v2-ln-head">
         <b>What happened?</b>
@@ -293,11 +318,12 @@ export function CallResultBar({
       )}
 
       {/*
-        * Where the run stands. One row: what happened, how many tries, when
-        * the next one is, Change — and, pinned to the right end, the one
-        * message. The strip is only drawn when there is a real run to
-        * describe; a lead nobody has failed to reach shows the six pills and
-        * nothing else.
+        * Where the run stands: what happened, how many tries, when the next
+        * one is, Change — and the one message, beside them where there is
+        * room and on a line of its own where there is not.
+        *
+        * Only drawn when there is a real run to describe. A lead nobody has
+        * failed to reach shows the six pills and nothing else.
         */}
       {tries && (
         <div className={tries.exhausted ? 'v2-ln-strip v2-ln-strip-done' : 'v2-ln-strip'}>
@@ -308,9 +334,10 @@ export function CallResultBar({
             <span>
               {RESULT_LABEL.no_answer}
               {' · '}
-              {/* "of 5" only when the record says 5. A lead row that carries
-                  the count without the limit — which is what the list sends
-                  today — reads "try 2" rather than "try 2 of undefined". */}
+              {/* "of 5" only when the record says 5. For the moment before
+                  the read above lands, all there is is the row's own count
+                  (contract §3), and that reads "try 2" rather than "try 2
+                  of undefined". */}
               <b>
                 try {tries.tries}
                 {typeof tries.maxTries === 'number' && tries.maxTries > 0
@@ -349,8 +376,11 @@ export function CallResultBar({
               title="Opens WhatsApp with it typed in. You press send."
               onClick={() => { void dial.whatsapp(lead, { text: message }); }}
             >
+              {/* The owner's own words, quotes and all, at every width: the
+                  strip drops the button onto a line of its own below about
+                  560px rather than shortening what it says. */}
               <Icon name="message-circle" size={14} />
-              {compact ? 'Send the message' : 'Send “I tried to call you”'}
+              Send “I tried to call you”
             </button>
           )}
         </div>

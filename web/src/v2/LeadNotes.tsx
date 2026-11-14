@@ -242,8 +242,10 @@ function NoteRow({
   return (
     <div className={note.pinned === 1 ? 'v2-ln-note v2-ln-note-pinned' : 'v2-ln-note'}>
       <span className="v2-ln-note-who">
+        {/* The same fallback as the name beside it, so a note whose author
+            has been deleted does not read "?" next to "Someone". */}
         <Avatar
-          name={note.author_name}
+          name={note.author_name ?? 'Someone'}
           src={myPhoto ?? undefined}
           size={compact ? 26 : 32}
         />

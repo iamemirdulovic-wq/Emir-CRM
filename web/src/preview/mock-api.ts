@@ -129,6 +129,9 @@ const DEMO_LEAD_ROWS = 124;
  */
 const previewTries = new Map<string, number>();
 
+/** And which of the two the last try was, for the same reason — the pill. */
+const previewLastResult = new Map<string, 'no_answer' | 'busy'>();
+
 /*
  * Numbers for the preview's synthetic leads, weighted the way Emir's own
  * export is: mostly UAE and UK, then Russia, India, Saudi and a handful of
@@ -312,7 +315,7 @@ function myLeadRows() {
      * `lastTryAt` from the last `no_answer` activity. Null where there has
      * never been a try, which is what the row really looks like then.
      */
-    noAnswer: noAnswerBlock(index, at),
+    noAnswer: noAnswerBlock(index, at, index < LEADS.length ? lead.id : `opp-${index}`),
   }));
 }
 
@@ -323,11 +326,21 @@ function myLeadRows() {
  * Next try column and the Next step sentence cannot disagree with each other
  * here the way they could if this invented its own numbers.
  */
-function noAnswerBlock(index: number, at: (hours: number) => string) {
+function noAnswerBlock(index: number, at: (hours: number) => string, id: string) {
   const tries = [0, 1, 2, 0, 3, 1, 4, 0, 2][index % 9] as number;
   if (tries === 0) return null;
   return {
     tries,
+    /*
+     * Which of the two the last try was — the live block reads it off the
+     * same timeline row it reads `lastTryAt` from. One lead in four was
+     * last found engaged rather than ringing out, so the Tries column has
+     * a `Busy ×1` in it as the owner's picture draws, and one in eight has
+     * nothing recorded at all, which is what an older try looks like and
+     * reads as "No answer".
+     */
+    lastResult: previewLastResult.get(id)
+      ?? (index % 8 === 7 ? null : (index % 4 === 1 ? 'busy' : 'no_answer')),
     /* The last try was a while ago, longer the more tries there have been. */
     lastTryAt: at(-(2 + tries * 5)),
     /* The same time the row promises as its next step, which is what the
@@ -2772,10 +2785,21 @@ const ROUTES: Route[] = [
     };
   } },
 
-  /* The call queue: the Today rows, VIP first, as the real endpoint sorts them. */
-  { method: 'GET', pattern: /^\/api\/v2\/queue$/, handler: () => {
-    const rows = myLeadRows().filter((r) => r.next_step_at !== null).slice(0, 12);
+  /*
+   * The call queue: one tab's rows, VIP first, as the real endpoint sorts
+   * them.
+   *
+   * `?tab=no_answer` is B.7's "Call these one by one" — the live endpoint
+   * builds the queue from that tab of `TABS`, so the preview filters by the
+   * same two clauses the mock list endpoint uses for the same two tabs.
+   */
+  { method: 'GET', pattern: /^\/api\/v2\/queue$/, handler: ({ query }) => {
+    const tab = query.get('tab') === 'no_answer' ? 'no_answer' : 'today';
+    const rows = myLeadRows()
+      .filter((r) => (tab === 'no_answer' ? r.no_answer_count > 0 : r.next_step_at !== null))
+      .slice(0, 12);
     return {
+      tab,
       items: rows.map((row, i) => ({
         id: row.id,
         contactId: row.contact_id,
@@ -2845,6 +2869,10 @@ const ROUTES: Route[] = [
       ?? 0;
     const tries = ends ? 0 : was + 1;
     previewTries.set(id, tries);
+    /* So the row's pill reads "Busy ×2" straight after a Busy was tapped,
+       which is what the live list does on its next load. */
+    if (!ends) previewLastResult.set(id, result === 'busy' ? 'busy' : 'no_answer');
+    else previewLastResult.delete(id);
     /* Tomorrow at 11:00 Dubai, which is the contract's "next morning" step.
        The real one comes from Automations. */
     const dubaiTomorrow = new Date(Date.now() + 86_400_000 + 4 * 3_600_000);

@@ -88,6 +88,21 @@ export interface RowNoAnswer {
   tries: number;
   lastTryAt: string | null;
   nextTryAt: string | null;
+  /**
+   * Which of the two "did not speak to them" results the last try was.
+   *
+   * The owner's picture draws the Tries column reading `Busy ×1` as well as
+   * `No answer ×2`, and the count alone could never say which: `tries` is a
+   * total of both, which is §1's own rule. The server reads it off the same
+   * timeline row it reads `lastTryAt` from, so an undone try undoes this too.
+   *
+   * Null on a lead whose last try was logged before the server started
+   * recording it, and on one logged by a path that does not go through the
+   * call-result endpoint. The pill then says "No answer", which is what it
+   * said for every lead before this field existed and what the action itself
+   * means — never a guess at "Busy".
+   */
+  lastResult?: 'no_answer' | 'busy' | null;
 }
 
 /** As much of a lead row as anything in this file needs. */
@@ -123,6 +138,18 @@ export function lastTryOf(row: NoAnswerRow): string | null {
 /** When the next try is, or null. */
 export function nextTryOf(row: NoAnswerRow): string | null {
   return row.noAnswer?.nextTryAt ?? null;
+}
+
+/**
+ * What the last try was, in words: "Busy" or "No answer".
+ *
+ * Never a raw code (§6), and never a guess: a row the server has not told
+ * reads "No answer", which is the action both results run and the word the
+ * column carried for every lead until the server learnt the difference.
+ */
+export function lastResultLabel(row: NoAnswerRow): string {
+  const said = row.noAnswer?.lastResult;
+  return said === 'busy' ? RESULT_LABEL.busy : RESULT_LABEL.no_answer;
 }
 
 /* ── the clock, in Dubai, 24 hours, in words ───────────────────────────── */
@@ -235,7 +262,9 @@ export function nextStepWithTries(
   const now = options.now ?? new Date();
   const tries = triesOf(row);
   if (tries === 0) return { text: fallback, full: fallback, tries: 0, tag: '', when: fallback };
-  const tag = `${RESULT_LABEL.no_answer} ×${tries}`;
+  /* The same words as the pill in the Tries column: "Busy ×1" where the
+     last try was a busy line, which is what the owner's picture draws. */
+  const tag = `${lastResultLabel(row)} ×${tries}`;
   const again = whenAgain(nextTryOf(row), now);
   const full = again ? `${tag} · try again ${again}` : `${tag} · ${fallback}`;
   /*
@@ -342,37 +371,61 @@ export function saveRefused(problem: unknown): string {
  * `×` is the multiplication sign, not the letter x — the owner wrote it that
  * way in both his list and his picture, and `no-answer.test.ts` checks it.
  */
-export function TriesPill({ tries, title }: { tries: number; title?: string }) {
+export function TriesPill({ tries, said, title }: {
+  tries: number;
+  /**
+   * What the last try was — `lastResultLabel(row)`.
+   *
+   * Left out, it reads "No answer", which is what the pill said for every
+   * lead before the row carried the result. The owner's picture draws both:
+   * `No answer ×2`, `No answer ×4`, `Busy ×1`.
+   */
+  said?: string;
+  title?: string;
+}) {
   if (tries <= 0) return null;
+  const word = said ?? RESULT_LABEL.no_answer;
+  /* A busy line is a clock in the design's own pills, a no-answer a struck
+     handset — the result bar uses the same two icons for the same two
+     results, so the column and the bar cannot say it two ways. */
+  const icon = word === RESULT_LABEL.busy ? 'clock' : 'phone-off';
   return (
-    <span className="v2-na-pill" title={title ?? `${RESULT_LABEL.no_answer} · ${tries} ${tries === 1 ? 'try' : 'tries'}`}>
-      <Icon name="phone-off" size={12} />
-      {RESULT_LABEL.no_answer} ×{tries}
+    <span className="v2-na-pill" title={title ?? `${word} · ${tries} ${tries === 1 ? 'try' : 'tries'}`}>
+      <Icon name={icon} size={12} />
+      {word} ×{tries}
     </span>
   );
 }
 
 /**
- * The same thing beside the stage, in the width a stage column has.
+ * The same words beside the stage pill — B.5's *"a small grey tag
+ * 'No answer ×2' beside the stage"*.
  *
- * B.5 asks for the tag "beside the stage" in every other tab. The stage
- * column is 88px wide and the row is 52px tall — the budget this screen was
- * rebuilt to this morning — so the full words do not fit beside the pill at
- * any window width. It sits *under* the stage pill instead, on the row's
- * second line, where there is room for the count but not for the words: so
- * the count is what shows, the words are in the hover, and the full
- * "No answer ×2 · try again tomorrow 11:00" is in the Next step cell of the
- * same row, which is B.5's other half. Noted as a deviation in the report.
+ * One pill, one line, beside the stage pill and never under it, and no icon
+ * in it. It was a phone-off glyph with `×2` stacked underneath, which is
+ * what Emir called messy on 14 Nov — *"this icon, it's not showing properly
+ * … it looks a little messy"* — and he is right: a symbol on a row of its
+ * own reads as debris rather than information. He has asked three times for
+ * plain English and no pictures standing in for words, and an icon in place
+ * of "No answer" is that same request arriving by a side door.
+ *
+ * **Where the words do not fit, nothing is drawn here at all.** Beside the
+ * stage the cell needs about 198px and it has 108 at 1440, and the 90px are
+ * not spare anywhere on a ten-column book at that width. So the tag appears
+ * from 1600px up and is simply absent below, by the rule in
+ * `v2-no-answer.css`. Nothing is lost by that: the Next step cell on the
+ * same row says "No answer ×2 · try again tomorrow 11:00" at every width.
+ * One clear statement beats two half ones.
  */
-export function StageTriesTag({ tries }: { tries: number }) {
+export function StageTriesTag({ tries, said }: { tries: number; said?: string }) {
   if (tries <= 0) return null;
+  const word = said ?? RESULT_LABEL.no_answer;
   return (
     <span
       className="v2-na-stagetag"
-      title={`${RESULT_LABEL.no_answer} · ${tries} ${tries === 1 ? 'try' : 'tries'}`}
+      title={`${word} · ${tries} ${tries === 1 ? 'try' : 'tries'}`}
     >
-      <Icon name="phone-off" size={11} />
-      ×{tries}
+      {word} ×{tries}
     </span>
   );
 }
