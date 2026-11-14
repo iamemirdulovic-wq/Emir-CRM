@@ -1,0 +1,80 @@
+/*
+ * The database-state card on System health.
+ *
+ * Its own file, imported from the component, so it stays out of
+ * v2-shell.css while other agents are working there — and out of the
+ * bottom half of that file, which is inside @media (max-width:767px)
+ * and has silently swallowed three computer fixes already.
+ *
+ * Every rule names the `d-` class it rides on. A stylesheet imported
+ * from a component is bundled BEFORE v2-ui.css, so at equal specificity
+ * the design would win.
+ */
+
+.v2 .d-card.v2-schema {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v2 .d-card.v2-schema h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.v2 .d-card.v2-schema h3 svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* Stuck is a fault, not a warning: the colour has to say so without a
+   second glance, because screens are returning errors while it holds. */
+.v2 .d-card.v2-schema-stuck {
+  box-shadow: inset 0 0 0 1px var(--danger, #D93025);
+}
+
+.v2 .d-card.v2-schema-stuck h3 {
+  color: var(--danger, #D93025);
+}
+
+.v2 .d-card.v2-schema .v2-schema-when {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-3, #6b6b6b);
+}
+
+.v2 .d-card.v2-schema .v2-schema-stuckline {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.v2 .d-card.v2-schema .v2-schema-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+/* The database's own words. Monospace because it is quoted back to a
+   person who will read it out or paste it, and a misread character
+   there costs another round of guessing. */
+.v2 .d-card.v2-schema .v2-schema-why {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2, #f4f4f4);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.v2 .d-card.v2-schema .v2-schema-why strong {
+  font-family: inherit;
+}

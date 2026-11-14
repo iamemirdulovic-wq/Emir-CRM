@@ -5,6 +5,7 @@ import { useAsync } from '../../lib/hooks.js';
 import { Icon, type IconName } from '../../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../../design/ui.js';
 import { SettingsShell, SettingsTitle } from './Shell.js';
+import '../../styles/v2-schema-card.css';
 
 /**
  * Settings → System health.
@@ -65,6 +66,14 @@ interface Health {
   setupOutstanding: number;
   website: { configured: boolean; lastLeadAt: string | null; leadsLast7Days: number };
   push: { configured: boolean; agentsWithoutDevice: number; agentsTotal: number; missing: string[] };
+  /* Optional, so an older server that does not send it renders nothing
+     rather than throwing on the screen that exists to diagnose it. */
+  schema?: {
+    boot: { startedAt: string; applied: string[]; error: string | null; ok: boolean };
+    appliedCount: number;
+    pending: string[];
+    lastApplied: string | null;
+  };
 }
 
 const ICONS: Record<string, IconName> = {
@@ -81,6 +90,60 @@ const ICONS: Record<string, IconName> = {
 };
 
 const WORD: Record<State, string> = { ok: 'Fine', slow: 'Slow', down: 'Not working' };
+
+/**
+ * The database's own state, in words the owner can read and quote back.
+ *
+ * Built on 14 Nov, after the calendar returned "Internal server error" on the
+ * live site for days. The reason -- a migration that failed on every single
+ * boot, and so blocked every migration queued behind it -- was written only
+ * to a server log that neither the owner nor I can reach. It was diagnosed by
+ * reasoning three times and got wrong twice.
+ *
+ * Four facts end that: when this server started (so a deploy can be seen to
+ * have landed), how many changes the database has, which ones are stuck, and
+ * the database's own words for why.
+ */
+function SchemaCard({ schema }: { schema: Health['schema'] }) {
+  if (!schema) return null;
+  const stuck = schema.pending.length > 0;
+  const started = new Date(schema.boot.startedAt);
+  const ago = Math.max(0, Math.round((Date.now() - started.getTime()) / 60000));
+  return (
+    <section className={`d-card v2-schema${stuck ? ' v2-schema-stuck' : ''}`}>
+      <h3>
+        <Icon name={stuck ? 'alert-triangle' : 'list'} />
+        {stuck ? 'The database is behind the CRM' : 'The database is up to date'}
+      </h3>
+      <p className="v2-schema-when">
+        This server started {ago < 1 ? 'less than a minute' : `${ago} minute${ago === 1 ? '' : 's'}`} ago
+        {' · '}{schema.appliedCount} change{schema.appliedCount === 1 ? '' : 's'} applied
+      </p>
+      {stuck && (
+        <>
+          <p className="v2-schema-stuckline">
+            {schema.pending.length} change{schema.pending.length === 1 ? ' is' : 's are'} stuck.
+            Everything after the first one waits for it, so screens that need
+            them will say &quot;Internal server error&quot; until it is fixed.
+          </p>
+          <ul className="v2-schema-list">
+            {schema.pending.map((name) => <li key={name}>{name}</li>)}
+          </ul>
+        </>
+      )}
+      {schema.boot.error && (
+        <p className="v2-schema-why">
+          <strong>What the database said:</strong> {schema.boot.error}
+        </p>
+      )}
+      {!stuck && !schema.boot.error && schema.boot.applied.length > 0 && (
+        <p className="v2-schema-when">
+          Applied on this start: {schema.boot.applied.join(', ')}
+        </p>
+      )}
+    </section>
+  );
+}
 
 export function V2SettingsHealth() {
   const got = useAsync<Health>(() => api.get('/api/v2/health'), []);
@@ -121,6 +184,8 @@ export function V2SettingsHealth() {
           title="System health"
           note="Is everything working? Checked by itself every 5 minutes."
         />
+
+        <SchemaCard schema={health.schema} />
 
         <section className="d-card d-hl-top">
           <span className={[

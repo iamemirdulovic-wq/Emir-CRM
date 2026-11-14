@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import { schemaState } from '../../db/migration-state.js';
 import { asyncHandler } from '../middleware/error.js';
 import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireRole,
@@ -1124,10 +1125,21 @@ v2Router.get(
   '/health',
   requireRole('owner', 'admin'),
   asyncHandler(async (_req: Request, res: Response) => {
-    const [report, setup, website, push] = await Promise.all([
-      serviceHistory(), setupChecklist(), websiteConnection(), pushReadiness(),
+    const [report, setup, website, push, schema] = await Promise.all([
+      serviceHistory(), setupChecklist(), websiteConnection(), pushReadiness(), schemaState(),
     ]);
     res.json({
+      /*
+       * The state of the database schema, and when this server started.
+       *
+       * Here because the calendar was broken on the live site for days and
+       * the reason -- a migration failing on every boot, blocking every
+       * migration behind it -- went only to a log nobody outside the server
+       * can read. It was guessed at three times and got wrong twice. These
+       * four numbers answer it without guessing: which build is running,
+       * whether the schema is up to date, what is stuck, and why.
+       */
+      schema,
       /* The six the design draws, each with its thirty days of recorded
          checks. `setup` is the separate "what has never been switched on"
          list, kept because email and WhatsApp templates are on it and are

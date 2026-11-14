@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { logger, errorContext } from './lib/logger.js';
 import { closePool } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { recordBootMigrations, recordBootMigrationFailure } from './db/migration-state.js';
 import { startWorker, type WorkerHandle } from './jobs/worker.js';
 import { migrateState, stateDir } from './config/state.js';
 
@@ -26,9 +27,11 @@ import { migrateState, stateDir } from './config/state.js';
 async function migrateOnBoot(): Promise<void> {
   try {
     const { applied } = await runMigrations();
+    recordBootMigrations(applied);
     if (applied.length) logger.warn('applied pending migrations at boot', { applied });
     else logger.info('database schema is up to date');
   } catch (err) {
+    recordBootMigrationFailure(err);
     logger.error('MIGRATIONS FAILED — the database is behind the code', {
       ...errorContext(err),
       note: 'Screens that use the newest columns will return 500 until this is fixed.',
