@@ -1480,3 +1480,57 @@ budget sub-line (§2.3), the Local time column, or the Given column (§2.5 —
 and the design's own `my-leads` has no Given column at all, seven columns
 where we draw eight). **This is his to choose**, so it is in the report
 rather than decided here. The full name is on hover and on the lead page.
+
+## The power dialler has no Homes AI orb — 14 Nov 2026
+
+Emir's §11: *"A small glowing Homes AI orb sits in the corner of EVERY
+page, on computer and phone. It is never hidden."* The dialler is the one
+exception, and it was arrived at by trying all three alternatives and
+photographing each:
+
+- **Floating in a corner.** His own rule in `v2-dialler.css` is that
+  nothing may cover Back / Skip / Next lead, and lifting the orb clear of
+  that row puts it on "Not interested" in the card above. Parked on the
+  right edge instead, it sat on the client's "Wants · 2 Bedroom" chip,
+  attached to nothing.
+- **Docked in the header.** Costs that screen 25px — the title wraps to
+  four lines, "Lead 1 of 12" becomes "Lead 1 …", and the client's project
+  name is **clipped mid-word**. Tried at 48, 40 and 36px; the title needs
+  126px and any orb takes 43.
+- **Over the "+2 if they answer" pill.** Nothing reflows, but Emir asked
+  for that pill by name and it is a reward signal, not decoration.
+
+So the orb does not render on the dialler at all, and **"Ask Homes AI" is
+an item in that screen's own ☰ sheet** instead. That is the honest reading
+of "never hidden" on a screen with no room: still reachable, nothing moved,
+nothing covered.
+
+**The gap this leaves:** no "it has something to say" pulse on the dialler.
+The menu item is a door, not a signal. If Homes AI ever has to catch an
+agent mid-call, the ☰ button needs a dot. Not built.
+
+**The seam to know about:** the menu item is portalled out of
+`HomesAiOrb.tsx` into the sheet, and closes it by pressing the sheet's own
+close button, because that open/shut state belongs to `Calling.tsx`. It
+depends on three strings in that file — `.v2-a-dial`, `.d-dialog-foot` and
+`aria-label="Close"`. A test reads `Calling.tsx` for all three, so renaming
+one fails the suite instead of making the item quietly do nothing.
+
+## Two bugs that only a screenshot could find — 14 Nov 2026
+
+Both were in a green suite, on a screen that looked right in the code.
+
+- **The panel opened underneath the dialler.** That screen is
+  `position:fixed; z-index:130` and opaque; the orb's dock was at 78. The
+  "proof" picture of the panel over the dialler was a dialler with no panel
+  on it, and `elementFromPoint` in the middle of where the panel should have
+  been returned the dialler's own check-in banner.
+- **The orb's glow hung past the right edge of the screen**, on 48 phone
+  screens at once. `polish.mjs` flags any box past the edge but skips
+  `position:fixed`, and the glow is absolute inside a fixed dock. It is a
+  `box-shadow` now — which paints outside the box without being in it — and
+  a test does the arithmetic (orb size × glow × breath peak < the dock's
+  inset).
+
+The lesson is the one this repository keeps teaching: a green suite says the
+code does what it says, not that the screen is right. Photograph it.
