@@ -279,12 +279,41 @@ myLeadsRouter.get(
       args,
     );
 
+    /*
+     * How many leads were given out on each day, over the whole filtered
+     * list rather than the fifty on this page.
+     *
+     * The screen groups the rows it has under a heading per day, and that
+     * heading carries a count. Counting the rows in hand made every band on
+     * a long list read "50 leads", because fifty is the page size -- the
+     * owner saw "Thursday 12 Nov · 50 leads" above a book of 2,041 and was
+     * right to doubt it. A number on a screen has to be the answer to the
+     * question it appears to answer.
+     *
+     * Dubai is UTC+4 with no daylight saving, and the fixed offset is used
+     * on purpose everywhere in this file.
+     */
+    const days = await query<{ day: string | null; n: number }>(
+      `SELECT DATE(CONVERT_TZ(o.assigned_at, '+00:00', '+04:00')) AS day, COUNT(*) AS n
+         FROM opportunities o
+         JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
+        WHERE ${clause}
+        GROUP BY day
+        ORDER BY day DESC`,
+      args,
+    );
+
     res.json({
       tab,
       items,
       page: params.page,
       pageSize: params.pageSize,
       total: Number(total?.n ?? 0),
+      /* `day` is null for the leads nobody has been given. */
+      givenDays: days.map((d) => ({
+        day: d.day === null ? null : String(d.day).slice(0, 10),
+        count: Number(d.n),
+      })),
       empty: { title: definition.emptyTitle, hint: definition.emptyHint },
     });
   }),

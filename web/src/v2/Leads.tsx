@@ -162,6 +162,12 @@ interface ListResponse {
   tab: string;
   items: Row[];
   total: number;
+  /**
+   * How many leads each day really holds, across the whole filtered list and
+   * not just the page. The heading beside each day band reads from this; the
+   * rows in hand are only fifty.
+   */
+  givenDays?: Array<{ day: string | null; count: number }>;
   empty: { title: string; hint: string };
 }
 
@@ -488,7 +494,14 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * left exactly as the server sent it — the tab decides that, and an agent
    * works down it.
    */
-  const byDay = groupByGivenDay(rows, (row) => row.assigned_at);
+  /* The server's real per-day counts, so a band over a long list says how
+     many that day holds rather than how many fitted on this page. */
+  const dayTotals = useMemo(() => {
+    const got = leads.data?.givenDays;
+    if (!got) return undefined;
+    return new Map<string | null, number>(got.map((d) => [d.day, d.count] as const));
+  }, [leads.data]);
+  const byDay = groupByGivenDay(rows, (row) => row.assigned_at, undefined, dayTotals);
 
   /* One chip per narrowing in force, which is how the design says what the
      list is showing without making anybody read the controls. */

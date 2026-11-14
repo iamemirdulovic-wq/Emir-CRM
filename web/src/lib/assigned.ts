@@ -171,6 +171,18 @@ export function groupByGivenDay<T>(
   rows: T[],
   pick: (row: T) => string | Date | null | undefined,
   now = new Date(),
+  /**
+   * How many leads each day really holds, over the whole filtered list — the
+   * server's own `givenDays`, keyed `YYYY-MM-DD` in Dubai with `null` for the
+   * ones nobody has been given.
+   *
+   * Without it the count beside a heading is the number of rows on this page,
+   * so every band on a long list read "50 leads" because fifty is the page
+   * size. The owner saw "Thursday 12 Nov · 50 leads" over a book of 2,041 and
+   * said it was wrong. It was. Left out, the count falls back to the rows in
+   * hand, which is right whenever the whole list is on the page.
+   */
+  totals?: Map<string | null, number>,
 ): Array<GivenDay<T>> {
   const buckets = new Map<string, T[]>();
   const none: T[] = [];
@@ -191,12 +203,17 @@ export function groupByGivenDay<T>(
     .map((key) => ({
       key,
       heading: givenDayHeading(key, now),
-      count: plural((buckets.get(key) as T[]).length, 'lead'),
+      count: plural(totals?.get(key) ?? (buckets.get(key) as T[]).length, 'lead'),
       rows: buckets.get(key) as T[],
     }));
 
   if (none.length > 0) {
-    out.push({ key: null, heading: NOT_GIVEN, count: plural(none.length, 'lead'), rows: none });
+    out.push({
+      key: null,
+      heading: NOT_GIVEN,
+      count: plural(totals?.get(null) ?? none.length, 'lead'),
+      rows: none,
+    });
   }
   return out;
 }

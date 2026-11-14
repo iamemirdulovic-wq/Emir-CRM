@@ -208,3 +208,42 @@ describe('cutting the list into days', () => {
     expect(groupByGivenDay([] as Lead[], (row) => row.assigned_at, NOON)).toEqual([]);
   });
 });
+
+/**
+ * The number beside a day heading is the number of leads on that day.
+ *
+ * It used to be the number of rows the page happened to be holding, so on a
+ * long list every band read "50 leads" — fifty being the page size. The owner
+ * opened a book of 2,041 leads, saw "Thursday 12 Nov · 50 leads" over the
+ * first band and said it was wrong. It was. A number on a screen has to
+ * answer the question it looks like it is answering.
+ */
+describe('the count beside a day heading', () => {
+  const at = (iso: string) => ({ assigned_at: iso });
+  const pick = (r: { assigned_at: string | null }) => r.assigned_at;
+  /* A Friday afternoon in Dubai. */
+  const now = new Date('2026-11-14T10:00:00Z');
+
+  it('uses the whole list, not the rows on this page', () => {
+    /* Two rows in hand out of 2,041 really given out that day. */
+    const rows = [at('2026-11-12T14:57:00Z'), at('2026-11-12T15:02:00Z')];
+    const totals = new Map<string | null, number>([['2026-11-12', 2041]]);
+    const [band] = groupByGivenDay(rows, pick, now, totals);
+    expect(band?.count).toBe('2,041 leads');
+    /* and it still only draws the rows it has */
+    expect(band?.rows).toHaveLength(2);
+  });
+
+  it('falls back to the rows in hand when no totals are given', () => {
+    const rows = [at('2026-11-12T14:57:00Z'), at('2026-11-12T15:02:00Z')];
+    const [band] = groupByGivenDay(rows, pick, now);
+    expect(band?.count).toBe('2 leads');
+  });
+
+  it('counts the leads nobody has been given from the whole list too', () => {
+    const rows = [{ assigned_at: null }];
+    const totals = new Map<string | null, number>([[null, 97]]);
+    const bands = groupByGivenDay(rows, pick, now, totals);
+    expect(bands[bands.length - 1]?.count).toBe('97 leads');
+  });
+});
