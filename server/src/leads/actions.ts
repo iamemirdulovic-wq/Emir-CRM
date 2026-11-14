@@ -100,6 +100,26 @@ export interface ActionInput {
   /** What the buyer has handed over so far. Never more than the price. */
   wonPaidAed?: number | null;
   wonSigned?: WonSigned | null;
+  /**
+   * Extra facts about this action, written onto the timeline row's own `meta`.
+   *
+   * One caller and one reason: a Busy and a No answer are the same action
+   * here — both mean "did not speak to them", both count a try, both write an
+   * activity of type `no_answer`. Which of the two it was is still worth
+   * knowing, because the owner's picture shows the Tries column reading
+   * `Busy ×1` as well as `No answer ×2`, and nothing in the row could tell
+   * them apart: the count is a total.
+   *
+   * It goes here rather than into a column of its own because the activity is
+   * already the one record of a try — `LAST_TRY_SQL` reads it, the per-agent
+   * figures read it, and §1b's undo marks that same row taken back, so a
+   * result read from it is undone exactly when the try is. A new column
+   * would need a migration, and none can reach the live site at the moment.
+   *
+   * Keys already written by this function win, so a caller cannot overwrite
+   * `action`, `reason` or the next step.
+   */
+  meta?: Record<string, string | number | boolean | null>;
 }
 
 export interface ActionResult {
@@ -330,6 +350,8 @@ export async function runLeadAction(
       title: TITLE[input.action](input),
       body: input.note ?? null,
       meta: {
+        /* The caller's extras first, so nothing below can be overwritten. */
+        ...(input.meta ?? {}),
         action: input.action,
         reason: input.reason ?? null,
         ...(input.meetingAt ? { meetingAt: input.meetingAt, kind: input.meetingKind, where: input.meetingWhere } : {}),
@@ -445,17 +467,25 @@ const TITLE: Record<LeadAction, (input: ActionInput) => string> = {
   ].filter(Boolean).join(' — '),
 };
 
-/** What the toast says. Short, and in the agent's own words. */
+/**
+ * What the toast says. Short, and in the agent's own words.
+ *
+ * No emoji. Emir asked for none anywhere, three times, and a sentence the
+ * server writes is as much "anywhere" as a button is: this text is shown on
+ * the screen and stored in the timeline, so a picture here outlives the
+ * screen that drew it. The note box strips pictographs on the way out, but
+ * stripping is a guard, not a reason to keep writing them.
+ */
 const SAID: Record<LeadAction, (input: ActionInput) => string> = {
   call: () => 'Call logged',
   whatsapp: () => 'WhatsApp logged',
   no_answer: () => 'No answer logged',
   call_back: () => 'Call back set',
-  interested: () => 'Moved to Interested 🔥',
-  meeting: () => 'Meeting booked 📅',
+  interested: () => 'Moved to Interested',
+  meeting: () => 'Meeting booked',
   problem: () => 'Flagged as a problem',
   lost: () => 'Marked Lost',
-  won: () => 'Deal won! 🏆',
+  won: () => 'Deal won',
 };
 
 function human(value: string | null | undefined): string {
