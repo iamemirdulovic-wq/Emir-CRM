@@ -2,6 +2,86 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The no-answer rule: one tap, a counted try, and the next try worked out
+
+Emir's section A of 14 November: *"One tap on 'No answer' saves a call try with
+date and time and counts it: 'No answer · try 2 of 5'. No typing. It makes the
+next follow-up by itself: try 2 after 2 hours, try 3 next morning, try 4 next
+evening, try 5 two days later. Only when the client is awake and inside our
+work hours."* The server side of that, built against the shared contract in
+`docs/v2/call-results-contract.md`; the screens are three other agents'.
+
+**It added no table and no column.** Every piece of it was already in the
+database and the survey was worth more than the building: the count is
+`opportunities.no_answer_count`, which has existed since migration 0017 and was
+already incremented for a busy as well as a no-answer; the next try is
+`next_step_at`, the one promise a lead carries and the thing the Today and
+Overdue tabs are built from; the last try is the newest `no_answer` row in
+`activities`, which every path writes, where `call_logs` is written by the
+dialler only; the undo reads its before-state out of `audit_log`, which is
+already a before/after journal. A second record of "did we reach them" is how
+the call figures went wrong the first time.
+
+**The one real hole: `no_answer_count` had been counted up since January and
+never once counted down.** A lead rung three times in March still read 3 after
+the client answered in April. That was invisible while the number only fed an
+AI prompt, and is not invisible now it reads "try 2 of 5" on a card. The reset
+went into `leads/actions.ts`, not into the new code, so the dialler, the lead
+page's own buttons and the new endpoint all agree.
+
+**There were two schedules for the same tap, and only one obeyed the owner.**
+`PATCH /api/v2/calls/:id` had its own table — two hours for a no-answer, one
+for a busy — written before the rule existed, so the follow-up time depended on
+which screen the button was pressed on and the Automations numbers changed one
+of them and not the other. `finishCall` now hands the outcome straight to
+`saveCallResult`. The dialler's screen was deliberately not moved to the new
+endpoint instead: that would have left the old path alive for the next person
+to find, which is exactly how `PATCH /api/v2/taps/:id` sat unused for months
+while every WhatsApp went unanswered.
+
+**Every computed time has to clear two windows, not one** — the client's waking
+hours (`CALL_FROM`–`CALL_UNTIL` in `leads/countries.ts`, the same rule as the
+moon on a lead card) and ours (09:30–19:30, `leads/next-step.ts`). Both are
+imported, neither rewritten. `fitToHours` returns nothing at all rather than a
+time that breaks the rule, which is possible for a client whose day mirrors
+ours. The test sweeps five time zones × all 24 Dubai hours × four tries × two
+results, because a rule whose answer depends on what time of day it is asked
+cannot be tested by asking once.
+
+**Nothing is sent and nothing happens on its own.** The "I tried to call you"
+message comes back as text in the client's language — four of them, plus the
+language's *name* so no screen prints `en` — and the agent presses send in
+WhatsApp himself. After the last try the promise is cleared and the lead sits
+in No answer and No next step; marking it Lost or giving it back to Incoming
+are the screen's two buttons and both need a tap.
+
+**An undo that is honest about history.** `DELETE` on the same address restores
+the fifteen columns a result can touch, so taking back a wrongly-tapped Not
+interested brings the lead out of Lost and not merely the counter back to 2.
+Ten minutes, the saver or an owner, the latest result only, and a 409 with a
+sentence a person can read after that. Nothing is erased: the timeline row is
+retitled "taken back" and the per-agent figures stop counting it.
+
+Also: a `No answer` tab between No next step and VIP, `noAnswer` on every lead
+row, the owner's three numbers in Automations, and H.1's tries per agent for
+today and the last seven days.
+
+**And a test that lied one day in seven.** `leave.integration.test.ts > will
+not take a refusal without a reason` asked for leave "tomorrow", the office is
+shut on Sunday, so every Saturday the request was refused, the id came back
+undefined and the PATCH the test is actually about answered 404 from
+`/leave/undefined`. It cost an afternoon on 14 November, which was a Saturday.
+It now picks the next day the office is open, from `ATTENDANCE_DEFAULTS` rather
+than a copy of the closed-days list.
+
+Server suite 3,208 with a database, all 181 files passing — 61 of those tests
+are this rule's own, and the two failures the suite had this morning are both
+gone. What could not be built is written down in
+`docs/v2/no-answer-rule.md`: `call_logs.outcome` has no `answered` value and
+cannot be given one until `0038_meeting_results.sql` stops blocking every
+migration behind it, and an undone Lost does not un-cancel the tasks that were
+closed with the lead.
+
 ## The owner's eight settings screens, rebuilt from their design files
 
 `docs/v2/audit-4.md` and `audit-2.md` counted 101 things the owner's own

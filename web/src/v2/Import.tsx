@@ -4,8 +4,13 @@ import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { Icon } from '../design/index.js';
 import { ErrorNote, useToast } from '../design/ui.js';
+import { importNoteIn } from '../lib/note-names.js';
+import { formatDateTime } from '../lib/format.js';
+import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
 import { importSub } from './subs.js';
+/* The list at the foot of this screen; see the file for why it is its own. */
+import '../styles/v2-note-names.css';
 
 /**
  * Import, as `design/web/import.html` lays it out: six steps, one card each.
@@ -387,7 +392,123 @@ export function V2Import() {
           Nothing is in the CRM until you press Import on step 5.
         </p>
       )}
+      {/* Below the wizard, and only while it is sitting at the start: it is
+          about imports already done, not the one being set up. */}
+      {step === 1 && <NoteNames />}
     </div>
+  );
+}
+
+/* ── the leads whose name is a note from the file ──────────────────────── */
+
+interface NoteNameRow {
+  contactId: string;
+  opportunityId: string | null;
+  name: string | null;
+  phone: string | null;
+  source: string | null;
+  addedAt: string;
+}
+
+/**
+ * Emir, 14 Nov §G.2: *"A lead is named 'Looks fake – verify'. This is a note
+ * from the import file, not a name. Find all leads where the name is an
+ * import note and give me the list. Do not change them yourself."*
+ *
+ * So: a list, and only a list. No tick boxes, no rename, no bulk anything —
+ * the one thing a row does is open the lead, which is how he would check one
+ * against his own file. What to do about each is his to decide.
+ *
+ * It lives here because this is where those names came from, and because the
+ * screen is already owner-and-admin only. It loads on a tap rather than with
+ * the page: nobody opening the import wizard is owed a scan of every contact.
+ *
+ * The decision about which names are notes is `importNoteIn`, the same
+ * function the dialler's opener uses, so the list and the greeting cannot
+ * disagree. The server only fetches the candidates — see its own file.
+ */
+function NoteNames() {
+  const [rows, setRows] = useState<Array<NoteNameRow & { why: string }> | null>(null);
+  const [capped, setCapped] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const look = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const got = await api.get<{ candidates: NoteNameRow[]; capped: boolean }>('/api/note-names');
+      const found: Array<NoteNameRow & { why: string }> = [];
+      for (const row of got.candidates) {
+        const why = importNoteIn(row.name);
+        if (why) found.push({ ...row, why });
+      }
+      setRows(found);
+      setCapped(got.capped);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="d-card d-mt-16">
+      <div className="d-card-head">
+        <div className="d-grow">
+          <h3>Names that look like a note</h3>
+          <p className="d-small d-muted">
+            Leads whose name is something somebody typed in the file — “Looks fake –
+            verify”, “Prüfen”, “check” — rather than a person. Nothing here changes a
+            lead.
+          </p>
+        </div>
+        <button type="button" className="d-btn d-sm" disabled={busy} onClick={() => void look()}>
+          {busy ? 'Looking…' : rows === null ? 'Look for them' : 'Look again'}
+        </button>
+      </div>
+
+      {problem && <div className="d-mt-8"><ErrorNote>{problem}</ErrorNote></div>}
+
+      {rows !== null && rows.length === 0 && !problem && (
+        <p className="d-small d-muted d-mt-8">
+          None found. Every lead has something that reads like a name.
+        </p>
+      )}
+
+      {rows !== null && rows.length > 0 && (
+        <>
+          <p className="d-small d-muted d-mt-8">
+            {rows.length} {rows.length === 1 ? 'lead' : 'leads'}. Newest first.
+          </p>
+          <div className="v2-nn d-mt-8">
+            {rows.map((row) => (
+              <div className="v2-nn-row" key={row.contactId}>
+                <span className="v2-nn-name">
+                  {row.opportunityId
+                    ? <Link to={`/v2/leads/${row.opportunityId}`}>{row.name}</Link>
+                    : row.name}
+                </span>
+                <span className="v2-nn-why">{row.why}</span>
+                <span className="v2-nn-meta">
+                  {spacedE164(row.phone) ?? 'No number'}
+                  {' · '}
+                  {row.source ?? 'Source not known'}
+                  {' · added '}
+                  {formatDateTime(row.addedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {capped && (
+            <p className="d-small d-muted d-mt-8">
+              There were more than a thousand names to check, so this is the newest
+              thousand.
+            </p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 

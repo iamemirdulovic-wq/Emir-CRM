@@ -1,0 +1,785 @@
+/*
+ * The call-result bar, the note box and the saved-notes list.
+ *
+ * ── Why this file exists ───────────────────────────────────────────────────
+ *
+ * These three things are built once and used in three places: the lead page,
+ * the leads quick panel, and both of those again at phone width. The design's
+ * own rules for the composer, the note row and the voice player live in
+ * `v2-home.css` scoped to `.v2 .p-lead` — the lead page only — so a component
+ * that has to work inside the quick panel (which renders under `.p-my-leads`)
+ * cannot use them. Rather than sprinkle `p-lead` onto a parent inside the
+ * leads screen, which would also switch on that page's grid rules and the
+ * phone's `:has(.p-lead)` header rule, the handful of values are repeated
+ * here under names of my own.
+ *
+ * Every value below is read from `design/web/lead.html` and from
+ * `docs/v2/note-box-design.md`, which is the reading of the owner's picture of
+ * 14 Nov. Nothing new enters the palette: every colour is a token out of
+ * `v2-tokens.css`.
+ *
+ * ── Two rules this file lives by ──────────────────────────────────────────
+ *
+ * 1. **It is imported from the components, not from `index.css`**, which means
+ *    it is bundled *before* `v2-ui.css`. At equal specificity the design wins.
+ *    So every rule that has to beat a `d-` rule names that `d-` class as well:
+ *    `.v2 .d-btn.v2-ln-pill`, never `.v2 .v2-ln-pill`.
+ * 2. **Every class it defines starts `v2-ln-`** (lead notes), so it cannot
+ *    collide with a bare design name — the fault that stopped the pipeline
+ *    being a board once, and which `css-collisions.test.ts` watches for.
+ */
+
+/* ── The call-result bar ───────────────────────────────────────────────── */
+
+.v2 .v2-ln-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/*
+ * The highlight, after a tap on Call or WhatsApp.
+ *
+ * It is a ring rather than a fill: the six pills carry the colour in this
+ * card, and a tinted card behind tinted pills turns the whole thing to mud.
+ */
+.v2 .d-card.v2-ln-bar-asking {
+  box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-2);
+}
+
+.v2 .v2-ln-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.v2 .v2-ln-head b {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.v2 .v2-ln-head span {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+
+.v2 .v2-ln-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+ * One result. Rounded-full, an icon then a word, and a tint that says what
+ * kind of answer it is — green for the one you want, red for the two that
+ * end the lead.
+ */
+.v2 .d-btn.v2-ln-pill {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+/* The tint is the pill's identity, so hover rings it rather than repainting
+   it — `background:inherit` here would inherit the card's white and wipe the
+   colour off every pill the mouse passed over. */
+.v2 .d-btn.v2-ln-pill:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ink-4);
+}
+
+.v2 .d-btn.v2-ln-pill-green { background: var(--green-soft); color: var(--green-ink); }
+.v2 .d-btn.v2-ln-pill-grey { background: var(--surface-3); color: var(--ink); }
+.v2 .d-btn.v2-ln-pill-blue { background: var(--blue-soft); color: var(--blue-ink); }
+.v2 .d-btn.v2-ln-pill-red { background: var(--red-soft); color: var(--red-ink); }
+
+/* Chosen: white with a black ring, which is how the picture draws it. */
+.v2 .d-btn.v2-ln-pill.v2-ln-pill-on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+/* The strip under the pills: where the run stands, and the one message. */
+.v2 .v2-ln-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 8px 10px 8px 12px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.v2 .v2-ln-strip b { color: var(--ink); font-weight: 680; }
+
+.v2 .v2-ln-strip-said {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.v2 .v2-ln-strip-ic {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  flex: none;
+}
+
+/* Orange is for Save note, Change, More and Undo. Nothing else. */
+.v2 .v2-ln-link {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--accent-ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.v2 .v2-ln-link:hover { text-decoration: underline; }
+
+/* A thumb needs more than eighteen pixels. `npm run polish` counts anything
+   under 28px on a phone, and More and the waveform were both under it. */
+.v2 .v2-ln-quick .v2-ln-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 6px;
+}
+
+/* When the lead has run out of tries, the strip asks rather than acts. */
+.v2 .v2-ln-strip.v2-ln-strip-done {
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+}
+
+.v2 .v2-ln-strip.v2-ln-strip-done .v2-ln-strip-ic {
+  background: color-mix(in srgb, var(--amber) 22%, transparent);
+  color: var(--amber-ink);
+}
+
+/* The "when shall I try again?" panel, opened by Call back or by Change. */
+.v2 .v2-ln-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.v2 .v2-ln-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── The note box ──────────────────────────────────────────────────────── */
+
+/*
+ * White, a thin border, orange when the agent is typing in it — E.5, and the
+ * picture's own note box. `:focus-within` rather than a class, so it lights
+ * up for the textarea and for every control inside it without any state.
+ */
+.v2 .v2-ln-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  padding: 12px 14px;
+  transition: box-shadow .15s var(--ease);
+  min-width: 0;
+  /*
+   * The bottom row answers to the width of the box, not of the window: the
+   * lead page's middle column is about 470px on a 1440px screen, which is
+   * narrower than the quick panel is on some, and a rule keyed to the window
+   * would hide the keyboard hint on the wrong one of the two.
+   */
+  container-type: inline-size;
+}
+
+/*
+ * What gives, and in what order, as the box gets narrower.
+ *
+ * It is keyed to the box rather than to the window on purpose: the lead
+ * page's middle column is about 440px wide on a 1440px screen and the quick
+ * panel's box is about 415px, so both are "narrow" while the window is wide,
+ * and a window-width rule would have dressed them as if they were roomy.
+ *
+ * First the keyboard hint goes — it is a reminder, not a control. Then the
+ * row wraps and **Save takes the whole second line**: of the four things in
+ * that row Save is the one a thumb has to find after writing a note, and a
+ * single scrolling row put it off the right-hand edge at 390px.
+ */
+@container (max-width: 560px) {
+  /*
+   * The hint drops to a line of its own rather than disappearing: the owner
+   * asked for "Ctrl + Enter to save" to be *printed on screen*, not only
+   * bound to the keys, and at 460px — which is what the lead page's middle
+   * column is on a 1440px screen — the four controls and the hint will not
+   * share one line. Measured, not guessed: Attach 85, Voice 80, Remind me
+   * 113, Save 123, and 432 to put them in.
+   */
+  .v2 .v2-ln-box .v2-ln-foot { flex-wrap: wrap; }
+  .v2 .v2-ln-box .d-btn.v2-ln-tool { padding: 0 10px; }
+  .v2 .v2-ln-box .v2-ln-kbd { order: 9; flex: 1 0 100%; text-align: right; }
+}
+
+@container (max-width: 430px) {
+  .v2 .v2-ln-box .v2-ln-foot { gap: 6px; }
+  .v2 .v2-ln-box .v2-ln-foot > .d-grow { display: none; }
+  .v2 .v2-ln-box .d-btn.v2-ln-tool { flex: 1 1 auto; }
+  .v2 .v2-ln-box .d-btn.d-primary.v2-ln-save { flex: 1 0 100%; height: 40px; }
+}
+
+.v2 .v2-ln-box:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/*
+ * One row, always — the picture draws six pills in a line and the selected
+ * one is what the box is "set to". It scrolls sideways rather than wrapping
+ * at any width, because the quick panel is 480px wide on a 1440px screen and
+ * a wrapped second row there moved the text box down every time somebody
+ * chose Objection.
+ */
+.v2 .v2-ln-types {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+}
+
+.v2 .v2-ln-types::-webkit-scrollbar { display: none; }
+
+/*
+ * No scroll snapping on either of the two sideways rows, deliberately.
+ * `scroll-snap-align: start` aligns the first pill with the *scrollport*
+ * start and eats the row's own left padding, so the first pill sat 14px to
+ * the left of the text box under it on every screen — measured at 616 against
+ * the textarea's 630.
+ */
+.v2 .d-chip-opt.v2-ln-type { flex: none; }
+
+/* It bleeds to the box's own edge, so the half-shown pill at the margin
+   reads as "there is more" rather than as a clipping bug. */
+.v2 .v2-ln-box .v2-ln-types { margin: 0 -14px; padding: 0 14px 1px; }
+
+/* Pale grey at rest; black with white text and an icon when chosen. The
+   design's own `.chip-opt.on` already does the colours — this is the size. */
+.v2 .d-chip-opt.v2-ln-type {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  gap: 6px;
+  background: var(--surface-2);
+}
+
+.v2 .d-chip-opt.v2-ln-type.d-on {
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: none;
+}
+
+/* The box draws the border, so the field inside it draws none. */
+.v2 .d-textarea.v2-ln-text {
+  min-height: 62px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  resize: vertical;
+  font-size: 14px;
+}
+
+.v2 .d-textarea.v2-ln-text:hover,
+.v2 .d-textarea.v2-ln-text:focus {
+  box-shadow: none;
+  outline: 0;
+}
+
+.v2 .v2-ln-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* A phrase an agent writes ten times a day, as one tap. */
+.v2 .v2-ln-qchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font-size: 12px;
+  font-weight: 560;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: .15s var(--ease);
+}
+
+.v2 .v2-ln-qchip:hover {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink-4);
+}
+
+.v2 .v2-ln-div {
+  height: 1px;
+  background: var(--line);
+  margin: 2px 0;
+}
+
+.v2 .v2-ln-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* One line, with Save pinned to the right end — the picture's own row.
+     What gives when it will not fit is the keyboard hint, above. */
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+/* Attach, Voice, Remind me: an icon and a word each, white with a thin
+   border, so none of them competes with Save. */
+.v2 .d-btn.v2-ln-tool {
+  height: 32px;
+  padding: 0 11px;
+  font-size: 12.5px;
+  gap: 6px;
+  border-radius: 10px;
+}
+
+.v2 .d-btn.v2-ln-tool.v2-ln-tool-on {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/*
+ * "Save is grey only when the box is empty" — E.4, in those words.
+ *
+ * The shared `[disabled]` rule only fades a button to 45%, which on an orange
+ * button is a pale orange rather than a grey, and reads as "orange, but the
+ * screen is busy". This says what the owner asked for.
+ */
+.v2 .d-btn.d-primary.v2-ln-save[disabled] {
+  background: var(--surface-3);
+  color: var(--ink-4);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Printed on screen, not only bound to the keys. */
+.v2 .v2-ln-kbd {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
+.v2 .v2-ln-staged {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v2 .v2-ln-staged-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.v2 .v2-ln-staged-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v2 .v2-ln-rec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--red-ink);
+  background: var(--red-soft);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.v2 .v2-ln-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  flex: none;
+  animation: v2-ln-blink 1s steps(2, start) infinite;
+}
+
+@keyframes v2-ln-blink { 50% { opacity: .2; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .v2 .v2-ln-rec-dot { animation: none; }
+}
+
+/* ── The saved notes ───────────────────────────────────────────────────── */
+
+.v2 .v2-ln-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* One note: the avatar, then everything else. A thin line between, and
+   room to breathe — F.5. */
+.v2 .v2-ln-note {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.v2 .v2-ln-note:first-child { border-top: 0; }
+
+/* Pinned: peach, rounded, and at the top. */
+.v2 .v2-ln-note.v2-ln-note-pinned {
+  background: var(--accent-soft);
+  border-radius: 16px;
+  border-top: 0;
+  padding: 14px;
+  margin: 8px 0;
+}
+
+.v2 .v2-ln-note-who { flex: none; }
+
+.v2 .v2-ln-note-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v2 .v2-ln-note-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+
+.v2 .v2-ln-note-top b {
+  font-size: 13px;
+  font-weight: 680;
+  color: var(--ink);
+}
+
+/* The time and the "…" as one block at the right end of the row. */
+.v2 .v2-ln-note-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex: none;
+}
+
+.v2 .v2-ln-note-time {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.v2 .v2-ln-note-body {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The reminder a note carries, with a bell — the owner asked for a bell. */
+.v2 .v2-ln-bell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.v2 .v2-ln-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.v2 .d-menu.v2-ln-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 160px;
+}
+
+.v2 .v2-ln-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/*
+ * A call result: one thin line. No avatar, no menu, no card — F.3, and what
+ * the picture draws. The list will now carry many of these, and a card each
+ * would bury the notes an agent came here to read.
+ */
+.v2 .v2-ln-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+
+.v2 .v2-ln-result:first-child { border-top: 0; }
+
+.v2 .v2-ln-result-ic {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  flex: none;
+}
+
+.v2 .v2-ln-result-said {
+  font-size: 12.5px;
+  font-weight: 680;
+  color: var(--ink);
+}
+
+.v2 .v2-ln-result-grow { flex: 1; min-width: 0; }
+
+/* ── A voice note ──────────────────────────────────────────────────────── */
+
+.v2 .v2-ln-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.v2 .v2-ln-play {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  flex: none;
+}
+
+.v2 .v2-ln-play:hover { background: color-mix(in srgb, var(--ink) 86%, var(--accent)); }
+
+.v2 .v2-ln-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  height: 28px;
+  min-width: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.v2 .v2-ln-wave-bar {
+  flex: 1;
+  min-width: 2px;
+  max-height: 26px;
+  border-radius: 2px;
+  background: var(--ink-4);
+}
+
+.v2 .v2-ln-wave-bar.v2-ln-wave-on { background: var(--accent); }
+
+.v2 .v2-ln-len {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.v2 .d-btn.v2-ln-speed {
+  height: 24px;
+  width: auto;
+  padding: 0 8px;
+  font-size: 11.5px;
+  border-radius: 8px;
+}
+
+/* ── A photo on a note ─────────────────────────────────────────────────── */
+
+.v2 .v2-ln-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* The picture, roughly 150 square, never the file name. */
+.v2 .v2-ln-thumb {
+  display: block;
+  width: 150px;
+  height: 150px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+  flex: none;
+}
+
+.v2 .v2-ln-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.v2 .v2-ln-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.v2 .v2-ln-file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bigger, when the thumbnail is tapped. */
+.v2 .v2-ln-big {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 10, 12, .82);
+  border: 0;
+  cursor: zoom-out;
+}
+
+.v2 .v2-ln-big img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 14px;
+  box-shadow: var(--shadow-3);
+}
+
+/* ── The phone ─────────────────────────────────────────────────────────── */
+
+/*
+ * Under 768px the six result pills, six type pills and five quick phrases
+ * cannot all wrap and still leave Save within a thumb's reach, so the two
+ * pill rows scroll sideways and the quick phrases keep wrapping. The bottom
+ * row stays one line with Save pinned to its right end: Save is the thing a
+ * thumb has to find, and a wrapped bottom row puts it somewhere different
+ * depending on how long the other three labels are.
+ *
+ * Every selector repeats the `v2-ln-` class it is overriding, because these
+ * rules have to beat the ones above them in this same file as well as the
+ * design's.
+ */
+@media (max-width: 767px) {
+  .v2 .v2-ln-bar .v2-ln-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* Room for the ring on the chosen pill, which a tight clip would cut. */
+    padding: 2px 0;
+  }
+
+  .v2 .v2-ln-pills::-webkit-scrollbar { display: none; }
+
+  .v2 .d-btn.v2-ln-pill {
+    flex: none;
+    height: 38px;
+    padding: 0 14px;
+  }
+
+  /* The pills bleed to the card's own edge too, for the same reason. */
+  .v2 .v2-ln-bar .v2-ln-pills { margin: 0 calc(var(--pad) * -1); padding: 2px var(--pad); }
+
+  /* A phone has no Ctrl key, so the hint is noise rather than help here. */
+  .v2 .v2-ln-box .v2-ln-kbd { display: none; }
+
+  /*
+   * The strip stacks: the sentence on its own lines, then the one message
+   * across the full width. Side by side at 390px the sentence was squeezed
+   * into a four-word column beside the button, which is the same fault the
+   * blue tap line had before it was folded into this bar.
+   */
+  .v2 .v2-ln-strip { align-items: flex-start; }
+  .v2 .v2-ln-strip .d-btn.d-sm { width: 100%; }
+
+  .v2 .v2-ln-note.v2-ln-note-pinned { padding: 12px; }
+
+  .v2 .v2-ln-thumb { width: 124px; height: 124px; }
+}

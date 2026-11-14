@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
 import {
   closeTestDatabase, createTestUser, describeWithDb, prepareTestDatabase, resetTables,
 } from '../testing/db.js';
-import { execute, queryOne } from '../db/client.js';
+import { execute, query, queryOne } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { resetRateLimits } from '../http/middleware/rate-limit.js';
 import { setEnvForTesting } from '../config/env.js';
@@ -85,7 +85,25 @@ describeWithDb('calling', () => {
     expect(items[1]?.isVip).toBe(false);
   });
 
-  it('a no-answer moves the lead and promises another call in two hours', async () => {
+  /*
+   * These two used to assert two hours for a no-answer and one for a busy,
+   * which is what this file's own `RETRY_MINUTES` table said until 14
+   * November. That table was a second answer to a question the no-answer rule
+   * now answers — the ladder the owner sets in Automations, moved into the
+   * client's waking hours and ours — so the dialler was giving a different
+   * follow-up time from the lead page for the same tap, and the owner's
+   * settings changed one of them and not the other.
+   *
+   * `finishCall` now hands the outcome to `saveCallResult`, so what is
+   * checked here is that the dialler goes through that one path and gets its
+   * answer back. The arithmetic itself — try 2 in two hours, try 3 next
+   * morning, a busy line in thirty minutes — belongs to `call-results.test.ts`
+   * and `call-results.integration.test.ts`, which can fix the clock and
+   * therefore say exactly. Asserting "about two hours from now" here would be
+   * wrong half the time anyway: ring somebody at 18:00 and the next try is
+   * tomorrow morning, because we do not phone clients at 20:00.
+   */
+  it('a no-answer moves the lead and promises the next try, counted', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const lead = await aLead(agent.id);
     const cookie = await signIn(base, agent);
@@ -96,33 +114,81 @@ describeWithDb('calling', () => {
 
     const done = await send('PATCH', `/api/v2/calls/${id}`, cookie, { outcome: 'no_answer' });
     expect(done.status, await done.clone().text()).toBe(200);
-    const result = await done.json() as { stageKey: string; nextStepAt: string | null };
+    const result = await done.json() as {
+      stageKey: string; nextStepAt: string | null; said: string;
+      noAnswer: { tries: number; maxTries: number; nextTryAt: string | null };
+    };
 
     expect(result.stageKey, 'an attempt is progress').toBe('attempted_contact');
     expect(result.nextStepAt).not.toBeNull();
-    const inHours = (new Date(String(result.nextStepAt)).getTime() - Date.now()) / 3_600_000;
-    expect(inHours).toBeGreaterThan(1.8);
-    expect(inHours).toBeLessThan(2.2);
 
-    const row = await queryOne<{ outcome: string; outcome_at: Date | null }>(
-      'SELECT outcome, outcome_at FROM call_logs WHERE id = ?', [id],
+    /* The try is counted, and the dialler is handed the line to show. */
+    expect(result.noAnswer.tries).toBe(1);
+    expect(result.noAnswer.maxTries).toBe(5);
+    expect(result.noAnswer.nextTryAt).toBe(new Date(String(result.nextStepAt)).toISOString());
+    expect(result.said).toContain('No answer');
+    expect(result.said).toContain('try 1 of 5');
+    /* Words, never a column value, and no emoji. */
+    expect(result.said).not.toContain('no_answer');
+    expect(/\p{Extended_Pictographic}/u.test(result.said)).toBe(false);
+
+    /* And it is one call with an outcome on it, not a second record beside
+       the one the dialler started. */
+    const rows = await query<{ id: string; outcome: string; outcome_at: Date | null }>(
+      'SELECT id, outcome, outcome_at FROM call_logs WHERE opportunity_id = ?', [lead],
     );
-    expect(row?.outcome).toBe('no_answer');
-    expect(row?.outcome_at).not.toBeNull();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(id);
+    expect(rows[0]?.outcome).toBe('no_answer');
+    expect(rows[0]?.outcome_at).not.toBeNull();
   });
 
-  it('busy waits an hour, not two', async () => {
+  it('busy counts as a try and takes no rung of the ladder', async () => {
     const agent = await createTestUser({ role: 'agent' });
     const lead = await aLead(agent.id);
     const cookie = await signIn(base, agent);
 
     const { id } = await (await send('POST', '/api/v2/calls', cookie, { opportunityId: lead })).json() as { id: string };
     const done = await send('PATCH', `/api/v2/calls/${id}`, cookie, { outcome: 'busy' });
-    const result = await done.json() as { nextStepAt: string | null };
+    const result = await done.json() as {
+      nextStepAt: string | null; said: string; noAnswer: { tries: number };
+    };
 
-    const inHours = (new Date(String(result.nextStepAt)).getTime() - Date.now()) / 3_600_000;
-    expect(inHours).toBeGreaterThan(0.8);
-    expect(inHours).toBeLessThan(1.2);
+    /* We did not speak to them, so it is a try -- and its wait is the busy
+       one, which never moves the lead up the 2h / next-morning ladder. */
+    expect(result.noAnswer.tries).toBe(1);
+    expect(result.nextStepAt).not.toBeNull();
+    expect(result.said).toContain('Busy');
+
+    const audit = await queryOne<{ after_json: unknown }>(
+      `SELECT after_json FROM audit_log
+        WHERE entity_type = 'opportunity' AND entity_id = ? AND action = 'lead.call_result'`,
+      [lead],
+    );
+    const after = typeof audit?.after_json === 'string'
+      ? JSON.parse(audit.after_json) as { step: string | null }
+      : audit?.after_json as { step: string | null };
+    expect(after?.step, 'a busy line takes no rung').toBeNull();
+  });
+
+  it('keeps the agent’s own reason when the dialler asks for one', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const lead = await aLead(agent.id);
+    const cookie = await signIn(base, agent);
+
+    const { id } = await (await send('POST', '/api/v2/calls', cookie, { opportunityId: lead })).json() as { id: string };
+    const done = await send('PATCH', `/api/v2/calls/${id}`, cookie, {
+      outcome: 'not_interested', reason: 'bought_elsewhere',
+    });
+    expect(done.status, await done.clone().text()).toBe(200);
+    expect((await done.json() as { status: string }).status).toBe('lost');
+
+    /* The whole value of the lost-reasons report is that it is the agent's
+       answer and not a word the server chose. */
+    const row = await queryOne<{ lost_reason_v2: string | null }>(
+      'SELECT lost_reason_v2 FROM opportunities WHERE id = ?', [lead],
+    );
+    expect(row?.lost_reason_v2).toBe('bought_elsewhere');
   });
 
   it('interested moves the lead on and does not reschedule it behind the agent', async () => {

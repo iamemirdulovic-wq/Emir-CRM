@@ -393,7 +393,15 @@ describe('the leads table fits the card', () => {
   it('shows "No phone" in words and no Call button', () => {
     /* §2.4's seventh point. A dash is a character somebody has to interpret. */
     expect(LEADS).toContain('<span className="v2-t-nophone">No phone</span>');
-    expect(LEADS).toContain('{phone && !book && (');
+    /*
+     * The guard became one named condition on 14 Nov, when the No answer tab
+     * gave the owner's row Call and WhatsApp as well — it is the narrower
+     * table, so they fit there and nowhere else on the owner's book. The
+     * half that matters here is unchanged and is the first clause: no number,
+     * no Call button.
+     */
+    expect(LEADS).toContain("const dialable = phone !== '' && (!book || triesColumns === true);");
+    expect(LEADS).toContain('{dialable && (');
   });
 
   it('puts no flex on a table cell', () => {

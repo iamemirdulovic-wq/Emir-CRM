@@ -1,0 +1,54 @@
+/*
+ * "Names that look like a note", on the import screen.
+ *
+ * Emir, 14 Nov §G.2: the leads whose name is a note somebody typed in the
+ * spreadsheet — "Looks fake – verify" — listed where he can read them, with
+ * nothing on the row that could change one.
+ *
+ * Four lines of layout rather than the import page's own `.d-mini-list`,
+ * which is one nowrap line with an ellipsis on the end: at 390px that cuts
+ * the phone number and the date, and those are two of the four things he
+ * asked to see. So the row wraps instead, the reason goes to the right when
+ * there is room and under the name when there is not, and every token is the
+ * shared one so dark mode needs nothing of its own.
+ */
+
+.v2 .v2-nn {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2 .v2-nn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 10px 0;
+  min-width: 0;
+}
+
+.v2 .v2-nn-row + .v2-nn-row {
+  border-top: 1px solid var(--line);
+}
+
+.v2 .v2-nn-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  /* An import note can be a whole sentence; it breaks rather than overflows. */
+  overflow-wrap: anywhere;
+}
+
+.v2 .v2-nn-why {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.v2 .v2-nn-meta {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}

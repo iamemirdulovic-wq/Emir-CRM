@@ -22,7 +22,7 @@
  * the live one keeps showing its six.
  */
 export const LEAD_TABS = [
-  'today', 'new', 'hot', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'won', 'all',
+  'today', 'new', 'hot', 'cold', 'overdue', 'no_next_step', 'no_answer', 'vip', 'lost', 'won', 'all',
 ] as const;
 export type LeadTab = (typeof LEAD_TABS)[number];
 
@@ -136,6 +136,27 @@ export const TABS: Record<LeadTab, TabDefinition> = {
     orderBy: 'o.lead_score DESC, o.created_at DESC',
     emptyTitle: 'Everything has a next step',
     emptyHint: 'Every open lead has somebody coming back to it. This is the one to keep at zero.',
+  },
+
+  no_answer: {
+    label: 'No answer',
+    /*
+     * Everybody we have rung and not spoken to, with the run still open.
+     *
+     * A view, not a stage: nothing about the pipeline changes because a lead
+     * is in here, and a lead leaves it the moment somebody gets through —
+     * `leads/actions.ts` puts `no_answer_count` back to zero on any result
+     * that means we reached them. See `v2/call-results.ts` for the rule.
+     */
+    where: `${OPEN} AND o.no_answer_count > 0`,
+    /*
+     * Soonest try first. A lead with nothing promised is one that has run out
+     * of tries and is waiting on a person to decide, so it goes last rather
+     * than at the top where MySQL would otherwise put the NULLs.
+     */
+    orderBy: 'o.next_step_at IS NULL ASC, o.next_step_at ASC',
+    emptyTitle: 'Nobody is waiting on a second try',
+    emptyHint: 'Every lead you have rung has either answered or been closed off.',
   },
 
   vip: {

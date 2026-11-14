@@ -98,82 +98,33 @@
 
 /* ── The note box, always open ─────────────────────────────────────────── */
 
+/*
+ * A bare slot, not a box.
+ *
+ * The panel used to draw its own note box here — a grey rounded card with a
+ * textarea, a microphone and Save in it. On 14 Nov §E replaced it with the
+ * shared `LeadNoteBox`, which is the same component the lead page and the
+ * phone draw and which brings its own white box and thin border with it. Two
+ * boxes, one inside the other, is what that looked like. So this keeps only
+ * the name — the panel's tests and anything else that points at
+ * `.v2-qp-note` still find it — and draws nothing of its own.
+ */
 .v2 .v2-qp-note {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--surface-2);
-}
-
-.v2 .v2-qp-note .d-textarea {
-  min-height: 72px;
-  resize: vertical;
-}
-
-.v2 .v2-qp-note-foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.v2 .v2-qp-note-foot .d-grow { flex: 1; }
-
-/* The microphone while it is running: red, so nobody leaves it on. */
-.v2 .d-btn.v2-qp-rec,
-.v2 .d-btn.v2-qp-rec:hover {
-  background: var(--red);
-  color: #fff;
-  box-shadow: none;
-}
-
-.v2 .v2-qp-staged {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 4px 0 10px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-2);
+  display: block;
+  min-width: 0;
 }
 
 /* ── The last three notes ──────────────────────────────────────────────── */
 
+/*
+ * Also a bare slot. The rows are `LeadNotes`' own — §F asks for the same
+ * shape here as on the lead page: the avatar, the type pill coloured by
+ * type, the real date and time, the "…" menu, a photo as a thumbnail and a
+ * call result as one thin line. Their rules live in `v2-lead-notes.css`.
+ */
 .v2 .v2-qp-notes {
-  display: flex;
-  flex-direction: column;
-}
-
-.v2 .v2-qp-notes > * + * {
-  border-top: 1px solid var(--line);
-}
-
-.v2 .v2-qp-note-row { padding: 10px 0; }
-.v2 .v2-qp-note-row:first-child { padding-top: 2px; }
-
-.v2 .v2-qp-note-who {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ink-3);
-}
-
-.v2 .v2-qp-note-who b {
-  color: var(--ink-2);
-  font-weight: 620;
-}
-
-.v2 .v2-qp-note-body {
-  margin-top: 3px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--ink);
-  overflow-wrap: anywhere;
+  display: block;
+  min-width: 0;
 }
 
 /* ── The foot: Transfer, Won, Lost ─────────────────────────────────────── */

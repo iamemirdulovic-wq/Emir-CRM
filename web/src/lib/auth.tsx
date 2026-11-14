@@ -107,3 +107,17 @@ export function useAuth(): AuthState {
   if (!context) throw new Error('useAuth must be used inside AuthProvider');
   return context;
 }
+
+/**
+ * The same thing, but null outside a provider instead of throwing.
+ *
+ * For a shared component that is also rendered on its own — in a test that
+ * mounts one panel, or in a preview — where who is signed in only changes a
+ * detail (a face instead of initials, whether a "…" menu offers Delete) and
+ * is never the thing being checked. A screen that cannot work without the
+ * user still uses `useAuth`, so a missing provider there is still a crash
+ * with a name rather than a page that quietly renders the wrong permissions.
+ */
+export function useMaybeAuth(): AuthState | null {
+  return useContext(AuthContext);
+}

@@ -82,6 +82,12 @@ export type SettingName =
   | 'AUTO_CHECKIN_REMINDER'
   | 'AUTO_MARK_LATE'
   | 'AUTO_TELL_OWNERS_ABSENT'
+  /* The no-answer ladder — see `v2/call-results.ts`. How many tries before
+     the CRM stops and asks, the wait after each one, and the shorter wait
+     after a busy line. Owner-only, on the Automations page. */
+  | 'CALL_TRIES_MAX'
+  | 'CALL_TRIES_STEPS'
+  | 'CALL_TRIES_BUSY_MINUTES'
   /* The company as it introduces itself to a client — see config/company.ts.
      These used to be constants in the source; they reach every WhatsApp
      footer, every email signature, the business card and every offer. */

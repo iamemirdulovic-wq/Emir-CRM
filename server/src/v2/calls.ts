@@ -2,7 +2,8 @@ import { execute, query, queryOne } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
-import { runLeadAction, type LeadAction, type NextStepType } from '../leads/actions.js';
+import { runLeadAction } from '../leads/actions.js';
+import { saveCallResult, savedWords, type NoAnswerState } from './call-results.js';
 import { visibleUserIds, ownerPredicate } from '../auth/scope.js';
 import type { SessionUser } from '../auth/sessions.js';
 import { TABS } from '../leads/tabs.js';
@@ -19,10 +20,13 @@ import { DAY_END, DAY_START } from './dubai.js';
  * otherwise is the one thing the design research says would lose the agents'
  * trust in the figures (pages.md, global rules).
  *
- * The outcome is where the work happens: it writes the result on the call AND
- * runs the ordinary lead action, so a call logged here moves the stage, sets
- * the next step, writes the activity and the audit entry exactly as the same
- * outcome logged from the lead page does. There is one path, not two.
+ * The outcome is where the work happens, and since 14 November it does not
+ * happen here: `finishCall` hands it to `saveCallResult` in
+ * `v2/call-results.ts`, which counts the try, works out the next one from the
+ * owner's own numbers, moves the stage, writes the activity and the audit
+ * entry. There is one path, not two -- and until that change there were two,
+ * with two different follow-up times for the same tap. See
+ * `docs/v2/no-answer-rule.md`.
  */
 
 export const CALL_OUTCOMES = [
@@ -30,28 +34,14 @@ export const CALL_OUTCOMES = [
 ] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
 
-/**
- * What each outcome means for the lead itself.
- *
- * `busy` has no action of its own: in substance it is a call that did not get
- * through, so it counts as one, and the hour's delay comes from the next step
- * rather than from a different stage. Writing it as its own stage would mean
- * two names for one thing in every report afterwards.
+/*
+ * What an outcome means for the lead, and when the next try is, both now live
+ * in `v2/call-results.ts` — see `finishCall` below. There was a table here
+ * mapping each outcome to a lead action, and another giving a no-answer two
+ * hours and a busy line one, and they were the second answer to a question
+ * the no-answer rule now answers: the ladder the owner set in Automations,
+ * inside the client's waking hours and ours.
  */
-const ACTION: Record<CallOutcome, LeadAction> = {
-  interested: 'interested',
-  no_answer: 'no_answer',
-  busy: 'no_answer',
-  call_back: 'call_back',
-  wrong_number: 'problem',
-  not_interested: 'lost',
-};
-
-/** How long until the lead is due again, when the outcome implies a wait. */
-const RETRY_MINUTES: Partial<Record<CallOutcome, number>> = {
-  no_answer: 120,
-  busy: 60,
-};
 
 export interface QueueLead {
   id: string;
@@ -176,18 +166,43 @@ export async function startCall(
 export interface OutcomeInput {
   outcome: CallOutcome;
   note?: string | null;
-  /** For `call_back`: when. For the rest the retry is worked out here. */
+  /** For `call_back`: when. For the rest the next try is the ladder's. */
   callBackAt?: string | null;
   /** For `not_interested` and `wrong_number`. */
   reason?: string | null;
 }
 
+/**
+ * What happened on the call. This is also what moves the lead.
+ *
+ * It does none of that itself any more. Everything a call result means —
+ * counting the try, the ladder, the waking-hours rule, the WhatsApp words,
+ * the audit row and the undo — lives in `v2/call-results.ts`, and this hands
+ * the dialler's answer straight to it.
+ *
+ * Why it was changed rather than left alone: until 14 November this function
+ * had its own schedule, two hours for a no-answer and one for a busy, written
+ * before the no-answer rule existed. So the same tap gave a different
+ * follow-up time depending on which screen it was pressed on, and the
+ * Automations numbers the owner had just been given changed one of them and
+ * not the other. Moving the dialler's screen to the new endpoint instead
+ * would have left this path alive for the next person to find — which is
+ * exactly how `PATCH /api/v2/taps/:id` sat unused for months while every
+ * WhatsApp went unanswered.
+ *
+ * The answer keeps its old shape, because the screen reads `said` out of it.
+ * It now also carries the whole no-answer state, so the dialler can draw
+ * "try 2 of 5 · next try tomorrow 11:00" without a second request.
+ */
 export async function finishCall(
   actor: AuditActor,
   user: SessionUser,
   callId: string,
   input: OutcomeInput,
-): Promise<{ stageKey: string | null; status: string; nextStepAt: Date | null; said: string }> {
+): Promise<{
+  stageKey: string | null; status: string; nextStepAt: Date | null; said: string;
+  noAnswer: NoAnswerState;
+}> {
   const call = await queryOne<{
     id: string; opportunity_id: string | null; user_id: string; outcome: string | null;
   }>(
@@ -198,35 +213,29 @@ export async function finishCall(
   if (call.user_id !== user.id) throw forbidden('That call was somebody else’s.');
   if (!call.opportunity_id) throw badRequest('That call is not attached to a lead.');
 
-  await execute(
-    'UPDATE call_logs SET outcome = ?, outcome_at = NOW(3), note = ? WHERE id = ?',
-    [input.outcome, input.note ?? null, callId],
-  );
-
-  const retry = RETRY_MINUTES[input.outcome];
-  const at = input.outcome === 'call_back'
-    ? input.callBackAt ?? null
-    : (retry ? new Date(Date.now() + retry * 60_000).toISOString() : null);
-
-  const result = await runLeadAction(actor, {
-    opportunityId: call.opportunity_id,
-    action: ACTION[input.outcome],
-    reason: input.outcome === 'wrong_number' ? 'wrong_number' : input.reason ?? null,
+  /* `callId` is passed, so the outcome is written onto this very row. One
+     call, one record -- never a second one beside it. */
+  const state = await saveCallResult(actor, user, call.opportunity_id, {
+    result: input.outcome,
     note: input.note ?? null,
-    nextStep: at
-      ? {
-        type: 'call' as NextStepType,
-        at,
-        note: input.outcome === 'busy' ? 'Was busy — try again' : input.note ?? null,
-      }
-      : null,
+    callBackAt: input.callBackAt ?? null,
+    reason: input.reason ?? null,
+    callId,
   });
 
+  /* Read back rather than guessed at: `saveCallResult` may have moved the
+     stage, closed the lead, or cleared a promise that belonged to the run. */
+  const lead = await queryOne<{ stage_key: string; status: string; next_step_at: Date | null }>(
+    'SELECT stage_key, status, next_step_at FROM opportunities WHERE id = ?',
+    [call.opportunity_id],
+  );
+
   return {
-    stageKey: result.stageKey,
-    status: result.status,
-    nextStepAt: result.nextStepAt ? new Date(result.nextStepAt) : null,
-    said: result.said,
+    stageKey: lead?.stage_key ?? null,
+    status: lead?.status ?? 'open',
+    nextStepAt: lead?.next_step_at ?? null,
+    said: savedWords(input.outcome, state),
+    noAnswer: state,
   };
 }
 

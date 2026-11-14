@@ -9,6 +9,7 @@ import { resetRateLimits } from '../http/middleware/rate-limit.js';
 import { setEnvForTesting } from '../config/env.js';
 import { createApp } from '../http/app.js';
 import { signIn } from '../testing/http.js';
+import { ATTENDANCE_DEFAULTS } from '../attendance/settings.js';
 
 /**
  * Asking for days off, and answering.
@@ -22,6 +23,32 @@ let base = '';
 
 const day = (offset: number) =>
   new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * The next day the office is actually open, counted from tomorrow.
+ *
+ * `day(1)` is not usable for a one-day request: `askForLeave` refuses a range
+ * with no working day in it — "those days are already days off" — and the
+ * office is shut on Sunday. So "will not take a refusal without a reason"
+ * failed every Saturday, and failed in a way that pointed at the wrong thing:
+ * the POST was refused, `asked.id` came back undefined, and the PATCH that
+ * the test is really about then answered 404 from `/leave/undefined`. It cost
+ * an afternoon on 14 November, which was a Saturday.
+ *
+ * The closed days come from `ATTENDANCE_DEFAULTS` rather than being written
+ * out here, so changing the office's week cannot leave a copy behind.
+ */
+function openDay(after = 1): string {
+  for (let offset = after; offset < after + 14; offset += 1) {
+    const at = new Date(Date.now() + offset * 86_400_000);
+    if (!ATTENDANCE_DEFAULTS.closedDays.includes(at.getUTCDay())) {
+      return at.toISOString().slice(0, 10);
+    }
+  }
+  /* Unreachable unless every day of the week is closed, which is not an
+     office. Fall back rather than throw inside a helper. */
+  return day(after);
+}
 
 describeWithDb('leave', () => {
   beforeAll(async () => {
@@ -111,7 +138,7 @@ describeWithDb('leave', () => {
     const boss = await createTestUser({ role: 'owner' });
     const agent = await createTestUser({ role: 'agent' });
     const asked = await (await send('POST', '/api/v2/leave', await signIn(base, agent), {
-      kind: 'sick', fromDate: day(1), toDate: day(1),
+      kind: 'sick', fromDate: openDay(), toDate: openDay(),
     })).json() as { id: string };
 
     const bare = await send('PATCH', `/api/v2/leave/${asked.id}`, await signIn(base, boss), {

@@ -129,7 +129,13 @@ describe('the v2 phone card', () => {
 
   it('groups the phone list by day too', () => {
     const phone = phoneLayout();
-    expect(phone).toContain('byDay.map');
+    /*
+     * `phoneGroups`, which is `byDay` on every tab but No answer — that one
+     * is sorted by when to ring next (B.3) and hands the phone a single
+     * group, because a day band over it would break that order into pieces.
+     */
+    expect(phone).toContain('phoneGroups.map');
+    expect(read(path.join(HERE, 'Leads.tsx'))).toContain('    : byDay;');
     expect(phone).toContain('v2-a-day');
     expect(phone).toContain('{day.heading}');
   });

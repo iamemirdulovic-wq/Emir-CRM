@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
+import { useMaybeAuth } from '../lib/auth.js';
 import { Icon } from '../design/index.js';
 import { budgetLabel, useToast } from '../design/ui.js';
 import { spacedE164 } from '../design/phone.js';
 import { clockIn, originOf } from '../lib/dialling.js';
 import { SOURCE_STYLES } from '../design/stages.js';
-import { uploadNoteFile, voiceFilename } from '../lib/note-files.js';
-import { VoiceRecorder, canRecord, formatDuration } from '../lib/recorder.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
 import { TransferLead } from './TransferLead.js';
 import type { CallActions } from './call.js';
+import { LeadNotes } from './LeadNotes.js';
+import { LeadNoteBox, type NoteBoxHandle } from './LeadNoteBox.js';
+import { CallResultBar, type Asking } from './CallResultBar.js';
+import {
+  plain, resultsFromActivities, type CallResultLine, type NoAnswerState,
+} from './call-result.js';
 import {
   STAGE_CHIP, STAGE_LABEL, nextStep, type Row,
 } from './Leads.js';
@@ -62,13 +67,6 @@ interface Brief {
   advice: { headline: string; note: string; why: string } | null;
 }
 
-interface Note {
-  id: string;
-  body: string;
-  author_name?: string | null;
-  created_at: string;
-}
-
 /**
  * The 480px side panel a row click opens.
  *
@@ -98,14 +96,24 @@ export function LeadPanel({
   onChanged?: () => void;
 }) {
   const toast = useToast();
+  /* `useMaybeAuth`, not `useAuth`: `lead-panel.test.tsx` mounts this panel on
+     its own with no provider around it, and who is signed in only decides
+     whose name goes on a call result the agent has just saved. */
+  const me = useMaybeAuth()?.user ?? null;
   const detail = useAsync<{
-    lead: Row & { email: string | null; language: string | null; preferred_location: string | null };
+    lead: Row & {
+      email: string | null; language: string | null; preferred_location: string | null;
+      /** The run, per `docs/v2/call-results-contract.md` §3, when sent. */
+      noAnswer?: NoAnswerState | null;
+    };
+    /* The lead's history comes with the record and was being thrown away.
+       It is where the call results already on the lead are read from. */
+    activities?: Array<{
+      id: string; type: string; meta?: unknown;
+      user_name?: string | null; created_at: string;
+    }>;
   }>(() => api.get(`/api/my-leads/${row.id}`), [row.id]);
   const brief = useAsync<Brief>(() => api.get(`/api/my-leads/${row.id}/brief`), [row.id]);
-  const notes = useAsync<{ items: Note[] }>(
-    () => api.get(`/api/notes/${row.contact_id}`),
-    [row.contact_id],
-  );
 
   /** Which dialog is open: a follow-up, a meeting, Won, Lost or a transfer. */
   const [doing, setDoing] = useState<LeadActionKind | null>(null);
@@ -119,6 +127,20 @@ export function LeadPanel({
   const [doneStep, setDoneStep] = useState<string | null>(null);
   const panel = useRef<HTMLElement>(null);
 
+  /*
+   * §D, in the panel as well as on the lead page — the owner's first line is
+   * "same rules on computer, quick panel, lead page, phone and dialler", and
+   * the bar, the note box and the notes list below are literally the same
+   * three components the lead page draws.
+   */
+  const [asking, setAsking] = useState<Asking | null>(null);
+  const [run, setRun] = useState<NoAnswerState | null>(null);
+  const [justSaved, setJustSaved] = useState<CallResultLine[]>([]);
+  /** Bumped when a note is saved, so the list under the box re-reads. */
+  const [noteStamp, setNoteStamp] = useState(0);
+  /* D.5: "Answered" puts the cursor in the note box with Call chosen. */
+  const box = useRef<NoteBoxHandle>(null);
+
   const lead = detail.data?.lead ?? row;
   const step = nextStep(lead);
   const phone = lead.phone_e164 ?? '';
@@ -127,10 +149,14 @@ export function LeadPanel({
   const name = lead.full_name ?? 'Unnamed lead';
   const to = `/v2/leads/${row.id}`;
   const closed = lead.status === 'won' || lead.status === 'lost';
+  /* The call results on this lead: the ones already in its history, and the
+     ones answered since the panel opened. A past one carries no try number,
+     because nothing stores which attempt it was. */
+  const results = [...justSaved, ...resultsFromActivities(detail.data?.activities ?? [])];
 
   /**
-   * Everything on this lead is stale: the panel's three reads, and the row in
-   * the table behind it.
+   * Everything on this lead is stale: the panel's own reads, the notes list
+   * below it, and the row in the table behind it.
    *
    * A plain function rather than a `useCallback`: it is only ever called from
    * an event handler, and memoising it would hold the first render's `reload`
@@ -139,9 +165,18 @@ export function LeadPanel({
   function reread() {
     detail.reload();
     brief.reload();
-    notes.reload();
+    setNoteStamp((n) => n + 1);
     onChanged?.();
   }
+
+  /*
+   * D.6: the bar lights up with "What happened?" the moment the phone or
+   * WhatsApp opens, and the moment is read on the press rather than when the
+   * agent answers. Each `dial` call stays inside the control it belongs to —
+   * `call-wiring.test.ts` reads the element and checks the recording is
+   * there, and that check has already caught a screen going back to a bare
+   * `tel:` link.
+   */
 
   /*
    * The panel takes focus when it opens, so the arrow keys below are the
@@ -214,7 +249,10 @@ export function LeadPanel({
       }).catch(() => undefined);
     }
     reread();
-    toast(said);
+    /* The server's own sentences carry emoji — "Moved to Interested 🔥",
+       "Deal won! 🏆" — and the owner has asked three times for none anywhere.
+       Cleaned on the way to the screen until the server stops sending them. */
+    toast(plain(said));
   }
 
   return (
@@ -264,7 +302,11 @@ export function LeadPanel({
                 <a
                   className="d-btn d-primary v2-qp-a3"
                   href={`tel:${phone}`}
-                  onClick={(e) => { e.preventDefault(); void dial.call(row); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const at = new Date().toISOString();
+                    void dial.call(row).then(() => setAsking({ what: 'call', at }));
+                  }}
                 >
                   <Icon name="phone" />Call
                 </a>
@@ -274,7 +316,12 @@ export function LeadPanel({
               type="button"
               className="d-btn v2-qp-a3"
               disabled={!phone}
-              onClick={() => { void dial.whatsapp(row); }}
+              onClick={() => {
+                const at = new Date().toISOString();
+                void dial.whatsapp(row).then((tapId) => {
+                  setAsking({ what: 'whatsapp', at, tapId });
+                });
+              }}
             >
               <Icon name="message-circle" />WhatsApp
             </button>
@@ -282,7 +329,12 @@ export function LeadPanel({
               type="button"
               className="d-btn v2-qp-a3"
               disabled={!phone}
-              onClick={() => { void dial.whatsapp(row, { app: 'telegram' }); }}
+              onClick={() => {
+                const at = new Date().toISOString();
+                void dial.whatsapp(row, { app: 'telegram' }).then((tapId) => {
+                  setAsking({ what: 'telegram', at, tapId });
+                });
+              }}
             >
               <Icon name="send" />Telegram
             </button>
@@ -311,17 +363,66 @@ export function LeadPanel({
           {/* §4.4 */}
           <InShort lead={lead} brief={brief.data} loading={!brief.data && !brief.error} />
 
-          {/* §4.5 */}
-          <NoteBox
-            key={row.id}
-            contactId={row.contact_id}
+          {/* §D — the call-result bar, above the note box, always visible.
+              The same component the lead page draws, a little tighter. */}
+          <CallResultBar
             opportunityId={row.id}
-            who={firstName(name)}
-            onSaved={() => { notes.reload(); brief.reload(); onChanged?.(); }}
+            lead={row}
+            state={run ?? detail.data?.lead.noAnswer ?? null}
+            asking={asking}
+            dial={dial}
+            compact
+            onDismiss={() => setAsking(null)}
+            onGiveUp={() => { setDoneStep(null); setDoing('lost'); }}
+            onAnswered={() => box.current?.focus('call_summary')}
+            onSaved={(said, state, result) => {
+              setRun(state);
+              setAsking(null);
+              setJustSaved((was) => [{
+                id: `just-${Date.now()}`,
+                result,
+                tries: state && state.tries > 0 ? state.tries : null,
+                maxTries: state && state.tries > 0 ? state.maxTries : null,
+                who: me?.name ?? null,
+                at: new Date().toISOString(),
+              }, ...was]);
+              reread();
+              toast(plain(said));
+            }}
           />
 
-          {/* §4.6 */}
-          <LastNotes items={notes.data?.items ?? null} error={notes.error} />
+          {/* §4.5 / §E — the note box, always open. */}
+          <div className="v2-qp-note">
+            <LeadNoteBox
+              ref={box}
+              key={row.id}
+              contactId={row.contact_id}
+              opportunityId={row.id}
+              who={firstName(name)}
+              compact
+              onSaved={(said) => {
+                setNoteStamp((n) => n + 1);
+                brief.reload();
+                onChanged?.();
+                toast(said);
+              }}
+            />
+          </div>
+
+          {/* §4.6 / §F — the last few things said and done, same shapes as
+              the lead page: the pinned note on peach, a call result as one
+              thin line, a photo as a thumbnail. */}
+          <div className="v2-qp-notes">
+            <LeadNotes
+              contactId={row.contact_id}
+              results={results}
+              nextStep={{ at: lead.next_step_at, note: lead.next_step_note }}
+              limit={3}
+              reloadKey={noteStamp}
+              onChanged={onChanged}
+              compact
+            />
+          </div>
 
           {/* §4.7 — four plain lines, and never a code: "English", not "en". */}
           <dl className="d-kv">
@@ -484,176 +585,6 @@ function InShort({ lead, brief, loading }: {
           {lead.language ? ` Speaks ${languageName(lead.language)}.` : ''}
         </p>
       )}
-    </div>
-  );
-}
-
-/* ── §4.5 · the note box, always open ──────────────────────────────────── */
-
-/**
- * "Write a note about Marco…", a microphone and Save.
- *
- * Point 4 on the change picture is the empty half of the panel, and this is
- * what fills it. It writes through the same `POST /api/notes/{contact}` the
- * lead page and the Notes tab use, so a note left here is the same note, in
- * the same list, under the same name — and a voice note recorded here plays
- * back on the lead page like any other.
- */
-function NoteBox({ contactId, opportunityId, who, onSaved }: {
-  contactId: string;
-  opportunityId: string;
-  who: string;
-  onSaved: () => void;
-}) {
-  const toast = useToast();
-  const [body, setBody] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  /* Staged, not uploaded: a recording has nothing to attach to until the note
-     exists, and uploading first would leave one behind every abandoned draft. */
-  const [staged, setStaged] = useState<{ blob: Blob; name: string; seconds: number } | null>(null);
-  const recorder = useRef<VoiceRecorder | null>(null);
-
-  /* A recording left running holds the microphone and keeps the browser's
-     recording dot lit, so closing the panel stops it. */
-  useEffect(() => () => recorder.current?.release(), []);
-
-  useEffect(() => {
-    if (!recording) return undefined;
-    const timer = window.setInterval(() => setElapsed((n) => n + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [recording]);
-
-  async function startRecording() {
-    try {
-      recorder.current = new VoiceRecorder();
-      await recorder.current.start();
-      setElapsed(0);
-      setRecording(true);
-    } catch (err) {
-      recorder.current = null;
-      toast(err instanceof Error ? err.message : 'Could not start recording');
-    }
-  }
-
-  async function stopRecording() {
-    const active = recorder.current;
-    setRecording(false);
-    recorder.current = null;
-    if (!active) return;
-    try {
-      const result = await active.stop();
-      setStaged({ blob: result.blob, name: voiceFilename(result.mimeType), seconds: result.seconds });
-    } catch {
-      toast('The recording did not save');
-    }
-  }
-
-  async function save() {
-    const text = body.trim();
-    /* A voice note is the whole note: asking for words as well would mean
-       typing, which is the thing the recording exists to avoid. */
-    if (!text && !staged) return;
-    setSaving(true);
-    try {
-      const created = await api.post<{ id: string }>(`/api/notes/${contactId}`, {
-        body: text || '🎤 Voice note',
-        type: 'general',
-        opportunityId,
-      });
-      if (staged) {
-        await uploadNoteFile(created.id, staged.blob, {
-          filename: staged.name,
-          durationSeconds: staged.seconds,
-        }).catch(() => toast('The voice note did not upload'));
-      }
-      setBody('');
-      setStaged(null);
-      onSaved();
-      toast('Noted');
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'That did not save');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="v2-qp-note">
-      <textarea
-        className="d-textarea"
-        value={body}
-        placeholder={`Write a note about ${who}…`}
-        aria-label={`Write a note about ${who}`}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <div className="v2-qp-note-foot">
-        {canRecord() && (
-          <button
-            type="button"
-            className={recording ? 'd-btn d-sm d-icon v2-qp-rec' : 'd-btn d-sm d-icon'}
-            aria-label={recording ? 'Stop recording' : 'Record a voice note'}
-            title={recording ? 'Stop recording' : 'Record a voice note'}
-            onClick={() => { void (recording ? stopRecording() : startRecording()); }}
-          >
-            <Icon name="mic" />
-          </button>
-        )}
-        {recording && <span className="d-small d-muted">Recording {formatDuration(elapsed)}</span>}
-        {staged && !recording && (
-          <span className="v2-qp-staged">
-            Voice note {formatDuration(staged.seconds)}
-            <button
-              type="button"
-              className="d-btn d-xs d-icon d-ghost"
-              aria-label="Throw the recording away"
-              onClick={() => setStaged(null)}
-            >
-              <Icon name="x" size={12} />
-            </button>
-          </span>
-        )}
-        <span className="d-grow" />
-        <button
-          type="button"
-          className="d-btn d-sm d-primary"
-          disabled={saving || (body.trim() === '' && !staged)}
-          onClick={() => { void save(); }}
-        >
-          <Icon name="save" />{saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ── §4.6 · the last three notes ───────────────────────────────────────── */
-
-function LastNotes({ items, error }: { items: Note[] | null; error: string | null }) {
-  if (error) return <p className="d-small d-muted">{error}</p>;
-  if (!items) return <p className="d-small d-muted">Reading the notes…</p>;
-  if (items.length === 0) {
-    return <p className="d-small d-muted">No notes yet. Write the first one after your call.</p>;
-  }
-
-  /* Newest first, whatever order they arrived in: the server puts pinned
-     notes at the top, and "the last three notes" means the last three. */
-  const last = [...items]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 3);
-
-  return (
-    <div className="v2-qp-notes">
-      {last.map((one) => (
-        <div className="v2-qp-note-row" key={one.id}>
-          <div className="v2-qp-note-who">
-            <b>{one.author_name?.trim() || 'Someone'}</b>
-            <span>{moment(one.created_at)}</span>
-          </div>
-          <div className="v2-qp-note-body" dir="auto">{one.body}</div>
-        </div>
-      ))}
     </div>
   );
 }

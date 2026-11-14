@@ -16,7 +16,12 @@ import { formatTime } from '../lib/format.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction } from './call.js';
-import { LeadNotes } from '../components/LeadNotes.js';
+import { LeadNotes } from './LeadNotes.js';
+import { LeadNoteBox, type NoteBoxHandle } from './LeadNoteBox.js';
+import { CallResultBar, type Asking } from './CallResultBar.js';
+import {
+  plain, resultsFromActivities, type CallResultLine, type NoAnswerState,
+} from './call-result.js';
 
 /**
  * One lead, and everything you can do to it.
@@ -78,6 +83,13 @@ interface Lead {
   won_signed: string | null;
   won_unit: string | null;
   lost_reason_v2: string | null;
+  /**
+   * Where the "did we reach them" run stands — the shape in
+   * `docs/v2/call-results-contract.md` §3. Optional because the endpoint that
+   * sends it is another pair of hands this week: until it does, the bar draws
+   * its six results and no strip, rather than a strip full of invented zeroes.
+   */
+  noAnswer?: NoAnswerState | null;
 }
 
 interface Task {
@@ -103,6 +115,9 @@ interface Detail {
   contact: Record<string, unknown> & Person;
   activities: Array<{
     id: string; type: string; title?: string | null; body: string | null;
+    /* `runLeadAction` writes the action it took in here, which is how a call
+       result is told apart from an ordinary line of history. */
+    meta?: unknown;
     user_name?: string | null; created_at: string;
   }>;
   tasks?: Task[];
@@ -205,10 +220,21 @@ export function V2Lead() {
   );
   const [said, setSaid] = useState<string | null>(null);
   /*
-   * The tap we are waiting on an answer for. `whatsapp()` hands back the
-   * id of the row it wrote, which is what `PATCH /api/v2/taps/:id` wants.
+   * The tap the result bar is waiting on an answer for — a call or a message.
+   * `whatsapp()` hands back the id of the row it wrote, which is what
+   * `PATCH /api/v2/taps/:id` wants, and the bar writes the answer to both
+   * that row and the call result.
    */
-  const [tapped, setTapped] = useState<{ id: string; app: 'whatsapp' | 'telegram' } | null>(null);
+  const [asking, setAsking] = useState<Asking | null>(null);
+  /** The run, as the last answer left it. Null until something is known. */
+  const [run, setRun] = useState<NoAnswerState | null>(null);
+  /** The results answered while this page has been open, for the notes list. */
+  const [justSaved, setJustSaved] = useState<CallResultLine[]>([]);
+  /** Bumped when a note is saved, so the list below re-reads itself. */
+  const [noteStamp, setNoteStamp] = useState(0);
+  /* D.5: "Answered" puts the cursor in the note box with Call chosen. */
+  const box = useRef<NoteBoxHandle>(null);
+  const tabBox = useRef<NoteBoxHandle>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
   /*
    * The brief behind "In short". A plain read — no model call — so opening a
@@ -266,9 +292,30 @@ export function V2Lead() {
      so the page is re-read rather than patched in place: the new line has to
      appear on the timeline beside the change, which is the point of it. */
   function afterEdit(told: string) {
-    setSaid(told);
+    setSaid(plain(told));
     detail.reload();
     brief.reload();
+  }
+
+  /*
+   * D.6: the bar lights up with "What happened?" the moment the phone or
+   * WhatsApp opens. `now()` is read on the press rather than when the agent
+   * answers, because the heading says "You tapped Call at 16:40" and a clock
+   * read eight minutes later would say 16:48.
+   *
+   * The `dial.call` / `dial.whatsapp` call stays inside the element it
+   * belongs to rather than moving into a helper: `call-wiring.test.ts` reads
+   * each `tel:` and `wa.me` element and checks the recording is right there,
+   * and that check has already caught this page going back to a bare link.
+   */
+
+  /** A call result was saved: redraw the lead, and keep the line for the list. */
+  function afterResult(told: string, state: NoAnswerState | null, result: CallResultLine) {
+    setSaid(plain(told));
+    setRun(state);
+    setAsking(null);
+    setJustSaved((was) => [result, ...was]);
+    detail.reload();
   }
 
   /** The words for a stored enum value, from the list the server sent. */
@@ -279,6 +326,15 @@ export function V2Lead() {
     /* Before the choices land, show the stored word rather than a blank. */
     return stored === 'unknown' ? null : stored.replace(/_/g, ' ');
   }
+
+  /*
+   * The call results on this lead, for the thin lines in the notes list: the
+   * ones already in its history, and the ones answered since the page opened.
+   * The history's lines carry no try number because nothing stores which
+   * attempt a past "no answer" was; the ones answered here do, because the
+   * endpoint answered with it.
+   */
+  const results = [...justSaved, ...resultsFromActivities(activities)];
 
   const closed = lead.status === 'won' || lead.status === 'lost';
   const budget = lead.budget_min_aed || lead.budget_max_aed
@@ -314,7 +370,8 @@ export function V2Lead() {
                    and what right-click copies. The click is taken over so the
                    call is written down first. */
                 e.preventDefault();
-                void dial.call(lead);
+                const at = new Date().toISOString();
+                void dial.call(lead).then(() => setAsking({ what: 'call', at }));
               }}
             >
               {spacedE164(phone) ?? 'No number'}
@@ -412,7 +469,12 @@ export function V2Lead() {
               <a
                 className={phone ? 'd-btn d-primary d-lg d-full' : 'd-btn d-primary d-lg d-full d-disabled'}
                 href={phone ? `tel:${phone}` : undefined}
-                onClick={(e) => { if (!phone) return; e.preventDefault(); void dial.call(lead); }}
+                onClick={(e) => {
+                  if (!phone) return;
+                  e.preventDefault();
+                  const at = new Date().toISOString();
+                  void dial.call(lead).then(() => setAsking({ what: 'call', at }));
+                }}
               >
                 <Icon name="phone" />Call
               </a>
@@ -424,10 +486,11 @@ export function V2Lead() {
                 onClick={(e) => {
                   if (!phone) return;
                   e.preventDefault();
-                  /* The blue line goes up the moment WhatsApp opens, so the
+                  /* The bar lights up the moment WhatsApp opens, so the
                      question is on screen when the agent comes back. */
-                  void dial.whatsapp(lead).then((id) => {
-                    if (id) setTapped({ id, app: 'whatsapp' });
+                  const at = new Date().toISOString();
+                  void dial.whatsapp(lead).then((tapId) => {
+                    setAsking({ what: 'whatsapp', at, tapId });
                   });
                 }}
               >
@@ -481,26 +544,6 @@ export function V2Lead() {
               <Icon name="check" />
               <span className="d-grow">{said}</span>
             </div>
-          )}
-
-          {/*
-            * §5.3a / §5.10, the first thing in the middle column: the blue
-            * line that appears after a WhatsApp or Telegram tap.
-            *
-            * The CRM opens the app with the message typed in; it cannot see
-            * what happened next, and `/api/v2/taps/:id` has been waiting for
-            * the answer since it was written — nothing in the web app ever
-            * asked for it. So every tap was recorded as a tap and never as
-            * an outcome, and the owner's figures had a hole the shape of
-            * every WhatsApp this company sends.
-            */}
-          {tapped !== null && (
-            <WhatsappAsked
-              tapId={tapped.id}
-              app={tapped.app}
-              onAnswered={(told) => { setTapped(null); setSaid(told); detail.reload(); }}
-              onClose={() => setTapped(null)}
-            />
           )}
 
           {/*
@@ -572,35 +615,77 @@ export function V2Lead() {
           <LeadHandover leadId={lead.id} />
 
           {/*
-            * §5.3d: a note box that is always there.
+            * §D: the call-result bar, above the note box, always visible.
+            *
+            * It is also the one thing on this page that asks "what happened?"
+            * — the blue "WhatsApp opened · waiting for your update" line that
+            * used to sit at the top of this column has folded into it, so a
+            * tap on Call and a tap on WhatsApp are answered in the same
+            * place with the same six buttons rather than by two strips
+            * asking the same question in different words.
+            */}
+          <CallResultBar
+            opportunityId={lead.id}
+            lead={lead}
+            state={run ?? lead.noAnswer ?? null}
+            asking={asking}
+            dial={dial}
+            onDismiss={() => setAsking(null)}
+            onGiveUp={() => setDoing('lost')}
+            onAnswered={() => {
+              /*
+               * D.5. Whichever box is on screen takes the cursor: the one in
+               * the Notes tab when that tab is open, the always-visible one
+               * otherwise. Switching the tab first and then focusing would
+               * reach for a box React has not mounted yet, and do nothing.
+               */
+              if (tab === 'notes') tabBox.current?.focus('call_summary');
+              else box.current?.focus('call_summary');
+            }}
+            onSaved={(told, state, result) => afterResult(told, state, {
+              id: `just-${Date.now()}`,
+              result,
+              tries: state && state.tries > 0 ? state.tries : null,
+              maxTries: state && state.tries > 0 ? state.maxTries : null,
+              who: user?.name ?? null,
+              at: new Date().toISOString(),
+            })}
+          />
+
+          {/*
+            * §5.3d / §E: a note box that is always there.
             *
             * Emir's own words for what was wrong: *"no place to write a
             * note."* There was one, two scrolls down and behind a tab, which
             * is the same as not having one — an agent puts the phone down
-            * and writes while it is fresh or not at all. This is the
-            * design's `composer`, in the design's own place: under "In
-            * short", above the tabs.
+            * and writes while it is fresh or not at all.
             *
-            * It writes through the same `POST /api/notes/{contact}` the
-            * Notes tab uses, so a note typed here is the same note, in the
-            * same list, with the same type chips. Voice notes stay in the
-            * tab below, where the recorder lives.
-            */}
-          {/*
-            * Not drawn while the Notes tab is open: the full note box —
-            * quick phrases, attachments, voice, "remind me" — is two inches
-            * below in the same column, and two places to type on one screen
-            * is the fault this was written to fix, not a second instance of
-            * it. On every other tab this is the only one, which is what
-            * "always visible" is for.
+            * It is the same component as the one inside the Notes tab and as
+            * the one in the quick panel, so the type chips, the quick
+            * phrases, Attach, Voice, Remind me and Ctrl + Enter behave
+            * identically wherever an agent happens to be typing.
+            *
+            * Not drawn while the Notes tab is open: the tab's own box is two
+            * inches below in the same column, and two places to type on one
+            * screen is the fault this was written to fix, not a second
+            * instance of it. On every other tab this is the only one, which
+            * is what "always visible" is for.
             */}
           {tab !== 'notes' && (
-            <NoteBox
-              contactId={lead.contact_id}
-              opportunityId={lead.id}
-              who={firstName(lead.full_name)}
-              onSaved={(told) => { setSaid(told); detail.reload(); setTab('notes'); }}
-            />
+            <section className="d-card" aria-label="Add a note">
+              <LeadNoteBox
+                ref={box}
+                contactId={lead.contact_id}
+                opportunityId={lead.id}
+                who={lead.full_name ? firstName(lead.full_name) : 'this lead'}
+                onSaved={(told) => {
+                  setSaid(told);
+                  setNoteStamp((n) => n + 1);
+                  detail.reload();
+                  setTab('notes');
+                }}
+              />
+            </section>
           )}
 
           <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
@@ -635,25 +720,40 @@ export function V2Lead() {
             </div>
 
             {/*
-              * Notes, for real.
+              * Notes, and §F of the owner's list.
               *
-              * The tab said "not built yet · phase 4" while `/api/notes` has
-              * been complete since phase 2 — list, add, pin, edit, restore,
-              * attachments and voice files — and `components/LeadNotes.tsx`
-              * already drives all of it. `Notes.dc.html` asks for the type
-              * chip, the PINNED badge, who and when, the quick phrases, the
-              * hold-to-record voice note and the reminder, and that
-              * component has every one of them. What it has not got is the
-              * transcript, the AI-extracted fields and the four named
-              * folders, because the server stores none of those — see
-              * `docs/v2/phone-questions-a.md`.
+              * The box and the list are the two v2 components, so a note
+              * written here looks the same as a note written in the quick
+              * panel and as one written on the phone: the avatar, the type
+              * pill coloured by type, the real date and time, the "…" menu,
+              * a photo as a thumbnail rather than as a file name, and a call
+              * result as one thin line.
+              *
+              * What is still not here is the transcript and the AI-extracted
+              * fields the design draws beside a voice note — the server
+              * stores neither. See `docs/v2/phone-questions-a.md`.
               */}
             {tab === 'notes' && (
-              <LeadNotes
-                contactId={lead.contact_id}
-                opportunityId={lead.id}
-                onLeadChanged={detail.reload}
-              />
+              <>
+                <LeadNoteBox
+                  ref={tabBox}
+                  contactId={lead.contact_id}
+                  opportunityId={lead.id}
+                  who={lead.full_name ? firstName(lead.full_name) : 'this lead'}
+                  onSaved={(told) => {
+                    setSaid(told);
+                    setNoteStamp((n) => n + 1);
+                    detail.reload();
+                  }}
+                />
+                <LeadNotes
+                  contactId={lead.contact_id}
+                  results={results}
+                  nextStep={{ at: lead.next_step_at, note: lead.next_step_note }}
+                  reloadKey={noteStamp}
+                  onChanged={detail.reload}
+                />
+              </>
             )}
 
             {tab === 'timeline' && (
@@ -895,7 +995,7 @@ export function V2Lead() {
           opportunityId={lead.id}
           who={lead.full_name}
           onCancel={() => setDoing(null)}
-          onDone={(told) => { setDoing(null); setSaid(told); detail.reload(); }}
+          onDone={(told) => { setDoing(null); setSaid(plain(told)); detail.reload(); }}
         />
       )}
 
@@ -905,7 +1005,7 @@ export function V2Lead() {
           who={lead.full_name}
           isVip={lead.is_vip === 1}
           onCancel={() => setHandingOver(false)}
-          onDone={(told) => { setHandingOver(false); setSaid(told); detail.reload(); }}
+          onDone={(told) => { setHandingOver(false); setSaid(plain(told)); detail.reload(); }}
         />
       )}
     </div>
@@ -918,195 +1018,6 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <dt>{label}</dt>
       <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
     </div>
-  );
-}
-
-/* ── After a WhatsApp tap: what happened? ──────────────────────────────── */
-
-/** The six answers `/api/v2/taps/:id` takes, in words a person reads. */
-const TAP_ANSWERS: Array<{ value: string; label: string }> = [
-  { value: 'sent', label: 'I sent it' },
-  { value: 'replied', label: 'They replied' },
-  { value: 'no_reply', label: 'No reply yet' },
-  { value: 'wrong_number', label: 'Wrong number' },
-  { value: 'changed_mind', label: 'I did not send it' },
-  { value: 'not_sent', label: 'It would not send' },
-];
-
-/**
- * "WhatsApp opened · waiting for your update" — §5.3a and §5.10.
- *
- * The design draws it as a blue line across the top of the middle column
- * with one button on the right. Pressing the button opens the six answers;
- * choosing one writes the outcome and the line goes away.
- *
- * It can be dismissed, because an agent who got distracted and came back an
- * hour later should not have to answer a question about a tap they no longer
- * remember. Dismissing records nothing, which is the honest outcome — the tap
- * itself is already saved and simply has no result on it.
- */
-function WhatsappAsked({ tapId, app, onAnswered, onClose }: {
-  tapId: string;
-  app: 'whatsapp' | 'telegram';
-  onAnswered: (said: string) => void;
-  onClose: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const name = app === 'telegram' ? 'Telegram' : 'WhatsApp';
-
-  async function answer(value: string, label: string) {
-    setBusy(true);
-    setProblem(null);
-    try {
-      await api.patch(`/api/v2/taps/${tapId}`, { result: value });
-      onAnswered(`${name}: ${label.toLowerCase()}.`);
-    } catch (err) {
-      setProblem(err instanceof Error ? err.message : 'That did not save.');
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="d-banner d-blue">
-      <Icon name="message-circle" />
-      {/*
-        * The six answers go *under* the sentence, not beside it.
-        * `.d-banner` is one flex row that does not wrap, and six buttons in
-        * it squeezed "waiting for your update" into a four-word column and
-        * pushed the last two outside the blue. Inside the growing span they
-        * take the width they need and the sentence keeps its line.
-        */}
-      <span className="d-grow">
-        <b>{name} opened</b> · waiting for your update
-        {problem !== null && <> · {problem}</>}
-        {open && (
-          <span className="d-row d-gap-6 d-wrap d-mt-8">
-            {TAP_ANSWERS.map((one) => (
-              <button
-                key={one.value}
-                type="button"
-                className="d-btn d-xs"
-                disabled={busy}
-                onClick={() => { void answer(one.value, one.label); }}
-              >
-                {one.label}
-              </button>
-            ))}
-          </span>
-        )}
-      </span>
-      {!open && (
-        <button type="button" className="d-btn d-xs d-dark" onClick={() => setOpen(true)}>
-          What happened?
-        </button>
-      )}
-      <button type="button" className="d-btn d-xs d-ghost" onClick={onClose} aria-label="Hide">
-        <Icon name="x" size={13} />
-      </button>
-    </div>
-  );
-}
-
-/* ── The note box that is always there ─────────────────────────────────── */
-
-/** The note types the design's composer offers, in its own order. */
-const NOTE_TYPES: Array<{ value: string; label: string }> = [
-  { value: 'general', label: 'Note' },
-  { value: 'call', label: 'Call' },
-  { value: 'viewing', label: 'Viewing' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'objection', label: 'Objection' },
-  { value: 'next_step', label: 'Next step' },
-];
-
-/**
- * "Write a note about Marco…" — §5.3d, the design's `composer`.
- *
- * Closed it is one line and a mic. Typing opens the type chips and the Save
- * button, which is what `.d-composer.d-open` is in the ported stylesheet: the
- * design wrote this behaviour and we are using its classes rather than
- * inventing a second note box.
- *
- * The mic is not wired here. Recording lives in the Notes tab below, where
- * the recorder and its permission prompt already are, and a second recorder
- * on one page is two things to keep in step. Pressing it opens that tab.
- */
-function NoteBox({ contactId, opportunityId, who, onSaved }: {
-  contactId: string;
-  opportunityId: string;
-  who: string;
-  onSaved: (said: string) => void;
-}) {
-  const [body, setBody] = useState('');
-  const [type, setType] = useState('general');
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const open = body.trim() !== '';
-
-  async function save() {
-    const text = body.trim();
-    if (text === '' || busy) return;
-    setBusy(true);
-    setProblem(null);
-    try {
-      await api.post(`/api/notes/${contactId}`, { body: text, type, opportunityId });
-      setBody('');
-      setType('general');
-      onSaved('Note saved.');
-    } catch (err) {
-      setProblem(err instanceof Error ? err.message : 'That note did not save.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className={open ? 'd-card d-composer d-open' : 'd-card d-composer'} aria-label="Add note">
-      <div className="d-row d-gap-8">
-        <textarea
-          className="d-textarea d-grow"
-          placeholder={`Write a note about ${who}…`}
-          aria-label={`Write a note about ${who}`}
-          value={body}
-          disabled={busy}
-          onChange={(e) => setBody(e.target.value)}
-        />
-        <a className="d-btn d-icon" href="?tab=notes" title="Record a voice note" aria-label="Record a voice note">
-          <Icon name="mic" />
-        </a>
-      </div>
-      <div className="d-more">
-        <div className="d-chips">
-          {NOTE_TYPES.map((one) => (
-            <button
-              key={one.value}
-              type="button"
-              className={type === one.value ? 'd-chip-opt d-on' : 'd-chip-opt'}
-              onClick={() => setType(one.value)}
-            >
-              {one.label}
-            </button>
-          ))}
-        </div>
-        <div className="d-row d-gap-8">
-          {problem !== null && <span className="d-small d-t-amber d-grow">{problem}</span>}
-          {problem === null && <span className="d-grow" />}
-          <button
-            type="button"
-            className="d-btn d-sm d-ghost"
-            disabled={busy}
-            onClick={() => { setBody(''); setProblem(null); }}
-          >
-            Cancel
-          </button>
-          <button type="button" className="d-btn d-sm d-dark" disabled={busy} onClick={() => { void save(); }}>
-            {busy ? 'Saving…' : 'Save note'}
-          </button>
-        </div>
-      </div>
-    </section>
   );
 }
 

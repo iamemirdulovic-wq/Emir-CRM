@@ -65,7 +65,15 @@ describe('whose screen the leads list is', () => {
      * live leads, Won needed somewhere to go or it would have been hidden
      * rather than filed. `docs/decisions-to-confirm.md` has it.
      */
-    expect(owner).toEqual(['all', 'cold', 'overdue', 'no_next_step', 'vip', 'lost', 'won']);
+    /*
+     * `no_answer` is an eighth, added 14 Nov. B.1 puts it on My leads *and*
+     * All leads, between "No next step" and VIP, and the owner's picture of
+     * the strip draws it there. Like Won it is not in the design package,
+     * because the design package predates it.
+     */
+    expect(owner).toEqual([
+      'all', 'cold', 'overdue', 'no_next_step', 'no_answer', 'vip', 'lost', 'won',
+    ]);
     expect(owner).not.toContain('today');
     expect(owner).not.toContain('new');
     expect(OWNER_TABS[0]?.label).toBe('All');
@@ -75,8 +83,11 @@ describe('whose screen the leads list is', () => {
   it('leaves the agent’s own tabs alone', () => {
     /* Won sits beside Lost, before All -- the two looking-back tabs together
        at the end of the work. Same 14 Nov decision as above. */
-    expect(AGENT_TABS.map((one) => one.key))
-      .toEqual(['today', 'new', 'overdue', 'no_next_step', 'vip', 'lost', 'won', 'all']);
+    /* With "No answer" between "No next step" and VIP — B.1, and the order
+       in the owner's own picture of the strip. */
+    expect(AGENT_TABS.map((one) => one.key)).toEqual([
+      'today', 'new', 'overdue', 'no_next_step', 'no_answer', 'vip', 'lost', 'won', 'all',
+    ]);
   });
 
   /* An owner's screen is the wide one on every tab, not only on All: without
@@ -94,7 +105,16 @@ describe('selecting and moving leads on a computer', () => {
   it('puts a tick box on every row and one in the header', () => {
     expect(computer, 'the design’s tick column').toContain('d-t-check');
     expect(computer).toContain('Select all on this page');
-    expect(computer).toContain('selectable={book}');
+    /*
+     * `book && !onNoAnswerTab` since 14 Nov: the No answer tab has no tick
+     * column, because nothing in it is waiting to be marked No answer and
+     * the column would cost the Project 34px. The bulk "Mark No answer" is
+     * on the tabs that hold the leads that need it.
+     */
+    /* On the row's own props, which moved into `drawRow` — see the note on
+       the quick panel below. `drawRow` is the computer table's alone. */
+    expect(computer).toContain('drawRow(row)');
+    expect(source('Leads.tsx')).toContain('selectable={book && !onNoAnswerTab}');
   });
 
   it('shows the dark bulk bar with both bulk actions', () => {
@@ -141,9 +161,18 @@ describe('what a row click does', () => {
   it('opens the 480px panel instead of leaving the list', () => {
     const computer = computerLayout();
     expect(computer).toContain('<LeadPanel');
-    expect(computer).toContain('onOpen={() => setPanelFor(row)}');
+    /*
+     * The row's props moved into `drawRow` on 14 Nov, because the No answer
+     * tab draws one flat run of rows and every other tab draws them under
+     * day headings — written twice, one of the two would have lost a prop,
+     * which is how the tick box ended up in the phone branch only. So the
+     * computer layout is checked for the call and the props for the panel
+     * are checked just below; `drawRow` is the computer table's alone.
+     */
+    expect(computer).toContain('drawRow(row)');
 
     const text = source('Leads.tsx');
+    expect(text).toContain('onOpen={() => setPanelFor(row)}');
     expect(text).toContain('if (onOpen) onOpen();');
     /* And the panel is the design's own 480px aside, not a dialog. */
     expect(text).toContain("className=\"d-panel d-open\"");

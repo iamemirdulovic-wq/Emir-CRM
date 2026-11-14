@@ -131,6 +131,28 @@ const MOVES: Record<LeadAction, { stage: string | null; sub?: string; status?: '
 const REACHED_OUT = new Set<LeadAction>(['call', 'whatsapp', 'no_answer', 'meeting', 'interested']);
 
 /**
+ * Which actions end a run of unanswered calls, and so put the count back.
+ *
+ * `no_answer_count` has been counted up since migration 0017 and never once
+ * counted down, so a lead rung three times in March still read "3" after the
+ * client answered in April — and now that the count is on screen as "try 2 of
+ * 5" (`v2/call-results.ts`, Emir's section A), a count that never resets is a
+ * number the agent can see is wrong.
+ *
+ * Reset here rather than in the new code so that every path agrees: the
+ * dialler, the lead page's own buttons and the call-result endpoint all come
+ * through this function.
+ *
+ * `whatsapp` is deliberately not in the list. A tap on WhatsApp is not proof
+ * that anybody read it, and only `answerTap`'s "replied" means they did —
+ * which arrives here as `whatsapp` too. Resetting on the tap would clear a
+ * run on the strength of a message that was never answered.
+ */
+const ENDS_A_RUN = new Set<LeadAction>([
+  'call', 'call_back', 'interested', 'meeting', 'problem', 'lost', 'won',
+]);
+
+/**
  * Decide the next step when the agent did not choose one.
  *
  * Only two actions get an automatic answer, and both because the right answer
@@ -237,6 +259,10 @@ export async function runLeadAction(
     if (input.action === 'no_answer') {
       sets.push('no_answer_count = ?');
       args.push(noAnswerCount);
+    } else if (ENDS_A_RUN.has(input.action) && before.no_answer_count > 0) {
+      /* We got through, or the lead is closed. The run of unanswered calls is
+         over; the tries stay in the timeline. */
+      sets.push('no_answer_count = 0');
     }
     /*
      * Somebody is working it, so it is no longer a lead waiting to be placed.

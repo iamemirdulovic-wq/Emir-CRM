@@ -29,7 +29,7 @@ import {
   GripVertical, HandCoins, Hourglass, IdCard, Inbox, Info, Instagram, Kanban, KeyRound,
   ImageUp, Landmark, Layers, Lock, HelpCircle, LayoutDashboard, LayoutGrid, LayoutTemplate, Lightbulb, Link, List, Loader2,
   LogOut, Mail, MapPin, Megaphone, Menu, MessageCircle, MessageSquare, MessageSquareHeart,
-  Mic, Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOutgoing, PieChart, Play,
+  Mic, Minus, Monitor, Moon, MoreHorizontal, Paperclip, Pencil, Phone, PhoneOff, PhoneOutgoing, PieChart, Play,
   PencilLine, Pin, Plus, Quote, Radar, Radio, Receipt, RefreshCw, Repeat, Save, Scale, ScanLine, Search, Send, Settings,
   Share2, Shield, ShieldCheck, ShoppingBag, Smartphone, Smile, Sparkles, Square, SquarePen, Stamp, Stethoscope, Star, StickyNote, Sun, Target,
   Timer, ToggleLeft, Trash2, TrendingUp, Trophy, Umbrella, Upload, User, Wifi, UserCheck, UserPlus,
@@ -68,7 +68,11 @@ const ICONS = {
   'map-pin': MapPin, 'megaphone': Megaphone, 'menu': Menu, 'message-circle': MessageCircle,
   'message-square': MessageSquare, 'message-square-heart': MessageSquareHeart, 'mic': Mic, 'minus': Minus,
   'monitor': Monitor, 'moon': Moon, 'more-horizontal': MoreHorizontal, 'paperclip': Paperclip,
-  'pencil': Pencil, 'pencil-line': PencilLine, 'phone': Phone, 'phone-outgoing': PhoneOutgoing, 'pie-chart': PieChart,
+  'pencil': Pencil, 'pencil-line': PencilLine, 'phone': Phone,
+  /* The "No answer" result, on the row's pill, its tag and the toast. One
+     glyph for one idea: a call that did not happen. */
+  'phone-off': PhoneOff,
+  'phone-outgoing': PhoneOutgoing, 'pie-chart': PieChart,
   'pin': Pin, 'play': Play, 'plus': Plus, 'quote': Quote, 'radar': Radar, 'radio': Radio, 'receipt': Receipt,
   'refresh-cw': RefreshCw, 'repeat': Repeat, 'save': Save, 'scale': Scale,
   'scan-line': ScanLine, 'search': Search, 'send': Send, 'settings': Settings, 'shield': Shield,

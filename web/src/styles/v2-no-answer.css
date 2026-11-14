@@ -1,0 +1,313 @@
+/*
+ * "No answer" — the tab's columns, the tries pill, the row's third button.
+ *
+ * Imported by `v2/no-answer.tsx` itself rather than from `index.css`, the same
+ * way `v2-quick-panel.css` is imported by `LeadPanel.tsx`, so that work on the
+ * No answer tab cannot collide with work on the leads table next door. Four
+ * agents were in this screen at once on 14 Nov.
+ *
+ * ── Read this before adding a rule ────────────────────────────────────────
+ *
+ * **This file is bundled BEFORE the design's own sheets, not after.**
+ * `main.tsx` imports `./App.js` before `./styles/index.css`, so every
+ * stylesheet an app module pulls in — this one — is emitted ahead of
+ * `v2-ui.css`, `v2-home.css` and `v2-shell.css`. At equal specificity the
+ * design wins, not us.
+ *
+ * So every rule here that touches an element also carrying a `d-` class names
+ * that class in the selector — `.v2 .d-btn.v2-na-btn`, never
+ * `.v2 .v2-na-btn`. Rules for our own elements, which no `d-` rule can reach,
+ * are left plain.
+ *
+ * ── And before touching a column width ────────────────────────────────────
+ *
+ * The leads table was rebuilt to a fixed column budget on 14 Nov: 52px rows,
+ * the Lead column a fixed 230px, no sideways scroll, nothing drawn over
+ * anything, at 1280, 1440 and 1920. That budget lives in `v2-shell.css` under
+ * "The leads table FITS", keyed off `.v2-cols-mine` and `.v2-cols-book`.
+ *
+ * This file does not edit it. It adds two modifier classes that the table
+ * carries alongside those two, so the base budget still applies everywhere
+ * else:
+ *
+ *   `.v2-na-acts`  the row's actions cell holds FOUR buttons rather than
+ *                  three, because the agent's list gained "No answer".
+ *   `.v2-na-cols`  the No answer tab, which is a different table: Lead ·
+ *                  Phone · Project · Tries · Last try · Next try [· Agent]
+ *                  · actions, and no Stage, Given, Local time or Next step.
+ *
+ * Both are written with four classes (`.v2 .d-id-leads.v2-cols-mine.v2-na-cols
+ * th:nth-child(n)`) so they beat the shell's three-class rules whatever the
+ * file order — including the shell's own `@media (max-width:1399px)` block,
+ * which is three classes deep and therefore loses to these. That is why every
+ * narrow-window trim the No answer tab needs is repeated here.
+ *
+ * Project is the column that takes the slack, as the next step does on the
+ * ordinary tabs. Lead stays 230px and Phone stays 148px at every width: a cut
+ * name is the complaint that started this work, and the phone number is the
+ * column an agent dictates from.
+ */
+
+/* ── the tries pill: `No answer ×2` ─────────────────────────────────────── */
+
+/*
+ * A pale grey rounded pill, which is how the owner's picture draws the TRIES
+ * column. `×` is the multiplication sign; the letter x is not it.
+ */
+.v2-na-pill{
+  display:inline-flex; align-items:center; gap:4px;
+  height:22px; padding:0 9px; border-radius:999px;
+  background:var(--surface-3); color:var(--ink-2);
+  font-size:11.5px; font-weight:650; white-space:nowrap;
+}
+.v2-na-pill > svg{ width:12px; height:12px; color:var(--ink-3); flex:none; }
+
+/*
+ * The same count beside the stage, on every other tab — B.5.
+ *
+ * The stage column is 88px and the row is 52px, so the words do not fit
+ * beside the pill at any width. This sits under it: the count, the phone-off
+ * icon, and the words in the hover. The full sentence is in the Next step
+ * cell of the same row.
+ */
+.v2-na-stagetag{
+  display:inline-flex; align-items:center; gap:2px;
+  /*
+   * 14px tall and nothing above it, which is what keeps the row at 52.
+   *
+   * The stage pill is 24px and the cell has 6px of padding top and bottom,
+   * so the tag has 14px to live in: at 15px with 2px above it the row grew
+   * to 54 and §2.6's "12 leads fit on one screen" quietly became eleven.
+   * Measured in a browser, not guessed.
+   */
+  margin-top:0; height:14px; padding:0 5px; border-radius:999px;
+  background:var(--surface-3); color:var(--ink-3);
+  font-size:10px; font-weight:700; line-height:1; white-space:nowrap;
+}
+.v2-na-stagetag > svg{ width:10px; height:10px; flex:none; }
+
+/* The stage cell stacks: the pill, then the tag under it. Both stay inside a
+   52px row — 24px and 14px, measured. */
+.v2 .d-id-leads td.v2-t-stage .v2-na-stageline{
+  display:flex; flex-direction:column; align-items:flex-start; gap:0; min-width:0;
+}
+
+/* ── the two time columns ───────────────────────────────────────────────── */
+
+/* LAST TRY: grey, "14 Nov 16:40". */
+.v2-na-last{ color:var(--ink-3); font-size:12.5px; white-space:nowrap; }
+
+/*
+ * NEXT TRY: black while it is ahead, red once it is due — the owner's
+ * picture. Red here means the same thing it means in the sidebar badges and
+ * in the next-step column: late, or waiting on you.
+ */
+.v2-na-next{ color:var(--ink); font-weight:600; font-size:12.5px; white-space:nowrap; }
+.v2-na-next-due{ color:var(--red-ink); }
+.v2-na-next-none{ color:var(--ink-4); font-weight:500; }
+
+/* ── the row's "No answer" button ───────────────────────────────────────── */
+
+/*
+ * A filled pale-grey pill with a phone-off icon: *"visibly the quietest of
+ * the three"*, which is the owner's own reading of his picture. Call and
+ * WhatsApp keep the design's white-with-a-border `d-btn`.
+ */
+.v2 .d-btn.d-xs.v2-na-btn{
+  background:var(--surface-3); color:var(--ink-2); box-shadow:none;
+}
+.v2 .d-btn.d-xs.v2-na-btn:hover{
+  background:var(--line-2); color:var(--ink); box-shadow:none;
+}
+.v2 .d-btn.d-xs.v2-na-btn > svg{ color:var(--ink-3); }
+
+/*
+ * "Call first" — C.5. Not greyed out and nothing else: a disabled button an
+ * agent cannot explain is a bug report. The words say what to do, the hover
+ * says it in full, and it is the same rule the dialler already enforces.
+ */
+.v2 .d-btn.d-xs.v2-na-btn-locked{
+  background:transparent; color:var(--ink-4);
+  box-shadow:inset 0 0 0 1px var(--line);
+  /* It is pressable — pressing it says what to do. Not `not-allowed`: that
+     cursor promises nothing will happen, and something does. */
+  cursor:pointer;
+}
+.v2 .d-btn.d-xs.v2-na-btn-locked:hover{
+  background:transparent; color:var(--ink-4); box-shadow:inset 0 0 0 1px var(--line);
+}
+.v2 .d-btn.d-xs.v2-na-btn-locked > svg{ color:var(--ink-4); }
+
+/*
+ * Four buttons in the cell the budget gave three.
+ *
+ * The design's icon button is 40px wide, which at four of them is 178px in a
+ * 96px column — and this cell is `overflow:visible`, so the extra would have
+ * been drawn straight over the next step. §2.9: "NO column on top of
+ * another". So inside the leads table the icon buttons are 26px with a 3px
+ * gap, which is 113px of content and fits the 132px the column now has.
+ */
+.v2 .d-id-leads td.v2-t-acts .d-row-actions{ gap:3px; }
+.v2 .d-id-leads td.v2-t-acts .d-btn.d-xs.d-icon{ width:26px; padding:0; }
+.v2 .d-id-leads td.v2-t-acts .d-btn.d-xs{ padding:0 8px; gap:4px; }
+.v2 .d-id-leads td.v2-t-acts .d-btn.d-xs > svg{ width:14px; height:14px; }
+@media (max-width:1399px){
+  /* A laptop gives the next step every pixel it can: 24px buttons rather
+     than 26, which is 11px back into the column §2.2 calls the widest. */
+  .v2 .d-id-leads td.v2-t-acts .d-row-actions{ gap:2px; }
+  .v2 .d-id-leads td.v2-t-acts .d-btn.d-xs.d-icon{ width:24px; }
+}
+
+/*
+ * The buttons are always there, not only on hover.
+ *
+ * `v2-ui.css` hides `.d-row-actions` until the row is hovered, and the
+ * agent's list switches that off page-wide with `.p-my-leads`. The owner's
+ * `.p-all-leads` never did — it only ever carried the ⋯ — so on the No
+ * answer tab, and on an agent's own All tab, the four buttons were invisible
+ * until the mouse was over the row. A button you cannot see is a button that
+ * is not there.
+ */
+.v2 .d-id-leads.v2-na-acts td.v2-t-acts .d-row-actions,
+.v2 .d-id-leads.v2-na-cols td.v2-t-acts .d-row-actions{ opacity:1; }
+
+/* The buttons are right-aligned, so the cell's left padding is 8px of
+   nothing — and 8px is 8px of the next step at 1280. */
+.v2 .d-id-leads.v2-na-acts td.v2-t-acts,
+.v2 .d-id-leads.v2-na-cols td.v2-t-acts{ padding-left:0; }
+
+/* "Incoming" in the Agent column of this tab, as a word rather than the
+   book's red chip: the column is 76px at 1280 and the chip is 114. */
+.v2-na-nobody{ color:var(--red-ink); font-size:12.5px; font-weight:600; }
+
+/*
+ * The actions column on the agent's list, now that it holds four.
+ *
+ * 132px as icons. The words come back above 1700px, where there is room for
+ * them and for a next step that does not ellipsise — `TIGHT` in `Leads.tsx`
+ * is the same number, and it is the one place it is decided.
+ */
+.v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:132px; }
+@media (min-width:1700px){
+  .v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:344px; }
+}
+
+/* ── the No answer tab's own table ──────────────────────────────────────── */
+
+/*
+ * The agent's: Lead · Phone · Project · Tries · Last try · Next try · actions.
+ *
+ * No Stage, no Given, no Local time and no Next step — the tab answers one
+ * question, which is who to ring again and when. Project takes the slack.
+ */
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(1){ width:230px; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(2){ width:148px; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(3){ width:auto; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(4){ width:136px; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(5){ width:110px; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(6){ width:124px; }
+.v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(7){ width:132px; }
+
+/*
+ * The owner's, which adds the Agent column — B.6, "the tab shows every
+ * agent". There is no tick box in this tab: nothing here is waiting to be
+ * marked No answer, so a column of boxes would buy nothing and cost the
+ * Project 34px. The bulk "Mark No answer" lives on the tabs that have the
+ * leads that need it.
+ */
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(1){ width:230px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(2){ width:148px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(3){ width:auto; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(4){ width:136px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(5){ width:110px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(6){ width:124px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(7){ width:100px; }
+.v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(8){ width:132px; }
+
+/*
+ * A laptop at 1280, where the card is 988px.
+ *
+ * The three short columns give a few pixels each so the Project keeps about
+ * the 90px the owner's ordinary book gives it at the same width. Lead and
+ * Phone do not move.
+ */
+@media (max-width:1399px){
+  /* The pill is "No answer ×2" and it is 133px: it is the subject of the
+     tab, so it is one of the two columns that never ellipsises. */
+  .v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(4),
+  .v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(4){ width:136px; }
+  .v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(5),
+  .v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(5){ width:102px; }
+  .v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(6),
+  .v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(6){ width:114px; }
+  /*
+   * On a laptop the owner's table is the agent's: the Agent column folds
+   * into a grey line under the lead's name (`narrow` in `Leads.tsx`), so
+   * both tables have seven columns and the Project keeps about 120px rather
+   * than the 44 it had with nine.
+   */
+  .v2 .d-id-leads.v2-cols-mine.v2-na-cols th:nth-child(7),
+  .v2 .d-id-leads.v2-cols-book.v2-na-cols th:nth-child(7){ width:114px; }
+  /* And the agent's ordinary list gives the next step the last few pixels
+     it can: four buttons at 24px with a 2px gap and no left padding is 110. */
+  .v2 .d-id-leads.v2-cols-mine.v2-na-acts th:nth-child(8){ width:110px; }
+}
+
+/* The Tries and Next try cells never ellipsise: a pill either fits or it does
+   not, and a time with a row of dots after it reads like a bug. */
+.v2 .d-id-leads.v2-na-cols td.v2-na-c-tries,
+.v2 .d-id-leads.v2-na-cols td.v2-na-c-next{ text-overflow:clip; }
+
+/*
+ * The Next step cell on a laptop, as two lines.
+ *
+ * Measured: the column is 136px at 1280 and "No answer ×2 · tomorrow 11:00"
+ * is 218, so on one line the time disappears — and the time is the half an
+ * agent acts on. Two lines, each whole, inside the same 52px row. The shell
+ * sets `white-space:nowrap` on `.d-next`, hence the override, and the extra
+ * class is on the cell so nothing else on the row changes.
+ */
+.v2 .d-id-leads td.d-next.v2-na-step2{
+  white-space:normal; line-height:1.25; padding-top:6px; padding-bottom:6px;
+}
+.v2 .d-id-leads td.d-next.v2-na-step2 .v2-na-step-tag,
+.v2 .d-id-leads td.d-next.v2-na-step2 .v2-na-step-when{
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.v2 .d-id-leads td.d-next.v2-na-step2 .v2-na-step-tag{ font-size:12px; font-weight:600; }
+.v2 .d-id-leads td.d-next.v2-na-step2 .v2-na-step-when{ font-size:12px; opacity:.78; }
+
+/* ── the tab while the server does not know it ──────────────────────────── */
+
+.v2-na-waiting{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:40px 24px; text-align:center;
+}
+.v2-na-waiting-ic{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:48px; height:48px; border-radius:999px;
+  background:var(--surface-3); color:var(--ink-3); margin-bottom:4px;
+}
+.v2-na-waiting b{ font-size:15px; color:var(--ink); }
+.v2-na-waiting p{ margin:0; max-width:440px; color:var(--ink-3); font-size:13px; line-height:1.5; }
+
+/*
+ * B.7's "Call these one by one" has no rule here because it is not built.
+ *
+ * The power dialler reads `/api/v2/queue`, which takes no arguments and is
+ * hard-wired to `TABS.today`, and `Calling.tsx` never looks at the URL — so
+ * there is no way to hand it a set of leads, and a button that opened the
+ * wrong list would be worse than no button. It is in the report.
+ */
+/* ── the phone ──────────────────────────────────────────────────────────── */
+
+/*
+ * On a phone the tab is the same tab — it is in the same pill strip — but the
+ * row is `design/screens/Leads.dc.html`'s card, not a table. The card's note
+ * line carries "No answer ×2 · try again tomorrow 11:00" instead of its
+ * usual reason, which is the one thing that changes.
+ */
+@media (max-width:767px){
+  .v2 .v2-a-card .v2-na-pill{ height:20px; font-size:11px; }
+  .v2-na-waiting{ padding:28px 16px; }
+}

@@ -1,0 +1,38 @@
+/*
+ * The phone dialler, and the one rule it has to keep: nothing over the
+ * bottom bar.
+ *
+ * Emir, 14 Nov §G.1, checked on his own phone at 390px: *"A black round
+ * button at the bottom left sits on top of the Back button. Nothing may
+ * cover the bottom bar: Back, Skip, Next lead."*
+ *
+ * The dialler is a full-attention screen — `position: fixed; inset: 0`, the
+ * shell's header and floating bar taken away — and it ends in a fixed row of
+ * three buttons that are the only way out of a lead. Two toast hosts are
+ * mounted for the whole app and float over whatever is on screen:
+ *
+ *  - `.toast` in `components.css`, z-index 60: a near-black pill with a
+ *    99px radius, bottom-centre, 24px up. With one word in it ("Saved") it
+ *    is a dark round button sitting exactly on the bar — the screenshot in
+ *    `docs/v2/proof` is of this.
+ *  - `.d-toasts` in `v2-ui.css`, z-index 120: offset by the sidebar's width,
+ *    which a phone does not have, so it lands over the right-hand end of
+ *    the bar instead of clear of it.
+ *
+ * Both belong to the shell and are shared by thirty other screens, so they
+ * are not moved from here. Instead the dialler takes a stacking context
+ * above them. It covers the whole window and is opaque, so a toast was never
+ * going to be read behind it anyway, and the screen this agent is working
+ * keeps its last row to itself.
+ *
+ * `.p-calling` is on the dialler's own root as well as `.v2-a-dial`, so the
+ * selector is three classes and wins over `v2-phone-a.css` whichever order
+ * the bundler puts them in. It is this file's only rule on purpose.
+ */
+
+@media (max-width: 767px) {
+  .v2.v2-phone .v2-a-dial.p-calling {
+    /* Above both toast hosts (60 and 120) and below nothing. */
+    z-index: 130;
+  }
+}

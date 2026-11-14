@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { plainly, planKind, tagWords } from './Lead.js';
+import { RESULT_LABEL } from './call-result.js';
 
 /**
  * The computer lead page against its design picture.
@@ -102,17 +103,26 @@ describe('the middle column', () => {
     return index;
   };
 
-  it('runs: WhatsApp line, Next step, In short, Who has had this lead, note box, tabs', () => {
-    const tap = at('<WhatsappAsked');
+  it('runs: Next step, In short, Who has had this lead, result bar, note box, tabs', () => {
+    /*
+     * The blue "WhatsApp opened · waiting for your update" line used to be
+     * the first thing in this column. It is gone, and on purpose: §D.6 asks
+     * for the call-result bar to be the one thing that asks "what happened?"
+     * after a tap on Call **or** on WhatsApp, and two strips asking the same
+     * question in different words is the fault, not the fix. The bar sits
+     * where the design's picture puts it — directly above the note box — and
+     * scrolls itself into view when it has something to ask.
+     */
     const next = at('<span className="d-sec-label">Next step</span>');
     const short = at('<InShort lead={lead}');
     const hand = at('<LeadHandover leadId={lead.id} />');
-    const note = at('<NoteBox');
+    const bar = at('<CallResultBar');
+    const note = at('<LeadNoteBox');
     const tabs = at('className="d-card v2-leadpage-tabs"');
-    expect(tap).toBeLessThan(next);
     expect(next).toBeLessThan(short);
     expect(short, '§5.7: the card Emir asked to keep sits under "In short"').toBeLessThan(hand);
-    expect(hand).toBeLessThan(note);
+    expect(hand).toBeLessThan(bar);
+    expect(bar, 'D.1: the result row is above the note box').toBeLessThan(note);
     expect(note).toBeLessThan(tabs);
   });
 
@@ -124,47 +134,66 @@ describe('the middle column', () => {
 
   it('draws one note box, never two', () => {
     /*
-     * The full box — quick phrases, attachments, voice, "remind me" — is
-     * inside the Notes tab and belongs to `LeadNotes`. The always-visible
-     * one above the tabs stands in its place everywhere else, and stands
-     * down when the tab that holds the real one is open.
+     * One box, and it is the same component in both places — the Notes tab
+     * and above the tabs — so the type chips, the quick phrases, Attach,
+     * Voice, Remind me and Ctrl + Enter cannot behave differently depending
+     * on which tab happens to be open. The one above the tabs stands down
+     * when the tab that holds the other is open.
      */
     expect(CODE).toContain("{tab !== 'notes' && (");
-    expect(CODE, 'the shared notes component keeps its own composer')
-      .not.toContain('composer={false}');
+    expect(CODE, 'the one shared note box, not a second copy of it')
+      .toContain("from './LeadNoteBox.js'");
   });
 });
 
-/* ── §5.3a / §5.10 · the blue line after a tap ────────────────────────── */
+/* ── §5.3a / §5.10 / §D.6 · what happened, after a tap ───────────────── */
 
-describe('after a WhatsApp tap', () => {
-  it('asks what happened, and writes the answer to the tap', () => {
+/**
+ * The question folded into the call-result bar on 14 Nov.
+ *
+ * It used to be a blue line of its own at the top of this column, with its
+ * own "What happened?" button and its own six answers. §D asks for a row of
+ * six results above the note box, always visible, and §D.6 asks for that row
+ * to be what lights up after a tap on Call **or** on WhatsApp. So there is
+ * one asker now, and these are its promises.
+ */
+const BAR = readFileSync(path.join(HERE, 'CallResultBar.tsx'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '');
+
+describe('after a Call or a WhatsApp tap', () => {
+  it('asks what happened, in the bar, and names what was tapped', () => {
     /* The word is the app's own name, so a Telegram tap does not say
        "WhatsApp opened" — which is the sort of small lie that makes an agent
        stop trusting a screen. */
-    expect(CODE).toContain('{name} opened');
-    expect(CODE).toContain("app === 'telegram' ? 'Telegram' : 'WhatsApp'");
-    expect(CODE).toContain('waiting for your update');
-    expect(CODE).toContain('What happened?');
-    expect(CODE).toContain('/api/v2/taps/${tapId}');
+    expect(BAR).toContain('What happened?');
+    expect(BAR).toContain('You tapped ${tapped(asking.what)} at ${formatTime(asking.at)}');
+    expect(BAR).toContain("what === 'call' ? 'Call' : what === 'telegram' ? 'Telegram' : 'WhatsApp'");
   });
 
-  it('offers the six answers the endpoint takes, in words', () => {
+  it('offers the six results the endpoint takes, in words', () => {
     for (const [key, words] of [
-      ['sent', 'I sent it'],
-      ['replied', 'They replied'],
-      ['no_reply', 'No reply yet'],
+      ['answered', 'Answered'],
+      ['no_answer', 'No answer'],
+      ['busy', 'Busy'],
+      ['call_back', 'Call back'],
       ['wrong_number', 'Wrong number'],
-      ['changed_mind', 'I did not send it'],
-      ['not_sent', 'It would not send'],
+      ['not_interested', 'Not interested'],
     ] as const) {
-      expect(CODE, `${key} should be offered`).toContain(`value: '${key}'`);
-      expect(CODE, `${key} should be said in words`).toContain(words);
+      expect(RESULT_LABEL[key], `${key} should be said in words`).toBe(words);
     }
+    expect(BAR).toContain('/api/v2/leads/${opportunityId}/call-result');
   });
 
-  it('puts the line up from the id the tap came back with', () => {
-    expect(CODE).toContain('setTapped({ id, app: ');
+  it('still writes the tap’s own outcome, so no WhatsApp goes unanswered', () => {
+    /* `PATCH /api/v2/taps/:id` had been waiting for an answer since the
+       calling screen was built. The one question now feeds both records. */
+    expect(BAR).toContain('/api/v2/taps/${asking.tapId}');
+    expect(BAR).toContain('TAP_OUTCOME[result]');
+  });
+
+  it('lights the bar up from the tap the page just made', () => {
+    expect(CODE).toContain("setAsking({ what: 'call', at })");
+    expect(CODE).toContain("setAsking({ what: 'whatsapp', at, tapId })");
   });
 });
 

@@ -118,6 +118,17 @@ const NOTIFICATIONS: Array<{
  */
 const DEMO_LEAD_ROWS = 124;
 
+/**
+ * How many tries each lead has had, in this browser tab only.
+ *
+ * The preview has no database, and the whole point of the toast is that it
+ * says "try 2 of 5" and that Undo puts it back — both of which need the
+ * number to survive from one tap to the next. Seeded lazily from the row's
+ * own `no_answer_count`, so the first tap on a lead that already shows
+ * "No answer ×2" answers with three.
+ */
+const previewTries = new Map<string, number>();
+
 /*
  * Numbers for the preview's synthetic leads, weighted the way Emir's own
  * export is: mostly UAE and UK, then Russia, India, Saudi and a handful of
@@ -163,7 +174,15 @@ function myLeadRows() {
     next_step_at: index % 5 === 4 ? null : at([-3, 4, 30, 54][index % 4] as number),
     next_step_note: null,
     last_contact_at: index % 6 === 5 ? null : at(-index * 9 - 2),
-    no_answer_count: index % 3,
+    /*
+     * How many times we have rung and not spoken to them — the No answer
+     * tab, its pill and the "No answer 3+ times" filter all read this.
+     *
+     * A spread rather than `index % 3`, which topped out at two and left the
+     * 3+ filter with nothing to show in the preview. Nine values, so a page
+     * of fifty holds a few of each.
+     */
+    no_answer_count: [0, 1, 2, 0, 3, 1, 4, 0, 2][index % 9] as number,
     created_at: at(-index * 24 - 6),
     full_name: lead.name,
     /*
@@ -199,7 +218,37 @@ function myLeadRows() {
      * dated yesterday really sits in yesterday's Dubai day.
      */
     assigned_at: index % 11 === 10 ? null : givenHoursAgo(index),
+    /*
+     * §3 of the call-results contract: the no-answer run on this lead.
+     *
+     * The live endpoint builds the same block in `v2/call-results.ts` —
+     * `tries` from `no_answer_count`, `nextTryAt` from `next_step_at`, and
+     * `lastTryAt` from the last `no_answer` activity. Null where there has
+     * never been a try, which is what the row really looks like then.
+     */
+    noAnswer: noAnswerBlock(index, at),
   }));
+}
+
+/**
+ * The `noAnswer` block for the preview's lead number `index`.
+ *
+ * Built from the same two fields the row already carries, so the pill, the
+ * Next try column and the Next step sentence cannot disagree with each other
+ * here the way they could if this invented its own numbers.
+ */
+function noAnswerBlock(index: number, at: (hours: number) => string) {
+  const tries = [0, 1, 2, 0, 3, 1, 4, 0, 2][index % 9] as number;
+  if (tries === 0) return null;
+  return {
+    tries,
+    /* The last try was a while ago, longer the more tries there have been. */
+    lastTryAt: at(-(2 + tries * 5)),
+    /* The same time the row promises as its next step, which is what the
+       live block does — and null on the one in five that promises nothing,
+       so "Nothing planned" has something to draw. */
+    nextTryAt: index % 5 === 4 ? null : at([-3, 4, 30, 54][index % 4] as number),
+  };
 }
 
 /**
@@ -1554,6 +1603,7 @@ const ROUTES: Route[] = [
       hot: rows.filter((r) => r.score_band === 'hot').length,
       overdue: rows.filter((r) => r.next_step_at !== null && new Date(r.next_step_at) < now).length,
       no_next_step: rows.filter((r) => r.next_step_at === null).length,
+      no_answer: rows.filter((r) => r.no_answer_count > 0).length,
       vip: 1,
       lost: 2,
       all: rows.length,
@@ -2274,6 +2324,33 @@ const ROUTES: Route[] = [
     return { undone: importState.created_count };
   } },
 
+  /*
+   * The candidates behind "Names that look like a note" on the import screen.
+   *
+   * The real endpoint casts a wide net in SQL and the screen decides which of
+   * them really are notes, so this returns both: four that are notes, in the
+   * shapes Emir found on his phone, and two ordinary names the net would also
+   * drag in. The screen is right only if it shows the first four.
+   */
+  { method: 'GET', pattern: /^\/api\/note-names$/, handler: () => ({
+    candidates: [
+      { contactId: 'nn-1', opportunityId: 'opp-1', name: 'Looks fake – verify',
+        phone: '+971509112233', source: 'Imported', addedAt: '2026-11-02T06:40:00.000Z' },
+      { contactId: 'nn-2', opportunityId: 'opp-2', name: 'TECHNICAL ANALYSIS.',
+        phone: '+971558740119', source: 'Imported', addedAt: '2026-10-28T11:05:00.000Z' },
+      { contactId: 'nn-3', opportunityId: null, name: 'Prüfen',
+        phone: '+4915112345678', source: 'Imported', addedAt: '2026-10-21T08:15:00.000Z' },
+      { contactId: 'nn-4', opportunityId: 'opp-4', name: 'Ahmed - check number',
+        phone: '+971521009988', source: 'Website', addedAt: '2026-10-14T13:30:00.000Z' },
+      /* Not notes. Both hold a flagged word inside a real one. */
+      { contactId: 'nn-5', opportunityId: 'opp-5', name: 'Katharina Prüfer',
+        phone: '+4917012345678', source: 'Meta forms', addedAt: '2026-10-09T09:00:00.000Z' },
+      { contactId: 'nn-6', opportunityId: 'opp-6', name: 'Giulia Testa',
+        phone: '+393331234567', source: 'Imported', addedAt: '2026-10-01T07:20:00.000Z' },
+    ],
+    capped: false,
+  }) },
+
   { method: 'GET', pattern: /^\/api\/teams\/candidates$/, handler: () => ({
     items: USERS.filter((one) => one.role === 'agent').map((one, index) => ({
       userId: one.id,
@@ -2643,6 +2720,51 @@ const ROUTES: Route[] = [
     said: `Saved: ${String((body as { outcome?: string }).outcome ?? '').replace(/_/g, ' ')}`,
   }) },
   { method: 'POST', pattern: /^\/api\/v2\/taps$/, handler: () => ({ id: `tap-${Date.now()}` }) },
+  /*
+   * Saving a call result and taking it back — §1 and §1b of the
+   * call-results contract. The preview keeps the count in memory so that a
+   * second "No answer" on the same lead really reads "try 2 of 5", and the
+   * toast's Undo really puts it back.
+   */
+  { method: 'POST', pattern: /^\/api\/v2\/leads\/([^/]+)\/call-result$/, handler: ({ params, body }) => {
+    const id = params[0] ?? '';
+    const result = String((body as { result?: string }).result ?? 'no_answer');
+    const ends = result === 'answered' || result === 'call_back'
+      || result === 'wrong_number' || result === 'not_interested';
+    /* Seeded from the row's own count the first time, so a lead already
+       showing "No answer ×2" answers with three rather than one. */
+    const was = previewTries.get(id)
+      ?? myLeadRows().find((row) => row.id === id)?.no_answer_count
+      ?? 0;
+    const tries = ends ? 0 : was + 1;
+    previewTries.set(id, tries);
+    /* Tomorrow at 11:00 Dubai, which is the contract's "next morning" step.
+       The real one comes from Automations. */
+    const dubaiTomorrow = new Date(Date.now() + 86_400_000 + 4 * 3_600_000);
+    const nextTryAt = new Date(Date.UTC(
+      dubaiTomorrow.getUTCFullYear(), dubaiTomorrow.getUTCMonth(), dubaiTomorrow.getUTCDate(),
+      7, 0, 0,
+    )).toISOString();
+    return {
+      tries,
+      maxTries: 5,
+      lastTryAt: new Date().toISOString(),
+      nextTryAt: tries === 0 ? null : nextTryAt,
+      exhausted: tries >= 5,
+      whatsapp: tries === 0 ? null : { lang: 'en', text: 'Hello, I tried to call you.' },
+    };
+  } },
+  { method: 'DELETE', pattern: /^\/api\/v2\/leads\/([^/]+)\/call-result$/, handler: ({ params }) => {
+    const id = params[0] ?? '';
+    const now = previewTries.get(id)
+      ?? myLeadRows().find((row) => row.id === id)?.no_answer_count
+      ?? 1;
+    const tries = Math.max(0, now - 1);
+    previewTries.set(id, tries);
+    return {
+      tries, maxTries: 5, lastTryAt: null, nextTryAt: null, exhausted: false, whatsapp: null,
+    };
+  } },
   { method: 'PATCH', pattern: /^\/api\/v2\/taps\/([^/]+)$/, handler: () => ({ moved: true }) },
   { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/accept$/, handler: () => ({ acceptedAt: new Date().toISOString() }) },
   { method: 'POST', pattern: /^\/api\/v2\/vip\/([^/]+)\/refuse$/, handler: () => ({ refusedAt: new Date().toISOString() }) },
@@ -2670,6 +2792,9 @@ const ROUTES: Route[] = [
       if (tab === 'new') return row.stage_key === 'new_lead';
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
+      /* The No answer tab — §4 of the call-results contract: open, and tried
+         at least once. The live clause is `o.no_answer_count > 0`. */
+      if (tab === 'no_answer') return row.no_answer_count > 0;
       if (tab === 'overdue') return row.last_contact_at === null;
       if (tab === 'vip') return row.is_vip === 1;
       if (tab === 'all') return true;
@@ -2773,6 +2898,8 @@ const ROUTES: Route[] = [
       hot: rows.filter((r) => r.score_band === 'hot').length,
       overdue: rows.filter((r) => r.last_contact_at === null).length,
       no_next_step: rows.filter((r) => r.next_step_at === null).length,
+      no_answer: rows.filter((r) => r.no_answer_count > 0).length,
+      vip: rows.filter((r) => r.is_vip === 1).length,
       all: rows.length,
       /* The black bar's two numbers. The live endpoint counts `call_logs`
          against `DAILY_GOALS.calls`; the preview has no call log, so it
@@ -4255,6 +4382,9 @@ const ROUTES: Route[] = [
       if (tab === 'new') return row.stage_key === 'new_lead';
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
+      /* The No answer tab — §4 of the call-results contract: open, and tried
+         at least once. The live clause is `o.no_answer_count > 0`. */
+      if (tab === 'no_answer') return row.no_answer_count > 0;
       if (tab === 'overdue') return row.last_contact_at === null;
       if (tab === 'vip') return row.is_vip === 1;
       if (tab === 'all') return true;

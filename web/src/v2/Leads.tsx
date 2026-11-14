@@ -12,6 +12,21 @@ import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { given, groupByGivenDay } from '../lib/assigned.js';
 import { callNote, type LeadFacets } from '../lib/facets.js';
+/*
+ * "No answer" — the tab, the tag and the row's third button, 14 Nov.
+ *
+ * Everything about a call result lives in `no-answer.tsx` so that this file
+ * stays a list: the wording, the Dubai clock, the two endpoints from
+ * `docs/v2/call-results-contract.md`, and the one rule that a result cannot
+ * be saved before the agent has actually tried.
+ */
+import {
+  MENU_RESULTS, NoAnswerButton, RESULT_LABEL, StageTriesTag, TabNotReady, TriesPill,
+  dubaiMoment, lastTryText, nextStepWithTries, nextTryText, nextTryOf, saveCallResult,
+  saveRefused, savedLine, todayInDubai, tomorrowInDubai, triesOf, tryIsDue,
+  undoCallResult, undoRefused, useTried,
+  type CallResult, type RowNoAnswer, type TriedLeads,
+} from './no-answer.js';
 /* Moved out on 14 Nov so two people can work on this screen at once. A pure
    move: same markup, same behaviour. */
 import { LeadPanel } from './LeadPanel.js';
@@ -60,11 +75,19 @@ const PHONE = 768;
  *
  * The agent's list has eight columns and "Call" and "WhatsApp" with their
  * labels take 176px of them. At 1280px that leaves the next step 98px, and
- * §2.2 calls it *"wide and always readable"*. Below 1400 the two buttons
- * become their icons, which is 104px, and the word is still in the button's
- * own label for a screen reader and in its tooltip for everybody else.
+ * §2.2 calls it *"wide and always readable"*. Under this the buttons become
+ * their icons, and the word is still in the button's own label for a screen
+ * reader and in its tooltip for everybody else.
+ *
+ * It was 1400 until 14 Nov, when the row gained a third result button —
+ * "No answer", C.1. Three words plus the menu is 344px of a card that is
+ * 1,148px wide at a 1,440px window, which left the next step 129px: §2.2's
+ * widest column, narrower than the stage. As icons the four fit 132px, so
+ * the words now wait for a screen with room for both. The order of what
+ * gives way is the owner's: a cut name first (never), then the next step,
+ * then the buttons' words.
  */
-const TIGHT = 1400;
+const TIGHT = 1700;
 
 function useIsPhone(): boolean {
   return useBelow(PHONE);
@@ -99,11 +122,24 @@ function useBelow(width: number): boolean {
  * `hot` is a chip over All rather than a tab, which is how the dashboards
  * link to it.
  */
+/*
+ * `no_answer` sits between "No next step" and VIP on both lists — B.1, and
+ * the owner's own picture of the strip:
+ *
+ *   Today 12 · New 136 · Overdue 1 · No next step 24 · No answer 14 · VIP ·
+ *   Lost 1 · Won · All 137
+ *
+ * It is a view and not a stage: `server/src/leads/tabs.ts` holds a lead in it
+ * while `tries > 0` and the lead is open, and nothing about the pipeline
+ * changes. The count comes back with every other tab's from
+ * `/api/my-leads/counts`, so there is nothing to count here.
+ */
 export const AGENT_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = [
   { key: 'today', label: 'Today' },
   { key: 'new', label: 'New' },
   { key: 'overdue', label: 'Overdue', red: true },
   { key: 'no_next_step', label: 'No next step' },
+  { key: 'no_answer', label: 'No answer' },
   { key: 'vip', label: 'VIP' },
   { key: 'lost', label: 'Lost' },
   { key: 'won', label: 'Won' },
@@ -115,18 +151,32 @@ export const OWNER_TABS: Array<{ key: TabKey; label: string; red?: boolean }> = 
   { key: 'cold', label: 'Going cold' },
   { key: 'overdue', label: 'Overdue', red: true },
   { key: 'no_next_step', label: 'No next step' },
+  { key: 'no_answer', label: 'No answer' },
   { key: 'vip', label: 'VIP' },
   { key: 'lost', label: 'Lost' },
   { key: 'won', label: 'Won' },
 ];
 
 export type TabKey =
-  | 'today' | 'new' | 'hot' | 'cold' | 'overdue' | 'no_next_step' | 'vip' | 'lost' | 'won' | 'all';
+  | 'today' | 'new' | 'hot' | 'cold' | 'overdue' | 'no_next_step' | 'no_answer'
+  | 'vip' | 'lost' | 'won' | 'all';
 
 const PAGE = 50;
 
 /** What one press of "Move N leads" may carry. The server's own ceiling. */
 const MOVE_LIMIT = 200;
+
+/**
+ * What one press of "Mark No answer" may carry — C.4.
+ *
+ * Lower than the move's 200 because the contract has no batch: it is one
+ * request per lead, and `/api/v2/leads/:id/call-result` is rate-limited at
+ * sixty a minute per person. Two hundred would get sixty through and then
+ * answer "that is a lot of call results in a minute" for the rest, which is
+ * a half-done job the owner would have to work out for themselves. Fifty
+ * goes through, and the bar says what it did not reach.
+ */
+const MARK_LIMIT = 50;
 
 /** The six stages, as the design's neutral pills. */
 export const STAGE_LABEL: Record<string, string> = {
@@ -176,6 +226,20 @@ export interface Row {
    */
   assigned_at: string | null;
   owner_name: string | null;
+  /**
+   * §3 of the call-results contract: how many tries this lead has had, when
+   * the last one was and when the next one is. Null or absent when there has
+   * never been one.
+   */
+  noAnswer?: RowNoAnswer | null;
+  /**
+   * `opportunities.no_answer_count`, which this endpoint has always sent.
+   *
+   * `triesOf()` falls back to it while `noAnswer` is still being added to the
+   * list query next door, so the tag and the button work today. It is a real
+   * column, written by `runLeadAction`; nothing here guesses a count.
+   */
+  no_answer_count?: number | null;
 }
 
 interface ListResponse {
@@ -503,6 +567,22 @@ function languageOptions(facets: LeadFacets | null): PickOption[] {
 }
 
 /**
+ * Soonest next try first, and a lead with no next try last — B.3.
+ *
+ * A missing `nextTryAt` sinks rather than sorting as zero: nothing is known
+ * about when to ring that one, so it does not belong at the top of a list an
+ * agent works down.
+ */
+function bySoonestTry(a: Row, b: Row): number {
+  const left = nextTryOf(a);
+  const right = nextTryOf(b);
+  if (!left && !right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+  return new Date(left).getTime() - new Date(right).getTime();
+}
+
+/**
  * The lead one step up or down the list, or the one we are on at either end.
  *
  * Clamped, not wrapped: §4.9 is a walk through what is on screen, and a walk
@@ -564,9 +644,20 @@ export function wanted(row: Row): string {
 
 export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const isPhone = useIsPhone();
-  /* Below 1400 the row's buttons lose their words, so the next step keeps
+  /* Below 1700 the row's buttons lose their words, so the next step keeps
      the width §2.2 asks for. See `TIGHT`. */
   const tight = useBelow(TIGHT);
+  /*
+   * A laptop, where the No answer tab cannot hold nine columns.
+   *
+   * Measured: at 1280 the card is 972px, and Lead 230 · Phone 148 · Tries
+   * 136 · Last try 102 · Next try 114 · Agent 76 · buttons 122 leaves the
+   * Project 44px — a project name cut in half. So on a laptop the owner's
+   * Agent column folds into a grey line under the lead's name, which costs
+   * nothing: it is one short first name, the row is 52px, and the owner can
+   * still see whose lead every row is. The column itself is back at 1400.
+   */
+  const laptop = useBelow(1400);
   /*
    * One of these for the whole screen, handed down to the cards, the rows and
    * the panel. Not one per row: the helper's check-in gate reads
@@ -574,6 +665,35 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * fifty times on a list of fifty leads.
    */
   const dial = useCallAction({ source: 'lead' });
+  /*
+   * Which leads this agent has tapped Call or WhatsApp on in this sitting —
+   * C.5, and the same rule the dialler enforces with `touched`. The row's
+   * "No answer" button says "Call first" until the tap has been recorded, so
+   * a result can never be saved for a call nobody made.
+   */
+  const tried = useTried();
+  /*
+   * The screen's one dial helper, with the tap remembered.
+   *
+   * Wrapped rather than reimplemented: `useCallAction` still does the
+   * check-in question, the recording and the hand-off to the phone, and this
+   * only notes the id of a lead whose tap came back written down. A tap that
+   * failed to record returns null and does not unlock the button — the same
+   * way the dialler leaves the outcome tiles locked.
+   */
+  const rowDial = useMemo<CallActions>(() => ({
+    ...dial,
+    call: async (lead, over) => {
+      const id = await dial.call(lead, over);
+      if (id !== null) tried.mark(lead.id);
+      return id;
+    },
+    whatsapp: async (lead, over) => {
+      const id = await dial.whatsapp(lead, over);
+      if (id !== null) tried.mark(lead.id);
+      return id;
+    },
+  }), [dial, tried]);
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   /* Follow-ups is this screen opened on what is late. The tab is then not the
@@ -622,6 +742,19 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const [moveError, setMoveError] = useState<string | null>(null);
   const [moved, setMoved] = useState<Record<string, string>>({});
   /*
+   * Saving a call result: which rows are in flight, and the two-tap state of
+   * the bulk "Mark No answer". The second tap is the same confirm the design
+   * asks for on "Move N leads", for the same reason — it writes on somebody
+   * else's work.
+   */
+  const [saving, setSaving] = useState<Record<string, true>>({});
+  const [markArmed, setMarkArmed] = useState(false);
+  const [marking, setMarking] = useState(false);
+  /** The "⋯ → Call back" step: which row is being given a time, and which. */
+  const [callBackFor, setCallBackFor] = useState<Row | null>(null);
+  const [callBackDay, setCallBackDay] = useState('');
+  const [callBackTime, setCallBackTime] = useState('11:00');
+  /*
    * The computer's own three controls, which only ever existed in the phone
    * branch and so could not be reached on a computer at all: the row menu,
    * the 480px side panel a row click opens, and "select the whole list"
@@ -657,6 +790,19 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   /* "Added: any time / Today / This week / This month" — picture 02's last
      dropdown. Dubai days, worked out on the server. */
   const added = params.get('added') ?? '';
+  /*
+   * "No answer 3+ times" — H.2, and the filter B.6 puts on the owner's own
+   * No answer tab.
+   *
+   * Narrowed here rather than on the server, which is the one filter on this
+   * screen that is: `/api/my-leads` takes no minimum-tries parameter and
+   * `listSchema` drops a key it does not know, so sending one would have
+   * shown an unfiltered list under a filter chip. So it filters the rows in
+   * hand, and the count line says so in words rather than claiming the
+   * server's total. The whole-book version is one clause in `buildFilters`,
+   * in somebody else's file this week — it is in the report.
+   */
+  const manyTries = params.get('tries') === '3';
 
   /* The All tab is the whole book, so it is the wide screen with the agent in
      it. Hot arrives from the dashboard; the design shows it as a chip over
@@ -671,6 +817,13 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const isAgent = user?.role === 'agent';
   /* The whole book, not one person's share of it. */
   const book = wide && !isAgent;
+  /*
+   * The No answer tab — B.3. A different table: Lead · Phone · Project ·
+   * Tries · Last try · Next try, the owner's Agent column after it, and the
+   * row's buttons. No Stage, Given, Local time or Next step, because the tab
+   * asks one question: who do I ring again, and when.
+   */
+  const onNoAnswerTab = tab === 'no_answer';
 
   /*
    * How wide a day heading has to stretch across the table.
@@ -774,7 +927,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
   function clearAll() {
     const next = new URLSearchParams(params);
-    for (const key of ['stage', 'project', 'agent', 'source', 'country', 'language', 'added']) {
+    for (const key of ['stage', 'project', 'agent', 'source', 'country', 'language', 'added', 'tries']) {
       next.delete(key);
     }
     if (tab === 'hot') next.set('tab', 'all');
@@ -797,8 +950,34 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     }
   }
 
-  const rows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
+  /*
+   * Everything the server sent for this question, before the one filter that
+   * is ours. `rows` below is what is drawn, and the two are told apart on
+   * purpose: the count line has to be able to say "12 of the 50 loaded".
+   */
+  const loadedRows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
+  const rows = manyTries ? loadedRows.filter((row) => triesOf(row) >= 3) : loadedRows;
   const total = leads.data?.total ?? 0;
+  /*
+   * Does the server know this tab yet?
+   *
+   * `/api/my-leads` falls back to Today for a tab name `isLeadTab` has never
+   * heard of, and says so in `tab`. Without this the No answer tab would
+   * have drawn today's follow-ups under it — the one thing worse than an
+   * empty tab. The server half is another agent's; this disappears by itself
+   * the moment `no_answer` joins `LEAD_TABS`.
+   */
+  const tabIsLive = !onNoAnswerTab || !leads.data || leads.data.tab === 'no_answer';
+  /*
+   * B.3: *"Sort by next try, soonest first."*
+   *
+   * The server orders the tab that way too (§4 of the contract). It is done
+   * again here because the ordering is the whole point of the tab — a list
+   * of people to ring in the order to ring them — and because a lead whose
+   * next try the server has not sent must sink to the bottom rather than sit
+   * at the top of the list in whatever order it arrived.
+   */
+  const inTryOrder = onNoAnswerTab ? [...rows].sort(bySoonestTry) : rows;
   const todayCount = counts.data?.today ?? 0;
   /* The black bar's two other numbers, both from the counts endpoint: real
      calls out of Emir's own daily goal. No goal, no progress line. */
@@ -826,7 +1005,27 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * "the next lead" means the next one on screen rather than the next one in
    * some other ordering.
    */
-  const drawn = useMemo(() => byDay.flatMap((day) => day.rows), [byDay]);
+  /*
+   * The No answer tab is not cut into days: it is sorted by when to ring
+   * next, and a day heading over it would break that order into pieces. So
+   * the walk is the sorted list itself there, and the day groups everywhere
+   * else.
+   */
+  const inDayOrder = useMemo(() => byDay.flatMap((day) => day.rows), [byDay]);
+  const drawn = onNoAnswerTab ? inTryOrder : inDayOrder;
+  /*
+   * The phone draws cards under the same headings, so the No answer tab
+   * hands it one group instead of a day each — the heading then says what
+   * the order is, which a day band would have broken into pieces.
+   */
+  const phoneGroups = onNoAnswerTab
+    ? [{
+      key: 'next-try',
+      heading: 'Next try first',
+      count: `${inTryOrder.length} ${inTryOrder.length === 1 ? 'lead' : 'leads'}`,
+      rows: inTryOrder,
+    }]
+    : byDay;
 
   /* One chip per narrowing in force, which is how the design says what the
      list is showing without making anybody read the controls. */
@@ -863,15 +1062,34 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     const when = { today: 'Today', week: 'This week', month: 'This month' }[added] ?? added;
     chips.push({ key: 'added', text: `Added: ${when}` });
   }
+  /* The one chip whose number is counted here rather than by the server, so
+     it says which rows it looked at. */
+  if (manyTries) chips.push({ key: 'tries', text: 'No answer 3+ times' });
 
   function dropChip(key: string) {
     if (key === 'tab') chooseTab('all');
     else narrow(key, '');
   }
 
-  const count = rows.length < total
-    ? <><b className="d-ink-2">{rows.length.toLocaleString()}</b> of {total.toLocaleString()} leads</>
-    : <><b className="d-ink-2">{total.toLocaleString()}</b> {total === 1 ? 'lead' : 'leads'}</>;
+  /*
+   * What you are looking at, out of how many there are. "419" above a list of
+   * thirty is what Emir reported on 11 November, so this number has to be the
+   * answer to the question it appears to answer.
+   *
+   * With "No answer 3+ times" on, the honest sentence is a different one: the
+   * narrowing happens here, over the rows in hand, so it says how many of
+   * those were looked at rather than borrowing the server's total.
+   */
+  const count = manyTries
+    ? (
+      <>
+        <b className="d-ink-2">{rows.length.toLocaleString()}</b> of the
+        {' '}{loadedRows.length.toLocaleString()} loaded tried 3+ times
+      </>
+    )
+    : rows.length < total
+      ? <><b className="d-ink-2">{rows.length.toLocaleString()}</b> of {total.toLocaleString()} leads</>
+      : <><b className="d-ink-2">{total.toLocaleString()}</b> {total === 1 ? 'lead' : 'leads'}</>;
 
   /*
    * §1.4: the live count goes under the title in the shell's header, not in a
@@ -907,12 +1125,17 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   /** The design's own result line: what you are looking at, and in what order. */
   const order = tab === 'today' || tab === 'overdue'
     ? ' · most overdue first'
-    : tab === 'all' ? ' · newest first' : '';
+    : tab === 'all' ? ' · newest first'
+      /* B.3's own order, said out loud, because it is not the order every
+         other tab uses. */
+      : onNoAnswerTab ? ' · next try first' : '';
   const resultLine = search.trim()
     ? `${rows.length} found for “${search.trim()}”`
-    : rows.length < total
-      ? `${rows.length} shown of ${total.toLocaleString()}${order}`
-      : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
+    : manyTries
+      ? `${rows.length} of the ${loadedRows.length} loaded tried 3+ times${order}`
+      : rows.length < total
+        ? `${rows.length} shown of ${total.toLocaleString()}${order}`
+        : `${total.toLocaleString()} ${total === 1 ? 'lead' : 'leads'}${order}`;
 
   /**
    * The people a lead may be given to, in the design's order: whoever can
@@ -999,6 +1222,135 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     } finally {
       setMoving(false);
     }
+  }
+
+  /* ── saving a call result from the list ───────────────────────────────── */
+
+  /**
+   * One tap in the row: C.2.
+   *
+   * The server works out the try count and when the next try is — this
+   * screen never does — and the toast says it back in the owner's own words:
+   * *"Saved · No answer · try 2 of 5 · next try tomorrow 11:00"*, with Undo.
+   *
+   * The list is reloaded rather than patched in place: the lead has to leave
+   * this tab or arrive in it, the tab counts change, and a row edited by hand
+   * here would disagree with the next thing the server said.
+   */
+  async function recordResult(row: Row, result: CallResult, extra: { callBackAt?: string } = {}) {
+    if (saving[row.id]) return;
+    setSaving((was) => ({ ...was, [row.id]: true }));
+    try {
+      const state = await saveCallResult(row.id, result, extra);
+      leads.reload();
+      counts.reload();
+      toast(savedLine(result, state), {
+        action: { label: 'Undo', onClick: () => void takeBack([row.id], result) },
+      });
+    } catch (problem) {
+      toast(saveRefused(problem));
+    } finally {
+      setSaving((was) => {
+        const next = { ...was };
+        delete next[row.id];
+        return next;
+      });
+    }
+  }
+
+  /**
+   * §1b: take the last result back.
+   *
+   * One request per lead, because that is what the contract offers, and the
+   * same function serves one row's Undo and the bulk one. A refusal is said
+   * out loud — the ten-minute window closing answers 409, and "it is too
+   * late" is an answer an agent can act on, where a silent failure is not.
+   */
+  async function takeBack(ids: string[], result: CallResult) {
+    const back = await Promise.all(ids.map(async (id) => {
+      try {
+        await undoCallResult(id);
+        return { id, said: null as string | null };
+      } catch (problem) {
+        return { id, said: undoRefused(problem) };
+      }
+    }));
+    leads.reload();
+    counts.reload();
+    const failed = back.filter((one) => one.said !== null);
+    if (failed.length === 0) {
+      toast(ids.length === 1
+        ? `Taken back · ${RESULT_LABEL[result]} is off that lead`
+        : `Taken back · ${RESULT_LABEL[result]} is off ${ids.length} leads`);
+      return;
+    }
+    /* One sentence, the server's own, rather than "3 failed". */
+    toast(failed.length === ids.length
+      ? (failed[0]?.said ?? 'That could not be undone.')
+      : `${ids.length - failed.length} taken back · ${failed.length} could not be: ${failed[0]?.said ?? ''}`);
+  }
+
+  /**
+   * "Mark No answer" for a whole selection — C.4.
+   *
+   * It asks twice, like "Move N leads" beside it, and the toast that follows
+   * carries the same Undo. One request per lead, six at a time, because the
+   * contract has no batch: a hundred leads at once would otherwise open a
+   * hundred sockets.
+   *
+   * C.5's "Call first" is **not** applied here, and that is deliberate: the
+   * row button's rule exists so an agent cannot record a call they did not
+   * make, while this is a manager saying, twice, that a batch went
+   * unanswered. The confirm says exactly what it will write.
+   */
+  async function markManyNoAnswer() {
+    const ids = chosen.slice(0, MARK_LIMIT);
+    if (ids.length === 0) return;
+    if (!markArmed) { setMarkArmed(true); return; }
+    setMarkArmed(false);
+    setMarking(true);
+    const done: string[] = [];
+    let refused: string | null = null;
+    try {
+      for (let at = 0; at < ids.length; at += 6) {
+        const batch = ids.slice(at, at + 6);
+        /* eslint-disable-next-line no-await-in-loop -- six at a time on purpose. */
+        const answers = await Promise.all(batch.map(async (id) => {
+          try {
+            await saveCallResult(id, 'no_answer');
+            return id;
+          } catch (problem) {
+            refused = refused ?? saveRefused(problem);
+            return null;
+          }
+        }));
+        for (const id of answers) if (id) done.push(id);
+      }
+    } finally {
+      setMarking(false);
+    }
+
+    leads.reload();
+    counts.reload();
+    setPicked({});
+    setWholeList(null);
+
+    if (done.length === 0) {
+      toast(refused ?? 'Nothing could be marked. Nothing was recorded.');
+      return;
+    }
+    const said = `Marked ${RESULT_LABEL.no_answer} on ${done.length} `
+      + `${done.length === 1 ? 'lead' : 'leads'}`;
+    /* And how many of the selection this press did not reach, so nobody has
+       to count the rows to find out. */
+    const over = chosen.length > MARK_LIMIT
+      ? ` · ${chosen.length - MARK_LIMIT} not done — press again for the next ${MARK_LIMIT}`
+      : '';
+    toast(refused
+      ? `${said} · ${ids.length - done.length} could not be saved${over}`
+      : `${said}${over}`, {
+      action: { label: 'Undo', onClick: () => void takeBack(done, 'no_answer') },
+    });
   }
 
   /** "Select all 863": the ids behind the filters, not the ids on the page. */
@@ -1142,11 +1494,15 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
         {leads.error && <ErrorNote>{leads.error}</ErrorNote>}
         {!leads.data && !leads.error && <Spinner />}
 
-        {leads.data && rows.length > 0 && (
+        {/* The No answer tab on a phone, before the server has one. Same
+            sentence as the computer's, in the phone's own card. */}
+        {!tabIsLive && <div className="d-card"><TabNotReady /></div>}
+
+        {leads.data && tabIsLive && rows.length > 0 && (
           wide
             ? (
               <div className="v2-a-allcard">
-                {byDay.map((day) => (
+                {phoneGroups.map((day) => (
                   <div key={day.key ?? 'none'} className="v2-a-daygroup">
                     <div className="v2-a-day">
                       <b>{day.heading}</b>
@@ -1174,20 +1530,20 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   * today leads, which one is yesterday, and which one is day
                   * before yesterday" — so it is the shape of the answer.
                   */}
-                {byDay.map((day) => (
+                {phoneGroups.map((day) => (
                   <div key={day.key ?? 'none'} className="v2-a-daygroup">
                     <div className="v2-a-day">
                       <b>{day.heading}</b>
                       <span>{day.count}</span>
                     </div>
-                    {day.rows.map((row) => <PhoneLeadCard key={row.id} row={row} dial={dial} />)}
+                    {day.rows.map((row) => <PhoneLeadCard key={row.id} row={row} dial={rowDial} />)}
                   </div>
                 ))}
               </div>
             )
         )}
 
-        {leads.data && rows.length === 0 && (
+        {leads.data && tabIsLive && rows.length === 0 && (
           <div className="d-card v2-a-none">
             <b>No lead found</b>
             <p className="d-muted">
@@ -1274,6 +1630,45 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           </>
         )}
       </div>
+    );
+  }
+
+  /**
+   * One row of the computer table, wherever it is drawn from.
+   *
+   * The No answer tab draws one flat run of rows and every other tab draws
+   * them under day headings. The row is the same row either way, so its
+   * props are written once here rather than twice in the markup — which is
+   * how the tick box ended up in the phone branch only, the first time.
+   */
+  function drawRow(row: Row) {
+    return (
+      <LeadRow
+        key={row.id}
+        row={row}
+        wide={wide}
+        book={book}
+        showOwner={wide && !isAgent}
+        selectable={book && !onNoAnswerTab}
+        picked={picked[row.id] === true}
+        movedTo={moved[row.id] ?? null}
+        onTick={(on) => {
+          setWholeList(null);
+          setPicked((was) => ({ ...was, [row.id]: on }));
+        }}
+        onOpen={() => setPanelFor(row)}
+        onMenu={(x, y) => setMenuAt({ row, x, y })}
+        dial={rowDial}
+        tight={tight}
+        narrow={laptop}
+        triesColumns={onNoAnswerTab}
+        tried={tried}
+        saving={saving[row.id] === true}
+        onNoAnswer={() => void recordResult(row, 'no_answer')}
+        onLockedPress={(one) => toast(
+          `Tap Call or WhatsApp on ${one.full_name ?? 'this lead'} first, then save the result.`,
+        )}
+      />
     );
   }
 
@@ -1495,6 +1890,24 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           </select>
         )}
 
+        {/*
+          * "No answer 3+ times" — H.2 on the whole book, and B.6's own
+          * filter on the No answer tab. Two choices and no more: the owner
+          * asked for one number, and a free-text "at least N" is a control
+          * nobody would use twice.
+          */}
+        {(onNoAnswerTab || book) && (
+          <select
+            className="d-select d-sm"
+            aria-label="Tries"
+            value={manyTries ? '3' : ''}
+            onChange={(e) => narrow('tries', e.target.value)}
+          >
+            <option value="">Tries: any</option>
+            <option value="3">No answer 3+ times</option>
+          </select>
+        )}
+
         {chips.map((chip) => (
           <span className="d-filter-chip" key={chip.key}>
             {chip.text}
@@ -1565,18 +1978,42 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             </div>
           )}
 
-          {rows.length > 0 && (
+          {/* The No answer tab, before the server has one. */}
+          {!tabIsLive && <TabNotReady />}
+
+          {rows.length > 0 && tabIsLive && (
             /*
              * The column budget is keyed off this class, not off the page
              * class. An agent on their own All tab renders `p-all-leads`
              * with eight columns, not the owner's ten, and a budget written
              * for ten would have put a 32px tick-box width on their Lead
              * column.
+             *
+             * Two modifiers join it, both defined in `v2-no-answer.css` with
+             * one more class than the budget's own rules so they win
+             * whatever the file order:
+             *
+             *   `v2-na-cols`  the No answer tab, which is a different table.
+             *   `v2-na-acts`  the agent's row now carries four buttons, not
+             *                 three, so its last column is 132px rather than
+             *                 176 — which gives the next step 36px back at
+             *                 1440 rather than taking any.
              */
-            <table className={`d-table d-sticky d-id-leads ${book ? 'v2-cols-book' : 'v2-cols-mine'}`}>
+            <table
+              className={`d-table d-sticky d-id-leads ${book ? 'v2-cols-book' : 'v2-cols-mine'}`
+                + `${onNoAnswerTab ? ' v2-na-cols' : ''}`
+                + `${!book && !onNoAnswerTab ? ' v2-na-acts' : ''}`}
+            >
               <thead>
                 <tr>
-                  {book && (
+                  {/*
+                    * No tick box in the No answer tab: nothing in it is
+                    * waiting to be marked No answer, so a column of boxes
+                    * would buy nothing and cost the Project 34px. The bulk
+                    * "Mark No answer" is on the tabs that hold the leads
+                    * that need it.
+                    */}
+                  {book && !onNoAnswerTab && (
                     <th className="d-t-check">
                       <label className="d-check">
                         <input
@@ -1601,28 +2038,47 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   <th>Lead</th>
                   <th>Phone</th>
                   <th>Project</th>
-                  <th>Stage</th>
-                  {/*
-                    * The column Talha asked for. One word, because the header
-                    * is 11px uppercase with letter-spacing and "GIVEN TO YOU"
-                    * set the whole column's width — the title attribute says
-                    * the rest.
-                    */}
-                  <th
-                    className="v2-given-cell"
-                    title={book ? 'When the lead was given to its agent' : 'When the lead was given to you'}
-                  >
-                    Given
-                  </th>
-                  {wide
+                  {onNoAnswerTab
                     ? (
+                      /*
+                        * B.3's own three columns, in the owner's own order and
+                        * his own words: TRIES · LAST TRY · NEXT TRY. The
+                        * Agent column after them is B.6, on the owner's
+                        * screen only.
+                        */
                       <>
-                        {!isAgent && <th>Agent</th>}
-                        <th title="When this lead was last spoken to">Last contact</th>
+                        <th title="How many times this lead has been tried">Tries</th>
+                        <th title="When the last try was">Last try</th>
+                        <th title="When to try again">Next try</th>
+                        {!isAgent && !laptop && <th>Agent</th>}
                       </>
                     )
-                    : <th>Local time</th>}
-                  <th>{wide ? 'Attention · next step' : 'Next step'}</th>
+                    : (
+                      <>
+                        <th>Stage</th>
+                        {/*
+                          * The column Talha asked for. One word, because the
+                          * header is 11px uppercase with letter-spacing and
+                          * "GIVEN TO YOU" set the whole column's width — the
+                          * title attribute says the rest.
+                          */}
+                        <th
+                          className="v2-given-cell"
+                          title={book ? 'When the lead was given to its agent' : 'When the lead was given to you'}
+                        >
+                          Given
+                        </th>
+                        {wide
+                          ? (
+                            <>
+                              {!isAgent && <th>Agent</th>}
+                              <th title="When this lead was last spoken to">Last contact</th>
+                            </>
+                          )
+                          : <th>Local time</th>}
+                        <th>{wide ? 'Attention · next step' : 'Next step'}</th>
+                      </>
+                    )}
                   {/*
                     * The buttons get a column of their own on both lists.
                     * §2.8: *"Call, WhatsApp and the menu at the end of the
@@ -1634,39 +2090,29 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                 </tr>
               </thead>
               <tbody>
-                {byDay.map((day) => (
-                  <Fragment key={day.key ?? 'none'}>
-                    {/* Today · Yesterday · Wednesday 12 Nov, with how many
-                        sit under it. The heading, not the row, is what makes
-                        105 identical cards readable. */}
-                    <tr className="v2-daygroup">
-                      <td colSpan={columns}>
-                        <b>{day.heading}</b>
-                        <span>{day.count}</span>
-                      </td>
-                    </tr>
-                    {day.rows.map((row) => (
-                      <LeadRow
-                        key={row.id}
-                        row={row}
-                        wide={wide}
-                        book={book}
-                        showOwner={wide && !isAgent}
-                        selectable={book}
-                        picked={picked[row.id] === true}
-                        movedTo={moved[row.id] ?? null}
-                        onTick={(on) => {
-                          setWholeList(null);
-                          setPicked((was) => ({ ...was, [row.id]: on }));
-                        }}
-                        onOpen={() => setPanelFor(row)}
-                        onMenu={(x, y) => setMenuAt({ row, x, y })}
-                        dial={dial}
-                        tight={tight}
-                      />
-                    ))}
-                  </Fragment>
-                ))}
+                {/*
+                  * The No answer tab is one run of rows in next-try order —
+                  * B.3 — and every other tab is cut into the days the leads
+                  * were given out on. A day heading over a list sorted by
+                  * when to ring next would break that order into pieces,
+                  * which is the one thing the tab is for.
+                  */}
+                {onNoAnswerTab
+                  ? inTryOrder.map((row) => drawRow(row))
+                  : byDay.map((day) => (
+                    <Fragment key={day.key ?? 'none'}>
+                      {/* Today · Yesterday · Wednesday 12 Nov, with how many
+                          sit under it. The heading, not the row, is what makes
+                          105 identical cards readable. */}
+                      <tr className="v2-daygroup">
+                        <td colSpan={columns}>
+                          <b>{day.heading}</b>
+                          <span>{day.count}</span>
+                        </td>
+                      </tr>
+                      {day.rows.map((row) => drawRow(row))}
+                    </Fragment>
+                  ))}
               </tbody>
             </table>
           )}
@@ -1706,7 +2152,13 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
           {rows.length > 0 && (
             <div className="d-table-foot">
-              <span>1–{rows.length.toLocaleString()} of {total.toLocaleString()}</span>
+              {/* With the tries filter on, the server's total is not what is
+                  on screen, so the foot says what it really counted. */}
+              <span>
+                {manyTries
+                  ? `${rows.length.toLocaleString()} of the ${loadedRows.length.toLocaleString()} loaded`
+                  : `1–${rows.length.toLocaleString()} of ${total.toLocaleString()}`}
+              </span>
               <span className="d-small d-muted">· {PAGE} per page</span>
               <span className="d-grow" />
               {rows.length < total && (
@@ -1744,10 +2196,34 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                 what it is, which is undoing an assignment. */}
             <Icon name="inbox" />Back to Incoming
           </button>
+          {/*
+            * C.4: *"With tick boxes I can select many leads and press 'Mark
+            * No answer' for all in one go. It asks me to confirm, and has
+            * Undo."*
+            *
+            * It asks twice, the same way "Move N leads" does, because it
+            * writes a try onto somebody else's work — and the second press
+            * says in words what it is about to record. The Undo that follows
+            * is §1b, one request per lead.
+            */}
+          <button
+            type="button"
+            className={markArmed ? 'd-btn d-sm d-on-dark d-danger' : 'd-btn d-sm d-on-dark'}
+            disabled={marking}
+            onClick={() => void markManyNoAnswer()}
+          >
+            <Icon name="phone-off" />
+            {marking
+              ? 'Marking…'
+              : markArmed
+                ? `Tap again · record a try on ${Math.min(chosen.length, MARK_LIMIT)}`
+                /* Emir's own words for the button, capital N and all. */
+                : `Mark ${RESULT_LABEL.no_answer}`}
+          </button>
           <button
             type="button"
             className="d-btn d-sm d-on-dark"
-            onClick={() => { setPicked({}); setWholeList(null); }}
+            onClick={() => { setPicked({}); setWholeList(null); setMarkArmed(false); }}
           >
             Cancel
           </button>
@@ -1819,6 +2295,106 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   </Link>
                 </>
               )}
+
+            {/*
+              * C.3: *"The '⋯' menu in the row has the other results: Busy,
+              * Call back, Wrong number, Not interested."*
+              *
+              * "No answer" is not among them — it is the pill in the row
+              * itself, which is the whole point of C.1 — and "Answered" is
+              * not either: an answered call is a conversation, and what came
+              * out of it belongs on the lead rather than in a menu on a
+              * list. Only on a lead with a number: a call result on a lead
+              * nobody can call is a row that cannot be true.
+              */}
+            {menuAt.row.phone_e164 && (
+              <>
+                <div className="d-menu-sep" />
+                {MENU_RESULTS.map((one) => (
+                  <button
+                    key={one.result}
+                    type="button"
+                    className="d-menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      const { row } = menuAt;
+                      setMenuAt(null);
+                      /* Call back is the one result that needs a time, so it
+                         asks for one rather than choosing on the agent's
+                         behalf. The rest are one tap. */
+                      if (one.result === 'call_back') {
+                        setCallBackDay(tomorrowInDubai());
+                        setCallBackTime('11:00');
+                        setCallBackFor(row);
+                        return;
+                      }
+                      void recordResult(row, one.result);
+                    }}
+                  >
+                    <Icon name={one.icon} />{RESULT_LABEL[one.result]}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {/*
+        * "⋯ → Call back": when?
+        *
+        * The contract asks for `callBackAt` on this one result and on no
+        * other, so it is the one place the agent types. Tomorrow at 11:00 to
+        * start with, which is the dialler's own default for the same
+        * question — one answer to it, not two.
+        */}
+      {callBackFor && (
+        <>
+          <div className="d-scrim d-show" onClick={() => setCallBackFor(null)} aria-hidden />
+          <div className="d-dialog d-open" role="dialog" aria-label="When to call back">
+            <div className="d-dialog-head">
+              <b>Call {callBackFor.full_name ?? 'this lead'} back — when?</b>
+              <button
+                type="button"
+                className="d-x"
+                aria-label="Close"
+                onClick={() => setCallBackFor(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="d-dialog-body d-row d-gap-16">
+              <input
+                className="d-input d-sm"
+                type="date"
+                aria-label="Day"
+                value={callBackDay}
+                min={todayInDubai()}
+                onChange={(e) => setCallBackDay(e.target.value)}
+              />
+              <input
+                className="d-input d-sm"
+                type="time"
+                aria-label="Time, Dubai"
+                value={callBackTime}
+                onChange={(e) => setCallBackTime(e.target.value)}
+              />
+            </div>
+            <div className="d-dialog-foot">
+              <button
+                type="button"
+                className="d-btn d-primary"
+                disabled={!callBackDay || !callBackTime}
+                onClick={() => {
+                  const row = callBackFor;
+                  const at = dubaiMoment(callBackDay, callBackTime);
+                  setCallBackFor(null);
+                  if (at) void recordResult(row, 'call_back', { callBackAt: at });
+                }}
+              >
+                Save the call back
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -1830,7 +2406,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           book={book}
           onClose={() => setPanelFor(null)}
           onGive={() => { const row = panelFor; setPanelFor(null); openMove([row.id]); }}
-          dial={dial}
+          /* The dial that remembers the tap, so a call made from the quick
+             panel unlocks that row's "No answer" button too — C.5. */
+          dial={rowDial}
           /*
            * §4.9: *"Arrow keys up and down move to the next lead in the
            * list."* The list is what is on screen — this tab, these filters,
@@ -1983,6 +2561,7 @@ function overDesk(takers: Taker[], moveTo: string | null): string | null {
  */
 function PhoneLeadCard({ row, dial }: { row: Row; dial: CallActions }) {
   const why = reason(row);
+  const tries = triesOf(row);
   const origin = originOf(row.phone_e164);
   const local = origin ? clockIn(origin.timeZone) : null;
   const phone = row.phone_e164 ?? '';
@@ -2033,7 +2612,15 @@ function PhoneLeadCard({ row, dial }: { row: Row; dial: CallActions }) {
             {origin && <span className="v2-a-flag" aria-hidden>{flagOf(origin.iso2)}</span>}
             {origin && local ? `${origin.zoneLabel ?? origin.name} ${local.time}` : 'No number'}
           </span>
-          <span className={`v2-a-note v2-a-note-${why.tone}`}>{why.text}</span>
+          {/*
+            * B.5 on a phone. The card has one note line, so the no-answer
+            * sentence takes it over when there is one: "No answer ×2 · try
+            * again tomorrow 11:00" is what an agent needs off this card, and
+            * the stage pill above already says where the lead stands.
+            */}
+          <span className={`v2-a-note v2-a-note-${tries > 0 ? (tryIsDue(nextTryOf(row)) ? 'red' : 'amber') : why.tone}`}>
+            {tries > 0 ? nextStepWithTries(row, why.text).full : why.text}
+          </span>
         </span>
         {phone && (
           <a
@@ -2101,6 +2688,8 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
         {/* The owner's book is grouped by day as well, so the row only needs
             the clock time — and the warm colour when it is not today's. */}
         <GivenLine at={row.assigned_at} label="Given" />
+        {/* B.5's tag, on the owner's phone row as well. */}
+        <TriesPill tries={triesOf(row)} />
         {why.tone !== 'calm' && <span className="v2-a-warn">{why.text}</span>}
       </Link>
       <span className={movedTo ? 'v2-a-agpill v2-a-agpill-moved' : 'v2-a-agpill'}>
@@ -2112,6 +2701,7 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
 
 function LeadRow({
   row, wide, book, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu, dial, tight,
+  triesColumns, tried, saving, onNoAnswer, onLockedPress, narrow,
 }: {
   row: Row;
   wide: boolean;
@@ -2137,6 +2727,18 @@ function LeadRow({
   /** A row click opens the 480px panel rather than leaving the list. */
   onOpen?: () => void;
   onMenu?: (x: number, y: number) => void;
+  /** The No answer tab: Tries · Last try · Next try instead of the usual four. */
+  triesColumns?: boolean;
+  /** Under 1400: the No answer tab's Agent column folds under the name. */
+  narrow?: boolean;
+  /** Which leads this agent has tapped Call or WhatsApp on — C.5. */
+  tried?: TriedLeads;
+  /** A result is in flight on this row. */
+  saving?: boolean;
+  /** One tap: save "No answer" — C.2. */
+  onNoAnswer?: () => void;
+  /** Pressed before this lead has been tried: say what to do. */
+  onLockedPress?: (row: Row) => void;
 }) {
   const navigate = useNavigate();
   const step = nextStep(row);
@@ -2147,6 +2749,17 @@ function LeadRow({
   const advice = origin ? whenToCall(local, origin.timeZone) : null;
   const phone = row.phone_e164 ?? '';
   const to = `/v2/leads/${row.id}`;
+  /*
+   * The no-answer run on this lead, read straight off the row — §3 of the
+   * call-results contract. `tries` is the count, and `withTries` is the Next
+   * step column with B.5's sentence in front of it: "No answer ×2 · try again
+   * tomorrow 11:00". A lead that has never been tried reads exactly as it
+   * did before.
+   */
+  const tries = triesOf(row);
+  const lastTry = row.noAnswer?.lastTryAt ?? null;
+  const nextTry = nextTryOf(row);
+  const withTries = nextStepWithTries(row, step.text, { short: tight === true });
 
   /*
    * A row click opens the side panel, which is the fault the owner found: it
@@ -2177,9 +2790,23 @@ function LeadRow({
    * keeps the ⋯ menu, and a row click opens the quick panel, where Call and
    * WhatsApp are — so nothing is unreachable, it is one tap further.
    */
+  /*
+   * Where the row's Call, WhatsApp and No answer buttons are drawn.
+   *
+   * The agent's list, on every tab — and the owner's No answer tab, which is
+   * the narrower table: Lead · Phone · Project · Tries · Last try · Next try
+   * · Agent, with no Stage, Given, Last contact or Next step to squeeze. The
+   * owner's other tabs keep the ⋯ menu alone, and a row click opens the
+   * quick panel where Call and WhatsApp are, because their ten-column book is
+   * already over-subscribed at 1280 and a cut next step would undo §2.2.
+   * Approved by the coordinator, 14 Nov; it is the one place Emir's "every
+   * row" is not literal, and it is in the report.
+   */
+  const dialable = phone !== '' && (!book || triesColumns === true);
+
   const actions = (
     <div className="d-row-actions">
-      {phone && !book && (
+      {dialable && (
         <a
           className={tight ? 'd-btn d-xs d-icon' : 'd-btn d-xs'}
           href={`tel:${phone}`}
@@ -2190,7 +2817,7 @@ function LeadRow({
           <Icon name="phone" />{tight ? '' : 'Call'}
         </a>
       )}
-      {phone && !book && (
+      {dialable && (
         <a
           className={tight ? 'd-btn d-xs d-icon' : 'd-btn d-xs'}
           href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
@@ -2202,6 +2829,22 @@ function LeadRow({
         >
           <Icon name="message-circle" />{tight ? '' : 'WhatsApp'}
         </a>
+      )}
+      {/*
+        * "No answer" — C.1 and C.5. The quietest of the three, and locked
+        * until the agent has actually tried: the button reads "Call first"
+        * and says so on hover, which is the dialler's own rule rather than a
+        * second one.
+        */}
+      {dialable && onNoAnswer && (
+        <NoAnswerButton
+          tried={tried?.has(row.id) === true}
+          busy={saving === true}
+          tight={tight === true}
+          name={row.full_name ?? 'this lead'}
+          onSave={onNoAnswer}
+          onLocked={() => onLockedPress?.(row)}
+        />
       )}
       {onMenu
         ? (
@@ -2277,6 +2920,13 @@ function LeadRow({
                   </Link>
                   {row.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
                 </span>
+                {/* Whose lead it is, on a laptop's No answer tab, where the
+                    Agent column does not fit beside the Project — `narrow`. */}
+                {triesColumns && showOwner && narrow && (
+                  <span className="d-t-sub" title={row.owner_name ?? 'Nobody — it is in Incoming'}>
+                    {row.owner_name ?? 'Incoming'}
+                  </span>
+                )}
                 {/*
                   * The source used to sit under the name here. Emir's 14
                   * November pictures draw the lead cell as initials, name and
@@ -2327,97 +2977,180 @@ function LeadRow({
         {!wide && wanted(row) && <span className="d-t-sub">{wanted(row)}</span>}
       </td>
 
-      {/* The stage pill. Its cell never ellipsises: a pill either fits or it
-          does not, and "Interested .." with the dots of a text overflow after
-          it reads like a bug, because it is one. */}
-      <td className="v2-t-stage">
-        <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
-          {STAGE_LABEL[row.stage_key] ?? row.stage_key}
-        </span>
-      </td>
-
-      {/*
-        * When it was given out. The column is headed, so the cell drops the
-        * "Given to you" and says only the date: the time alone on today's,
-        * the day and time plus how long it has been sitting on anything
-        * older, in warm amber.
-        */}
-      <td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>
-
-      {wide
+      {triesColumns
         ? (
+          /*
+            * B.3's own columns: TRIES · LAST TRY · NEXT TRY, then the
+            * owner's Agent. Nothing here is computed — the pill's count,
+            * the last try and the next try are the server's, and a field it
+            * has not sent reads "Not recorded" or "Nothing planned" in
+            * words rather than as a guess or a dash.
+            */
           <>
-            {showOwner && (
-              /* `movedTo` is who it has just been given to: the row says so
-                 straight away rather than waiting for the list to come back,
-                 so the Undo in the toast is about something visible. */
-              <td className={movedTo ? 'd-pulse-row' : undefined}>
-                {/*
-                  * The first name, as picture 02 draws it — "Rocky",
-                  * "Nelson", "Talha", "Yuliia". The avatar carries the rest,
-                  * the full name is one hover away, and the column is 100px
-                  * wide on a book with nine other columns in it.
-                  */}
-                {(movedTo ?? row.owner_name)
+            <td className="v2-na-c-tries"><TriesPill tries={tries} /></td>
+            <td className="v2-na-c-last">
+              <span className="v2-na-last">{lastTryText(lastTry)}</span>
+            </td>
+            <td className="v2-na-c-next">
+              {/* Black while it is ahead, red once it is due — the owner's
+                  picture, and the same thing red means everywhere else on
+                  this screen: late, or waiting on you. */}
+              <span
+                className={nextTry === null
+                  ? 'v2-na-next v2-na-next-none'
+                  : tryIsDue(nextTry)
+                    ? 'v2-na-next v2-na-next-due'
+                    : 'v2-na-next'}
+                title={nextTry === null
+                  ? 'No next try planned yet'
+                  : `Try again ${nextTryText(nextTry).toLowerCase()}`}
+              >
+                {nextTryText(nextTry)}
+              </span>
+            </td>
+            {showOwner && !narrow && (
+              <td>
+                {row.owner_name
                   ? (
-                    <span className="d-person" title={(movedTo ?? row.owner_name) as string}>
-                      <Avatar name={(movedTo ?? row.owner_name) as string} size={26} />
-                      {String(movedTo ?? row.owner_name).split(' ')[0]}
+                    <span className="d-person" title={row.owner_name}>
+                      {row.owner_name.split(' ')[0]}
                     </span>
                   )
-                  : <span className="d-chip d-red d-pip">Incoming</span>}
+                  /* The word rather than the book's red chip: this column
+                     is 100px and the chip is 114. */
+                  : <span className="v2-na-nobody">Incoming</span>}
               </td>
             )}
-            <td className="d-t-sub">{whenShort(row.last_contact_at)}</td>
           </>
         )
         : (
-          <td>
+          <>
+        {/* The stage pill. Its cell never ellipsises: a pill either fits or it
+            does not, and "Interested .." with the dots of a text overflow after
+            it reads like a bug, because it is one. */}
+        <td className="v2-t-stage">
+          <span className="v2-na-stageline">
+            <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
+              {STAGE_LABEL[row.stage_key] ?? row.stage_key}
+            </span>
             {/*
-              * What time it is for the client. An agent calling Germany at
-              * 06:00 Dubai is calling at 03:00 their time, and the number
-              * alone does not say so.
+              * B.5: *"In all other tabs the lead keeps a small grey tag
+              * 'No answer ×2' beside the stage."*
               *
-              * Twelve hour here, and only here. v3 §5 says a 24-hour clock
-              * everywhere, and every other CRM time obeys that -- but Emir
-              * asked for this one by name on 10 Nov ("should be 12 hours
-              * time, not 16 17 18"), and he is right about it: the point of
-              * the column is to be read at a glance without doing a sum.
+              * Under it rather than beside it, and the count rather than the
+              * words: the stage column is 88px and the row is 52px, so the
+              * words do not fit alongside a pill at any window width. They are
+              * in the hover, and the whole sentence — "No answer ×2 · try
+              * again tomorrow 11:00" — is in the Next step cell of this same
+              * row, which is B.5's other half. Noted as a deviation.
               */}
-            {origin && local
-              ? (
-                <span
-                  className={advice && !advice.ok ? 'd-localtime v2-t-night' : 'd-localtime'}
-                  title={advice ? advice.line : `${local.time} in ${origin.zoneLabel ?? origin.name}`}
-                >
-                  {/* The moon replaces the clock face when it is the wrong
-                      hour there — the same rule as the chip above, and the
-                      same `whenToCall()` that writes the hover. */}
-                  {advice && !advice.ok
-                    ? <span className="v2-t-moon" aria-label="night there now" role="img">🌙</span>
-                    : <Icon name="clock" size={13} />}
-                  {cityOf(origin)} {local.time}
-                </span>
-              )
-              : <span className="d-localtime">–</span>}
-          </td>
+            <StageTriesTag tries={tries} />
+          </span>
+        </td>
+
+        {/*
+          * When it was given out. The column is headed, so the cell drops the
+          * "Given to you" and says only the date: the time alone on today's,
+          * the day and time plus how long it has been sitting on anything
+          * older, in warm amber.
+          */}
+        <td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>
+
+        {wide
+          ? (
+            <>
+              {showOwner && (
+                /* `movedTo` is who it has just been given to: the row says so
+                   straight away rather than waiting for the list to come back,
+                   so the Undo in the toast is about something visible. */
+                <td className={movedTo ? 'd-pulse-row' : undefined}>
+                  {/*
+                    * The first name, as picture 02 draws it — "Rocky",
+                    * "Nelson", "Talha", "Yuliia". The avatar carries the rest,
+                    * the full name is one hover away, and the column is 100px
+                    * wide on a book with nine other columns in it.
+                    */}
+                  {(movedTo ?? row.owner_name)
+                    ? (
+                      <span className="d-person" title={(movedTo ?? row.owner_name) as string}>
+                        <Avatar name={(movedTo ?? row.owner_name) as string} size={26} />
+                        {String(movedTo ?? row.owner_name).split(' ')[0]}
+                      </span>
+                    )
+                    : <span className="d-chip d-red d-pip">Incoming</span>}
+                </td>
+              )}
+              <td className="d-t-sub">{whenShort(row.last_contact_at)}</td>
+            </>
+          )
+          : (
+            <td>
+              {/*
+                * What time it is for the client. An agent calling Germany at
+                * 06:00 Dubai is calling at 03:00 their time, and the number
+                * alone does not say so.
+                *
+                * Twelve hour here, and only here. v3 §5 says a 24-hour clock
+                * everywhere, and every other CRM time obeys that -- but Emir
+                * asked for this one by name on 10 Nov ("should be 12 hours
+                * time, not 16 17 18"), and he is right about it: the point of
+                * the column is to be read at a glance without doing a sum.
+                */}
+              {origin && local
+                ? (
+                  <span
+                    className={advice && !advice.ok ? 'd-localtime v2-t-night' : 'd-localtime'}
+                    title={advice ? advice.line : `${local.time} in ${origin.zoneLabel ?? origin.name}`}
+                  >
+                    {/* The moon replaces the clock face when it is the wrong
+                        hour there — the same rule as the chip above, and the
+                        same `whenToCall()` that writes the hover. */}
+                    {advice && !advice.ok
+                      ? <span className="v2-t-moon" aria-label="night there now" role="img">🌙</span>
+                      : <Icon name="clock" size={13} />}
+                    {cityOf(origin)} {local.time}
+                  </span>
+                )
+                : <span className="d-localtime">–</span>}
+            </td>
+          )}
+
+        {/*
+          * The next step, and then the buttons in a cell of their own.
+          *
+          * §2.2's fourth point: *"Next step is wide and always readable. Red
+          * when overdue, grey when empty."* It is the one column with no width
+          * in the budget, so it takes whatever is left, and it is the same cell
+          * on both lists now: the owner's used to hold the buttons on top of
+          * the words with a shadow drawn over them.
+          */}
+        <td
+          className={[
+            step.urgent ? 'd-next d-overdue' : step.none ? 'd-next d-muted' : 'd-next',
+            /* Two lines on a laptop — see below. */
+            withTries.tries > 0 && narrow ? 'v2-na-step2' : '',
+          ].filter(Boolean).join(' ')}
+          title={withTries.full}
+        >
+          {/*
+            * On a laptop this column is 136px and B.5's sentence is 218, so
+            * it is drawn as two short lines that both read whole rather than
+            * one that is cut after "No answer ×2 · to…". The row is 52px and
+            * two 12px lines fit inside it. One line again from 1400 up,
+            * where the sentence fits; the hover always carries it in full.
+            */}
+          {withTries.tries > 0 && narrow
+            ? (
+              <>
+                <span className="v2-na-step-tag">{withTries.tag}</span>
+                <span className="v2-na-step-when">{withTries.when}</span>
+              </>
+            )
+            : withTries.text}
+        </td>
+          </>
         )}
 
-      {/*
-        * The next step, and then the buttons in a cell of their own.
-        *
-        * §2.2's fourth point: *"Next step is wide and always readable. Red
-        * when overdue, grey when empty."* It is the one column with no width
-        * in the budget, so it takes whatever is left, and it is the same cell
-        * on both lists now: the owner's used to hold the buttons on top of
-        * the words with a shadow drawn over them.
-        */}
-      <td
-        className={step.urgent ? 'd-next d-overdue' : step.none ? 'd-next d-muted' : 'd-next'}
-        title={step.text}
-      >
-        {step.text}
-      </td>
       <td className="v2-t-acts">{actions}</td>
     </tr>
   );

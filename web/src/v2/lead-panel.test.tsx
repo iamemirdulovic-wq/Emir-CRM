@@ -181,11 +181,18 @@ function button(label: string): HTMLButtonElement | undefined {
 describe('the leads quick panel', () => {
   it('reads the lead, its brief and its notes, and nothing else', async () => {
     await show();
-    expect(asked).toEqual([
+    /*
+     * Sorted, not in order. The notes read moved into the shared notes list
+     * on 14 Nov, and a child's effects run before its parent's, so the three
+     * requests no longer arrive in the order the panel declares them. What
+     * matters is that there are three and no more — one read per thing the
+     * panel shows, and nothing fetched twice.
+     */
+    expect([...asked].sort()).toEqual([
       'GET /api/my-leads/o-1',
       'GET /api/my-leads/o-1/brief',
       'GET /api/notes/c-1',
-    ]);
+    ].sort());
   });
 
   /* §4.1 */
@@ -256,27 +263,61 @@ describe('the leads quick panel', () => {
     expect(short?.textContent).toContain('Emaar Beachfront');
   });
 
-  /* §4.5 */
+  /* §4.5 / §E — the shared note box, the same one the lead page draws. */
   it('has a note box that is already open, named after the lead', async () => {
     await show();
     const box = container.querySelector<HTMLTextAreaElement>('.v2-qp-note textarea');
     expect(box).not.toBeNull();
     expect(box?.placeholder).toBe('Write a note about Marco…');
-    expect(button('Save')).toBeDefined();
-    /* Nothing written yet, so there is nothing to save. */
-    expect(button('Save')?.disabled).toBe(true);
+    expect(button('Save note')).toBeDefined();
+    /* Nothing written yet, so there is nothing to save — E.4: Save is grey
+       only when the box is empty. */
+    expect(button('Save note')?.disabled).toBe(true);
   });
 
-  /* §4.6 */
+  /* §E.1 — no emoji anywhere, which is where the six type chips used to be. */
+  it('names the six kinds of note in words, with no emoji on any of them', async () => {
+    await show();
+    const chips = [...container.querySelectorAll('.v2-ln-type')]
+      .map((one) => (one.textContent ?? '').trim());
+    expect(chips).toEqual(['Note', 'Call', 'Viewing', 'Budget', 'Objection', 'Next step']);
+    expect(text()).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+
+  /* §E.3 — the quick phrases, one row and More for the rest. */
+  it('offers the quick phrases, each with a + in front', async () => {
+    await show();
+    const chips = [...container.querySelectorAll('.v2-ln-qchip')]
+      .map((one) => (one.textContent ?? '').trim());
+    expect(chips).toContain('Client wants 2 BR');
+    expect(chips).toContain('Needs a mortgage');
+    expect(button('More')).toBeDefined();
+  });
+
+  /* §D — the result bar, in the panel as well as on the lead page. */
+  it('offers the six call results above the note box', async () => {
+    await show();
+    const pills = [...container.querySelectorAll('.v2-ln-pill')]
+      .map((one) => (one.textContent ?? '').trim());
+    expect(pills).toEqual([
+      'Answered', 'No answer', 'Busy', 'Call back', 'Wrong number', 'Not interested',
+    ]);
+    expect(text()).toContain('What happened?');
+  });
+
+  /* §4.6 / §F — the same note rows the lead page draws, the last three. */
   it('shows the last three notes, newest first, with who and when', async () => {
     await show();
-    const rows = [...container.querySelectorAll('.v2-qp-note-row')];
+    const rows = [...container.querySelectorAll('.v2-qp-notes .v2-ln-note')];
     expect(rows).toHaveLength(3);
     expect(rows[0]?.textContent).toContain('Layla Hassan');
     expect(rows[0]?.textContent).toContain('1.9M is the real ceiling');
-    expect(rows[0]?.textContent).toMatch(/Today \d\d:\d\d/);
-    expect(rows[2]?.textContent).toMatch(/Yesterday \d\d:\d\d/);
+    /* F.1: the real date and the real time, 24 hour, Dubai — not "today". */
+    expect(rows[0]?.textContent).toMatch(/14 Nov \d\d:\d\d/);
+    expect(rows[2]?.textContent).toMatch(/13 Nov \d\d:\d\d/);
     expect(text()).not.toContain('must not be drawn');
+    /* F.1 again: each one carries its "…" menu. */
+    expect(rows[0]?.querySelector('button[aria-label="More on this note"]')).not.toBeNull();
   });
 
   it('says so plainly when there are no notes', async () => {
@@ -422,5 +463,7 @@ describe('the panel’s source', () => {
     const invented = [...everyWord.matchAll(/\bv2-[a-z0-9-]+/g)].map((one) => one[0]);
     expect(invented.length).toBeGreaterThan(5);
     for (const name of invented) expect(name.startsWith('v2-qp-')).toBe(true);
+    /* The shared bar, note box and notes list invent their own, prefixed
+       `v2-ln-`, in their own files and their own stylesheet. */
   });
 });

@@ -33,6 +33,7 @@ import {
 import { toCsvRow } from '../../imports/csv.js';
 import { writeAudit } from '../../audit/audit.js';
 import { leadFacets } from '../../leads/facets.js';
+import { LAST_TRY_SQL, noAnswerOf } from '../../v2/call-results.js';
 import { DAILY_GOALS } from '../../v2/home.js';
 import { DAY_END, DAY_START } from '../../v2/dubai.js';
 
@@ -293,6 +294,16 @@ const SELECT = `
           * substituting another date.
           */
          o.assigned_at,
+         /*
+          * When the last unanswered call was, for the grey "No answer x2" tag
+          * and the Next step column (the call-results contract, section 3).
+          * Read from the timeline rather than from call_logs, because every
+          * path that logs a result writes an activity and only the dialler
+          * writes a call row -- see v2/call-results.ts. Behind a CASE so the
+          * subquery is not run for the great majority of leads, which have
+          * never been rung without an answer.
+          */
+         ${LAST_TRY_SQL} AS last_try_at,
          c.full_name, c.phone_e164, c.email, c.language, c.dnc, c.last_inbound_at,
          u.name AS owner_name
     FROM opportunities o
@@ -404,10 +415,13 @@ myLeadsRouter.get(
     const clause = [definition.where, ...where].join(' AND ');
     const offset = (params.page - 1) * params.pageSize;
 
-    const items = await query(
+    const rows = await query<Record<string, unknown>>(
       `${SELECT} WHERE ${clause} ORDER BY ${definition.orderBy} LIMIT ${params.pageSize} OFFSET ${offset}`,
       args,
     );
+    /* The one field every list gains: the call-results contract, §3. Null on
+       a lead nobody has rung without an answer, which is most of them. */
+    const items = rows.map((row) => ({ ...row, noAnswer: noAnswerOf(row) }));
     const total = await queryOne<{ n: number }>(
       `SELECT COUNT(*) AS n FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL
@@ -1018,11 +1032,12 @@ myLeadsRouter.get(
     const opportunityId = String(req.params.id);
     await assertLeadIsVisible(req, opportunityId);
 
-    const lead = await queryOne<Record<string, unknown>>(
+    const row = await queryOne<Record<string, unknown>>(
       `${SELECT} WHERE o.id = ? AND o.deleted_at IS NULL`,
       [opportunityId],
     );
-    if (!lead) throw notFound('That lead no longer exists.');
+    if (!row) throw notFound('That lead no longer exists.');
+    const lead: Record<string, unknown> = { ...row, noAnswer: noAnswerOf(row) };
 
     const detail = await contact360(String(lead.contact_id));
     res.json({ lead, ...detail });

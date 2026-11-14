@@ -6,9 +6,13 @@ import { useAuth } from '../lib/auth.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
+import { firstNameFor } from '../lib/note-names.js';
+import { BRAND } from '../brand.js';
 import { spacedE164 } from '../design/phone.js';
 import { useCheckIn } from './check-in.js';
 import { useFullAttention, usePhoneHead } from './phone.js';
+/* One rule, and why it is here rather than in a shared sheet: see the file. */
+import '../styles/v2-dialler.css';
 
 /**
  * Calling: one lead at a time, until the list is done.
@@ -100,11 +104,22 @@ const LOST_REASONS = [
   { key: 'other', label: 'Something else' },
 ];
 
-/** What the save line under the tiles says each outcome will do. */
+/**
+ * What the save line under the tiles says each outcome will do.
+ *
+ * No figure for the two that count as a try. They used to read "comes back in
+ * two hours" and "in an hour", which were this screen's own copy of what
+ * `finishCall` had hard-coded. The owner's ladder lives in Automations now —
+ * two hours, next morning, next evening, two days, each moved to the client's
+ * waking hours — so the real answer depends on which try this is and where
+ * the lead is, and neither of those is something a screen should work out for
+ * itself. When the save response carries the server's ready-made line ("Try 2
+ * of 5 · next try tomorrow 11:00") that is what belongs here.
+ */
 const CONSEQUENCE: Record<Outcome, string> = {
   interested: 'The stage becomes Interested.',
-  no_answer: 'Counted as a try. The lead comes back in two hours.',
-  busy: 'Counted as a try. The lead comes back in an hour.',
+  no_answer: 'Counted as a try. The lead comes back in your list for the next try.',
+  busy: 'Counted as a try. The lead comes back in your list for the next try.',
   call_back: 'A follow-up is put in your list for the time you choose.',
   wrong_number: 'The lead is flagged and leaves your list.',
   not_interested: 'The lead moves to Lost, with the reason you give.',
@@ -638,7 +653,9 @@ function useLeadWork({ lead, ask, saved, onCalled, onTapped, onSaved }: {
          call you" already typed. It is still a tap, not a sent message — the
          agent presses send in WhatsApp. */
       if (outcome === 'no_answer' && alsoWhatsapp) {
-        const first = (lead.name ?? '').trim().split(/\s+/)[0];
+        /* Same rule as the opener: a name that is really a note from the
+           import file is left out rather than sent to the client. */
+        const first = firstNameFor(lead.name);
         await whatsapp(
           `Hello${first ? ` ${first}` : ''}, I tried to call you`
           + `${lead.project ? ` about ${lead.project}` : ''}. When is a good time to talk?`,
@@ -708,7 +725,7 @@ function OutcomeForm({ work }: { work: LeadWork }) {
       <>
         <div className="d-row">
           <Icon name="refresh-cw" size={15} />
-          <span className="d-grow">The lead comes back in your list in <b>2 hours</b>.</span>
+          <span className="d-grow">The lead comes back in your list for another try.</span>
         </div>
         <label className="d-check">
           <input
@@ -727,7 +744,7 @@ function OutcomeForm({ work }: { work: LeadWork }) {
       <>
         <div className="d-row">
           <Icon name="refresh-cw" size={15} />
-          <span className="d-grow">The lead comes back in your list in <b>1 hour</b>.</span>
+          <span className="d-grow">The lead comes back in your list for another try.</span>
         </div>
         <NoteField note={note} setNote={setNote} />
       </>
@@ -1025,9 +1042,20 @@ function PhoneLead({
   );
 }
 
-/** The trading name, or the brand this CRM is when nobody has filled one in. */
-function brandOf(company: { legalName?: string; tradingName?: string } | undefined): string {
-  return company?.tradingName?.trim() || company?.legalName?.trim() || 'homes.me';
+/**
+ * What we call ourselves out loud: the brand, never the registered name.
+ *
+ * Emir, 14 Nov §G.4: the opener said "this is Rocky from Emigeo Homes Real
+ * Estate LLC", because `/api/company` answers with the legal name and nothing
+ * had set a trading name. The legal name is right on an invoice, an offer
+ * letterhead and a tax document, and wrong in a sentence a person says on the
+ * phone. `tradingName` is the field for exactly this — "what people actually
+ * call us", `server/src/config/company.ts` — so it wins when somebody has
+ * filled it in, and the brand this CRM already knows itself by is the
+ * fallback. The legal name is not in this chain at all.
+ */
+export function brandOf(company: { legalName?: string; tradingName?: string } | undefined): string {
+  return company?.tradingName?.trim() || BRAND.name;
 }
 
 /**
@@ -1037,9 +1065,22 @@ function brandOf(company: { legalName?: string; tradingName?: string } | undefin
  * is on the record already: their first name, the agent signed in, the company
  * and the project they asked about. When a part is missing it is left out of
  * the sentence rather than filled with something plausible.
+ *
+ * The name is the part that has to be right. A spreadsheet's name column holds
+ * notes as often as names — "Looks fake – verify", "Prüfen", "TECHNICAL
+ * ANALYSIS." — and reading one of those out is a call that ends in the first
+ * second. `firstNameFor` is the one rule for that, shared with the owner's
+ * list on the import screen, and when it has nothing to say the sentence drops
+ * the name: "Hi, this is Rocky from homes.me about The Archive."
  */
-function opener(lead: QueueLead, me: string | null, company: string): string {
-  const first = (lead.name ?? '').trim().split(/\s+/)[0];
+export function opener(
+  /* Only the two parts of the lead that are in the sentence, so the test can
+     be read without building a whole queue row. */
+  lead: Pick<QueueLead, 'name' | 'project'>,
+  me: string | null,
+  company: string,
+): string {
+  const first = firstNameFor(lead.name);
   const mine = (me ?? '').trim().split(/\s+/)[0];
   return [
     `Hi${first ? ` ${first}` : ''},`,

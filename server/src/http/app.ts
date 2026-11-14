@@ -19,6 +19,7 @@ import { notificationsRouter } from './routes/notifications.js';
 import { addLeadRouter } from './routes/add-lead.js';
 import { myLeadsRouter } from './routes/my-leads.js';
 import { v2Router } from './routes/v2.js';
+import { callResultsRouter } from './routes/call-results.js';
 import { notesRouter } from './routes/notes.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { contactsRouter } from './routes/contacts.js';
@@ -34,6 +35,7 @@ import { reportsRouter } from './routes/reports.js';
 import { tasksRouter } from './routes/tasks.js';
 import { automationsRouter } from './routes/automations.js';
 import { importsRouter } from './routes/imports.js';
+import { noteNamesRouter } from './routes/note-names.js';
 import { listsRouter } from './routes/lists.js';
 import { campaignsRouter } from './routes/campaigns.js';
 import { incomingRouter } from './routes/incoming.js';
@@ -210,10 +212,19 @@ export function createApp(): Express {
   app.use('/api/tasks', tasksRouter);
   app.use('/api/automations', automationsRouter);
   app.use('/api/imports', importsRouter);
+  /* Read-only, owner and admin: the leads whose name is a note from an
+     import file rather than a person. Its own address so the import wizard's
+     router stays what it is. */
+  app.use('/api/note-names', noteNamesRouter);
   app.use('/api/lists', listsRouter);
   app.use('/api/campaigns', campaignsRouter);
   app.use('/api/leads', addLeadRouter);
   app.use('/api/my-leads', myLeadsRouter);
+  /* Two routers share `/api/v2`. Express tries them in this order and a
+     router passes on any path it does not declare, so the call-result
+     addresses are reachable without adding to a file three people are
+     editing. Nothing here declares a path `v2Router` also declares. */
+  app.use('/api/v2', callResultsRouter);
   app.use('/api/v2', v2Router);
   app.use('/api/email', emailRouter);
   app.use('/api/activity', activityRouter);
