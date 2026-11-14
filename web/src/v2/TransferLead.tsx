@@ -251,9 +251,15 @@ export function TransferLead({ opportunityId, who, isVip, onDone, onCancel }: {
                       </span>
                       {/* What they speak, which is the reason this screen
                           exists. Blank rather than "en" when nobody has filled
-                          their profile in. */}
-                      {one.languages.length > 0 && (
-                        <span className="d-small d-muted">{one.languages.join(', ')}</span>
+                          their profile in.
+                          `?? []` like the filter above it, and for the same
+                          reason: a row that arrives without the field at all
+                          threw here and took the whole app down with it —
+                          found on 14 Nov, from the quick panel's own Transfer
+                          button, against a preview whose `transfers/who` still
+                          answers with the old singular `language`. */}
+                      {(one.languages ?? []).length > 0 && (
+                        <span className="d-small d-muted">{(one.languages ?? []).join(', ')}</span>
                       )}
                       <span className="d-meta">
                         <span>

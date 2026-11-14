@@ -56,11 +56,31 @@ export type HandedBy =
   /** This CRM never recorded a giver for it. Say the date, name nobody. */
   | 'unknown';
 
+/**
+ * What a transfer request came to, where it is not a completed move.
+ *
+ * The stored `lead_transfers.status` values, minus `accepted` — an accepted
+ * one is a hand-over and appears as one. These are keys, never words: the
+ * screen turns them into English, because Emir's first rule is that nobody is
+ * ever shown a raw code.
+ */
+export type AttemptOutcome = 'pending' | 'needs_approval' | 'refused' | 'cancelled' | 'expired';
+
 export interface HandoverStep {
   id: string;
-  /** When this person got it, ISO. */
+  /**
+   * For a hand-over, when this person got it. For an attempt, when it was
+   * asked for — the date the agent would call "the transfer date". ISO.
+   */
   at: string;
-  /** The agent who received it. */
+  /**
+   * `handover` — the lead actually moved to `toName`.
+   * `attempt` — somebody asked to pass it and it did not happen (or has not
+   * happened yet). Emir asked for these on 14 Nov: a cancelled request is the
+   * record of a manager pulling a lead back, and it was invisible.
+   */
+  kind: 'handover' | 'attempt';
+  /** The agent who received it, or on an attempt the one who would have. */
   toName: string | null;
   /** Who had it before. Null means this is the first hand-out we know of. */
   fromName: string | null;
@@ -71,6 +91,13 @@ export interface HandoverStep {
   reason: TransferReason | null;
   /** What they typed beside it, where they typed anything. */
   note: string | null;
+  /** Only on an attempt: what became of the request. */
+  outcome: AttemptOutcome | null;
+  /**
+   * Only on an attempt that ended: when it ended, ISO. Null while it is still
+   * waiting — `decided_at` is genuinely not set then, and is not invented.
+   */
+  decidedAt: string | null;
 }
 
 /** How close a transfer's decision and its assignment row have to be to match. */
@@ -86,12 +113,16 @@ interface AssignmentRow {
 }
 
 interface TransferRow {
+  id: string;
+  status: string;
   fromUserId: string;
   fromName: string | null;
   toUserId: string;
+  toName: string | null;
   reason: TransferReason;
   note: string | null;
-  decidedAt: Date;
+  requestedAt: Date;
+  decidedAt: Date | null;
 }
 
 /**
@@ -127,6 +158,11 @@ export async function handoverChain(
    * written inside the same millisecond still come back in one fixed order —
    * the chain is read by position, and a wobbling order would put a move
    * between the wrong two people.
+   *
+   * The limit is oldest-first on purpose: a lead with more hand-overs than
+   * this is a lead going round in circles, and the first hundred are the ones
+   * that explain how it started. The current holder is added below in any
+   * case, so the block never ends on somebody who let it go.
    */
   const assignments = await query<AssignmentRow>(
     `SELECT la.id, la.assigned_at AS at,
@@ -142,25 +178,42 @@ export async function handoverChain(
     exec,
   );
 
-  /* Accepted transfers only. A refused or expired request is not a hand-over
-     and must not appear as one. */
+  /*
+   * Every request, whatever became of it.
+   *
+   * It used to read `status = 'accepted'`, which answered the question "what
+   * is the reason for this move" and threw away everything else. Emir, 14 Nov,
+   * with a cancelled request on a real lead in front of him: *"show every
+   * transfer, also cancelled and refused ones, with from, to, date, time and
+   * reason."* A refused request is the record of an agent turning a lead
+   * down, and a cancelled one of a manager pulling it back; neither is a
+   * hand-over, and neither should vanish.
+   *
+   * An accepted row still annotates the assignment it produced, so it is
+   * never drawn twice. Everything else becomes a line of its own.
+   */
   const transfers = await query<TransferRow>(
-    `SELECT t.from_user_id AS fromUserId, uf.name AS fromName,
-            t.to_user_id AS toUserId, t.reason, t.note, t.decided_at AS decidedAt
+    `SELECT t.id, t.status, t.from_user_id AS fromUserId, uf.name AS fromName,
+            t.to_user_id AS toUserId, ut.name AS toName,
+            t.reason, t.note, t.requested_at AS requestedAt, t.decided_at AS decidedAt
        FROM lead_transfers t
        LEFT JOIN users uf ON uf.id = t.from_user_id
-      WHERE t.opportunity_id = ? AND t.status = 'accepted' AND t.decided_at IS NOT NULL
-      ORDER BY t.decided_at ASC
+       LEFT JOIN users ut ON ut.id = t.to_user_id
+      WHERE t.opportunity_id = ?
+      ORDER BY t.requested_at ASC, t.id ASC
       LIMIT 100`,
     [opportunityId],
     exec,
   );
 
+  const accepted = transfers.filter(
+    (one) => one.status === 'accepted' && one.decidedAt !== null,
+  );
   const spent = new Set<number>();
   const steps: HandoverStep[] = [];
 
   for (const row of assignments) {
-    const matched = matchTransfer(transfers, spent, row);
+    const matched = matchTransfer(accepted, spent, row);
     const previous = steps.length > 0 ? (steps[steps.length - 1] as HandoverStep) : null;
     /*
      * Where the lead came from: the transfer says so itself, otherwise it is
@@ -172,12 +225,15 @@ export async function handoverChain(
     steps.push({
       id: row.id,
       at: row.at.toISOString(),
+      kind: 'handover',
       toName: row.toName,
       fromName,
       by: row.byUserId === null ? 'crm' : 'person',
       byName: row.byUserId === null ? null : row.byName,
       reason: matched?.reason ?? null,
       note: matched?.note ?? null,
+      outcome: null,
+      decidedAt: null,
     });
   }
 
@@ -196,14 +252,55 @@ export async function handoverChain(
     steps.push({
       id: `now:${opportunityId}`,
       at: lead.assigned_at.toISOString(),
+      kind: 'handover',
       toName: lead.owner_name,
       fromName: last?.toName ?? null,
       by: 'unknown',
       byName: null,
       reason: null,
       note: null,
+      outcome: null,
+      decidedAt: null,
     });
   }
+
+  /*
+   * The requests that did not move the lead. Dated by when they were **asked
+   * for**, not by when they ended: that is the date an agent means by "the
+   * transfer date", and it is the one the request shares with the rest of the
+   * story. When it ended is sent alongside, and the screen puts it in the
+   * tooltip rather than printing two dates on one line.
+   *
+   * `requested_at` is NOT NULL and `reason` is NOT NULL on this table, so
+   * every one of these rows really does carry a from, a to, a date, a time
+   * and a reason. `decided_at` is the only field that can be missing, and it
+   * is missing exactly when the request is still waiting — which is the truth
+   * and is shown as such.
+   */
+  for (const one of transfers) {
+    if (one.status === 'accepted') continue;
+    steps.push({
+      id: `t:${one.id}`,
+      at: one.requestedAt.toISOString(),
+      kind: 'attempt',
+      toName: one.toName,
+      fromName: one.fromName,
+      by: 'person',
+      byName: one.fromName,
+      reason: one.reason,
+      note: one.note,
+      outcome: one.status as AttemptOutcome,
+      decidedAt: one.decidedAt === null ? null : one.decidedAt.toISOString(),
+    });
+  }
+
+  /*
+   * One list, oldest first. The chain above was built in its own order on
+   * purpose — each hand-over reads its "from" off the one before it — so the
+   * attempts are woven in only now, once that is settled. A stable sort keeps
+   * a request and the move it produced in the order they were pushed.
+   */
+  steps.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   return steps;
 }
@@ -228,6 +325,9 @@ function matchTransfer(
     /* The accepting path records the sending agent as the giver, so these are
        the same person on a transfer and different people on anything else. */
     if (transfer.fromUserId !== row.byUserId) continue;
+    /* Only accepted rows reach here, and an accepted one always has a
+       decision time; the guard keeps that promise honest rather than assumed. */
+    if (transfer.decidedAt === null) continue;
     if (Math.abs(transfer.decidedAt.getTime() - row.at.getTime()) > SAME_MOVE_MS) continue;
     spent.add(index);
     return transfer;

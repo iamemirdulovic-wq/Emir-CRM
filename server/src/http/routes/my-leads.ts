@@ -2,7 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.js';
 import {
-  actorFrom, blockUntilPasswordChanged, currentUser, requireAuth,
+  actorFrom, blockUntilPasswordChanged, currentUser, requireAdmin, requireAuth,
+  requirePermission,
 } from '../middleware/auth.js';
 import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { isManagerOrAbove } from '../../auth/rbac.js';
@@ -26,9 +27,14 @@ import {
 import { addNote } from '../../leads/notes.js';
 import { MOVE_LIMIT, moveLeads } from '../../leads/move.js';
 import {
-  asleepNow, awakeNow, countriesClause, countriesMatching, countryClause, languagesMatching,
+  asleepNow, awakeNow, countriesClause, countriesMatching, countryClause, countryOf,
+  languageName, languagesMatching,
 } from '../../leads/countries.js';
+import { toCsvRow } from '../../imports/csv.js';
+import { writeAudit } from '../../audit/audit.js';
 import { leadFacets } from '../../leads/facets.js';
+import { DAILY_GOALS } from '../../v2/home.js';
+import { DAY_END, DAY_START } from '../../v2/dubai.js';
 
 /**
  * My Leads: the screen an agent lives in.
@@ -59,6 +65,12 @@ const listSchema = z.object({
   country: z.string().max(12).optional(),
   /* `contacts.language` as stored, or `unknown` for a blank one. */
   language: z.string().max(12).optional(),
+  /*
+   * "Added: any time / Today / This week / This month" — picture 02's own
+   * words. Every boundary is Dubai's: a lead added at 02:00 Dubai was added
+   * today, whatever the server's clock thinks.
+   */
+  added: z.enum(['today', 'week', 'month']).optional(),
   /* `namespace:value`, e.g. `batch:expo-2026-30oct-a3f2` — how one upload is
      found again after the fact. */
   tag: z.string().max(160).optional(),
@@ -119,7 +131,9 @@ export function searchClause(search: string, now: Date = new Date()): Filters | 
 
   /* "asleep", "sleeping", "night" — one word for one idea, and the hours are
      `countries.ts`'s, which is the same rule as the moon on the chip. */
-  const word = term.toLowerCase();
+  /* One space between words, so "night  time" is the same question as
+     "night time" — somebody typing into a phone keyboard, not a form. */
+  const word = term.toLowerCase().replace(/\s+/g, ' ');
   const asleep = ['asleep', 'sleeping', 'night', 'night time', 'do not call'].includes(word);
   const awake = ['awake', 'daytime', 'day time', 'ok to call', 'can call'].includes(word);
   if (asleep || awake) {
@@ -166,6 +180,19 @@ function buildFilters(
       where.push(clause.sql);
       args.push(...clause.params);
     }
+  }
+  /*
+   * When the lead arrived. Counted in Dubai time with the fixed +04:00
+   * offset the rest of this file uses — Dubai has no daylight saving and the
+   * fixed offset is deliberate, not an oversight.
+   */
+  if (params.added) {
+    const DUBAI_MIDNIGHT = "CONVERT_TZ(DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), '+04:00', '+00:00')";
+    if (params.added === 'today') where.push(`o.created_at >= ${DUBAI_MIDNIGHT}`);
+    /* Seven days back from this morning, not "this calendar week": an agent
+       asking what came in this week on a Monday means the last few days. */
+    if (params.added === 'week') where.push(`o.created_at >= DATE_SUB(${DUBAI_MIDNIGHT}, INTERVAL 7 DAY)`);
+    if (params.added === 'month') where.push(`o.created_at >= DATE_SUB(${DUBAI_MIDNIGHT}, INTERVAL 30 DAY)`);
   }
   if (params.language && except !== 'language') {
     if (params.language === 'unknown') {
@@ -449,7 +476,33 @@ myLeadsRouter.get(
     const mine = where.slice(1);
     const mineArgs = args.slice(ownerPredicate('o.owner_user_id', visible).params.length);
 
-    res.json(await leadTabCounts(visible, { where: mine, args: mineArgs }));
+    /*
+     * The two numbers in the black bar above the table — picture 01, point 9:
+     * *"Black bar on top: leads ready to call, calls today with progress,
+     * Start calling."*
+     *
+     * Counted here rather than fetched from `/api/v2/home`, which is the
+     * agent's home screen and a different request: this screen already asks
+     * for the counts, and a second round trip for one integer is a second
+     * spinner. `DAILY_GOALS.calls` is Emir's own 40 from his design package,
+     * sent from the server so that when Settings can set it per agent there
+     * is one place to change.
+     *
+     * `call_logs` is per person, so a manager or an owner sees their own
+     * calls, not the team's. That is what the bar says — "18 of 40 calls
+     * today" is about the person reading it.
+     */
+    const today = await queryOne<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM call_logs
+        WHERE user_id = ? AND started_at >= ${DAY_START} AND started_at < ${DAY_END}`,
+      [user.id],
+    );
+
+    res.json({
+      ...await leadTabCounts(visible, { where: mine, args: mineArgs }),
+      callsToday: Number(today?.n ?? 0),
+      callGoal: DAILY_GOALS.calls,
+    });
   }),
 );
 
@@ -481,6 +534,9 @@ myLeadsRouter.get(
     res.json(await leadFacets(
       { where: [definition.where, ...forCountries.where], args: forCountries.args },
       { where: [definition.where, ...forLanguages.where], args: forLanguages.args },
+      /* So a chip that is chosen always comes back, even at zero: otherwise
+         it disappears from the row the moment the other chip empties it. */
+      { country: params.country, language: params.language },
     ));
   }),
 );
@@ -522,6 +578,73 @@ myLeadsRouter.get(
     );
 
     res.json({ items: items.map((one) => ({ name: one.name, leads: Number(one.n) })) });
+  }),
+);
+
+/**
+ * "Export" — the button beside the lead count on the owner's book.
+ *
+ * Picture 02, §7 of the 14 November fix list. Owner and admin only, and
+ * audited, because this is the endpoint that can walk out of the building
+ * with the whole book: the same `requireAdmin` + `requirePermission('export')`
+ * pair the list export uses, and the same fence in SQL under it, so even an
+ * admin only ever gets the leads they may see.
+ *
+ * Exactly the rows the filters are showing, in the order the screen shows
+ * them. Capped, because a browser asking for 100,000 rows over one request
+ * is the kind of query that took the site down on 10 Nov.
+ *
+ * Registered above `/:id`, like `/counts`, `/facets` and `/projects`.
+ */
+const EXPORT_LIMIT = 5000;
+
+myLeadsRouter.get(
+  '/export.csv',
+  requireAdmin,
+  requirePermission('export'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const params = listSchema.parse(req.query);
+    const tab: LeadTab = isLeadTab(params.tab) ? params.tab : 'all';
+    const visible = await visibleUserIds(user);
+    const { where, args } = buildFilters(params, visible);
+    const definition = TABS[tab];
+
+    const rows = await query<Record<string, unknown>>(
+      `${SELECT} WHERE ${[definition.where, ...where].join(' AND ')}
+        ORDER BY ${definition.orderBy} LIMIT ${EXPORT_LIMIT}`,
+      args,
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="leads-${tab}.csv"`);
+    res.write(toCsvRow([
+      'Name', 'Phone', 'Email', 'Country', 'Language', 'Project', 'Stage',
+      'Agent', 'Given out', 'Last contact', 'Next step', 'Source',
+    ]));
+    for (const row of rows) {
+      /* The country is read off the number the same way the chips count it,
+         and left blank — never guessed — where the dialling code is not one
+         the table holds. */
+      const origin = countryOf(row.phone_e164 as string | null);
+      res.write(toCsvRow([
+        row.full_name, row.phone_e164, row.email,
+        origin?.name ?? '',
+        /* Never a raw code in a file somebody opens in Excel. */
+        row.language ? languageName(String(row.language)) : '',
+        row.project_name, row.stage_key, row.owner_name,
+        row.assigned_at, row.last_contact_at, row.next_step_note, row.source,
+      ]));
+    }
+    res.end();
+
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'leads.exported',
+      entityType: 'opportunity',
+      entityId: null,
+      after: { tab, rows: rows.length, filters: { ...params, page: undefined, pageSize: undefined } },
+    });
   }),
 );
 

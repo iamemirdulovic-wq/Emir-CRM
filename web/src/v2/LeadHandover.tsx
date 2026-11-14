@@ -37,11 +37,16 @@ import { REASONS } from './Transfers.js';
  * column, under "In short", which is the column for what has happened.
  */
 
+/** What a transfer request came to, where the lead did not actually move. */
+export type AttemptOutcome = 'pending' | 'needs_approval' | 'refused' | 'cancelled' | 'expired';
+
 export interface HandoverStep {
   id: string;
-  /** When this person got it, ISO. */
+  /** For a hand-over, when this person got it; for an attempt, when it was asked. */
   at: string;
-  /** The agent who received it. */
+  /** `handover` — the lead moved. `attempt` — a request that did not move it. */
+  kind: 'handover' | 'attempt';
+  /** The agent who received it, or would have. */
   toName: string | null;
   /** Who had it before. Null means this is the first hand-out on record. */
   fromName: string | null;
@@ -51,6 +56,35 @@ export interface HandoverStep {
   /** The transfer reason as its stored key, or null where none was recorded. */
   reason: string | null;
   note: string | null;
+  /** Only on an attempt: the stored status, which this file turns into words. */
+  outcome: AttemptOutcome | null;
+  /** Only on an attempt that ended. Null while it is still waiting. */
+  decidedAt: string | null;
+}
+
+/**
+ * The stored status, in words a person reads.
+ *
+ * Emir's first rule on the 14 Nov list: *"Never show raw codes to people… no
+ * 'en', 'walk_in', 'csv_import', file names, or database ids. Always simple
+ * English words."* `needs_approval` is a column value, not a sentence.
+ *
+ * `refused` says no name on purpose. Two different people can refuse — the
+ * agent it was offered to, and the owner whose approval a Meeting or Offer
+ * lead needs — and `lead_transfers` stores the same `refused` for both. We
+ * cannot tell them apart, so we do not guess which.
+ */
+export function outcomeWord(outcome: AttemptOutcome, toName: string | null): string {
+  switch (outcome) {
+    /* Still live: nobody has answered it yet. Named, because "waiting" with
+       no name is the thing an owner has to go and look up. */
+    case 'pending': return `waiting for ${toName ?? 'the other agent'}`;
+    case 'needs_approval': return 'waiting for the owner';
+    case 'refused': return 'refused';
+    case 'cancelled': return 'cancelled';
+    case 'expired': return 'ran out of time';
+    default: return 'not completed';
+  }
 }
 
 export function LeadHandover({ leadId }: { leadId: string }) {
@@ -79,13 +113,17 @@ export function LeadHandover({ leadId }: { leadId: string }) {
                use, so a date cannot read one way here and another there. */
             const line = given(step.at);
             const why = handoverWhy(step);
+            const attempt = step.kind === 'attempt';
             return (
-              <div className="d-row v2-leadhand-row" key={step.id}>
+              <div
+                className={attempt ? 'd-row v2-leadhand-row v2-leadhand-off' : 'd-row v2-leadhand-row'}
+                key={step.id}
+              >
                 <span className="d-grow">
                   {handoverLine(step)}
                   {why !== null && <span className="v2-leadhand-why">{why}</span>}
                 </span>
-                <span className="d-muted v2-leadhand-when" title={line.exact ?? undefined}>
+                <span className="d-muted v2-leadhand-when" title={whenTitle(step, line.exact)}>
                   {line.when}
                 </span>
               </div>
@@ -97,9 +135,54 @@ export function LeadHandover({ leadId }: { leadId: string }) {
   );
 }
 
-/** "Given out by Emir to Talha", "Transferred from Talha to Raj". */
+/**
+ * The hover: the asked-for date in full, and when a request ended.
+ *
+ * Two dates on one line would be noise, and the row's own date is the one
+ * that matters — when the transfer was asked for. The moment it was cancelled
+ * or refused lives here, where it is one hover away and nothing is lost.
+ */
+export function whenTitle(step: HandoverStep, exact: string | null): string | undefined {
+  if (step.kind !== 'attempt') return exact ?? undefined;
+  const asked = exact === null ? null : `Asked ${exact}`;
+  const ended = step.decidedAt === null || step.outcome === null
+    ? null
+    : `${sentence(outcomeWord(step.outcome, step.toName))} ${given(step.decidedAt).exact ?? ''}`.trim();
+  const parts = [asked, ended].filter((one): one is string => one !== null && one !== '');
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
+/** `cancelled` at the start of a sentence is `Cancelled`. */
+function sentence(words: string): string {
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * "Given out by Emir to Talha", "Transferred from Talha to Raj", and — since
+ * 14 Nov — "Transfer from Talha to Tej · cancelled".
+ *
+ * The verb is the tell, and it is deliberate: **"Transferred"** is the past
+ * tense and means the lead moved; **"Transfer"** is the noun and names a
+ * request that did not move it. The outcome word says which in plain English
+ * beside it, and the whole row is greyed, so a cancelled request cannot be
+ * mistaken for a hand-over at a glance.
+ */
 export function handoverLine(step: HandoverStep): ReactNode {
   const to = <b className="d-bold">{step.toName ?? 'an agent'}</b>;
+
+  if (step.kind === 'attempt') {
+    return (
+      <>
+        Transfer from <b className="d-bold">{step.fromName ?? 'an agent'}</b> to {to}
+        {step.outcome !== null && (
+          <>
+            {' · '}
+            <span className="v2-leadhand-out">{outcomeWord(step.outcome, step.toName)}</span>
+          </>
+        )}
+      </>
+    );
+  }
 
   if (step.fromName === null) {
     /*
@@ -121,6 +204,14 @@ export function handoverLine(step: HandoverStep): ReactNode {
 /** The quiet second line: who moved it, why, and what they typed. */
 export function handoverWhy(step: HandoverStep): string | null {
   const parts: string[] = [];
+  /* On an attempt the sender is already in the sentence, and the reason is
+     the point of the line — `lead_transfers.reason` is NOT NULL, so there is
+     always one to show. */
+  if (step.kind === 'attempt') {
+    if (step.reason !== null) parts.push(REASONS[step.reason] ?? step.reason.replace(/_/g, ' '));
+    if (step.note !== null) parts.push(`“${step.note}”`);
+    return parts.length > 0 ? parts.join(' · ') : null;
+  }
   /* Only on a move: on the first line the giver is already in the sentence. */
   if (step.fromName !== null) {
     if (step.by === 'person' && step.byName !== null && step.byName !== step.fromName) {

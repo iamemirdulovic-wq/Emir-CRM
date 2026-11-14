@@ -595,15 +595,25 @@ function clock(at: string): string {
   return `${two(on.getUTCHours())}:${two(on.getUTCMinutes())}`;
 }
 
-function when(at: string): string {
+/**
+ * When a request was sent: the day **and** the clock.
+ *
+ * Emir, 14 Nov 2026: *"Transfers page: the When column shows only the day.
+ * Show date AND time."* Today's rows already carried a time and everything
+ * older dropped it, so a row from yesterday said "Thu 13 Nov" and there was
+ * no way to tell a request sent before the morning meeting from one sent
+ * after it. 24-hour, Dubai, like every other time in the product.
+ */
+export function when(at: string): string {
   const on = dubai(at);
   const today = dubai(new Date().toISOString());
   if (on.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)) {
     return `Today ${clock(at)}`;
   }
-  return on.toLocaleDateString('en-GB', {
+  const day = on.toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
   });
+  return `${day} ${clock(at)}`;
 }
 
 function howLong(ms: number): string {

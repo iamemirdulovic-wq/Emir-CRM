@@ -1,6 +1,7 @@
 import { query } from '../db/client.js';
 import {
-  countryOfPrefix, flagOf, hourIn, isNight, languageName, prefixSql, timeIn, type Country,
+  DIALLING_CODES, countryOfPrefix, flagOf, hourIn, isNight, languageName, prefixSql, timeIn,
+  type Country,
 } from './countries.js';
 
 /**
@@ -69,6 +70,9 @@ export interface LeadFacets {
   languageDefault: string;
 }
 
+/** `contacts.language`, folded the one way the whole screen folds it. */
+const LANG = "LOWER(TRIM(COALESCE(c.language, '')))";
+
 const FROM = `FROM opportunities o
          JOIN contacts c ON c.id = o.contact_id AND c.deleted_at IS NULL`;
 
@@ -85,28 +89,52 @@ const FROM = `FROM opportunities o
 export async function leadFacets(
   forCountries: { where: string[]; args: Array<string | number> },
   forLanguages: { where: string[]; args: Array<string | number> },
+  /**
+   * What is picked right now.
+   *
+   * A chip that is chosen is always sent back, even at zero. Without that
+   * rule, choosing France and then Hindi makes the France chip vanish from
+   * the row — France has no Hindi leads — so the screen says "no lead fits
+   * these filters" with no way to see which filter to take off, and the name
+   * decays to the bare code "FR" because nothing left in the answer knows
+   * what FR is called.
+   */
+  picked: { country?: string; language?: string } = {},
   now: Date = new Date(),
 ): Promise<LeadFacets> {
   const [prefixes, languages] = await Promise.all([
+    /*
+     * The expression is repeated in GROUP BY rather than named by its alias.
+     *
+     * Both databases take `GROUP BY p`, but the live site runs MariaDB and
+     * the tests run MySQL 8, and that difference has already produced two
+     * 500s that were green in every test — an aggregate alias in HAVING on
+     * the KPI endpoint, and a date passed as a string on the calendar. These
+     * two queries are where both traps live, so neither is relied on. See
+     * CLAUDE.md, "Production is MariaDB; your tests are MySQL 8".
+     *
+     * There is no date in either of them: every boundary this screen uses is
+     * built in SQL from `NOW(3)`, never bound as a string from the browser.
+     */
     query<{ p: string | null; n: number }>(
       `SELECT ${prefixSql('c.phone_e164')} AS p, COUNT(*) AS n
          ${FROM}
         WHERE ${forCountries.where.join(' AND ')}
-        GROUP BY p`,
+        GROUP BY ${prefixSql('c.phone_e164')}`,
       forCountries.args,
     ),
     query<{ lang: string | null; n: number }>(
-      `SELECT LOWER(TRIM(COALESCE(c.language, ''))) AS lang, COUNT(*) AS n
+      `SELECT ${LANG} AS lang, COUNT(*) AS n
          ${FROM}
         WHERE ${forLanguages.where.join(' AND ')}
-        GROUP BY lang`,
+        GROUP BY ${LANG}`,
       forLanguages.args,
     ),
   ]);
 
   return {
-    countries: foldPrefixes(prefixes, now),
-    languages: foldLanguages(languages),
+    countries: withPickedCountry(foldPrefixes(prefixes, now), picked.country, now),
+    languages: withPickedLanguage(foldLanguages(languages), picked.language),
     countryTotal: prefixes.reduce((sum, row) => sum + Number(row.n), 0),
     languageTotal: languages.reduce((sum, row) => sum + Number(row.n), 0),
     languageDefault: 'en',
@@ -175,4 +203,41 @@ export function foldLanguages(rows: Array<{ lang: string | null; n: number }>): 
     if ((a.code === 'unknown') !== (b.code === 'unknown')) return a.code === 'unknown' ? 1 : -1;
     return b.count - a.count || a.label.localeCompare(b.label);
   });
+}
+
+/** The chosen country, at zero, when nothing in the answer carries it. */
+function withPickedCountry(
+  rows: CountryFacet[],
+  picked: string | undefined,
+  now: Date,
+): CountryFacet[] {
+  if (!picked || rows.some((one) => one.iso2 === picked)) return rows;
+  const country = picked === 'unknown'
+    ? null
+    : Object.values(DIALLING_CODES).find((one) => one.iso2 === picked.toUpperCase()) ?? null;
+  /* A code that is in no table and is not "unknown" was never a real chip —
+     a hand-typed `?country=xx`. The list is left as it is, and the filter
+     ignores it too. */
+  if (!country && picked !== 'unknown') return rows;
+  return [...rows, {
+    iso2: picked,
+    name: country?.name ?? 'Unknown',
+    flag: country ? flagOf(country.iso2) : '',
+    count: 0,
+    timeZone: country?.timeZone ?? null,
+    zoneLabel: country?.zoneLabel ?? null,
+    localTime: timeIn(country?.timeZone ?? null, now),
+    localHour: hourIn(country?.timeZone ?? null, now),
+    night: isNight(country?.timeZone ?? null, now),
+  }];
+}
+
+/** And the chosen language. */
+function withPickedLanguage(rows: LanguageFacet[], picked: string | undefined): LanguageFacet[] {
+  if (!picked || rows.some((one) => one.code === picked)) return rows;
+  return [...rows, {
+    code: picked,
+    label: picked === 'unknown' ? 'Not known' : languageName(picked),
+    count: 0,
+  }];
 }

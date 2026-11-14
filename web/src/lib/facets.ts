@@ -47,38 +47,16 @@ export interface LeadFacets {
   countryTotal: number;
   languageTotal: number;
   /**
-   * The code `contacts.language` defaults to. The screen says so out loud,
-   * because a lead nobody ever asked reads English exactly like one who said
-   * "English, please" — see `docs/v2/questions-filters.md`.
+   * The code `contacts.language` defaults to — `'en'`.
+   *
+   * It is sent because it is true and somebody should know it: a lead nobody
+   * ever asked reads English exactly like one who said "English, please". The
+   * screen no longer says so in words (Emir took the grey sentence off on 14
+   * November), so the honest remainder is the separate "Not known" row, which
+   * only covers rows that are literally blank. `docs/v2/questions-filters.md`
+   * §2 is the open question.
    */
   languageDefault: string;
-}
-
-/**
- * How many chips a row shows before it folds.
- *
- * Emir's own export runs fifty-odd countries. Fifty pills is not a filter,
- * it is a wall, so the row shows the ones with the most leads and offers the
- * rest behind one press.
- */
-export const FACETS_SHOWN = 8;
-
-/**
- * Which chips to draw, and how many are left behind "+N more".
- *
- * The one that is picked is always drawn, however far down the list it is.
- * Without that rule, choosing a small country from the expanded row and then
- * collapsing it hides the only chip saying what the list is narrowed to.
- */
-export function visibleFacets<T>(
-  all: T[],
-  opts: { expanded: boolean; picked: (one: T) => boolean; limit?: number },
-): { shown: T[]; hidden: number } {
-  const limit = opts.limit ?? FACETS_SHOWN;
-  if (opts.expanded || all.length <= limit) return { shown: all, hidden: 0 };
-  const shown = all.slice(0, limit);
-  const chosen = all.slice(limit).filter(opts.picked);
-  return { shown: [...shown, ...chosen], hidden: all.length - limit - chosen.length };
 }
 
 /**
@@ -97,13 +75,3 @@ export function callNote(one: CountryFacet): string | null {
   const side = one.localHour !== null && one.localHour < 12 ? 'too early' : 'too late';
   return `${one.localTime} in ${where} — ${side} to call`;
 }
-
-/**
- * The words the search box takes, for the line that says so under it.
- *
- * Written here rather than in the screen so the list cannot drift from
- * `searchClause` on the server, which is the thing that actually matches.
- */
-export const SEARCH_UNDERSTANDS = [
-  'name', 'phone', 'email', 'project', 'country', 'language', 'awake', 'asleep',
-];

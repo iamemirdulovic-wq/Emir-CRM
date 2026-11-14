@@ -9,6 +9,7 @@ import { iosNeedsInstall, pushState, enablePush, type PushState } from '../lib/p
 import { useCallAction, type CallActions } from './call.js';
 import { usePhoneHead } from './phone.js';
 import { myDaySub, ownerHomeSub } from './subs.js';
+import { HomeBanner } from './HomeBanner.js';
 
 /**
  * Under this, the phone layout — `design/screens/Main.dc.html` and
@@ -214,16 +215,20 @@ function greet(now: string): string {
 /* ── the agent's day ───────────────────────────────────────────────────── */
 
 function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
+  const isPhone = useIsPhone();
   /*
    * `my-day.html` writes the date and the Dubai clock under the title. On the
    * phone the greeting in the page body carries it, and the header draws no
    * title at home at all -- so this line only ever shows on the computer,
    * where the design's page body has no greeting and the date would otherwise
    * be nowhere on the screen.
+   *
+   * The phone was showing it in both places: "Saturday 14 November 2026 ·
+   * 15:30" under the title and "Saturday 14 November at 15:30" again over the
+   * greeting. `Main.dc.html` writes the day once, above the greeting.
    */
-  usePhoneHead({ sub: myDaySub(home.now) });
+  usePhoneHead(isPhone ? {} : { sub: myDaySub(home.now) });
   const [saying, setSaying] = useState<string | null>(null);
-  const isPhone = useIsPhone();
   /* One for the whole screen, handed to the hero and the call rows. Every
      Call on My day is recorded before the phone opens. */
   const dial = useCallAction({ source: 'lead' });
@@ -244,6 +249,17 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
       : (!checkedIn && home.attendance.enabled && !home.attendance.closed) ? 'out'
         : 'ready';
 
+  /*
+   * The phone draws the VIP lead as its own white card (`Main.dc.html`), so
+   * the hero there never wears the VIP state — it falls back to whatever the
+   * day would otherwise be saying. On the computer one card still carries all
+   * four, as `my-day.html` has it.
+   */
+  const heroState = !isPhone || state !== 'vip' ? state
+    : vipOver ? 'over'
+      : (!checkedIn && home.attendance.enabled && !home.attendance.closed) ? 'out'
+        : 'ready';
+
   async function act(path: string, said: string) {
     try {
       await api.post(path, {});
@@ -254,6 +270,129 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
     }
   }
 
+  /*
+   * The hero card, built once and placed differently on the two screens.
+   *
+   * `Main.dc.html` puts the check-in card straight under the banner and
+   * keeps "Today’s calls" for further down the screen, under the VIP lead
+   * and the notifications card. The computer page has one slot for all
+   * four states, which is why this is a value rather than two copies.
+   */
+  const hero = (
+    <section className="d-card d-hero d-c-8" data-state={heroState} aria-label="What to do now">
+      {heroState === 'vip' && home.vip && (
+        <VipHero
+          vip={home.vip}
+          onAccept={() => act(`/api/v2/vip/${home.vip?.id}/accept`, `${home.vip?.givenBy} is told you accepted.`)}
+          onRefuse={() => act(
+            `/api/v2/vip/${home.vip?.id}/refuse`,
+            `Sent back to ${home.vip?.givenBy}.`,
+          )}
+          saying={saying}
+          dial={dial}
+        />
+      )}
+
+      {heroState === 'over' && home.vip && (
+        <div className="d-hs d-h-over">
+          <div className="d-left">
+            <div className="d-row"><span className="d-hero-chip">VIP LEAD · the time has passed</span></div>
+            <h2>Time is over · back in Incoming</h2>
+            <p className="d-muted">
+              {home.vip.name ?? 'The lead'} was not called in time. It goes back for
+              {' '}{home.vip.givenBy} to give again.
+            </p>
+            <div className="d-hero-btns">
+              <Link className="d-btn d-on-dark d-lg" to="/v2/leads?tab=today">OK, show my call list</Link>
+            </div>
+          </div>
+          <div className="d-side"><div className="d-lockbox v2-lock-red"><Icon name="clock" /></div></div>
+        </div>
+      )}
+
+      {heroState === 'out' && (
+        <div className="d-hs d-h-out">
+          <div className="d-left">
+            <div className="d-row">
+              <span className="d-hero-chip">
+                {home.attendance.onOfficeNetwork
+                  ? 'OFFICE WI-FI FOUND'
+                  : 'NOT ON THE OFFICE NETWORK'}
+              </span>
+            </div>
+            <h2>Ready to start your day?</h2>
+            <p className="d-muted">
+              {home.attendance.startsAt
+                ? `Shift starts ${home.attendance.startsAt} · check-in works only on the office network.`
+                : 'Check-in works only on the office network.'}
+            </p>
+            <div className="d-hero-btns">
+              <button
+                type="button"
+                className="d-btn d-on-dark d-primary d-lg"
+                disabled={!home.attendance.onOfficeNetwork}
+                onClick={() => act('/api/attendance/check-in', 'You are checked in. Have a good day.')}
+              >
+                <Icon name="check" />Check in
+              </button>
+              <Link className="d-btn d-on-dark d-lg" to="/v2/attendance">
+                <Icon name="pin" />I&apos;m working outside today
+              </Link>
+              {saying && <span className="d-said">{saying}</span>}
+            </div>
+          </div>
+          <div className="d-side">
+            <div className="d-lockbox"><Icon name="lock" /></div>
+            <span className="d-ring-cap">
+              <b>Check in to start calling</b><br />
+              {toCall > 0 ? `${toCall} leads wait for you` : 'Nothing is due yet today'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {heroState === 'ready' && (
+        <div className="d-hs d-h-ready">
+          <div className="d-left">
+            <div className="d-row d-gap-16 v2-ready-top">
+              <b className="d-num-hero">{toCall}</b>
+              <div className="d-grow">
+                <h2>{toCall > 0 ? 'Start calling' : 'Nothing is due today'}</h2>
+                <p className="d-muted">
+                  {toCall > 0
+                    ? `${toCall} ${toCall === 1 ? 'lead is' : 'leads are'} ready today, one at a time.`
+                    : 'Every follow-up you promised is done. Worth a look at your hot leads.'}
+                </p>
+              </div>
+            </div>
+            {home.nextUp && <Next lead={home.nextUp} />}
+            <div className="d-hero-btns">
+              {toCall > 0 ? (
+                <Link className="d-btn d-on-dark d-primary d-lg" to="/v2/calling">
+                  <Icon name="phone" />Start calling · {toCall} ready
+                </Link>
+              ) : (
+                <Link className="d-btn d-on-dark d-primary d-lg" to="/v2/leads?tab=hot">
+                  <Icon name="flame" />See my hot leads
+                </Link>
+              )}
+              <Link className="d-btn d-on-dark d-lg" to="/v2/leads?tab=today">See the list</Link>
+            </div>
+          </div>
+          <div className="d-side d-goals">
+            <Goal label="calls today" done={home.today.calls} of={home.goals.calls} accent />
+            <Goal label="WhatsApp" done={home.today.messages} of={home.goals.messages} />
+            <Goal label="meetings" done={home.today.meetings} of={home.goals.meetings} />
+            <div className="d-streak">
+              <span><b>{home.streakDays} {home.streakDays === 1 ? 'day' : 'days'}</b>in a row</span>
+              <span><b>{home.kudosThisMonth}</b>kudos this month</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
   return (
     /* `p-my-day` turns on the design's own styles for this page. Every page
        block in `v2-home.css` is scoped to one of these, so two pages can use
@@ -262,137 +401,55 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
       {/* The check-in sheet and anything a recording could not do. */}
       {dial.banner}
       <h1 className="v2-hi">
-        {greet(home.now)}, {home.me.firstName}
+        {/* One flex item, not three: on a phone `.v2-hi` is turned over so
+            the date sits above the greeting, and a loose name would be
+            turned over with it. */}
+        {isPhone
+          ? (
+            <span className="v2-b-hi-line">
+              {greet(home.now)}, <span className="v2-b-hi-name">{home.me.firstName}</span>
+            </span>
+          )
+          : <>{greet(home.now)}, {home.me.firstName}</>}
         <span>{home.now}</span>
       </h1>
 
       {/* `Main.dc.html` puts the banner carousel directly under the greeting,
-          above everything the day holds. The computer page keeps it at the
-          foot of the column, so only the phone moves it. */}
-      {isPhone && home.banners.length > 0 && <Banners banners={home.banners} phone />}
+          above everything the day holds, and never leaves the space empty.
+          The computer page keeps its own at the foot of the column. */}
+      {isPhone && <HomeBanner banners={home.banners} />}
 
-      {/* What Homes AI would say, when it can say it from real figures. */}
-      <AiLine home={home} />
+      {/* What Homes AI would say, when it can say it from real figures. The
+          phone design keeps it for the very bottom ("Homes AI tip"), so on a
+          phone it is rendered at the end of this screen instead. */}
+      {!isPhone && <AiLine home={home} />}
+
+      {/* The check-in card comes above the VIP lead on the phone, which is
+          the order `Main.dc.html` draws them in. */}
+      {isPhone && heroState !== 'ready' && hero}
+
+      {/* The VIP lead, as its own card rather than the dark hero: the star,
+          the clock, the owner's note and the two answers. */}
+      {isPhone && state === 'vip' && home.vip && (
+        <PhoneVip
+          vip={home.vip}
+          onAccept={() => act(`/api/v2/vip/${home.vip?.id}/accept`, `${home.vip?.givenBy} is told you accepted.`)}
+          onRefuse={() => act(
+            `/api/v2/vip/${home.vip?.id}/refuse`,
+            `Sent back to ${home.vip?.givenBy}.`,
+          )}
+          saying={saying}
+          dial={dial}
+        />
+      )}
+
+      {/* `Main.dc.html` draws this under the VIP card, and the computer page
+          has it too. It is the phone that needs it: a lead handed over with
+          thirty minutes on it is missed unless the phone buzzes. */}
+      {isPhone && <NotifyCard />}
 
       <div className="d-bento v2-row1">
-        <section className="d-card d-hero d-c-8" data-state={state} aria-label="What to do now">
-          {state === 'vip' && home.vip && (
-            <VipHero
-              vip={home.vip}
-              onAccept={() => act(`/api/v2/vip/${home.vip?.id}/accept`, `${home.vip?.givenBy} is told you accepted.`)}
-              onRefuse={() => act(
-                `/api/v2/vip/${home.vip?.id}/refuse`,
-                `Sent back to ${home.vip?.givenBy}.`,
-              )}
-              saying={saying}
-              dial={dial}
-            />
-          )}
-
-          {state === 'over' && home.vip && (
-            <div className="d-hs d-h-over">
-              <div className="d-left">
-                <div className="d-row"><span className="d-hero-chip">VIP LEAD · the time has passed</span></div>
-                <h2>Time is over · back in Incoming</h2>
-                <p className="d-muted">
-                  {home.vip.name ?? 'The lead'} was not called in time. It goes back for
-                  {' '}{home.vip.givenBy} to give again.
-                </p>
-                <div className="d-hero-btns">
-                  <Link className="d-btn d-on-dark d-lg" to="/v2/leads?tab=today">OK, show my call list</Link>
-                </div>
-              </div>
-              <div className="d-side"><div className="d-lockbox v2-lock-red"><Icon name="clock" /></div></div>
-            </div>
-          )}
-
-          {state === 'out' && (
-            <div className="d-hs d-h-out">
-              <div className="d-left">
-                <div className="d-row">
-                  <span className="d-hero-chip">
-                    {home.attendance.onOfficeNetwork
-                      ? 'OFFICE WI-FI FOUND'
-                      : 'NOT ON THE OFFICE NETWORK'}
-                  </span>
-                </div>
-                <h2>Ready to start your day?</h2>
-                <p className="d-muted">
-                  {home.attendance.startsAt
-                    ? `Shift starts ${home.attendance.startsAt} · check-in works only on the office network.`
-                    : 'Check-in works only on the office network.'}
-                </p>
-                <div className="d-hero-btns">
-                  <button
-                    type="button"
-                    className="d-btn d-on-dark d-primary d-lg"
-                    disabled={!home.attendance.onOfficeNetwork}
-                    onClick={() => act('/api/attendance/check-in', 'You are checked in. Have a good day.')}
-                  >
-                    <Icon name="check" />Check in
-                  </button>
-                  <Link className="d-btn d-on-dark d-lg" to="/v2/attendance">
-                    <Icon name="pin" />I&apos;m working outside today
-                  </Link>
-                  {saying && <span className="d-said">{saying}</span>}
-                </div>
-              </div>
-              <div className="d-side">
-                <div className="d-lockbox"><Icon name="lock" /></div>
-                <span className="d-ring-cap">
-                  <b>Check in to start calling</b><br />
-                  {toCall > 0 ? `${toCall} leads wait for you` : 'Nothing is due yet today'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {state === 'ready' && (
-            <div className="d-hs d-h-ready">
-              <div className="d-left">
-                <div className="d-row d-gap-16 v2-ready-top">
-                  <b className="d-num-hero">{toCall}</b>
-                  <div className="d-grow">
-                    <h2>{toCall > 0 ? 'Start calling' : 'Nothing is due today'}</h2>
-                    <p className="d-muted">
-                      {toCall > 0
-                        ? `${toCall} ${toCall === 1 ? 'lead is' : 'leads are'} ready today, one at a time.`
-                        : 'Every follow-up you promised is done. Worth a look at your hot leads.'}
-                    </p>
-                  </div>
-                </div>
-                {home.nextUp && <Next lead={home.nextUp} />}
-                <div className="d-hero-btns">
-                  {toCall > 0 ? (
-                    <Link className="d-btn d-on-dark d-primary d-lg" to="/v2/calling">
-                      <Icon name="phone" />Start calling · {toCall} ready
-                    </Link>
-                  ) : (
-                    <Link className="d-btn d-on-dark d-primary d-lg" to="/v2/leads?tab=hot">
-                      <Icon name="flame" />See my hot leads
-                    </Link>
-                  )}
-                  <Link className="d-btn d-on-dark d-lg" to="/v2/leads?tab=today">See the list</Link>
-                </div>
-              </div>
-              <div className="d-side d-goals">
-                <Goal label="calls today" done={home.today.calls} of={home.goals.calls} accent />
-                <Goal label="WhatsApp" done={home.today.messages} of={home.goals.messages} />
-                <Goal label="meetings" done={home.today.meetings} of={home.goals.meetings} />
-                <div className="d-streak">
-                  <span><b>{home.streakDays} {home.streakDays === 1 ? 'day' : 'days'}</b>in a row</span>
-                  <span><b>{home.kudosThisMonth}</b>kudos this month</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* `Main.dc.html` draws this between the VIP card and Next up, and
-            the computer page has it too. It is the phone that needs it: a
-            lead handed over with thirty minutes on it is missed unless the
-            phone buzzes. */}
-        {isPhone && <NotifyCard />}
+        {(!isPhone || heroState === 'ready') && hero}
 
         {/* Next plan. The promise with the nearest time on it. */}
         <section className="d-card d-c-4" aria-label="Next plan">
@@ -443,7 +500,7 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
           else is on it. The hero only carries that button in its "ready"
           state, so a morning that opens on a VIP lead or on the check-in card
           had no way into the call list at all. */}
-      {isPhone && state !== 'ready' && toCall > 0 && (
+      {isPhone && heroState !== 'ready' && toCall > 0 && (
         <Link className="v2-a-start" to="/v2/calling">
           <Icon name="phone" />Start calling · {toCall} ready
         </Link>
@@ -551,6 +608,9 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
       {/* My leads by stage. The widths are the real proportions. */}
       <ByStage byStage={home.byStage} total={home.counts.all ?? 0} />
 
+      {/* "Homes AI tip" is the last block on `Main.dc.html`. */}
+      {isPhone && <AiLine home={home} />}
+
       {!isPhone && home.banners.length > 0 && <Banners banners={home.banners} />}
     </div>
   );
@@ -617,35 +677,154 @@ function NotifyCard() {
   }
 
   return (
-    <section className="d-card d-c-12 v2-a-notify" aria-label="Turn on notifications">
-      <span className="v2-a-notify-ic"><Icon name="bell-ring" /></span>
-      <div className="d-grow">
-        <b>Turn on notifications</b>
-        <p>
-          New leads, meetings and follow-ups on your lock screen, like WhatsApp.
-          Tap one and it opens the right page.
-        </p>
-        {said && <p className="v2-a-notify-said">{said}</p>}
-        <div className="v2-a-notify-btns">
-          {canAsk && (
-            <button type="button" className="d-btn d-primary d-sm" disabled={busy} onClick={() => void turnOn()}>
-              {busy ? 'Asking…' : 'Turn on'}
-            </button>
-          )}
-          {install && <Link className="d-btn d-sm" to="/v2/settings/phone-app">How to install</Link>}
+    /*
+     * `Main.dc.html` draws this one dark, with the bell in a bright square
+     * and the three answers in a row underneath — not as a white card like
+     * the rest of the screen. That is the point of it: it is the one thing on
+     * My Day that is asking for something.
+     */
+    <section className="v2-b-notify" aria-label="Turn on notifications">
+      <div className="v2-b-notify-top">
+        <span className="v2-b-notify-ic"><Icon name="bell-ring" /></span>
+        <div className="d-grow">
+          <b>Turn on notifications</b>
+          <p>
+            New leads, meetings and follow-ups on your lock screen, like WhatsApp.
+            Tap one and it opens the right page.
+          </p>
         </div>
       </div>
-      <button
-        type="button"
-        className="v2-a-notify-x"
-        aria-label="Not now"
-        onClick={() => {
-          try { localStorage.setItem('emir-notify-ask', 'no'); } catch { /* private mode */ }
-          setGone(true);
-        }}
-      >
-        <Icon name="x" />
-      </button>
+      {said && <p className="v2-b-notify-said">{said}</p>}
+      <div className="v2-b-notify-btns">
+        {canAsk && (
+          <button type="button" className="v2-b-notify-yes" disabled={busy} onClick={() => void turnOn()}>
+            {busy ? 'Asking…' : 'Turn on'}
+          </button>
+        )}
+        {install && (
+          <Link className="v2-b-notify-how" to="/v2/settings/phone-app">How to install</Link>
+        )}
+        <button
+          type="button"
+          className="v2-b-notify-x"
+          aria-label="Not now"
+          onClick={() => {
+            try { localStorage.setItem('emir-notify-ask', 'no'); } catch { /* private mode */ }
+            setGone(true);
+          }}
+        >
+          <Icon name="x" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The VIP lead on a phone — `design/screens/Main.dc.html`, card for card.
+ *
+ * A white card with an orange edge, not the dark hero the computer uses: the
+ * star and the words "VIP LEAD FROM <who>" on the left, the clock counting
+ * down on the right, the person, the owner's own note in a grey box, and two
+ * plain answers — take it, or say you cannot. Under them, in small grey type,
+ * what happens if neither is pressed.
+ *
+ * Every word on it is the owner's or the lead's. Where the design shows
+ * "2BR · The Archive · AED 2.5M · cash buyer" this shows the project and the
+ * number, because that is what a handed-over lead actually carries.
+ */
+function PhoneVip({ vip, onAccept, onRefuse, saying, dial }: {
+  vip: NonNullable<AgentHome['vip']>;
+  onAccept: () => void;
+  onRefuse: () => void;
+  saying: string | null;
+  dial: CallActions;
+}) {
+  const left = useCountdown(vip.deadlineAt);
+  /* Two taps to send a VIP lead back, as the prototype has it: `refuseLabel:
+     s.refConf ? 'Tap again to send it back' : 'I can’t take it'`. */
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = setTimeout(() => setArmed(false), 6000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+
+  return (
+    <section className="v2-b-vip" aria-label="VIP lead">
+      <div className="v2-b-vip-top">
+        <span className="v2-b-vip-from">
+          <Icon name="star" size={14} />
+          VIP lead from {vip.givenBy}
+        </span>
+        <span className="v2-b-vip-left">
+          <Icon name="clock" size={14} />
+          {vip.deadlineAt ? `${left.text} left to call` : 'No time limit'}
+        </span>
+      </div>
+
+      <div className="v2-b-vip-who">
+        {/* The design tints this one orange rather than giving it the usual
+            colour from the name, because the whole card is the VIP card. */}
+        <Avatar name={vip.name ?? '?'} size={50} colour="var(--accent-soft)" />
+        <span className="d-grow">
+          <b>{vip.name ?? 'Unnamed lead'}</b>
+          <span dir="ltr">
+            {vip.project ?? 'No project yet'}
+            {vip.phone ? ` · ${vip.phone}` : ' · no number'}
+          </span>
+        </span>
+      </div>
+
+      {vip.note && (
+        <p className="v2-b-vip-note">
+          <b>{vip.givenBy}’s note: </b>{vip.note}
+        </p>
+      )}
+
+      {vip.accepted ? (
+        <>
+          <p className="v2-b-vip-done">
+            <Icon name="check" size={16} />
+            Accepted · {vip.givenBy} was told · it is first in My leads
+          </p>
+          <div className="v2-b-vip-btns">
+            <a
+              className="v2-b-vip-yes"
+              href={vip.phone ? `tel:${vip.phone}` : undefined}
+              onClick={(e) => {
+                if (!vip.phone) return;
+                e.preventDefault();
+                /* `leadId`, not `id`: `id` is the hand-over row, and a call
+                   is recorded against the opportunity. */
+                void dial.call({ id: vip.leadId, phone: vip.phone, name: vip.name });
+              }}
+            >
+              <Icon name="phone" size={18} />Call now
+            </a>
+            <Link className="v2-b-vip-no" to={`/v2/leads/${vip.leadId}`}>Open the lead</Link>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="v2-b-vip-btns">
+            <button type="button" className="v2-b-vip-yes" onClick={onAccept}>
+              <Icon name="check" size={18} />Accept VIP lead
+            </button>
+            <button
+              type="button"
+              className="v2-b-vip-no"
+              onClick={() => { if (armed) { onRefuse(); setArmed(false); } else setArmed(true); }}
+            >
+              {armed ? 'Tap again to send it back' : 'I can’t take it'}
+            </button>
+          </div>
+          <p className="v2-b-vip-foot">
+            If you don’t call in time, the lead goes back to Incoming and {vip.givenBy} is told.
+          </p>
+        </>
+      )}
+      {saying && <p className="v2-b-vip-said">{saying}</p>}
     </section>
   );
 }
@@ -960,7 +1139,13 @@ function ByStage({ byStage, total }: { byStage: Array<{ stage: string; n: number
   );
 }
 
-function Banners({ banners, phone }: { banners: AgentHome['banners']; phone?: boolean }) {
+/**
+ * The computer's own banner card — `my-day.html` and `owner-home.html`.
+ *
+ * The phone draws a different thing entirely (`HomeBanner`), which is why
+ * this one no longer has a phone branch.
+ */
+function Banners({ banners }: { banners: AgentHome['banners'] }) {
   const [at_, setAt] = useState(0);
   useEffect(() => {
     if (banners.length < 2) return undefined;
@@ -973,42 +1158,6 @@ function Banners({ banners, phone }: { banners: AgentHome['banners']; phone?: bo
 
   const slide = banners[at_ % banners.length];
   if (!slide) return null;
-
-  /*
-   * On a phone the card loses its "From the office" heading and the dots go
-   * under the slide, which is how `Main.dc.html` draws the carousel: the
-   * chip inside the slide already says where the message came from, and the
-   * heading cost a line of a 844px screen.
-   */
-  if (phone) {
-    return (
-      <section className="v2-a-banner" aria-label="From the office">
-        <div className="v2-a-banner-slide">
-          <span className="v2-a-banner-tag">FROM THE OFFICE</span>
-          <b>{slide.title}</b>
-          {slide.body && <p>{slide.body}</p>}
-          {slide.linkUrl && (
-            <a className="d-btn d-sm" href={slide.linkUrl} target="_blank" rel="noreferrer">
-              Open <Icon name="arrow-right" />
-            </a>
-          )}
-        </div>
-        {banners.length > 1 && (
-          <div className="v2-a-banner-dots">
-            {banners.map((banner, i) => (
-              <button
-                type="button"
-                key={banner.id}
-                className={i === at_ ? 'v2-a-banner-dot v2-a-banner-dot-on' : 'v2-a-banner-dot'}
-                aria-label={`Banner ${i + 1}`}
-                onClick={() => setAt(i)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-    );
-  }
 
   return (
     <section className="d-card v2-banners" aria-label="From the office">
@@ -1132,6 +1281,33 @@ const STAGE_WORD: Record<string, string> = {
 };
 
 /**
+ * The phone's own icons for "Needs you now" — `OwnerHome.dc.html`.
+ *
+ * The owner named them himself on 14 Nov: "star, calendar, pin, inbox, pen".
+ * They differ from the computer's six on purpose: the phone draws them small
+ * inside a coloured square, where a crown and a warning triangle are the same
+ * dark smudge, and the computer draws them larger on a black hero.
+ */
+const NEEDS_PHONE_ICON: Record<string, IconName> = {
+  vip_late: 'star',
+  leave: 'calendar-days',
+  absent: 'map-pin',
+  waiting: 'inbox',
+  bug: 'pencil-line',
+  transfer: 'repeat',
+};
+
+/** And the colour of the square behind each, the design's own six. */
+const NEEDS_TONE: Record<string, string> = {
+  vip_late: 'v2-b-ic-accent',
+  leave: 'v2-b-ic-violet',
+  absent: 'v2-b-ic-red',
+  waiting: 'v2-b-ic-amber',
+  bug: 'v2-b-ic-blue',
+  transfer: 'v2-b-ic-green',
+};
+
+/**
  * The owner's home — `design/web/owner-home.html`, every block of it.
  *
  * The one rule over the top of the drawing: **no number here is invented.**
@@ -1143,10 +1319,13 @@ const STAGE_WORD: Record<string, string> = {
 function OwnerDay({ home, period, onPeriod }: {
   home: OwnerHome; period: Period; onPeriod: (period: Period) => void;
 }) {
-  /* `owner-home.html` writes the date alone -- no clock, unlike the agent's
-     screen, which is the design's own distinction and not an oversight. */
-  usePhoneHead({ sub: ownerHomeSub() });
   const isPhone = useIsPhone();
+  /* `owner-home.html` writes the date alone -- no clock, unlike the agent's
+     screen, which is the design's own distinction and not an oversight. On
+     the phone `OwnerHome.dc.html` writes the day above the greeting and the
+     top bar carries no sub-line at all, so showing it in both places put the
+     date on the screen twice. */
+  usePhoneHead(isPhone ? {} : { sub: ownerHomeSub() });
 
   /*
    * Two drawings, not one scaled down. `owner-home.html` is the computer page
@@ -1169,9 +1348,15 @@ function OwnerPhone({ home }: { home: OwnerHome }) {
   return (
     <div className="v2-home p-owner-home">
       <h1 className="v2-hi">
-        {greet(home.now)}, {home.me.firstName}
+        <span className="v2-b-hi-line">
+          {greet(home.now)}, <span className="v2-b-hi-name">{home.me.firstName}</span>
+        </span>
         <span>{home.now}</span>
       </h1>
+
+      {/* The same banner the agent gets, under the greeting — the owner's
+          change list of 14 Nov, point 6 — and never an empty space. */}
+      <HomeBanner banners={home.banners} />
 
       {/* The first action gets a card of its own with the line that says what
           it does; the other two share a row under it. */}
@@ -1183,71 +1368,79 @@ function OwnerPhone({ home }: { home: OwnerHome }) {
         </span>
         <Icon name="chevron-right" />
       </Link>
+      {/* Each with its own soft colour square, as `OwnerHome.dc.html` draws
+          them: violet on the import, orange on Incoming. Two plain black
+          line icons read as one thing twice. */}
       <div className="v2-a-acts2">
-        <Link className="v2-a-act2" to="/v2/import"><Icon name="upload" />Import Excel</Link>
+        <Link className="v2-a-act2" to="/v2/import">
+          <span className="v2-b-act-ic v2-b-ic-violet"><Icon name="upload" /></span>
+          Import Excel
+        </Link>
         <Link className="v2-a-act2" to="/v2/incoming">
-          <Icon name="inbox" />Incoming · {home.freeLeads}
+          <span className="v2-b-act-ic v2-b-ic-accent"><Icon name="inbox" /></span>
+          Incoming · {home.freeLeads}
         </Link>
       </div>
 
-      <div className="d-bento">
-        <section className="d-card d-c-7" aria-label="Needs you now">
-          <div className="d-card-head"><h3>Needs you now</h3></div>
-          {home.needsYou.length === 0
-            ? (
-              <p className="v2-none">
-                Nothing is waiting on you. No unowned leads, no transfer to approve,
-                no leave to answer.
-              </p>
-            )
-            : home.needsYou.map((row) => (
-              <div className="d-srow" key={`${row.kind}-${row.to}`}>
-                <span className="d-card-icon v2-a-need-ic">
-                  <Icon name={NEEDS_ICON[row.kind] ?? 'circle-alert'} />
-                </span>
-                <div className="d-grow">
-                  <b>{row.text}</b>
-                  {/* The reason, which is what makes the row worth a tap:
-                      "Bassam had 30 min · now back in Incoming". */}
-                  {row.sub && <span>{row.sub}</span>}
-                </div>
-                <Link className="d-btn d-xs" to={row.to}>{row.action}</Link>
-              </div>
-            ))}
-        </section>
+      <section className="d-card v2-b-needs" aria-label="Needs you now">
+        <p className="v2-b-cardlabel">NEEDS YOU NOW</p>
+        {home.needsYou.length === 0
+          ? (
+            <p className="v2-none">
+              Nothing is waiting on you. No unowned leads, no transfer to approve,
+              no leave to answer.
+            </p>
+          )
+          : home.needsYou.map((row) => (
+            <Link className="v2-b-need" key={`${row.kind}-${row.to}`} to={row.to}>
+              <span className={`v2-b-need-ic ${NEEDS_TONE[row.kind] ?? 'v2-b-ic-plain'}`}>
+                <Icon name={NEEDS_PHONE_ICON[row.kind] ?? 'circle-alert'} />
+              </span>
+              <span className="d-grow">
+                <b>{row.text}</b>
+                {/* The reason, which is what makes the row worth a tap:
+                    "Bassam had 30 min · now back in Incoming". */}
+                {row.sub && <span>{row.sub}</span>}
+              </span>
+              {/* A word, not a boxed button: five outlined buttons down one
+                  card is five things shouting at once. */}
+              <span className="v2-b-need-go">{row.action} ›</span>
+            </Link>
+          ))}
+      </section>
 
-        <section className="d-card d-c-5" aria-label="Team today">
-          <div className="d-card-head">
-            <h3>Team today</h3>
-            <Link className="d-card-link" to="/v2/attendance">
-              Attendance <Icon name="arrow-right" />
+      <div className="v2-b-teamhead">
+        <h2>Team today</h2>
+        <Link to="/v2/attendance">Attendance</Link>
+      </div>
+      {t.closed
+        ? <p className="v2-none">The office is closed today.</p>
+        : (
+          <div className="v2-b-team4">
+            <Link className="v2-b-t4 v2-b-t4-green" to="/v2/attendance?show=office">
+              <b>{t.inOffice}</b><span>In office</span>
+            </Link>
+            <Link className="v2-b-t4 v2-b-t4-amber" to="/v2/attendance?show=late">
+              <b>{t.late}</b><span>Late</span>
+            </Link>
+            <Link className="v2-b-t4 v2-b-t4-blue" to="/v2/attendance?show=outside">
+              <b>{t.outside}</b><span>Outside</span>
+            </Link>
+            {/* The design's fourth box is "Absent / leave", because at 390px
+                five will not fit and the two are one question. */}
+            <Link
+              className="v2-b-t4 v2-b-t4-red"
+              to={`/v2/attendance?show=${t.absent > 0 ? 'absent' : 'leave'}`}
+            >
+              <b>{t.absent + t.leave}</b><span>Absent / leave</span>
             </Link>
           </div>
-          {t.closed
-            ? <p className="v2-none">The office is closed today.</p>
-            : (
-              <div className="d-mini-stats">
-                <Link to="/v2/attendance?show=office"><b>{t.inOffice}</b>In office</Link>
-                <Link className={t.late > 0 ? 'd-red' : ''} to="/v2/attendance?show=late">
-                  <b>{t.late}</b>Late
-                </Link>
-                <Link to="/v2/attendance?show=outside"><b>{t.outside}</b>Outside</Link>
-                {/* The design's fourth tile is "Absent / leave", because at
-                    390px five will not fit and the two are one question. */}
-                <Link
-                  className={t.absent > 0 ? 'd-red' : ''}
-                  to={`/v2/attendance?show=${t.absent > 0 ? 'absent' : 'leave'}`}
-                >
-                  <b>{t.absent + t.leave}</b>Absent / leave
-                </Link>
-              </div>
-            )}
-        </section>
-      </div>
+        )}
 
       <p className="v2-a-sectionlabel">TODAY IN NUMBERS</p>
 
-      <div className="d-bento">
+      {/* Two across, so the block is half as long — the owner's point 5. */}
+      <div className="d-bento v2-b-nums">
         <Tile to="/v2/leads?tab=new" label="New leads today" n={n.newLeads ?? 0} note="came in today" />
         <Tile
           to="/v2/team-live"
@@ -1262,9 +1455,6 @@ function OwnerPhone({ home }: { home: OwnerHome }) {
           n={n.unitsBooked ?? 0}
           note={unitNote(home.work.lastUnit, home.work.units)}
         />
-      </div>
-
-      <div className="d-bento">
         <Tile
           to="/v2/leads?tab=overdue"
           label="Follow-ups overdue"
@@ -1279,25 +1469,27 @@ function OwnerPhone({ home }: { home: OwnerHome }) {
           note="nobody coming back to them"
           urgent={(n.noNextStep ?? 0) > 0}
         />
-        <Link className="d-card d-c-6 d-tile d-click" to="/v2/dashboard">
-          <span className="d-label">The full dashboard</span>
-          <div className="d-stat-row">
-            <span className="d-state">Sources, agents, the funnel and the money</span>
-          </div>
-          <Icon name="arrow-up-right" />
-        </Link>
       </div>
 
+      <Link className="v2-b-dashbtn" to="/v2/dashboard">
+        <Icon name="layout-dashboard" size={18} />Open the full dashboard
+      </Link>
+
+      {/*
+        * `OwnerHome.dc.html` ends at the dashboard button, so this sits below
+        * it rather than in the middle of the design's own order. It is kept
+        * because it is the only place on a phone that shows every agent's
+        * open leads and what is overdue on them.
+        *
+        * Six columns at 390px put the last cell off the right-hand edge with
+        * nothing to say it was there. Each person is a row instead, which is
+        * how every other list in the phone design works.
+        */}
       <section className="d-card" aria-label="Team right now">
         <div className="d-card-head">
           <h3>Team right now</h3>
           <Link className="d-card-link" to="/v2/team">Team <Icon name="arrow-right" /></Link>
         </div>
-        {/*
-          * Six columns at 390px put the last cell off the right-hand edge with
-          * nothing to say it was there. Each person is a row instead, which is
-          * how every other list in the phone design works.
-          */}
         <div className="v2-a-live-head">
           <span className="v2-a-live-name">Agent</span>
           <span>Open</span><span>Calls</span><span>Due</span>
@@ -1315,11 +1507,10 @@ function OwnerPhone({ home }: { home: OwnerHome }) {
           </Link>
         ))}
       </section>
-
-      {home.banners.length > 0 && <Banners banners={home.banners} phone />}
     </div>
   );
 }
+
 
 /* ── the owner's home on a computer — `design/web/owner-home.html` ──────── */
 

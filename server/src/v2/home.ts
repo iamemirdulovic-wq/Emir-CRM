@@ -245,8 +245,17 @@ function dubaiNow(at: Date = new Date()): string {
  * on the banners screen counts.
  */
 async function banners(userId: string, role: string) {
-  const rows = await query<{ id: string; title: string; body: string | null; link_url: string | null }>(
-    `SELECT b.id, b.title, b.body, b.link_url
+  const rows = await query<{
+    id: string; title: string; body: string | null; link_url: string | null;
+    label: string | null; button_text: string | null; opens: string | null;
+  }>(
+    /*
+     * `label`, `button_text` and `opens` are selected because the owner sets
+     * all three on Settings → Home banners and 0039 has stored them since.
+     * Leaving them out of this one SELECT is why the phone drew "FROM THE
+     * OFFICE" and no button at all: the card had nothing to put on them.
+     */
+    `SELECT b.id, b.title, b.body, b.link_url, b.label, b.button_text, b.opens
        FROM banners b
       WHERE b.is_active = 1
         AND (b.starts_at IS NULL OR b.starts_at <= NOW(3))
@@ -267,6 +276,7 @@ async function banners(userId: string, role: string) {
   await recordBannerViews(userId, rows.map((row) => row.id)).catch(() => {});
   return rows.map((r) => ({
     id: r.id, title: r.title, body: r.body, linkUrl: r.link_url,
+    label: r.label, buttonText: r.button_text, opens: r.opens,
   }));
 }
 

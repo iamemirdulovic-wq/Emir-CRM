@@ -853,74 +853,17 @@
 }
 
 @media (max-width: 767px) {
-  /* ── The country and language chips, on the phone ──────────────────────
-     `design/screens/Leads.dc.html` draws one scrolling row of pills bled to
-     the screen edges (`margin:0 -20px; padding:0 20px`). These are two more
-     of the same under it, each with its own small label, so they read as part
-     of that strip rather than as a new idea stacked on top of it.
+  /* ── The leads list, phone ────────────────────────────────────────────
+     No country or language control here. §0 of Emir's 14 November list:
+     "Each phone screen is its own layout from its picture. Do not squeeze
+     the computer page." The dropdown row he drew is the computer's, and
+     `design/screens/Leads.dc.html` draws a search box and one strip of
+     pills. A phone shape for these two is a thing to draw, not to inherit,
+     so it waits for the phone pass — `docs/v2/questions-filters.md`.
 
-     At 390px the computer's 64px label beside the pills would leave 300px for
-     eight chips, so here the label sits above its row instead. The counts are
-     the server's, the same numbers the computer shows. */
-  .v2.v2-phone .v2-facets { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  /*
-   * `align-items:stretch`, said out loud.
-   *
-   * The computer's rule sets `align-items:flex-start` to keep the "COUNTRY"
-   * label beside its pills. Turning the row into a column here without
-   * resetting that left the pills shrink-to-fit, so a row of 15 chips was
-   * 1,469px wide and took the whole page sideways with it at 390px instead
-   * of scrolling inside itself. `npm run polish` is what caught it —
-   * `page-overflow: scrollWidth 1469 > viewport 390` — and nothing about the
-   * screenshot looked wrong.
-   */
-  .v2.v2-phone .v2-facet-row {
-    display: flex; flex-direction: column; align-items: stretch;
-    gap: 5px; min-width: 0;
-  }
-  .v2.v2-phone .v2-facet-label {
-    width: auto; padding: 0;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    color: var(--ink-4);
-  }
-  /* One scrolling row, bled to the edges, no scrollbar — the prototype's
-     own treatment for the tab strip above. */
-  .v2.v2-phone .v2-facet-pills {
-    display: flex; flex-wrap: nowrap; gap: 8px;
-    /* The scroller has to be allowed to be narrower than what is in it.
-       `min-width:0` and nothing else: a `max-width:100%` would cap it at the
-       column's width and the row would bleed off the left edge but stop 16px
-       short of the right, which looks like a mistake rather than a strip. */
-    min-width: 0;
-    overflow-x: auto;
-    margin: 0 -16px; padding: 0 16px 2px;
-    scrollbar-width: none;
-  }
-  .v2.v2-phone .v2-facet-pills::-webkit-scrollbar { display: none; }
-  /* 40px, like `.v2-a-chip` beside it: a thumb needs the target, and two
-     chip rows of two different heights look like two different controls. */
-  .v2.v2-phone .v2-facet {
-    flex: none;
-    min-height: 40px; padding: 0 14px; gap: 7px;
-    border: 0; border-radius: 20px;
-    font-size: 14px; font-weight: 600; white-space: nowrap;
-    background: var(--surface-3); color: var(--ink);
-    box-shadow: none;
-  }
-  .v2.v2-phone .v2-facet.v2-facet-on { background: var(--hero); color: var(--hero-ink); }
-  .v2.v2-phone .v2-facet .v2-facet-n {
-    font-size: 13px; font-weight: 450; color: var(--ink-3);
-  }
-  .v2.v2-phone .v2-facet.v2-facet-on .v2-facet-n { color: var(--hero-ink); opacity: .7; }
-  .v2.v2-phone .v2-facet .v2-facet-flag { font-size: 15px; }
-  .v2.v2-phone .v2-facet-more {
-    flex: none; min-height: 40px; padding: 0 10px;
-    border: 0; background: transparent;
-    font-size: 13px; font-weight: 800; color: var(--accent-ink);
-  }
-  .v2.v2-phone .v2-facet-note {
-    margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-4);
-  }
+     What is here is the way back out of a `?country=GB` link: the filter
+     shows as one pill in the strip the design already draws, and tapping it
+     takes the filter off. `v2-a-chip` is that strip's own class. */
 
   /* The phone card has no table cell to put a flag in, so the country sits
      on the line that already carries the clock: "🇬🇧 London 06:12". */
@@ -929,4 +872,515 @@
   /* "Clear all filters" in the empty card, above "Add a new lead": with two
      rows of chips it is far easier to narrow down to nothing by accident. */
   .v2.v2-phone .v2-a-none .v2-a-clear { align-self: stretch; justify-content: center; }
+}
+
+@media (max-width: 767px) {
+  /* ══ The power dialler, phone ═════════════════════════════════════════
+     `design/screens/Dialer.dc.html`, and the owner's §6 of 14 November.
+
+     The requirement that shapes every number below: **the whole screen fits
+     390 x 844 with nothing to scroll.** Before this it was 1,797px tall and
+     the six result buttons were on the second screenful, which is why call
+     results went unrecorded. So the screen is a fixed full-height column:
+     the header, the progress bar, the lead card, the two big buttons, the
+     six results and the bottom bar, and the two things that used to push it
+     past the fold — today's list and End session — are behind the small
+     round button in the header.
+
+     Only the lead card may give way. On a phone shorter than the 844px the
+     design is drawn at it scrolls inside itself, centred by auto margins on
+     its first and last child rather than by `justify-content`, which clips
+     the top of an overflowing column instead of scrolling to it.
+
+     Colour, per §0: the prototype's greens become black and orange. Call is
+     the accent, WhatsApp and Next lead are the near-black `--hero`. The six
+     result tints stay as they are — they mean what happened, not whose
+     brand this is. */
+
+  .v2.v2-phone .v2-a-dial {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: calc(14px + var(--safe-t, 0px)) 20px calc(14px + var(--safe-b, 0px));
+    background: var(--bg);
+    overflow: hidden;
+  }
+  /* With nothing to scroll, the rise-in is the only movement on the screen,
+     and a fixed element's children animate exactly as any other's. */
+  .v2.v2-phone .v2-a-dial-empty { justify-content: flex-start; }
+
+  /* ── the header: close, the count, the points pill, the list ────────── */
+  .v2.v2-phone .v2-a-dial-top {
+    flex: none;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .v2.v2-phone .v2-a-dial-x,
+  .v2.v2-phone .v2-a-dial-list {
+    flex: none;
+    width: 44px; height: 44px;
+    padding: 0;
+    border: 0; border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-a-dial-x .lucide,
+  .v2.v2-phone .v2-a-dial-list .lucide { width: 19px; height: 19px; }
+  .v2.v2-phone .v2-a-dial-list { width: 40px; height: 40px; }
+  .v2.v2-phone .v2-a-dial-head { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .v2.v2-phone .v2-a-dial-kicker {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .5px; line-height: 1.2;
+    color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-a-dial-big {
+    font-size: 17px; font-weight: 800; letter-spacing: -.4px; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* The wall pays two points for reaching somebody, so that is what it says.
+     The design's "+15 points per call" is not a rule this CRM has. */
+  .v2.v2-phone .v2-a-dial-points {
+    flex: none;
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 26px; padding: 0 8px;
+    border-radius: 13px;
+    background: var(--accent-soft); color: var(--accent-ink);
+    font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  }
+  .v2.v2-phone .v2-a-dial-points .lucide { width: 12px; height: 12px; }
+
+  /* ── the progress bar ───────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dial-bar {
+    flex: none;
+    height: 6px; border-radius: 3px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-a-dial-bar > i {
+    display: block; height: 100%;
+    width: var(--v, 0%);
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width .4s var(--ease);
+  }
+
+  /* ── the lead ───────────────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dial-card {
+    flex: 1 1 auto; min-height: 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 9px;
+    text-align: center;
+    padding: 18px 16px;
+    border-radius: 26px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    outline: 1px solid var(--line); outline-offset: -1px;
+  }
+  /* Centred without `justify-content`, which scrolls to the middle of an
+     overflowing column and leaves the top unreachable. */
+  .v2.v2-phone .v2-a-dial-card > *:first-child { margin-top: auto; }
+  .v2.v2-phone .v2-a-dial-card > *:last-child { margin-bottom: auto; }
+  .v2.v2-phone .v2-a-dial-card .avatar {
+    flex: none;
+    width: 72px; height: 72px; font-size: 27px;
+  }
+
+  .v2.v2-phone .v2-a-dial-who { width: 100%; }
+  .v2.v2-phone .v2-a-dial-name {
+    margin: 0;
+    font-size: 23px; font-weight: 800; letter-spacing: -.4px; line-height: 1.15;
+    display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  }
+  .v2.v2-phone .v2-a-dial-phone {
+    margin: 3px 0 0;
+    font-size: 13.5px; color: var(--ink-3);
+  }
+
+  .v2.v2-phone .v2-a-dial-pills {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+    max-width: 100%;
+  }
+  .v2.v2-phone .v2-a-dial-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    max-width: 100%;
+    height: 26px; padding: 0 10px;
+    border-radius: 13px;
+    background: var(--surface-3); color: var(--ink-2);
+    font-size: 12px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Why this one is in front of you. Orange is what this design system uses
+     for anything urgent, and that is all this pill ever says. */
+  .v2.v2-phone .v2-a-dial-pill-why {
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+
+  .v2.v2-phone .v2-a-dial-facts {
+    width: 100%;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  }
+  .v2.v2-phone .v2-a-dial-facts > div {
+    min-width: 0;
+    background: var(--surface-2);
+    border-radius: 14px;
+    padding: 9px 7px;
+  }
+  .v2.v2-phone .v2-a-dial-facts span {
+    display: block;
+    font-size: 10.5px; font-weight: 600; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-a-dial-facts b {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 1px;
+    font-size: 12.5px; font-weight: 800; line-height: 1.25;
+  }
+
+  .v2.v2-phone .v2-a-dial-say {
+    width: 100%; margin: 0;
+    display: flex; align-items: flex-start; gap: 8px;
+    text-align: left;
+    padding: 9px 11px;
+    border-radius: 14px;
+    background: var(--blue-soft); color: var(--ink);
+    font-size: 12.5px; line-height: 1.35;
+  }
+  .v2.v2-phone .v2-a-dial-say .lucide { flex: none; margin-top: 1px; color: var(--blue-ink); }
+
+  /* ── Call and WhatsApp ──────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dial-acts { flex: none; display: flex; gap: 10px; }
+  .v2.v2-phone .v2-a-dial-call,
+  .v2.v2-phone .v2-a-dial-wa {
+    flex: 1; min-width: 0;
+    height: 58px;
+    border: 0; border-radius: 19px;
+    font-size: 16px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .v2.v2-phone .v2-a-dial-call { background: var(--accent); color: var(--on-accent); }
+  .v2.v2-phone .v2-a-dial-wa { background: var(--hero); color: var(--hero-ink); }
+
+  /* ── how did it go ──────────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dial-out {
+    flex: none;
+    padding: 13px 14px 14px;
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    outline: 1px solid var(--line); outline-offset: -1px;
+  }
+  /* One row, whatever it is saying. The heading, the "tap Call first" answer
+     and the saved line take turns in it, so the screen never changes height
+     under the thumb — which is what put the buttons off the bottom before. */
+  .v2.v2-phone .v2-a-dial-out-head {
+    display: flex; align-items: center; gap: 8px;
+    min-height: 22px; margin-bottom: 10px;
+  }
+  .v2.v2-phone .v2-a-dial-out-head h3 { margin: 0; font-size: 15.5px; font-weight: 800; }
+  .v2.v2-phone .v2-a-dial-warn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-a-dial-done {
+    flex: 1; min-width: 0;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 700; color: var(--green-ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-a-dial-done .lucide { flex: none; }
+  .v2.v2-phone .v2-a-dial-undo {
+    flex: none;
+    border: 0; background: transparent;
+    color: var(--accent-ink); font-size: 12.5px; font-weight: 800;
+    padding: 0 2px;
+  }
+
+  .v2.v2-phone .v2-a-dial-outs {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  }
+  .v2.v2-phone .v2-a-dial-outb {
+    min-height: 50px;
+    padding: 5px 4px;
+    border: 2px solid transparent; border-radius: 15px;
+    font-size: 13px; font-weight: 700; line-height: 1.2;
+  }
+  .v2.v2-phone .v2-a-dial-outb:disabled { opacity: .55; }
+  .v2.v2-phone .v2-a-dial-on { border-color: currentColor; }
+  .v2.v2-phone .v2-a-dial-ok { background: var(--green-soft); color: var(--green-ink); }
+  .v2.v2-phone .v2-a-dial-flat { background: var(--surface-3); color: var(--ink); }
+  .v2.v2-phone .v2-a-dial-later { background: var(--blue-soft); color: var(--blue-ink); }
+  .v2.v2-phone .v2-a-dial-bad { background: var(--red-soft); color: var(--red-ink); }
+  .v2.v2-phone .v2-a-dial-no { background: var(--accent-soft); color: var(--accent-ink); }
+
+  /* The sheet's three counters, which the computer sets at 34px for a
+     column 332px wide. In a sheet that is the whole screen's width they
+     push today's list below the fold. */
+  .v2.v2-phone .v2-a-dial .d-sumgrid { gap: 8px; }
+  .v2.v2-phone .v2-a-dial .d-sumgrid div { padding: 10px 6px; }
+  .v2.v2-phone .v2-a-dial .d-sumgrid b { font-size: 24px; }
+  .v2.v2-phone .v2-a-dial .d-sumgrid span { font-size: 11.5px; }
+
+  /* ── the bottom bar ─────────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dial-nav {
+    flex: none; margin-top: auto;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .v2.v2-phone .v2-a-dial-prev,
+  .v2.v2-phone .v2-a-dial-skip {
+    flex: none;
+    height: 54px;
+    border: 0; border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .v2.v2-phone .v2-a-dial-prev { width: 54px; }
+  .v2.v2-phone .v2-a-dial-skip { width: 92px; font-size: 14px; font-weight: 700; }
+  .v2.v2-phone .v2-a-dial-prev:disabled { opacity: .4; }
+  .v2.v2-phone .v2-a-dial-next {
+    flex: 1; min-width: 0;
+    height: 54px;
+    border: 0; border-radius: 18px;
+    background: var(--hero); color: var(--hero-ink);
+    font-size: 15px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .v2.v2-phone .v2-a-dial-next:disabled {
+    background: var(--surface-3); color: var(--ink-4); box-shadow: none;
+  }
+}
+
+@media (max-width: 767px) {
+  /* ══ The dashboard, phone ═════════════════════════════════════════════
+     `design/screens/OwnerDashboard.dc.html`, and the owner's §7 of 14
+     November: hero, period switch, the stage ring, attendance, the Homes AI
+     lines, then the four small figures.
+
+     The computer's first row and its stage strip are not drawn at this
+     width at all — `Dashboard.tsx` renders these instead, with the same
+     numbers and the same links. */
+
+  .v2.v2-phone .v2-a-dash { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ── the hero ───────────────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dash-hero {
+    display: flex; flex-direction: column; gap: 16px;
+    padding: 18px;
+    border-radius: 26px;
+    background: var(--hero); color: var(--hero-ink);
+  }
+  .v2.v2-phone .v2-a-dash-hero-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  }
+  .v2.v2-phone .v2-a-dash-hero-who { min-width: 0; }
+  .v2.v2-phone .v2-a-dash-hero-k {
+    display: block;
+    font-size: 13px; font-weight: 600; color: var(--hero-ink-2);
+  }
+  .v2.v2-phone .v2-a-dash-hero-n {
+    display: block;
+    font-size: 54px; font-weight: 800; letter-spacing: -2px; line-height: 1;
+    color: var(--hero-ink); text-decoration: none;
+  }
+  .v2.v2-phone .v2-a-dash-hero-pill {
+    flex: none;
+    display: inline-flex; align-items: center; gap: 5px;
+    max-width: 48%;
+    padding: 7px 11px;
+    border-radius: 14px;
+    background: var(--accent); color: var(--on-accent);
+    font-size: 12.5px; font-weight: 700; line-height: 1.2;
+    text-decoration: none;
+  }
+  /* Nothing new yet is a fact, not an alarm, so it is not the accent. */
+  .v2.v2-phone .v2-a-dash-hero-quiet {
+    background: var(--hero-3); color: var(--hero-ink-2);
+  }
+  .v2.v2-phone .v2-a-dash-hero-boxes {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  }
+  .v2.v2-phone .v2-a-dash-hero-boxes > a {
+    min-width: 0;
+    padding: 11px 12px;
+    border-radius: 16px;
+    background: var(--hero-3);
+    text-decoration: none;
+  }
+  .v2.v2-phone .v2-a-dash-hero-boxes b {
+    display: block;
+    font-size: 22px; font-weight: 800; line-height: 1.1; color: var(--hero-ink);
+  }
+  .v2.v2-phone .v2-a-dash-hero-boxes span {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px; color: var(--hero-ink-2);
+  }
+  .v2.v2-phone .v2-a-dash-hero-won { color: var(--green); }
+
+  /* ── the period switch, small, under the hero ───────────────────────── */
+  .v2.v2-phone .v2-a-dash-period { flex-wrap: wrap; row-gap: 8px; margin: 0; }
+  .v2.v2-phone .v2-a-dash-period .d-seg { flex: 1 1 100%; }
+  .v2.v2-phone .v2-a-dash-period .d-seg > button { flex: 1; min-width: 0; min-height: 38px; }
+  .v2.v2-phone .v2-a-dash-period .d-grow { display: none; }
+  .v2.v2-phone .v2-a-dash-period .d-small { flex: 1; min-width: 0; font-size: 12px; }
+  .v2.v2-phone .v2-a-dash-period .d-btn.d-xs { order: 2; flex: none; }
+
+  /* ── the ring, and the attendance card's head ───────────────────────── */
+  .v2.v2-phone .v2-a-dash-stage-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .v2.v2-phone .v2-a-dash-stage-head h3 { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 800; }
+
+  .v2.v2-phone .v2-a-dash-ringrow { display: flex; align-items: center; gap: 16px; }
+  .v2.v2-phone .v2-a-dash-ring { position: relative; width: 136px; height: 136px; flex: none; }
+  .v2.v2-phone .v2-a-dash-ring svg { width: 136px; height: 136px; display: block; }
+  .v2.v2-phone .v2-a-dash-ring-mid {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .v2.v2-phone .v2-a-dash-ring-mid b { font-size: 25px; font-weight: 800; letter-spacing: -.6px; }
+  .v2.v2-phone .v2-a-dash-ring-mid span { font-size: 12px; color: var(--ink-3); }
+
+  .v2.v2-phone .v2-a-dash-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  /* 28px a row: each one is a link into the pipeline, and under that a thumb
+     lands on the stage above or below the one it meant. */
+  .v2.v2-phone .v2-a-dash-legend > a {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--ink); text-decoration: none;
+    min-height: 28px;
+  }
+  .v2.v2-phone .v2-a-dash-legend i {
+    width: 10px; height: 10px; border-radius: 5px; flex: none;
+  }
+  .v2.v2-phone .v2-a-dash-legend span {
+    flex: 1; min-width: 0; color: var(--ink-3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-a-dash-legend b { font-weight: 700; flex: none; }
+
+  /* ── attendance ─────────────────────────────────────────────────────── */
+  .v2.v2-phone .v2-a-dash-live {
+    flex: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-a-dash-live i {
+    width: 8px; height: 8px; border-radius: 4px; background: var(--green);
+  }
+  .v2.v2-phone .v2-a-dash-boxes {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  }
+  .v2.v2-phone .v2-a-dash-box {
+    min-width: 0;
+    padding: 10px 4px;
+    border-radius: 16px;
+    text-align: center;
+    text-decoration: none;
+  }
+  .v2.v2-phone .v2-a-dash-box b {
+    display: block;
+    font-size: 21px; font-weight: 800; line-height: 1.1;
+  }
+  .v2.v2-phone .v2-a-dash-box span {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px; font-weight: 600; color: var(--ink-2); line-height: 1.2;
+  }
+  .v2.v2-phone .v2-a-dash-in { background: var(--green-soft); }
+  .v2.v2-phone .v2-a-dash-in b { color: var(--green-ink); }
+  .v2.v2-phone .v2-a-dash-late { background: var(--amber-soft); }
+  .v2.v2-phone .v2-a-dash-late b { color: var(--amber-ink); }
+  .v2.v2-phone .v2-a-dash-out { background: var(--blue-soft); }
+  .v2.v2-phone .v2-a-dash-out b { color: var(--blue-ink); }
+  .v2.v2-phone .v2-a-dash-away { background: var(--red-soft); }
+  .v2.v2-phone .v2-a-dash-away b { color: var(--red-ink); }
+
+  .v2.v2-phone .v2-a-dash-faces {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 12px;
+    min-height: 44px;
+    color: var(--ink-3); text-decoration: none;
+  }
+  .v2.v2-phone .v2-a-dash-heads { display: flex; flex: none; padding-left: 6px; }
+  .v2.v2-phone .v2-a-dash-heads .avatar {
+    width: 30px; height: 30px; font-size: 11px;
+    margin-left: -6px;
+    border: 2px solid var(--surface);
+  }
+  .v2.v2-phone .v2-a-dash-say {
+    flex: 1; min-width: 0;
+    font-size: 13px; line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-a-dash-faces .lucide { flex: none; }
+
+  /*
+   * A phone shorter than the design.
+   *
+   * `Dialer.dc.html` is drawn at 390 x 844 and fills it. On a 667px screen
+   * — an iPhone SE — the same column is 90px too tall, so everything gives
+   * a little rather than the card scrolling inside itself and hiding the
+   * line the agent is supposed to read out. Nested inside the phone's own
+   * query on purpose: a bare `max-height` rule would land on computers too.
+   */
+  @media (max-height: 760px) {
+    .v2.v2-phone .v2-a-dial { gap: 10px; padding-left: 16px; padding-right: 16px; }
+    .v2.v2-phone .v2-a-dial-card { padding: 13px 13px; gap: 7px; }
+    .v2.v2-phone .v2-a-dial-card .avatar { width: 54px; height: 54px; font-size: 20px; }
+    .v2.v2-phone .v2-a-dial-name { font-size: 20px; }
+    .v2.v2-phone .v2-a-dial-phone { font-size: 12.5px; }
+    .v2.v2-phone .v2-a-dial-say { font-size: 12px; padding: 8px 10px; }
+    .v2.v2-phone .v2-a-dial-call,
+    .v2.v2-phone .v2-a-dial-wa { height: 52px; font-size: 15px; }
+    .v2.v2-phone .v2-a-dial-out { padding: 11px 12px 12px; }
+    .v2.v2-phone .v2-a-dial-out-head { margin-bottom: 8px; }
+    .v2.v2-phone .v2-a-dial-outb { min-height: 46px; font-size: 12.5px; }
+    .v2.v2-phone .v2-a-dial-prev,
+    .v2.v2-phone .v2-a-dial-skip,
+    .v2.v2-phone .v2-a-dial-next { height: 50px; }
+    .v2.v2-phone .v2-a-dial-prev { width: 50px; }
+  }
+
+  /* §9.4: a card or a button presses down a little when a thumb lands on
+     it. Nothing else on the phone does this yet, so it is scoped to the two
+     screens this pass covers rather than written over everybody's. */
+  .v2.v2-phone .v2-a-dial-x,
+  .v2.v2-phone .v2-a-dial-list,
+  .v2.v2-phone .v2-a-dial-call,
+  .v2.v2-phone .v2-a-dial-wa,
+  .v2.v2-phone .v2-a-dial-outb,
+  .v2.v2-phone .v2-a-dial-prev,
+  .v2.v2-phone .v2-a-dial-skip,
+  .v2.v2-phone .v2-a-dial-next,
+  .v2.v2-phone .v2-a-dash-hero-pill,
+  .v2.v2-phone .v2-a-dash-hero-boxes > a,
+  .v2.v2-phone .v2-a-dash-box { transition: transform .12s var(--ease); }
+  .v2.v2-phone .v2-a-dial-x:active,
+  .v2.v2-phone .v2-a-dial-list:active,
+  .v2.v2-phone .v2-a-dial-call:active,
+  .v2.v2-phone .v2-a-dial-wa:active,
+  .v2.v2-phone .v2-a-dial-outb:not(:disabled):active,
+  .v2.v2-phone .v2-a-dial-prev:not(:disabled):active,
+  .v2.v2-phone .v2-a-dial-skip:active,
+  .v2.v2-phone .v2-a-dial-next:not(:disabled):active,
+  .v2.v2-phone .v2-a-dash-hero-pill:active,
+  .v2.v2-phone .v2-a-dash-hero-boxes > a:active,
+  .v2.v2-phone .v2-a-dash-box:active { transform: scale(.97); }
+
+  /* The Homes AI card and the four small figures, both lifted out of the
+     computer's first row. The grid they were drawn in is a desktop one. */
+  .v2.v2-phone .v2-a-dash .d-ptiles {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  }
+  .v2.v2-phone .v2-a-dash .d-card.d-hero { margin: 0; }
 }

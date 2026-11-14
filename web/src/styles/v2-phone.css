@@ -92,18 +92,37 @@
   }
 
   /* ── cards rising in ───────────────────────────────────────────────────
-     §1.1: 0.55s, 50ms apart for the first six, then all together. The page
-     element is re-keyed on every screen change so this plays again. */
+     Emir, 14 Nov, §1.4: *"Screens open slowly, content fades in late. Max
+     0.2 seconds."*
+
+     This is the thing he is describing. §1.1 of the phone reading said
+     "0.55s, 50ms apart for the first six, then all together", which is
+     exactly what his own prototypes say (`rise .55s` and six 50ms steps in
+     every file in `design/screens/`) and exactly what this file copied. The
+     cost, measured on all fourteen screens at 390px: the content itself is
+     on screen in 15-150ms, and then the sixth card and everything after it
+     is still fading until 850ms. Nothing was slow — it was the animation,
+     and he was watching it finish.
+
+     §9.4 still asks for cards that rise when a screen opens, so the
+     movement stays and only the clock changes: 0.16s, and three 20ms steps
+     instead of six 50ms ones, with everything from the fourth card on the
+     same step so a long list cannot push the last card late. The last card
+     is settled 200ms after the content mounts, which is his number.
+
+     Do not put the 0.55s back to match the prototypes or
+     `docs/v2/phone-shell.md` §1.1 — the prototypes are where it came from
+     and this is him overruling them after seeing it on a real phone.
+
+     The page element is re-keyed on every screen change so this plays
+     again. */
   .v2.v2-phone .v2-page > * > * {
-    animation: v2-rise .55s cubic-bezier(.22, 1, .36, 1) both;
+    animation: v2-rise .16s cubic-bezier(.22, 1, .36, 1) both;
   }
   .v2.v2-phone .v2-page > * > *:nth-child(1) { animation-delay: 0ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(2) { animation-delay: 50ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(3) { animation-delay: 100ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(4) { animation-delay: 150ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(5) { animation-delay: 200ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(6) { animation-delay: 250ms; }
-  .v2.v2-phone .v2-page > * > *:nth-child(n + 7) { animation-delay: 300ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(2) { animation-delay: 20ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(3) { animation-delay: 40ms; }
+  .v2.v2-phone .v2-page > * > *:nth-child(n + 4) { animation-delay: 40ms; }
 
   /* A sheet must never inherit the rise — it has its own entrance, and two
      animations on one element is a flicker. */

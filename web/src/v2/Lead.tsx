@@ -10,6 +10,9 @@ import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { spacedE164 } from '../design/phone.js';
 import { TransferLead } from './TransferLead.js';
 import { LeadHandover } from './LeadHandover.js';
+import { given } from '../lib/assigned.js';
+import { civil } from '../lib/calendar.js';
+import { formatTime } from '../lib/format.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction } from './call.js';
@@ -66,6 +69,8 @@ interface Lead {
   next_step_at: string | null;
   next_step_note: string | null;
   last_contact_at: string | null;
+  /** When the lead was given to the agent holding it. Null in the pool. */
+  assigned_at: string | null;
   created_at: string;
   /* The deal, for a lead that is Won. */
   deal_value_aed: number | null;
@@ -138,13 +143,35 @@ function moment(value: string | null): string {
   if (!value) return '';
   const at = new Date(value);
   if (Number.isNaN(at.getTime())) return '';
-  const day = (d: Date) => Math.floor((d.getTime() + 4 * 3_600_000) / 86_400_000);
-  const clock = at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const gap = day(at) - day(new Date());
-  if (gap === 0) return `Today ${clock}`;
-  if (gap === 1) return `Tomorrow ${clock}`;
-  if (gap === -1) return `Yesterday ${clock}`;
-  return `${at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${clock}`;
+  const { day, clock } = dubaiParts(at);
+  return `${day} ${clock}`;
+}
+
+/**
+ * A moment, in Dubai, split into the day word and the clock.
+ *
+ * It used to bucket the day at +04:00 and then print the clock and the date
+ * with `toLocaleTimeString` and `toLocaleDateString` and **no timezone** —
+ * so on any laptop outside Dubai the day said "Today" off the Dubai clock
+ * while the time beside it was the reader's own, four or more hours out, on
+ * every timestamp on this page. Emir's rule is flat: times are 24-hour and
+ * Dubai time. `civil()` and `formatTime()` are the two helpers that promise
+ * both, and `calendar.ts` reads the offset out of `Intl` rather than
+ * hard-coding four hours.
+ */
+function dubaiParts(at: Date): { day: string; clock: string } {
+  const dayNumber = (d: Date) => Math.floor(civil(d).getTime() / 86_400_000);
+  const gap = dayNumber(at) - dayNumber(new Date());
+  const clock = formatTime(at);
+  if (gap === 0) return { day: 'Today', clock };
+  if (gap === 1) return { day: 'Tomorrow', clock };
+  if (gap === -1) return { day: 'Yesterday', clock };
+  return {
+    day: civil(at).toLocaleDateString('en-GB', {
+      weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
+    }),
+    clock,
+  };
 }
 
 const TAB_KEYS = ['notes', 'timeline', 'info', 'files'] as const;
@@ -161,8 +188,14 @@ export function V2Lead() {
    */
   const [params] = useSearchParams();
   const asked = params.get('tab');
+  /*
+   * Notes first. Emir, 14 Nov, §5.3e: *"Tabs: Notes (opens first, with count)
+   * | Timeline | Info | Files."* It opened on Timeline, which is the record
+   * of what the CRM did; Notes is the record of what the client said, and
+   * that is what an agent opens a lead to read.
+   */
   const [tab, setTab] = useState<TabKey>(
-    () => ((TAB_KEYS as readonly string[]).includes(asked ?? '') ? asked as TabKey : 'timeline'),
+    () => ((TAB_KEYS as readonly string[]).includes(asked ?? '') ? asked as TabKey : 'notes'),
   );
   const [handingOver, setHandingOver] = useState(params.get('do') === 'transfer');
   const [doing, setDoing] = useState<LeadActionKind | null>(
@@ -171,6 +204,11 @@ export function V2Lead() {
         : null,
   );
   const [said, setSaid] = useState<string | null>(null);
+  /*
+   * The tap we are waiting on an answer for. `whatsapp()` hands back the
+   * id of the row it wrote, which is what `PATCH /api/v2/taps/:id` wants.
+   */
+  const [tapped, setTapped] = useState<{ id: string; app: 'whatsapp' | 'telegram' } | null>(null);
   const detail = useAsync<Detail>(() => api.get(`/api/my-leads/${id}`), [id]);
   /*
    * The brief behind "In short". A plain read — no model call — so opening a
@@ -298,9 +336,20 @@ export function V2Lead() {
                   the first migration and was never sent to the screen. */}
               {lead.purpose === 'investment' && <span className="d-chip">Investor</span>}
               {lead.purpose === 'end_use' && <span className="d-chip">To live in</span>}
-              {tags.map((one) => (
-                <span className="d-chip" key={one}>{one.replace(/^[a-z]+:/, '')}</span>
-              ))}
+              {/*
+                * No raw tags here. Emir, 14 Nov, §5.2: *"Only clean tags:
+                * Stage, Score, Hot, VIP, Investor."* The row underneath used
+                * to print every tag on the contact, which on an imported lead
+                * is `leads_gesamtliste_12nov_f3d5`, `csv_import` and `en` —
+                * the spreadsheet's own file name, a database word and a
+                * language code, three things no agent needs and all three
+                * against the rule at the top of his list.
+                *
+                * They are not thrown away: the Info tab lists them under
+                * "Tags", tidied into words, so nothing is lost and the card
+                * an agent reads before dialling is the five chips the design
+                * draws.
+                */}
             </div>
 
             {/* Where they are, what time it is there, and whether now is a
@@ -312,7 +361,21 @@ export function V2Lead() {
                   ? (
                     <>
                       <Avatar name={lead.owner_name} size={20} />
-                      <span>with <b>{lead.owner_name}</b></span>
+                      {/*
+                        * "with Rocky · since Mon 9 Nov" — §5.2. The name
+                        * alone does not say how long they have been sitting
+                        * on it, which is the question an owner asks of this
+                        * line. The date is `assigned_at`, through the one
+                        * helper the leads list uses, so it cannot read one
+                        * way here and another there; a lead with no date
+                        * says so rather than borrowing another.
+                        */}
+                      <span>
+                        with <b>{lead.owner_name}</b>
+                        {given(lead.assigned_at).missing
+                          ? ''
+                          : ` · since ${given(lead.assigned_at).when}`}
+                      </span>
                     </>
                   )
                   : (
@@ -358,7 +421,15 @@ export function V2Lead() {
                 href={phone ? `https://wa.me/${phone.replace(/[^\d]/g, '')}` : undefined}
                 target="_blank"
                 rel="noreferrer"
-                onClick={(e) => { if (!phone) return; e.preventDefault(); void dial.whatsapp(lead); }}
+                onClick={(e) => {
+                  if (!phone) return;
+                  e.preventDefault();
+                  /* The blue line goes up the moment WhatsApp opens, so the
+                     question is on screen when the agent comes back. */
+                  void dial.whatsapp(lead).then((id) => {
+                    if (id) setTapped({ id, app: 'whatsapp' });
+                  });
+                }}
               >
                 <Icon name="message-circle" />WhatsApp
               </a>
@@ -410,6 +481,26 @@ export function V2Lead() {
               <Icon name="check" />
               <span className="d-grow">{said}</span>
             </div>
+          )}
+
+          {/*
+            * §5.3a / §5.10, the first thing in the middle column: the blue
+            * line that appears after a WhatsApp or Telegram tap.
+            *
+            * The CRM opens the app with the message typed in; it cannot see
+            * what happened next, and `/api/v2/taps/:id` has been waiting for
+            * the answer since it was written — nothing in the web app ever
+            * asked for it. So every tap was recorded as a tap and never as
+            * an outcome, and the owner's figures had a hole the shape of
+            * every WhatsApp this company sends.
+            */}
+          {tapped !== null && (
+            <WhatsappAsked
+              tapId={tapped.id}
+              app={tapped.app}
+              onAnswered={(told) => { setTapped(null); setSaid(told); detail.reload(); }}
+              onClose={() => setTapped(null)}
+            />
           )}
 
           {/*
@@ -480,6 +571,38 @@ export function V2Lead() {
             */}
           <LeadHandover leadId={lead.id} />
 
+          {/*
+            * §5.3d: a note box that is always there.
+            *
+            * Emir's own words for what was wrong: *"no place to write a
+            * note."* There was one, two scrolls down and behind a tab, which
+            * is the same as not having one — an agent puts the phone down
+            * and writes while it is fresh or not at all. This is the
+            * design's `composer`, in the design's own place: under "In
+            * short", above the tabs.
+            *
+            * It writes through the same `POST /api/notes/{contact}` the
+            * Notes tab uses, so a note typed here is the same note, in the
+            * same list, with the same type chips. Voice notes stay in the
+            * tab below, where the recorder lives.
+            */}
+          {/*
+            * Not drawn while the Notes tab is open: the full note box —
+            * quick phrases, attachments, voice, "remind me" — is two inches
+            * below in the same column, and two places to type on one screen
+            * is the fault this was written to fix, not a second instance of
+            * it. On every other tab this is the only one, which is what
+            * "always visible" is for.
+            */}
+          {tab !== 'notes' && (
+            <NoteBox
+              contactId={lead.contact_id}
+              opportunityId={lead.id}
+              who={firstName(lead.full_name)}
+              onSaved={(told) => { setSaid(told); detail.reload(); setTab('notes'); }}
+            />
+          )}
+
           <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
             <div className="d-tabs" role="tablist">
               {TAB_KEYS.map((one) => (
@@ -546,14 +669,18 @@ export function V2Lead() {
                   <div className="d-timeline">
                     {activities.map((one) => {
                       const dot = mark(one.type);
+                      /* §5.8: plain English, and the spreadsheet's own words
+                         left out of it — they are on the Info tab, under
+                         "From the file", where they belong. */
+                      const said = plainly(one, lead.owner_name);
                       return (
                         <div className="d-tl-item" key={one.id}>
                           <span className={dot.tone ? `d-tl-dot ${dot.tone}` : 'd-tl-dot'}>
                             <Icon name={dot.icon} size={14} />
                           </span>
                           <div className="d-tl-body">
-                            <b>{sentence(one.title?.trim() || one.type.replace(/[._]/g, ' '))}</b>
-                            {one.body && <p>{one.body}</p>}
+                            <b>{said.title}</b>
+                            {said.body !== null && <p>{said.body}</p>}
                             <span className="d-tl-time">
                               {moment(one.created_at)}
                               {one.user_name ? ` · ${one.user_name}` : ''}
@@ -589,31 +716,55 @@ export function V2Lead() {
                     value={lead.last_contact_at ? moment(lead.last_contact_at) : 'Never'}
                   />
                 </dl>
+
+                {/*
+                  * The tags, out of the left card and into here — §5.2.
+                  * Tidied into words on the way: `src:csv_import` is a
+                  * namespace and a database word, and "CSV import" is what
+                  * it means. The list's own name is kept as it was typed,
+                  * because that is a real name somebody chose.
+                  */}
+                {tags.length > 0 && (
+                  <>
+                    <h4 className="d-mt-24 d-mb-8">Tags</h4>
+                    <div className="d-row d-gap-6 d-wrap">
+                      {tags.map((one) => (
+                        <span className="d-chip" key={one}>{tagWords(one)}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/*
+                  * §5.8: the spreadsheet's own columns belong here, under
+                  * "From the file", and not in the timeline. Emir found the
+                  * German text out of his Excel sheet — "Prüfen
+                  * Ländervorwahl: +91 Hinweis: 10-stellig ohne Vorwahl…" —
+                  * printed as a line of the lead's history, where it reads
+                  * as something the CRM did.
+                  */}
+                {detail.data.importedRow && detail.data.importedRow.fields.length > 0 && (
+                  <>
+                    <h4 className="d-mt-24 d-mb-8">
+                      From the file
+                      {detail.data.importedRow.sourceLabel
+                        ? ` · ${detail.data.importedRow.sourceLabel}`
+                        : ''}
+                    </h4>
+                    <dl className="d-kv">
+                      {detail.data.importedRow.fields.map((one, i) => (
+                        <Row key={`${i}-${one.label}`} label={one.label} value={one.value} />
+                      ))}
+                    </dl>
+                  </>
+                )}
+
                 <History leadId={lead.id} />
               </>
             )}
 
             {tab === 'files' && <Files leadId={lead.id} onChanged={detail.reload} />}
           </section>
-
-          {/* Every column of the row this lead came in on, if it came from
-              one. The design has no slot for it, and it belongs where an
-              agent looks: with the rest of the history. */}
-          {detail.data.importedRow && detail.data.importedRow.fields.length > 0 && (
-            <section className="d-card">
-              <div className="d-card-head">
-                <h3>From the sheet</h3>
-                {detail.data.importedRow.sourceLabel && (
-                  <span className="d-chip">{detail.data.importedRow.sourceLabel}</span>
-                )}
-              </div>
-              <dl className="d-kv">
-                {detail.data.importedRow.fields.map((one, i) => (
-                  <Row key={`${i}-${one.label}`} label={one.label} value={one.value} />
-                ))}
-              </dl>
-            </section>
-          )}
 
           <p className="v2-back-row">
             <Link to="/v2/leads">← Back to leads</Link>
@@ -711,23 +862,25 @@ export function V2Lead() {
                 Calendar <Icon name="arrow-right" size={14} />
               </Link>
             </div>
+            {/*
+              * §5.6: the date, the time and the kind of each plan. The day
+              * and the clock are Dubai's — this card printed the reader's
+              * own clock beside a Dubai day — and the kind is a word rather
+              * than the stored key.
+              */}
             {tasks.length === 0
               ? <p className="d-small d-muted">Nothing planned yet.</p>
               : tasks.map((one) => {
-                const when = one.due_at ? new Date(one.due_at) : null;
+                const when = one.due_at ? dubaiParts(new Date(one.due_at)) : null;
                 return (
                   <div className="d-up" key={one.id}>
                     <span className="d-d">
-                      {when ? when.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }) : '—'}
-                      <b>
-                        {when
-                          ? when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
-                          : ''}
-                      </b>
+                      {when ? when.day : '—'}
+                      <b>{when ? when.clock : ''}</b>
                     </span>
                     <div className="d-grow">
                       <b className="d-bold">{one.title ?? 'Task'}</b>
-                      <div className="d-small d-muted">{(one.type ?? 'task').replace(/_/g, ' ')}</div>
+                      <div className="d-small d-muted">{planKind(one.type)}</div>
                     </div>
                   </div>
                 );
@@ -765,6 +918,195 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <dt>{label}</dt>
       <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
     </div>
+  );
+}
+
+/* ── After a WhatsApp tap: what happened? ──────────────────────────────── */
+
+/** The six answers `/api/v2/taps/:id` takes, in words a person reads. */
+const TAP_ANSWERS: Array<{ value: string; label: string }> = [
+  { value: 'sent', label: 'I sent it' },
+  { value: 'replied', label: 'They replied' },
+  { value: 'no_reply', label: 'No reply yet' },
+  { value: 'wrong_number', label: 'Wrong number' },
+  { value: 'changed_mind', label: 'I did not send it' },
+  { value: 'not_sent', label: 'It would not send' },
+];
+
+/**
+ * "WhatsApp opened · waiting for your update" — §5.3a and §5.10.
+ *
+ * The design draws it as a blue line across the top of the middle column
+ * with one button on the right. Pressing the button opens the six answers;
+ * choosing one writes the outcome and the line goes away.
+ *
+ * It can be dismissed, because an agent who got distracted and came back an
+ * hour later should not have to answer a question about a tap they no longer
+ * remember. Dismissing records nothing, which is the honest outcome — the tap
+ * itself is already saved and simply has no result on it.
+ */
+function WhatsappAsked({ tapId, app, onAnswered, onClose }: {
+  tapId: string;
+  app: 'whatsapp' | 'telegram';
+  onAnswered: (said: string) => void;
+  onClose: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const name = app === 'telegram' ? 'Telegram' : 'WhatsApp';
+
+  async function answer(value: string, label: string) {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await api.patch(`/api/v2/taps/${tapId}`, { result: value });
+      onAnswered(`${name}: ${label.toLowerCase()}.`);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That did not save.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="d-banner d-blue">
+      <Icon name="message-circle" />
+      {/*
+        * The six answers go *under* the sentence, not beside it.
+        * `.d-banner` is one flex row that does not wrap, and six buttons in
+        * it squeezed "waiting for your update" into a four-word column and
+        * pushed the last two outside the blue. Inside the growing span they
+        * take the width they need and the sentence keeps its line.
+        */}
+      <span className="d-grow">
+        <b>{name} opened</b> · waiting for your update
+        {problem !== null && <> · {problem}</>}
+        {open && (
+          <span className="d-row d-gap-6 d-wrap d-mt-8">
+            {TAP_ANSWERS.map((one) => (
+              <button
+                key={one.value}
+                type="button"
+                className="d-btn d-xs"
+                disabled={busy}
+                onClick={() => { void answer(one.value, one.label); }}
+              >
+                {one.label}
+              </button>
+            ))}
+          </span>
+        )}
+      </span>
+      {!open && (
+        <button type="button" className="d-btn d-xs d-dark" onClick={() => setOpen(true)}>
+          What happened?
+        </button>
+      )}
+      <button type="button" className="d-btn d-xs d-ghost" onClick={onClose} aria-label="Hide">
+        <Icon name="x" size={13} />
+      </button>
+    </div>
+  );
+}
+
+/* ── The note box that is always there ─────────────────────────────────── */
+
+/** The note types the design's composer offers, in its own order. */
+const NOTE_TYPES: Array<{ value: string; label: string }> = [
+  { value: 'general', label: 'Note' },
+  { value: 'call', label: 'Call' },
+  { value: 'viewing', label: 'Viewing' },
+  { value: 'budget', label: 'Budget' },
+  { value: 'objection', label: 'Objection' },
+  { value: 'next_step', label: 'Next step' },
+];
+
+/**
+ * "Write a note about Marco…" — §5.3d, the design's `composer`.
+ *
+ * Closed it is one line and a mic. Typing opens the type chips and the Save
+ * button, which is what `.d-composer.d-open` is in the ported stylesheet: the
+ * design wrote this behaviour and we are using its classes rather than
+ * inventing a second note box.
+ *
+ * The mic is not wired here. Recording lives in the Notes tab below, where
+ * the recorder and its permission prompt already are, and a second recorder
+ * on one page is two things to keep in step. Pressing it opens that tab.
+ */
+function NoteBox({ contactId, opportunityId, who, onSaved }: {
+  contactId: string;
+  opportunityId: string;
+  who: string;
+  onSaved: (said: string) => void;
+}) {
+  const [body, setBody] = useState('');
+  const [type, setType] = useState('general');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const open = body.trim() !== '';
+
+  async function save() {
+    const text = body.trim();
+    if (text === '' || busy) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      await api.post(`/api/notes/${contactId}`, { body: text, type, opportunityId });
+      setBody('');
+      setType('general');
+      onSaved('Note saved.');
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That note did not save.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={open ? 'd-card d-composer d-open' : 'd-card d-composer'} aria-label="Add note">
+      <div className="d-row d-gap-8">
+        <textarea
+          className="d-textarea d-grow"
+          placeholder={`Write a note about ${who}…`}
+          aria-label={`Write a note about ${who}`}
+          value={body}
+          disabled={busy}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <a className="d-btn d-icon" href="?tab=notes" title="Record a voice note" aria-label="Record a voice note">
+          <Icon name="mic" />
+        </a>
+      </div>
+      <div className="d-more">
+        <div className="d-chips">
+          {NOTE_TYPES.map((one) => (
+            <button
+              key={one.value}
+              type="button"
+              className={type === one.value ? 'd-chip-opt d-on' : 'd-chip-opt'}
+              onClick={() => setType(one.value)}
+            >
+              {one.label}
+            </button>
+          ))}
+        </div>
+        <div className="d-row d-gap-8">
+          {problem !== null && <span className="d-small d-t-amber d-grow">{problem}</span>}
+          {problem === null && <span className="d-grow" />}
+          <button
+            type="button"
+            className="d-btn d-sm d-ghost"
+            disabled={busy}
+            onClick={() => { setBody(''); setProblem(null); }}
+          >
+            Cancel
+          </button>
+          <button type="button" className="d-btn d-sm d-dark" disabled={busy} onClick={() => { void save(); }}>
+            {busy ? 'Saving…' : 'Save note'}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1312,6 +1654,87 @@ function Soon({ icon, label, phase }: { icon: IconName; label: string; phase: st
 /** `call.logged` arrives as "call logged"; a line of history starts big. */
 function sentence(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * A tag, as words — §5.2 and the rule at the top of Emir's list.
+ *
+ * `src:csv_import` is a namespace, a database word and an underscore;
+ * "CSV import" is the same fact said out loud. The *value* of a `list:` tag
+ * is a name somebody typed and is left exactly as they typed it.
+ */
+export function planKind(type: string | null | undefined): string {
+  const known: Record<string, string> = {
+    call: 'Call',
+    whatsapp: 'WhatsApp',
+    email: 'Email',
+    meeting: 'Meeting',
+    viewing: 'Viewing',
+    follow_up: 'Follow-up',
+    callback: 'Call back',
+    task: 'Task',
+    other: 'Task',
+  };
+  const key = (type ?? 'task').trim();
+  return known[key] ?? sentence(key.replace(/_/g, ' '));
+}
+
+export function tagWords(tag: string): string {
+  const colon = tag.indexOf(':');
+  const value = colon === -1 ? tag : tag.slice(colon + 1);
+  const known: Record<string, string> = {
+    csv_import: 'CSV import',
+    bulk_import: 'Bulk import',
+    manual: 'Added by hand',
+    walk_in: 'Walk-in',
+    whatsapp_direct: 'WhatsApp',
+    meta_ctwa: 'WhatsApp ad',
+    meta_lead_ads: 'Facebook form',
+    google_ads: 'Google ad',
+    website: 'Website',
+    referral: 'Referral',
+    sla_breach: 'Missed the 5-minute rule',
+    hot: 'Hot',
+  };
+  if (known[value]) return known[value] as string;
+  /* A language tag is a code; `languageName` already owns that mapping. */
+  if (tag.startsWith('lang:')) return languageName(value) ?? value;
+  /* Anything else is somebody's own word. Underscores become spaces, and the
+     first letter goes up; nothing else is touched, because a list called
+     "leads_gesamtliste_12nov" is a name and not a code to be translated. */
+  return sentence(value.replace(/_/g, ' '));
+}
+
+/** One line of the timeline, said in English and without the sheet's own text. */
+export function plainly(
+  one: { type: string; title?: string | null; body: string | null },
+  agent: string | null,
+): { title: string; body: string | null } {
+  const raw = (one.title ?? '').trim();
+  const lower = raw.toLowerCase();
+
+  /*
+   * An imported lead. Emir, §5.8: *"Timeline in simple English: 'Imported
+   * from Excel on 12 Nov', 'Given to <agent> by import'. Text from the Excel
+   * file goes to Info under 'From the file', not into the timeline."*
+   *
+   * The title the import writes carries the source key — "New lead from
+   * csv_import" — and the body carries the spreadsheet's own columns, in
+   * whatever language the sheet was written in. Both are replaced here;
+   * neither is lost, because the columns are on the Info tab and the source
+   * is on the right-hand card.
+   */
+  if (/csv_import|from import|bulk import|imported/i.test(`${raw} ${one.type}`)) {
+    if (/assign|given|owner/i.test(lower)) {
+      return { title: agent ? `Given to ${agent} by import` : 'Given out by import', body: null };
+    }
+    return { title: 'Imported from a spreadsheet', body: null };
+  }
+
+  return {
+    title: sentence(raw || one.type.replace(/[._]/g, ' ')),
+    body: one.body === null || one.body.trim() === '' ? null : one.body,
+  };
 }
 
 function firstName(full: string | null): string {

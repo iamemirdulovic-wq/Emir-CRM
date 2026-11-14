@@ -2342,123 +2342,293 @@
 .v2 .p-all-leads .d-id-leads td.d-t-act{ min-width:220px; }
 
 /*
- * Narrower than about 1400px the table no longer fits beside the sidebar, so
- * it scrolls sideways inside its own card rather than taking the page with it.
+ * ── The leads table FITS. It does not scroll sideways. ───────────────────
  *
- * That makes the card a scrollport, and a `position:sticky` header then sticks
- * to the card rather than to the page: at `top:var(--tb-h)` it lands 68px down
- * inside the card, on top of the first row. Inside this range it sits still.
+ * This replaced a "reads like a sheet" block that made the card a scroll
+ * container in both directions and pinned the name column to its left edge
+ * and the row's buttons to its right. It was built from the owner's earlier
+ * words — *"our all leads should be like move right left, same like sheet"* —
+ * and he looked at the result on 14 November and asked for the opposite,
+ * §2.9: *"Must fit at 1280, 1440 and 1920 px. No cut column, no sideways
+ * scroll, and NO column on top of another. Today at 1440 px the pinned
+ * 'Attention · next step' column covers Agent and Last contact (table is
+ * 1411 px wide in 1148 px)."*
+ *
+ * He is describing what pinning buys you: a column that is always on screen
+ * is a column drawn on top of whatever is under it. So it all comes out, and
+ * with it `useSheetHeight` in `Leads.tsx` — with no scroll container, the
+ * header sticks to the PAGE again at the design's own `top:var(--tb-h)`, and
+ * needs no measured height to stick to.
+ *
+ * What makes it fit instead is a budget. The table is `table-layout:fixed`
+ * with a width for every column, so nothing can push the total past the card:
+ * the long values ellipsise inside their own cell instead of widening it.
+ * `leads-filters.test.ts` adds the widths up and fails if they pass 100%.
  */
-/*
- * The card is a scrollport at every width now, so a sticky header sticks to
- * the card rather than to the page. At `top:var(--tb-h)` it landed 68px down
- * inside the card, sitting on top of the first row — which is exactly what
- * the owner photographed. Pinned to the card's own top, it behaves.
- */
-.v2 .p-my-leads .d-table.d-sticky th,
-.v2 .p-all-leads .d-table.d-sticky th{ top:0; }
+.v2 .p-my-leads .d-table-wrap,
+.v2 .p-all-leads .d-table-wrap{ overflow:visible; }
+/* The header sticks to the page, under the top bar — the design's own rule,
+   which only ever stopped working because the card became a scrollport. */
 
 /*
- * The leads table reads like a sheet.
+ * A width for every column, as a share of the card.
  *
- * It used to be squeezed into whatever width was left beside the sidebar, so
- * every column was cut: "Muhammad AbuBakkar Chee…", "Today 08:1(" with the
- * ending gone, and the pinned right-hand cell drawing over the column beside
- * it. The owner sent a photograph of exactly that and said there was too much
- * data and it did not look good. He was right -- but the answer is not fewer
- * columns, it is letting the table be as wide as it needs.
+ * `table-layout:fixed` is what makes the shares binding: with `auto` the
+ * browser treats them as suggestions and a long project name wins, which is
+ * how the table came to be 1,411px wide inside 1,148px with the pinned
+ * right-hand column drawn over Agent and Last contact.
  *
- * So: the card scrolls sideways, every column keeps a width it can actually
- * hold, and the two that must never scroll away are pinned -- the name on the
- * left, so you never lose which row you are reading, and the row's buttons on
- * the right, so Call is always reachable. The owner asked for no shadow on
- * those edges, so they are marked with the same hairline the rows use.
+ * The one column with no share is the next step. It takes whatever is left,
+ * which is how §2.2's fourth point is met — *"Next step is wide and always
+ * readable"* — and `leads-filters.test.ts` adds the rest up and fails if they
+ * leave it too little.
  */
+.v2 .p-my-leads .d-id-leads,
+.v2 .p-all-leads .d-id-leads{ table-layout:fixed; width:100%; }
+
 /*
- * ── Why `overflow`, and not `overflow-x` ─────────────────────────────────
+ * ── The column budget ────────────────────────────────────────────────────
  *
- * `overflow-x:auto` alone made the card a scroll container in BOTH axes —
- * CSS computes an `overflow-y:visible` to `auto` the moment the other axis
- * scrolls — and a `position:sticky` header then resolves against the card
- * rather than the page. The card had no height limit, so it never scrolled
- * vertically and the header never pinned to anything: measured on the live
- * build at 1440px, the owner's `thead th` sat at 206 before a scroll and
- * -394 after 600px of it. It left with the page, on a list of 2,041 leads.
+ * Measured, not guessed. At 1280px, with a range over each cell's own
+ * contents so the column could not hide them: the longest name wants 122px
+ * ("Mariam Al Suwaidi"), a phone number 129, the longest project 114, the
+ * longest next step 151 ("Overdue 14 Nov, 09:12"), the three row buttons 80
+ * as icons, the VIP tag 32 and the face 34.
  *
- * So the card is the scroller in both directions on purpose, which is also
- * what the owner asked for — *"our all leads should be like move right left,
- * same like sheet"*. Both scrollbars live on the card, the header pins to the
- * card's own top (`th{top:0}` above), and the left-hand name column pins to
- * its left edge. That is a spreadsheet.
+ * The first budget gave the next step 262px at 1440 because §2.2 calls it
+ * the widest column, and took it off the Lead, which came out as "Sara …"
+ * and "Mariam Al S…". That is the complaint Emir opened his list with — a
+ * cut name — and it outranks the widest-column rule: a person's name is how
+ * an agent finds them in a list of two thousand. So the Lead comes first
+ * now and the next step takes what is left, which is still enough for the
+ * longest one the data holds.
  *
- * The height it scrolls against is NOT set here. A `calc(100dvh - 300px)`
- * would be a guess about the chrome above the table, and the chrome moves:
- * the tab strip, the filter row, the two chip rows, the start-calling strip
- * that only appears on Today. `useSheetHeight` in `Leads.tsx` measures where
- * the card really starts and sets `max-height` from that, so the card ends at
- * the bottom of the window whatever is above it. A list shorter than that
- * room keeps its own height — `max-height`, not `height`, so there is no
- * tall empty box under a short list.
+ * Pixels for the columns whose content is one length — a phone number is
+ * the same width at every window — and shares for the ones that hold a name.
  */
-.v2 .p-my-leads .d-table-wrap,
-.v2 .p-all-leads .d-table-wrap{ overflow:auto; }
+.v2 .d-id-leads.v2-cols-mine,
+.v2 .d-id-leads.v2-cols-book{ table-layout:fixed; width:100%; }
+
 /*
- * The card's own top padding would scroll away with the first row, leaving
- * the pinned header flush against the card's rounded corner. `padding-top:0`
- * and the header owns the top edge.
+ * 8px of side padding, not the design's 12.
+ *
+ * Eight columns × two sides × 4px is 64px, which is the difference between a
+ * name that fits at 1280 and one that does not. It is the cheapest 64px on
+ * the screen: the columns still read as columns.
  */
-.v2 .p-my-leads .d-table-wrap,
-.v2 .p-all-leads .d-table-wrap{ padding-top:0; }
+.v2 .d-id-leads.v2-cols-mine td,
+.v2 .d-id-leads.v2-cols-mine th,
+.v2 .d-id-leads.v2-cols-book td,
+.v2 .d-id-leads.v2-cols-book th{ padding-left:8px; padding-right:8px; }
+
+/* The agent's list — Lead · Phone · Project · Stage · Given · Local time ·
+   Next step · the three buttons. §2.1's order exactly. */
 /*
- * The pinned header has to cover the rows passing under it. `th` already
- * carries `background:var(--surface)` from the design, and the hairline under
- * it is what stops the first row appearing to touch the titles.
+ * The Lead in pixels, not a share.
+ *
+ * Its need is fixed — a face, a name and a VIP tag are the same width at
+ * every window — and a share gave it 198px at 1280 (a cut name) and 249 at
+ * 1440 (28px more than the longest name wants, taken off the next step).
+ * 230 is the measured 221 plus a little room for a name longer than any in
+ * the data today.
  */
-.v2 .p-my-leads .d-id-leads thead th,
-.v2 .p-all-leads .d-id-leads thead th{
-  border-bottom:1px solid var(--line-2);
+.v2 .d-id-leads.v2-cols-mine th:nth-child(1){ width:230px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(2){ width:148px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(3){ width:7.6%; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(4){ width:88px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(5){ width:84px; }
+/* "Karachi 16:59" with its clock face is 109px; 128 is that plus the
+   padding and a little air. */
+.v2 .d-id-leads.v2-cols-mine th:nth-child(6){ width:124px; }
+.v2 .d-id-leads.v2-cols-mine th:nth-child(7){ width:auto; }
+/* Call, WhatsApp and ⋯: 176px with their words, 96 as icons. */
+.v2 .d-id-leads.v2-cols-mine th:nth-child(8){ width:176px; }
+@media (max-width:1399px){
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(8){ width:96px; }
+  /*
+   * On a laptop the clock face comes off the Local time column and the
+   * column narrows with it. The header already says LOCAL TIME, so the icon
+   * is 19px that says nothing — and 19px is the difference between a name
+   * that fits and one that does not. The moon stays: it is not decoration,
+   * it is "do not ring them now".
+   */
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(6){ width:104px; }
+  .v2 .d-id-leads .d-localtime > svg{ display:none; }
+  /*
+   * And the two columns whose content is shortest give a few pixels each to
+   * the next step, which is the column that still ellipsises at 1280. The
+   * stage pill is 80px, "09:00" and "12 Nov" are 60.
+   */
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(4),
+  .v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:84px; }
+  .v2 .d-id-leads.v2-cols-mine th:nth-child(5),
+  .v2 .d-id-leads.v2-cols-book th:nth-child(6){ width:78px; }
 }
 
-/* No squeezing. Each column gets room for its longest honest value. */
-.v2 .p-my-leads .d-id-leads td:first-child,
-.v2 .p-all-leads .d-id-leads td:first-child{ max-width:none; overflow:visible; }
-.v2 .p-my-leads .d-id-leads td:nth-child(3),
-.v2 .p-all-leads .d-id-leads td:nth-child(3){ max-width:none; overflow:visible; }
-.v2 .p-my-leads .d-id-leads td.d-nm,
-.v2 .p-all-leads .d-id-leads td.d-nm{ min-width:250px; }
+/*
+ * The owner's book — tick · Lead · Phone · Project · Stage · Given · Agent ·
+ * Last contact · Attention · ⋯.
+ *
+ * Three more columns than the agent's and the same width to put them in, so
+ * the row carries the ⋯ menu alone: picture 02 draws no buttons on the row
+ * at all, and three of them would leave the next step 112px at 1440px. A row
+ * click opens the quick panel, where Call and WhatsApp are.
+ */
+.v2 .d-id-leads.v2-cols-book th:nth-child(1){ width:34px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(2){ width:230px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(3){ width:148px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(4){ width:9%; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(5){ width:88px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(6){ width:84px; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(7){ width:8%; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(8){ width:6.5%; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(9){ width:auto; }
+.v2 .d-id-leads.v2-cols-book th:nth-child(10){ width:36px; }
+
+/*
+ * The owner's book carries ten columns, so the Agent column shows a face and
+ * a first name — "Layla", as picture 02 draws it — and Last contact shows
+ * "9 Nov" or "Today 10:30". Both are narrow on purpose: the two columns that
+ * must not be cut are the name and the next step.
+ */
+
+/*
+ * The tick box's own cell: no padding to speak of, and no ellipsis.
+ *
+ * It had the table's 8px each side, which left a 16px box around an 18px
+ * checkbox — so the cell overflowed and `text-overflow:ellipsis` drew a dot
+ * beside every checkbox on the owner's book. A tick box is not text.
+ */
+.v2 .d-id-leads.v2-cols-book td.d-t-check,
+.v2 .d-id-leads.v2-cols-book th.d-t-check{
+  padding-left:6px; padding-right:4px; overflow:visible; text-overflow:clip;
+}
+
+/* The name takes the room; the VIP tag beside it never shrinks and never
+   pushes the name out of its own cell. */
+.v2 .d-id-leads td.d-nm .v2-t-nm .d-vip-tag{ flex:none; }
+.v2 .d-id-leads td.d-nm .d-t-main{ flex:0 1 auto; }
+
+/*
+ * Inside a fixed column, a long value has to give way rather than push. Every
+ * cell clips and ellipsises; the phone number is the one that must never be
+ * cut, because it is read aloud, and it has a column wide enough for the
+ * longest number in the book.
+ */
+.v2 .p-my-leads .d-id-leads td,
+.v2 .p-all-leads .d-id-leads td{ overflow:hidden; text-overflow:ellipsis; }
 .v2 .p-my-leads .d-id-leads .d-t-main,
-.v2 .p-all-leads .d-id-leads .d-t-main{ overflow:visible; text-overflow:clip; white-space:nowrap; }
-
-/* The name, pinned, with the hairline the rows use and no shadow. */
-.v2 .p-my-leads .d-id-leads td.d-nm,
-.v2 .p-all-leads .d-id-leads td.d-nm,
-.v2 .p-my-leads .d-id-leads th:nth-child(2),
-.v2 .p-all-leads .d-id-leads th:nth-child(2){
-  position:sticky; left:0; z-index:2; background:var(--surface);
-  border-right:1px solid var(--line-2);
+.v2 .p-all-leads .d-id-leads .d-t-main,
+.v2 .p-my-leads .d-id-leads .d-t-sub,
+.v2 .p-all-leads .d-id-leads .d-t-sub,
+.v2 .p-my-leads .d-id-leads td.d-next,
+.v2 .p-all-leads .d-id-leads td.d-next{
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.v2 .p-my-leads .d-id-leads th:nth-child(2),
-.v2 .p-all-leads .d-id-leads th:nth-child(2){ z-index:3; }
-/* The checkbox column sits to its left, so it is pinned too or the name
-   slides underneath it. */
-.v2 .p-all-leads .d-id-leads td.d-t-check,
-.v2 .p-all-leads .d-id-leads th.d-t-check{
-  position:sticky; left:0; z-index:3; background:var(--surface);
-}
-.v2 .p-all-leads .d-id-leads td.d-nm,
-.v2 .p-all-leads .d-id-leads th:nth-child(2){ left:46px; }
-/* The cell that scrolls out from under the pinned name needs a little room,
-   or the leading "+" of every number is shaved off by the edge. */
-.v2 .p-my-leads .d-id-leads td.d-t-mono,
-.v2 .p-all-leads .d-id-leads td.d-t-mono,
-.v2 .p-my-leads .d-id-leads th:nth-child(3),
-.v2 .p-all-leads .d-id-leads th:nth-child(3){ padding-left:16px; }
+/* The name cell is a flex row, so its text half needs the shrink as well. */
+.v2 .p-my-leads .d-id-leads td.d-nm .v2-t-who,
+.v2 .p-all-leads .d-id-leads td.d-nm .v2-t-who,
+.v2 .p-my-leads .d-id-leads td.d-nm .v2-t-nm,
+.v2 .p-all-leads .d-id-leads td.d-nm .v2-t-nm{ min-width:0; overflow:hidden; }
 
-/* A hovered row has its own colour; the pinned cells have to take it too or
-   they read as a different row. */
-.v2 .p-my-leads .d-id-leads tbody tr:hover td.d-nm,
-.v2 .p-all-leads .d-id-leads tbody tr:hover td.d-nm,
-.v2 .p-all-leads .d-id-leads tbody tr:hover td.d-t-check{ background:var(--surface-2); }
+/*
+ * ── 52px rows, so twelve leads fit on a screen ───────────────────────────
+ *
+ * §2.6, and the single most visible complaint in picture 01: *"Rows are
+ * about 130 px high. Only 4 leads fit on the screen. MAKE Rows about 52 px
+ * high. 12 leads fit on one screen."*
+ *
+ * Three things were making a row 130px: 14px of padding top and bottom, the
+ * Given date wrapping onto two lines plus "2 days ago" onto a third, and a
+ * source line under every name. The padding is 6px now, the Given date is on
+ * one line (below), and the source has gone from the cell — it is still on
+ * the lead page and in the side panel.
+ */
+.v2 .p-my-leads .d-id-leads tbody td,
+.v2 .p-all-leads .d-id-leads tbody td{
+  height:52px; padding-top:6px; padding-bottom:6px;
+}
+
+/*
+ * The Given date, on ONE line: "12 Nov · 2 d ago".
+ *
+ * §2.5 — *"Keep the 'Given' column, but on ONE line and narrow"* — and §1 of
+ * picture 01: *"'Given' date breaks into 5 lines and makes every row very
+ * tall."* The component renders the day and the waiting time as two spans so
+ * that the phone card can stack them; here they sit on one line with the
+ * design's own middle dot between them. CSS rather than a second component,
+ * so the two screens cannot word the same date two ways.
+ */
+.v2 .d-id-leads td.v2-given-cell{ white-space:nowrap; }
+.v2 .d-id-leads td.v2-given-cell .v2-given{ display:block; line-height:1.3; }
+.v2 .d-id-leads td.v2-given-cell .v2-given-when{
+  display:inline; font-weight:600; font-size:12.5px;
+}
+.v2 .d-id-leads td.v2-given-cell .v2-given-ago{
+  display:inline; font-size:12px; margin-top:0;
+}
+.v2 .d-id-leads td.v2-given-cell .v2-given-ago::before{ content:" · "; }
+
+/*
+ * The row's buttons, at the end of the row in a cell of their own.
+ *
+ * §2.8: *"Call, WhatsApp and the menu at the end of the row, never over
+ * text."* The design's own page CSS positions them absolutely over the
+ * next-step cell with a shadow to hide what is under them; at 1440px that
+ * shadow is drawn across a sentence somebody is trying to read.
+ */
+.v2 .p-my-leads .d-id-leads td.v2-t-acts,
+.v2 .p-all-leads .d-id-leads td.v2-t-acts{ overflow:visible; }
+.v2 .p-my-leads .d-id-leads td.v2-t-acts .d-row-actions,
+.v2 .p-all-leads .d-id-leads td.v2-t-acts .d-row-actions{
+  position:static; transform:none; background:transparent; box-shadow:none;
+  padding-left:0; display:flex; gap:6px; justify-content:flex-end;
+}
+
+/* The stage pill's cell: no ellipsis. A pill either fits or it does not, and
+   "Interested .." with a text overflow after it reads like a bug. */
+.v2 .p-my-leads .d-id-leads td.v2-t-stage,
+.v2 .p-all-leads .d-id-leads td.v2-t-stage{ text-overflow:clip; }
+
+/* "No phone", in words and in the faintest ink — §2.4's seventh point. */
+.v2 .d-id-leads .v2-t-nophone{ color:var(--ink-4); font-weight:500; }
+
+/*
+ * The black bar above the call list.
+ *
+ * Picture 01, point 9: *"Black bar on top: leads ready to call, calls today
+ * with progress, Start calling."* `--hero` is the design's own near-black
+ * surface, the one the phone's bottom bar and the dark cards use, so this is
+ * not a new colour.
+ */
+.v2 .v2-callbar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 16px; margin-bottom:12px;
+  border-radius:var(--r-card);
+  background:var(--hero); color:var(--hero-ink);
+}
+.v2 .v2-callbar-ic{
+  flex:none; width:34px; height:34px; border-radius:11px;
+  display:grid; place-items:center;
+  background:rgba(255,255,255,.1); color:var(--hero-ink);
+}
+.v2 .v2-callbar-main{ flex:1; min-width:0; }
+.v2 .v2-callbar-head{ display:block; font-size:14.5px; font-weight:700; }
+.v2 .v2-callbar-sub{ display:block; font-size:12.5px; color:var(--hero-ink-2); }
+.v2 .v2-callbar-prog{ flex:none; width:190px; }
+.v2 .v2-callbar-count{
+  display:block; font-size:12px; font-weight:600; color:var(--hero-ink-2);
+  margin-bottom:5px; font-variant-numeric:tabular-nums;
+}
+.v2 .v2-callbar-rail{
+  display:block; height:6px; border-radius:999px;
+  background:rgba(255,255,255,.14); overflow:hidden;
+}
+.v2 .v2-callbar-fill{
+  display:block; height:100%; border-radius:999px; background:var(--accent);
+  transition:width .3s var(--ease, ease);
+}
+.v2 .v2-callbar-go{ flex:none; }
 
 /* The lead page: the design's inline styles, in one place. */
 .v2-leadpage{ min-width:0; }
@@ -2497,6 +2667,23 @@
 .v2-leadhand-why{ display:block; color:var(--ink-3); margin-top:2px; }
 /* The date keeps its width and stays on one line; the sentence wraps. */
 .v2-leadhand-when{ flex:none; white-space:nowrap; text-align:right; }
+/*
+ * A transfer that did not happen — cancelled, refused, or still waiting.
+ *
+ * Emir asked for these on 14 Nov, and in the same breath for them to read as
+ * not-completed rather than as a move. Two signals, because one is easy to
+ * miss: the whole row drops to the muted ink, and the outcome word itself is
+ * amber. The sentence says it a third time in words — "Transfer … ·
+ * cancelled" against "Transferred from … to …" — so nothing here depends on
+ * the reader noticing a colour.
+ *
+ * Three classes on the first selector, for the same reason as the row above:
+ * `.v2 .d-bold` would otherwise keep the names at full strength while the
+ * rest of the line greyed, which reads as a bug rather than a style.
+ */
+.v2 .v2-leadhand-off,
+.v2 .v2-leadhand-off .d-bold{ color:var(--ink-3); }
+.v2 .v2-leadhand-off .v2-leadhand-out{ color:var(--amber-ink); font-weight:600; }
 
 /* Two textareas the design sizes inline. */
 .v2-leadact-note,
@@ -3126,38 +3313,27 @@
 .v2 .d-set-nav button svg{ width:16px; height:16px; color:var(--ink-3) }
 .v2 .d-set-nav button.d-set-out svg{ color:var(--red-ink) }
 
-/* ── the leads table's buttons, at any window size ─────────────────────────
- * The table is 1,077px of `white-space:nowrap`, and its card scrolls
- * sideways below about 1,200px. So on a laptop, or in a zoomed browser, the
- * Call and WhatsApp buttons were cut off at the right edge — the two things
- * the screen exists for. Emir hit it within a minute of it going live.
- *
- * The last column sticks to the right edge instead. Where the table fits,
- * this does nothing at all; where it does not, the buttons stay put and the
- * columns scroll under them. The shadow only appears while there is
- * something scrolled underneath.
- */
-@media (min-width: 768px) {
-  .v2 .d-table.d-id-leads th:last-child,
-  .v2 .d-table.d-id-leads td:last-child {
-    position: sticky;
-    right: 0;
-    background: var(--surface);
-    box-shadow: -10px 0 10px -10px rgba(14, 26, 20, .18);
-  }
-  .v2 .d-table.d-id-leads tr:hover td:last-child { background: var(--surface-2) }
-  /* The longest text in the row, and the one that can afford two lines. */
-  .v2 .d-table.d-id-leads td:nth-child(3) { white-space: normal; min-width: 120px }
-}
-
 /*
- * Below about 1,400px the row cannot fit, so it gives up the one control
- * that repeats something else: the little open-the-lead arrow. The lead's
- * name is a link to the same page, so nothing is lost but the duplicate.
+ * ── the leads table's buttons used to be pinned to the right edge ────────
+ *
+ * They were, and a `min-width:120px` with `white-space:normal` sat on the
+ * project column beside them, because the table was wider than its card and
+ * scrolled sideways: the Call and WhatsApp buttons were cut off at the right
+ * edge and Emir hit it within a minute of it going live.
+ *
+ * Both are gone, and so is the sideways scroll they were propping up. §2.9
+ * of his 14 November list: *"Must fit at 1280, 1440 and 1920 px. No cut
+ * column, no sideways scroll, and NO column on top of another. Today at
+ * 1440 px the pinned 'Attention · next step' column covers Agent and Last
+ * contact."* A column pinned to an edge is a column drawn on top of whatever
+ * is under it; that is what he is looking at.
+ *
+ * What replaces them is the column budget up the file — `table-layout:fixed`
+ * with a width for every column — so the table cannot be wider than the card
+ * and nothing needs pinning. The `white-space:normal` went with it: at
+ * 1280px it let "Emaar Beachfront" wrap onto a second line and took every
+ * row from 52px to 67px, which is the whole of §2.6 in one declaration.
  */
-@media (min-width: 768px) and (max-width: 1399px) {
-  .v2 .d-table.d-id-leads td:last-child .d-btn.d-icon { display: none }
-}
 
 /* ── sign in, v2 (`design/web/login.html`) ─────────────────────────────────
  *
@@ -3446,46 +3622,28 @@
 }
 
 /*
- * The one cell in the leads table that is allowed to wrap.
+ * The Given cell wrapped onto two lines, and now it does not.
  *
- * Every other cell is `white-space:nowrap`, so each column is as wide as its
- * widest line and the table can only grow. A column holding "Yesterday 16:30
- * · 21 h ago" on one line pushed the owner's book 104px past the right edge
- * of the page at 1440px, out of the card it sits in. Wrapping makes the
- * column's smallest width its widest *word* instead of its widest line, so
- * it gives way when the rest of the table needs the room.
+ * It was `white-space:normal` with a 132px cap so that a column holding
+ * "Yesterday 16:30 · 21 h ago" could give way instead of pushing the table
+ * past the card — the right answer while the table was free to be any width.
+ * The table has a column budget now (`table-layout:fixed`, above), so no cell
+ * can push anything, and Emir asked for the opposite on 14 November, §2.5:
+ * *"Keep the 'Given' column, but on ONE line and narrow: '12 Nov · 2 d ago'."*
  *
- * Three classes and two elements, so it beats the ported
- * `.v2 .p-my-leads .d-id-leads td` — three classes and one.
- */
-.v2 .d-id-leads td.v2-given-cell,
-.v2 .d-id-leads th.v2-given-cell{
-  white-space:normal; max-width:132px; line-height:1.3;
-}
-.v2 .d-id-leads th.v2-given-cell{ max-width:none; }
-/*
- * Two lines: the day in the reading weight, how long it has waited under it.
- * On one line the pair ran to "12 Nov 18:57 · 2 days ago", which is the
- * length at which a column stops being scannable.
+ * So: one line, ellipsised if the column is ever too narrow for it. The
+ * rules that put the two spans on one line are up with the rest of the table
+ * budget; these are the base weights and colours they inherit.
  */
 .v2 .v2-given .v2-given-when{ display:block; font-weight:700; font-size:13.5px; line-height:1.3; }
 .v2 .v2-given .v2-given-ago{ display:block; font-size:12px; font-weight:500; margin-top:2px; opacity:.78; }
 .v2 .v2-given.v2-given-none .v2-given-when{ font-weight:600; font-size:12.5px; }
-
-/* Where the lead came from, under its name in the table. The design draws it
-   there, and it is the question asked straight after "who is this". */
-.v2 .d-id-leads td.d-nm .v2-t-from{
-  display:block; font-size:12px; font-weight:500; color:var(--ink-4); margin-top:3px;
-}
-/* The rows carry two lines in two columns now, so they need the height. */
-.v2 .d-id-leads tbody td{ padding-top:13px; padding-bottom:13px; }
 /* Name and source beside the face, as one block — on a span inside the cell,
    never on the cell, or the row's bottom border draws at the content's
    height and every name gets a short line under it. */
 .v2 .d-id-leads td.d-nm .v2-t-cell{ display:flex; align-items:center; gap:11px; min-width:0; }
 .v2 .d-id-leads td.d-nm .v2-t-who{ min-width:0; display:block; }
 .v2 .d-id-leads td.d-nm .v2-t-nm{ display:flex; align-items:center; gap:7px; min-width:0; }
-.v2 .d-id-leads td.d-nm .v2-t-from{ margin-top:2px; }
 /*
  * A number is read aloud, so it never wraps. "+971 50 123 / 4567" split over
  * two lines is how a digit gets dropped between them. The `td.d-t-mono`
@@ -3525,137 +3683,120 @@
 }
 
 /*
- * ── The country and language chips above the leads list ──────────────────
+ * The search box, narrower on these two screens than the design's 260px.
  *
- * Emir, 14 Nov 2026, over a picture of `All 26 · UAE 24 · USA/Canada 1 🌙 ·
- * India 1`: *"we need to add also this option, like country based leads,
- * language based leads, add also with flag, so our agents can see easily
- * which country they can filter the leads easily"* — and then, over the plain
- * table that arrived instead: *"it should be smooth... nice way... more cool
- * way, I don't like it anymore."*
- *
- * This block is at the very END of the file, which is the BASE layer. The
- * bottom half of this file is inside `@media (max-width:767px)` and three
- * fixes written for the computer have already landed in there and done
- * nothing at any width above 767px, in silence, with the suite green. The
- * phone's own version of these rows is in `v2-phone-a.css`.
- *
- * The pill is `ui.css`'s `.chip-opt` recipe — 999px radius, 13px/560, the
- * `--line-2` hairline, `--ink` when it is chosen — with one thing added that
- * `.chip-opt` has no notion of: the count, in a lighter weight beside the
- * name, which is what the reference picture shows and what makes a row of
- * these readable rather than shouty. No new colour is invented; orange is
- * `--accent` and appears only on the hairline of the chosen chip's hover.
- *
- * It is our own class rather than `.d-chip-opt` with a modifier on purpose:
- * `css-collisions.test.ts` reads a class that is both a bare rule and
- * somebody else's modifier as a collision, and it is right to.
+ * §2.7 asks for ONE filter row, and the owner's carries eight controls, the
+ * lead count and Export. Sixty pixels off the box is sixty pixels towards
+ * that; see `docs/v2/questions-filters.md` for what still does not fit at
+ * 1440 and what Emir would have to drop for it to.
  */
+.v2 .p-my-leads .d-filters .d-input-icon,
+.v2 .p-all-leads .d-filters .d-input-icon{ width:200px; }
+
 /*
- * Tight on purpose. Two rows of chips plus the honest footnote cost about
- * 100px of the height the table has to live in, and the table is the screen.
- * Measured at 1440x900: the card below gets 522px with these numbers.
+ * ── The Country and Language filters, as dropdowns in the filter row ─────
+ *
+ * They were two rows of chips with a "+16 more" on the end. Emir, 14 Nov
+ * 2026, on the fix list: *"Keep the country filter, as a dropdown with flags
+ * and counts in the filter row"*, *"Language is a dropdown with counts. No
+ * help sentence"*, *"Remove the chip rows, '+59 more' and all grey help
+ * sentences."* The two rows cost about 100px of the screen the table has to
+ * live in, and the table is the screen.
+ *
+ * Not a `<select>`: his list asks for flags, counts and a search inside, and
+ * a native dropdown holds none of the three. So the button is `.d-select`'s
+ * own geometry — 30px, 10px radius, the `--line-2` hairline — and the panel
+ * under it is `.d-menu`'s, with a search box at the top and one row per
+ * country.
+ *
+ * This block is in the BASE layer at the end of the file. The bottom half of
+ * this file is inside `@media (max-width:767px)` and three fixes written for
+ * the computer have already landed in there and done nothing above 767px, in
+ * silence, with the suite green.
  */
-.v2 .v2-facets{
-  display:flex; flex-direction:column; gap:5px;
-  margin:0 0 10px;
-}
-.v2 .v2-facet-row{
-  display:flex; align-items:flex-start; gap:12px; min-width:0;
-}
+.v2 .v2-filt{ position:relative; flex:none; }
 /*
- * "Country" / "Language", in the table-header voice — 11px uppercase with
- * letter-spacing, the same as the `<th>`s under it, so the two rows read as
- * part of the table rather than as a banner over it.
+ * The button. `.d-select d-sm` is 30px tall with a 10px radius and an inset
+ * hairline; this matches it exactly so the row reads as one row of controls
+ * rather than two kinds of thing.
  */
-.v2 .v2-facet-label{
-  flex:none; width:64px; padding-top:8px;
-  font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-  color:var(--ink-4);
-}
-.v2 .v2-facet-pills{
-  display:flex; flex-wrap:wrap; gap:6px; min-width:0; flex:1;
-}
-.v2 .v2-facet{
+.v2 .v2-filt-btn{
   display:inline-flex; align-items:center; gap:7px;
-  height:28px; padding:0 11px;
-  border:0; border-radius:999px;
-  font-size:13px; font-weight:560; white-space:nowrap;
+  height:30px; padding:0 10px;
+  border:0; border-radius:10px;
   background:var(--surface); color:var(--ink-2);
   box-shadow:inset 0 0 0 1px var(--line-2);
-  transition:box-shadow .15s, color .15s, background .15s;
+  font-size:13px; font-weight:560; white-space:nowrap;
   cursor:pointer;
 }
-.v2 .v2-facet:hover{ box-shadow:inset 0 0 0 1px var(--ink-3); color:var(--ink); }
-.v2 .v2-facet.v2-facet-on{
-  background:var(--ink); color:var(--bg); box-shadow:none;
+.v2 .v2-filt-btn:hover{ box-shadow:inset 0 0 0 1px var(--ink-3); color:var(--ink); }
+/* Picked. Orange is `--accent`, the design's one accent, and the soft fill
+   beside it is its own token — no new colour is invented here. */
+.v2 .v2-filt-btn.v2-filt-btn-on{
+  background:var(--accent-soft); color:var(--accent-ink);
+  box-shadow:inset 0 0 0 1px var(--accent);
 }
-.v2 .v2-facet.v2-facet-on:hover{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+.v2 .v2-filt-btn .v2-filt-text{ max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+.v2 .v2-filt-flag{ font-size:14px; line-height:1; }
+
+/* The panel. `.d-menu`'s surface, shadow and radius. */
+.v2 .v2-filt-panel{
+  position:absolute; z-index:60; top:calc(100% + 6px); left:0;
+  width:264px; max-width:min(264px, calc(100vw - 32px));
+  padding:8px;
+  border-radius:14px;
+  background:var(--surface);
+  box-shadow:var(--shadow-2), inset 0 0 0 1px var(--line);
+}
+/* The search inside, which is what makes 59 countries usable. */
+.v2 .v2-filt-find{
+  display:flex; align-items:center; gap:7px;
+  height:32px; padding:0 9px; margin-bottom:6px;
+  border-radius:9px;
+  background:var(--surface-2); color:var(--ink-3);
+}
+.v2 .v2-filt-find input{
+  flex:1; min-width:0; border:0; outline:none; background:transparent;
+  font:inherit; font-size:13px; color:var(--ink);
+}
+.v2 .v2-filt-list{ max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
+.v2 .v2-filt-row{
+  display:flex; align-items:center; gap:8px;
+  width:100%; min-height:32px; padding:0 9px;
+  border:0; border-radius:9px; background:transparent;
+  font-size:13px; font-weight:560; color:var(--ink-2);
+  text-align:left; cursor:pointer;
+}
+.v2 .v2-filt-row:hover{ background:var(--surface-2); color:var(--ink); }
+.v2 .v2-filt-row.v2-filt-row-on{ background:var(--accent-soft); color:var(--accent-ink); }
+.v2 .v2-filt-row .v2-filt-name{
+  flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
 /*
- * The count, a shade lighter than the name it sits beside. This is the whole
- * difference between a row of filters you scan and a row of filters you
- * read: the name is what you are looking for, the number is the answer.
+ * The count, a shade lighter than the name beside it. This is the whole
+ * difference between a list you scan and a list you read: the name is what
+ * you are looking for, the number is the answer.
  */
-.v2 .v2-facet .v2-facet-n{
-  font-size:12px; font-weight:450; font-variant-numeric:tabular-nums;
-  color:var(--ink-4);
+.v2 .v2-filt-row .v2-filt-n{
+  flex:none; font-size:12px; font-weight:450; color:var(--ink-4);
+  font-variant-numeric:tabular-nums;
 }
-.v2 .v2-facet.v2-facet-on .v2-facet-n{ color:var(--bg); opacity:.66; }
-/* The flag reads at 14px where the text reads at 13: an emoji sits small. */
-.v2 .v2-facet .v2-facet-flag{ font-size:14px; line-height:1; }
-/* 03:12 there. Warm, because it is the one thing on the chip that is a
-   warning — ring them now and you wake them up. */
-.v2 .v2-facet .v2-facet-moon{ font-size:11.5px; line-height:1; opacity:.85; }
-.v2 .v2-facet-more{
-  display:inline-flex; align-items:center;
-  height:28px; padding:0 8px; border:0; background:transparent;
-  font-size:12.5px; font-weight:650; color:var(--accent-ink);
-  cursor:pointer;
-}
-.v2 .v2-facet-more:hover{ text-decoration:underline; text-underline-offset:3px; }
-/*
- * "English is what the language field starts as…" — the honest footnote.
- * `contacts.language` is NOT NULL DEFAULT 'en', so a lead nobody asked reads
- * English, and this product has already been caught twice presenting a
- * default as a fact. See `docs/v2/questions-filters.md`.
- */
-.v2 .v2-facet-note{
-  margin:0 0 0 76px; font-size:11.5px; line-height:1.45; color:var(--ink-4);
+.v2 .v2-filt-row.v2-filt-row-on .v2-filt-n{ color:inherit; opacity:.7; }
+/* 03:12 there — ring them now and you wake them up. The hover says which. */
+.v2 .v2-filt-row .v2-filt-moon{ flex:none; font-size:11.5px; line-height:1; opacity:.85; }
+.v2 .v2-filt-none{
+  display:block; padding:10px 9px; font-size:12.5px; color:var(--ink-4);
 }
 
 /*
- * The hint under the search box, which says what it understands.
+ * The moon on the local clock — outside calling hours where they are.
  *
- * A box that quietly takes "asleep" is a box nobody types "asleep" into. It
- * sits under the field rather than in it, because the placeholder is already
- * as long as the field will hold.
+ * There was a flag in front of the phone number too, for a few hours on 14
+ * November. It cost 22px of a column that has to hold "+971 50 123 4567"
+ * without ever cutting it, and at 1440px the number came out as
+ * "+971 50 1…". The flags live in the Country dropdown now, which is where
+ * Emir asked for them.
  */
-.v2 .v2-searchbox{ position:relative; width:260px; }
-.v2 .v2-searchbox .v2-search-hint{
-  position:absolute; left:2px; top:100%; margin-top:4px;
-  font-size:10.5px; line-height:1.3; color:var(--ink-4);
-  white-space:nowrap; pointer-events:none;
-}
-/*
- * The hint hangs below the filter row, so the row needs the room for it —
- * on these two screens only. A bare `.v2 .d-filters` would have added 16px
- * under the filter row of every screen in the product that has one, for a
- * line that only exists here.
- */
-.v2 .p-my-leads .d-filters,
-.v2 .p-all-leads .d-filters{ padding-bottom:16px; }
-
-/*
- * The flag in front of the phone number, and the moon on the local clock.
- *
- * Both are facts about the number the row already holds — no new column, no
- * extra request — and on the owner's book, which has no local-time column at
- * all, the flag is the only place the country shows. A code `dialling.ts`
- * does not know produces no flag rather than a wrong one.
- */
-.v2 .d-id-leads td.d-t-mono .v2-t-flag{
-  margin-inline-end:7px; font-size:14px; line-height:1;
-}
 .v2 .d-localtime .v2-t-moon{ font-size:12px; line-height:1; }
 /* Outside calling hours there — the same hours `whenToCall()` recommends. */
 .v2 .d-localtime.v2-t-night{ color:var(--amber-ink); font-weight:600; }

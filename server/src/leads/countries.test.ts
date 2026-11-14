@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
@@ -83,7 +84,14 @@ describe('the dialling table matches the browser’s', () => {
    * This is the same trick as `schema-map.test.ts` and `config/env-docs.test.ts` —
    * a check that reads the source rather than trusting it.
    */
-  const file = path.join(process.cwd(), '..', 'web', 'src', 'lib', 'dialling.ts');
+  /* From this file, not from the working directory: `npm test` runs vitest
+     with the cwd set to `server/`, but a run started from the repository
+     root would look for `/home/.../web` one level too high and the whole
+     check would fail for the wrong reason. */
+  const file = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..', '..', '..', 'web', 'src', 'lib', 'dialling.ts',
+  );
   const source = readFileSync(file, 'utf8');
 
   const ROW = /^\s*(\d+):\s*\{\s*iso2:\s*'([A-Z]{2})',\s*name:\s*'([^']*)',\s*timeZone:\s*(?:'([^']*)'|null)(?:,\s*zoneLabel:\s*'([^']*)')?\s*\},?\s*$/gm;

@@ -1947,9 +1947,18 @@ const ROUTES: Route[] = [
       name: u.name,
       photoUrl: photoOf(u.id),
       openLeads: [4, 9, 14, 22][i % 4] as number,
-      language: i % 2 === 0 ? 'en' : 'ar',
+      /*
+       * `languages`, an array of words — the shape the real endpoint sends
+       * and the shape `TransferLead.tsx` reads. It said `language: 'en'`
+       * here, singular and a raw code, which crashed the transfer panel to a
+       * white screen until somebody guarded it, and made every preview lie
+       * about who speaks what. Never a raw code in front of a person either:
+       * §0 of Emir's list.
+       */
+      languages: i % 3 === 0 ? ['English', 'Arabic'] : i % 3 === 1 ? ['English', 'Russian'] : ['English'],
       markedToday: i % 3 === 0 ? 'office' : i % 3 === 1 ? 'outside' : null,
       onLeave: i === 3,
+      maxOpenLeads: 50,
     })),
   }) },
   { method: 'POST', pattern: /^\/api\/v2\/transfers$/, handler: ({ body }) => ({
@@ -2643,8 +2652,21 @@ const ROUTES: Route[] = [
     /* The real endpoint narrows by project name, which is how a project page
        asks for the leads that belong to it. */
     const project = query.get('project');
+    /* The country and language chips, read the same way the chips themselves
+       are counted — `originOf`, the browser's own dialling table — so a chip
+       in the preview narrows the list it says it narrows. */
+    const country = query.get('country');
+    const language = query.get('language');
     const matching = myLeadRows().filter((row) => {
       if (project && row.project_name !== project) return false;
+      if (country) {
+        const iso2 = originOf(row.phone_e164)?.iso2 ?? 'unknown';
+        if (iso2 !== country) return false;
+      }
+      if (language) {
+        const code = (row.language ?? '').trim().toLowerCase() || 'unknown';
+        if (code !== language) return false;
+      }
       if (tab === 'new') return row.stage_key === 'new_lead';
       if (tab === 'hot') return row.score_band === 'hot';
       if (tab === 'no_next_step') return row.next_step_at === null;
@@ -2672,9 +2694,21 @@ const ROUTES: Route[] = [
    * SQL over the whole book; see `server/src/leads/facets.ts`.
    */
   { method: 'GET', pattern: /^\/api\/my-leads\/facets$/, handler: ({ query }) => {
-    const rows = myLeadRows().filter((row) => {
-      const project = query.get('project');
-      return !project || row.project_name === project;
+    const project = query.get('project');
+    /* Each facet is counted over the list the *other* chip allows, exactly as
+       the server does it — or standing on one country would make every other
+       country read 0. */
+    const base = myLeadRows().filter((row) => !project || row.project_name === project);
+    const language = query.get('language');
+    const country = query.get('country');
+    const rows = base.filter((row) => {
+      if (!language) return true;
+      const code = (row.language ?? '').trim().toLowerCase() || 'unknown';
+      return code === language;
+    });
+    const langRows = base.filter((row) => {
+      if (!country) return true;
+      return (originOf(row.phone_e164)?.iso2 ?? 'unknown') === country;
     });
     const countries = new Map<string, { n: number; origin: ReturnType<typeof originOf> }>();
     for (const row of rows) {
@@ -2684,11 +2718,20 @@ const ROUTES: Route[] = [
       if (seen) seen.n += 1;
       else countries.set(key, { n: 1, origin });
     }
+    /* A chip that is chosen always comes back, even at zero — or picking the
+       UK and then Arabic makes the UK chip vanish from the row. The live
+       endpoint does the same; see `server/src/leads/facets.ts`. */
+    if (country && !countries.has(country)) {
+      const origin = base.map((row) => originOf(row.phone_e164))
+        .find((one) => one?.iso2 === country) ?? null;
+      countries.set(country, { n: 0, origin });
+    }
     const languages = new Map<string, number>();
-    for (const row of rows) {
+    for (const row of langRows) {
       const code = (row.language ?? '').trim().toLowerCase() || 'unknown';
       languages.set(code, (languages.get(code) ?? 0) + 1);
     }
+    if (language && !languages.has(language)) languages.set(language, 0);
     const LABELS: Record<string, string> = {
       en: 'English', ar: 'Arabic', ru: 'Russian', hi: 'Hindi', unknown: 'Not known',
     };
@@ -2718,7 +2761,7 @@ const ROUTES: Route[] = [
         return b.count - a.count || a.label.localeCompare(b.label);
       }),
       countryTotal: rows.length,
-      languageTotal: rows.length,
+      languageTotal: langRows.length,
       languageDefault: 'en',
     };
   } },
@@ -2731,6 +2774,11 @@ const ROUTES: Route[] = [
       overdue: rows.filter((r) => r.last_contact_at === null).length,
       no_next_step: rows.filter((r) => r.next_step_at === null).length,
       all: rows.length,
+      /* The black bar's two numbers. The live endpoint counts `call_logs`
+         against `DAILY_GOALS.calls`; the preview has no call log, so it
+         shows a plausible day against the same goal of 40. */
+      callsToday: 18,
+      callGoal: 40,
     };
   } },
   { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body }) => {
@@ -3428,38 +3476,68 @@ const ROUTES: Route[] = [
       new Date(row.assigned_at as string).getTime() - hours * 3_600_000,
     ).toISOString();
 
-    /* Every third lead has moved twice; every other even one was handed out
-       by the owner; the rest the CRM placed by itself. */
+    const handover = (over: Record<string, unknown>) => ({
+      kind: 'handover', toName: held, fromName: null, by: 'unknown', byName: null,
+      reason: null, note: null, outcome: null, decidedAt: null, ...over,
+    });
+
+    /*
+     * Every third lead has moved twice and also carries a cancelled request,
+     * because the cancelled and refused ones are what Emir found missing on
+     * 14 Nov and they have to be lookable-at; every other even one was handed
+     * out by the owner; the rest the CRM placed by itself.
+     */
     if (index % 3 === 0) {
       return {
         items: [
-          {
-            id: `h-${row.id}-1`, at: earlier(74), toName: 'Omar Farouk', fromName: null,
-            by: 'person', byName: 'Emir Dulovic', reason: null, note: null,
-          },
-          {
+          handover({
+            id: `h-${row.id}-1`, at: earlier(74), toName: 'Omar Farouk',
+            by: 'person', byName: 'Emir Dulovic',
+          }),
+          handover({
             id: `h-${row.id}-2`, at: earlier(26), toName: 'Priya Nair', fromName: 'Omar Farouk',
-            by: 'person', byName: 'Omar Farouk', reason: 'too_many', note: null,
-          },
-          {
+            by: 'person', byName: 'Omar Farouk', reason: 'too_many',
+          }),
+          handover({
+            id: `t-${row.id}-1`, at: earlier(20), kind: 'attempt', outcome: 'cancelled',
+            toName: 'Yousef Karim', fromName: 'Priya Nair', by: 'person', byName: 'Priya Nair',
+            reason: 'language', decidedAt: earlier(18),
+          }),
+          handover({
             id: `h-${row.id}-3`, at: row.assigned_at, toName: held, fromName: 'Priya Nair',
             by: 'person', byName: 'Priya Nair', reason: 'knows_project',
             note: 'She sold three in that tower.',
-          },
+          }),
+        ],
+      };
+    }
+    if (index % 5 === 1) {
+      /* A refused request, and one still waiting — the two other states. */
+      return {
+        items: [
+          handover({
+            id: `h-${row.id}-1`, at: row.assigned_at, by: 'person', byName: 'Emir Dulovic',
+          }),
+          handover({
+            id: `t-${row.id}-1`, at: earlier(-3), kind: 'attempt', outcome: 'refused',
+            toName: 'Omar Farouk', fromName: held, by: 'person', byName: held,
+            reason: 'too_many', decidedAt: earlier(-4),
+          }),
+          handover({
+            id: `t-${row.id}-2`, at: earlier(-6), kind: 'attempt', outcome: 'pending',
+            toName: 'Priya Nair', fromName: held, by: 'person', byName: held,
+            reason: 'leave',
+          }),
         ],
       };
     }
     return {
-      items: [{
+      items: [handover({
         id: `h-${row.id}-1`,
         at: row.assigned_at,
-        toName: held,
-        fromName: null,
         by: index % 2 === 0 ? 'person' : 'crm',
         byName: index % 2 === 0 ? 'Emir Dulovic' : null,
-        reason: null,
-        note: null,
-      }],
+      })],
     };
   } },
 

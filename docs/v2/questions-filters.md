@@ -1,6 +1,8 @@
 # The country and language filters on the leads screens
 
-*14 November 2026. Written while building the chips Emir asked for:*
+*14 November 2026. Rewritten the same day, after he looked at what was built.*
+
+*He asked for this:*
 
 > "we need to add also this option, like country based leads, language based
 > leads, add also with flag, so our agents can see easily which country they
@@ -12,8 +14,23 @@
 > "why about the country filter, language filter, it should be smooth… nice
 > way… more cool way, I don't like it anymore."
 
-This is what was built, how the numbers are worked out, and the two things
-the screen says plainly because they could otherwise be mistaken for facts.
+*It was built as two rows of chips. He looked at those a few hours later and
+kept the filtering — "country and language filter (it is live)" — and
+rejected the presentation, §2.3–2.5 of his fix list:*
+
+> "Keep the country filter, as a dropdown with flags and counts in the filter
+> row." · "Language is a dropdown with counts. No help sentence." · "Clean
+> search box only. Remove the hint line." · "Remove the chip rows, '+59 more'
+> and all grey help sentences."
+
+**So: two dropdowns in the one filter row, each with flags, counts, a search
+box inside and the moon where it is the middle of the night there.** Nothing
+behind them changed — the counting, the filtering and the awake/asleep search
+are the same code, and the chips cost about 100px of the screen the table has
+to live in.
+
+This is how the numbers are worked out, and the two things that could
+otherwise be mistaken for facts.
 
 ---
 
@@ -105,14 +122,15 @@ and recorded as English, and a lead nobody has ever spoken to, both read
 `en`. **The CRM cannot tell them apart**, and nothing in this build pretends
 otherwise:
 
-- The **English** chip is labelled English, and a line under the row says so
-  in words: *"English is what the language field starts as, so that chip also
-  holds every lead nobody has been asked."* It is on the screen, not in a
-  tooltip, because a default presented as a fact is the kind of number this
-  product has already been caught inventing.
-- A row whose language is blank gets its own **Not known** chip. Those exist
-  — an import that mapped no language column, a row written with an empty
-  string — and they are never folded into English.
+- A row whose language is blank gets its own **Not known** row in the
+  dropdown. Those exist — an import that mapped no language column, a row
+  written with an empty string — and they are never folded into English.
+- There *was* a grey line under the language chips saying so in words. It
+  went with the chips on 14 November (§2.4, *"No help sentence"*), so the
+  caveat now lives here and nowhere on the screen. **That is a real loss**:
+  "English 1,900" reads as a fact and is not one. The fix is a field that can
+  be empty, not a cleverer label, and it is a schema change on a live
+  database, so it is Emir's call — see "Still open".
 - `ar`, `ru`, `hi` and the rest *are* real signals: they are written by the
   AI extractor, by the Meta form mapping and by an agent editing "What the
   client wants".
@@ -156,17 +174,23 @@ Three notes on the matching:
 
 ## 4. What a chip's number counts
 
-Each chip's count is a **real query over the whole filtered list**, never the
+Each row's count is a **real query over the whole filtered list**, never the
 page — the shape of the `givenDays` counts beside the day headings.
 
 One deliberate exception, which is standard and which the owner's own
-reference picture already assumes: **a country chip's number ignores the
-country chip**, and a language chip's ignores the language chip. Otherwise
-choosing UAE makes every other country read 0 and there is no way to move
-from one country to another except Clear all. His picture reads
+reference picture already assumes: **a country's number ignores the country
+filter**, and a language's ignores the language filter. Otherwise choosing
+UAE makes every other country read 0 and there is no way to move from one
+country to another except Clear all. His picture reads
 `All 26 · UAE 24 · USA/Canada 1 · India 1`, and 24 + 1 + 1 = 26, which is the
 same arithmetic. Everything else in force — the tab, the agent, the stage,
-the project, the source, the search — narrows both rows.
+the project, the source, the search — narrows both lists.
+
+**A filter that is chosen always comes back, even at zero.** Pick the United
+Kingdom and then Arabic and no lead is both: without that rule the United
+Kingdom row vanishes from its own dropdown, the screen says "no lead fits
+these filters", and the name decays to the bare code "GB" because nothing
+left in the answer knows what GB is called.
 
 The tab strip above is deliberately **not** narrowed by the chips, exactly as
 it is not narrowed by the project or the stage filter today. Changing that
@@ -180,11 +204,13 @@ book. There is no parameter that widens it, and
 
 ---
 
-## 5. The table's header, which had stopped pinning
+## 5. The table now fits, and its header pins
 
 Not asked for, found on the way: on the build before this, the leads table's
 column headers scrolled away with the page. Measured at 1440px, owner's All
-leads — header top **206 before a scroll, −394 after 600px of it**.
+leads — header top **206 before a scroll, −394 after 600px of it**. Measured
+again here with the chip rows added, which push the table further down the
+page: **364 before, −236 after**. Same fault, same cause.
 
 The cause was `overflow-x:auto` on the card. CSS computes the *other* axis
 from `visible` to `auto` the moment one axis scrolls, so the card became a
@@ -192,32 +218,114 @@ scroll container in both directions and `position:sticky` resolved against
 the card — but the card had no height limit, so it never scrolled vertically
 and the header pinned to nothing.
 
-The fix is to let the card be the scroller it had already become, in both
-directions, with a height to scroll against. Both scrollbars now live on the
-card, the header pins to its top edge and the name column pins to its left,
-which is the spreadsheet Emir asked for: *"our all leads should be like move
-right left, same like sheet."*
+The first fix was to let the card be the scroller it had already become, in
+both directions, with a measured height — the spreadsheet he had asked for
+earlier: *"our all leads should be like move right left, same like sheet."*
+It pinned. Then he looked at it, and §2.9 of the fix list says the opposite:
 
-The height is **measured, not guessed**. `useSheetHeight` in `Leads.tsx`
-reads where the card really starts and gives it the rest of the window. A
-`calc(100dvh − 300px)` would have been a guess about chrome that moves: a tab
-strip, a filter row, two rows of chips, and a start-calling strip that is on
-Today and nowhere else. It is a `max-height`, never a `height`, so a list of
-three leads keeps the height of three leads instead of sitting in a tall
-empty box; and it stops shrinking at 360px, below which the page scrolls
-instead, because a 200px sheet is not a sheet.
+> "Must fit at 1280, 1440 and 1920 px. No cut column, no sideways scroll, and
+> NO column on top of another. Today at 1440 px the pinned 'Attention · next
+> step' column covers Agent and Last contact (table is 1411 px wide in 1148
+> px)."
 
-Measured after, in a real browser, scrolling the card 600px:
+He is describing what pinning buys you: a column that is always on screen is
+a column drawn on top of whatever is under it. **So it all came out** — the
+sideways scroll, the pinned name column, the pinned right-hand buttons and
+the measured height with them. With no scroll container the header sticks to
+the *page* again at the design's own `top: var(--tb-h)`, and needs no height
+to stick to.
 
-| | header before | after page scroll | after card scroll |
-|---|---|---|---|
-| 1440×900 owner | 343 | 323 (page had only 20px to give) | **343** |
-| 1440×900 agent | 413 | 393 | **413** |
-| 1024×768 owner | 343 | 323 | **343** |
-| 1024×768 agent | 453 | 368 | **453** |
+What makes it fit instead is a budget: `table-layout: fixed` with a width for
+every column, in pixels for the ones whose content is one length (a phone
+number is 160px at any window) and in shares for the ones that hold a name.
+The next step is the one column with no width — it takes whatever is left,
+which is how §2.2's *"wide and always readable"* is met. Below 1400px the
+row's Call and WhatsApp buttons drop their words and become their icons,
+because 176px of buttons is 176px the next step does not get.
 
-In every case the first body row moved up by 600px while the header did not
-move at all. That is pinning.
+Measured in a real browser, both roles, every lead row on screen:
+
+| | table / card | rows | lead | next step | header after a 600px page scroll |
+|---|---|---|---|---|---|
+| 1280 owner | 972 in 988 | 52px | 230px | 128px | 68 (pinned under the top bar) |
+| 1280 agent | 972 in 988 | 52px | 230px | 158px | 68 |
+| 1440 owner | 1132 in 1148 | 52px | 230px | 250px | 68 |
+| 1440 agent | 1132 in 1148 | 52px | 230px | 196px | 68 |
+| 1920 owner | 1612 in 1628 | 52px | 230px | 617px | 68 |
+| 1920 agent | 1612 in 1628 | 52px | 230px | 640px | 68 |
+
+At every width the card's scroll width equals its client width — nothing
+scrolls sideways — no cell's box starts before the previous one ends, and
+nothing is drawn past the card's right edge. Eleven to thirteen lead rows are
+on screen at once, against the four Emir counted.
+
+**Nothing is cut at 1440 or 1920**: not a name, not a number, not a local
+time, not a next step, on either screen. That was checked by comparing every
+cell's content width with the box drawing it, not by eye.
+
+### The order of priority, when it does not all fit
+
+The first budget gave the next step 262px at 1440 because §2.2 calls it the
+widest column, and took it off the Lead, which came out as "Sara …" and
+"Mariam Al S…". That is the complaint Emir opened his whole list with. So
+the order is now:
+
+1. **The name**, always and at every width. It is how an agent finds somebody
+   in a list of two thousand. Measured at 221px for the worst case — a face,
+   "Mariam Al Suwaidi" and a VIP tag — and given 230px in **pixels**, not a
+   share, because its need does not change with the window.
+2. **The phone number**, 148px, for the same reason: it is dictated aloud and
+   a cut number is a wrong number.
+3. **The next step**, which takes everything left over.
+4. **The project**, which gives way first. Its second line carries the budget,
+   and the name is repeated on the lead page and in the quick panel.
+
+**What did not fit, and only at 1280.** The owner's book has ten columns in
+988px, so its next step ellipsises a long sentence ("Overdue 14 Nov, 09:24"
+shows as "Overdue 14 Nov, 09…"), and on both screens the project shows as
+"Emaar Bea…" with its budget line whole underneath. Names, numbers and local
+times are not cut at 1280 either. If 1280 matters more than it appears to,
+the lever is to drop a column from the owner's book — Last contact is the one
+the Attention column half repeats — and that is Emir's call, not mine.
+
+---
+
+## 5b. The rest of §2 and §3, point by point
+
+| Point | What it asks | What it got |
+|---|---|---|
+| 2.1 | Lead · Phone · Project · Stage · Given · Local time · Next step · buttons, rows ~52px | That order; rows measured at 52px at all three widths |
+| 2.2 | Round initials + name, VIP tag beside it | Already so. The source line that sat under the name has gone — it was a third of the row's height |
+| 2.3 | Project: name on line 1, unit and budget in grey on line 2 | Two lines, and the row is still 52px |
+| 2.4 | Next step wide and always readable; red overdue, grey when empty | The one column with no fixed width. 206–573px depending on the window; red and grey as before |
+| 2.5 | Given on ONE line, narrow: "12 Nov · 2 d ago" | One line. Two spans joined by the design's middle dot in CSS, so the phone card can still stack them |
+| 2.6 | ~52px rows, 12 leads on a screen | 52px. 13 lead rows visible at 1440×1000, against the four Emir counted |
+| 2.7 | One filter row | One row of controls; the lead count and Export wrap to a short second line on the owner's book. See "Still open" §5 |
+| 2.8 | Call, WhatsApp and ⋯ at the end of the row, never over text | Their own cell at the end. The design's own CSS positioned them over the next step with a shadow across it |
+| 2.9 | Fit at 1280, 1440, 1920 — no cut column, no sideways scroll, no overlap | Measured at all three, both roles. See §5 |
+| 2.10 | Why some rows show "–" for phone | Answered in §7 below. The cell now says "No phone" and drops the Call button |
+| 3.1 | Agent column with photo and name | Photo and **first** name, as picture 02 draws it; the whole name on hover |
+| 3.2 | Filter by agent, with counts | The Agent dropdown was already there |
+| 3.4 | "12 selected" with Move to agent, Back to Incoming, Cancel | Those three. "Move to Incoming" was reworded to "Back to Incoming", which is what it does |
+| 3.5 | Owner tabs: All, Going cold, Overdue, No next step, VIP, Lost, Won | All seven |
+| 9 (pic 01) | Black bar: leads ready to call, calls today with progress, Start calling | All three. `callsToday` and `callGoal` come back with the tab counts, from `call_logs` and `DAILY_GOALS.calls` — no invented denominator |
+
+**What the owner's book gave up to fit.** Picture 02 draws no buttons on its
+rows at all. The build kept the ⋯ menu and dropped Call and WhatsApp from the
+owner's row only: three buttons there would have left the next step 112px at
+1440px. A row click opens the quick panel, where both are. The agent's list
+keeps all three, and loses their words below 1400px rather than lose the next
+step.
+
+**The flag in front of the phone number** lasted a few hours. It cost 22px of
+a column that must never cut a number, and at 1440px the number came out as
+"+971 50 1…". The flags are in the Country dropdown, where he asked for them.
+
+**Local time says a city**, as picture 01 draws it — "Dubai 15:59",
+"London 11:59", "Karachi 16:59". It said the country, and "United Kingdom
+06:57" does not fit a 116px column. The city is the IANA zone's own last
+segment, so nothing is invented, and a multi-zone country still says the city
+the table names (Moscow, New York).
 
 ---
 
@@ -237,15 +345,86 @@ move at all. That is pinning.
    turn up under Unknown — which the Unknown chip now makes visible for the
    first time.
 
-3. **"Russia / Kazakhstan", "USA / Canada".** Two countries under one chip,
-   because `+7` and `+1` do not distinguish them without going deeper into
-   the number than this table goes. The name says both rather than picking
-   one, and the clock is labelled with the city it belongs to — "15:30 in
-   Moscow" — rather than implying a country spanning eleven zones is on one
-   clock. If Emir wants Kazakhstan split out, `libphonenumber-js` on the
-   server can do it, at the cost of the browser's flag no longer agreeing
-   with the chip unless the browser gets the same knowledge.
+3. **"Russia / Kazakhstan" and "USA / Canada" are one row in the filter,
+   while the lead card already says "Canada · Ontario".**
 
-4. **How many chips before the row folds.** Eight today, then "+N more". His
-   own export runs fifty-odd countries, and fifty pills is a wall rather than
-   a filter. Easy to change.
+   `web/src/lib/dialling.ts` learned to split them on 14 November: +1 by the
+   three digits after it into the USA, Canada and twenty-five Caribbean
+   countries with the state or province, and +7 into Russia and Kazakhstan
+   with Russia's real regional zones. The filter does not, because the
+   grouping has to come from the server — the *filter* is SQL, and
+   `?country=CA` needs a clause that matches Canadian area codes.
+
+   Making them agree means duplicating that whole area table into
+   `server/src/leads/countries.ts`, plus a parity check that can read
+   `spread('205 251 256', 'US', …)` calls rather than the flat literal the
+   present one diffs. **Deliberately not done**: it is a morning's careful
+   work with a real chance of a chip reading "Canada 3" over American leads,
+   and a coarse grouping is honest where a wrong one is not. Filtering by
+   "USA / Canada" still returns every one of them.
+
+   The shape of the fix, for whoever picks it up: move `AREAS` to the server,
+   leave the browser its own copy, replace the text diff in
+   `countries.test.ts` with a check that runs both tables over the same
+   numbers, and extend `countryClause` to emit a country's area-code
+   prefixes as well as its dial code.
+
+4. **"Not known" is only the blanks.** The dropdown's English row holds
+   every lead nobody was asked, and nothing on the screen says so any more.
+   See §2. This is the same question as 1, said from the other end.
+
+5. **The owner's filter row is eight controls wide.** Picture 02 draws five —
+   search, Agent, Stage, Project, Source, Added — and §3 says "same as section
+   2, plus", which adds Country and Language. At 1440px that is one row of
+   dropdowns with the lead count and Export wrapping onto a short second
+   line. It fits and it reads, but it is not the single row the picture draws.
+   If he wants one line at 1440, something has to go: Source and Added are the
+   two he uses least.
+
+6. **1280px on the owner's book.** Ten columns in 988px. Nothing is cut off
+   the card and nothing overlaps, but the next step ellipsises a long
+   sentence and so does a long name. See §5.
+
+7. **No country or language filter on the phone.** §0 says each phone screen
+   is its own layout from its picture, and the picture he redrew is the
+   computer's. A `?country=GB` link opening on a phone shows the filter as one
+   removable pill so it is never a dead end, but there is no way to *set* one
+   there. It wants designing, not inheriting.
+
+---
+
+## 7. §2.10 — the "–" in the phone column
+
+He asked whether the first rows of All leads are missing their number in the
+data or only failing to draw it. **In the data I can reach, no contact is
+missing a number at all:**
+
+```sql
+SELECT COUNT(*) AS contacts,
+       SUM(phone_e164 IS NULL) AS phone_null,
+       SUM(phone_e164 = '')    AS phone_blank
+  FROM contacts WHERE deleted_at IS NULL;
+-- 2045, 0, 0
+```
+
+So the "–" cannot be reproduced here, and the renderer cannot cause it: the
+cell printed "–" only when `phone_e164` was NULL or empty, and `spacedE164`
+falls back to the raw number for any country it does not recognise — it
+cannot blank a number that exists.
+
+**The conclusion is that those rows genuinely have no number**, and the names
+beside them support it: "TECHNICAL ANALYSIS.", "Rubbie Realtors",
+"CHOUDHARI" are an imported spreadsheet in which some rows are not people.
+Run this on the live database to settle it, and to see what they are:
+
+```sql
+SELECT c.full_name, c.email, o.source, o.created_at
+  FROM opportunities o JOIN contacts c ON c.id = o.contact_id
+ WHERE o.deleted_at IS NULL AND c.deleted_at IS NULL
+   AND (c.phone_e164 IS NULL OR c.phone_e164 = '')
+ ORDER BY o.created_at DESC LIMIT 20;
+```
+
+Either way the screen is honest about it now: the cell says **"No phone"** in
+grey rather than "–", and the row shows no Call button, because pressing Call
+on a lead there is no number for is a dead end.

@@ -115,12 +115,40 @@ describeWithDb('who has had this lead', () => {
   interface Step {
     id: string;
     at: string;
+    kind: 'handover' | 'attempt';
     toName: string | null;
     fromName: string | null;
     by: 'person' | 'crm' | 'unknown';
     byName: string | null;
     reason: string | null;
     note: string | null;
+    outcome: string | null;
+    decidedAt: string | null;
+  }
+
+  /** One row of `lead_transfers`, exactly as the real paths write them. */
+  async function requested(
+    lead: Lead,
+    from: string,
+    to: string,
+    status: 'pending' | 'needs_approval' | 'accepted' | 'refused' | 'cancelled' | 'expired',
+    at: Date,
+    over: { reason?: string; note?: string | null; decidedAt?: Date | null } = {},
+  ): Promise<string> {
+    const id = newId();
+    const decided = over.decidedAt === undefined
+      ? (status === 'pending' || status === 'needs_approval' ? null : at)
+      : over.decidedAt;
+    await execute(
+      `INSERT INTO lead_transfers
+         (id, opportunity_id, from_user_id, to_user_id, reason, note, status, decided_at, requested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, lead.id, from, to, over.reason ?? 'too_many', over.note ?? null, status,
+        decided === null ? null : sql(decided), sql(at),
+      ],
+    );
+    return id;
   }
 
   async function chain(leadId: string, cookie: string): Promise<Step[]> {
@@ -197,38 +225,141 @@ describeWithDb('who has had this lead', () => {
     );
 
     const steps = await chain(lead.id, await signIn(base, boss));
-    expect(steps).toHaveLength(3 - 1);
+    expect(steps, 'two hand-outs; the accepted request is not a line of its own').toHaveLength(2);
     expect(steps[0]!.reason, 'the first hand-out was not a transfer').toBeNull();
     expect(steps[1]!.reason).toBe('knows_project');
     expect(steps[1]!.note).toBe('He sold three there.');
   });
 
-  it('never shows a hand-over twice, and ignores a refused request', async () => {
+  it('never shows the same hand-over twice', async () => {
     /*
      * `lead_assignments` and `lead_transfers` can both describe the same move.
-     * The chain is the assignments; a transfer only annotates one of them. So
-     * a refused request — which is not a hand-over at all — must leave no
-     * line and no reason behind it.
+     * The chain is the assignments; an **accepted** transfer only annotates
+     * one of them with its reason, and never becomes a line of its own.
      */
     const boss = await createTestUser({ role: 'owner', name: 'Emir Dulovic' });
     const talha = await createTestUser({ role: 'agent', name: 'Talha Khan' });
     const raj = await createTestUser({ role: 'agent', name: 'Raj Mehta' });
-    const at = new Date(Date.UTC(2026, 10, 10, 6, 0, 0));
+    const first = new Date(Date.UTC(2026, 10, 10, 6, 0, 0));
+    const moved = new Date(Date.UTC(2026, 10, 12, 7, 15, 0));
 
-    const lead = await aLead(talha.id, at);
-    await handedTo(lead, talha.id, boss.id, at);
-    for (const status of ['pending', 'refused', 'cancelled', 'expired'] as const) {
-      await execute(
-        `INSERT INTO lead_transfers
-           (id, opportunity_id, from_user_id, to_user_id, reason, status, decided_at, requested_at)
-         VALUES (?, ?, ?, ?, 'too_many', ?, ?, ?)`,
-        [newId(), lead.id, talha.id, raj.id, status, sql(at), sql(at)],
-      );
-    }
+    const lead = await aLead(raj.id, moved);
+    await handedTo(lead, talha.id, boss.id, first, 'reassigned');
+    await handedTo(lead, raj.id, talha.id, moved);
+    await requested(lead, talha.id, raj.id, 'accepted', first, { decidedAt: moved });
 
     const steps = await chain(lead.id, await signIn(base, boss));
-    expect(steps, 'one hand-out, four requests, one line').toHaveLength(1);
-    expect(steps[0]!.reason).toBeNull();
+    expect(steps, 'two hand-outs and one accepted request: two lines').toHaveLength(2);
+    expect(steps.filter((one) => one.kind === 'attempt')).toHaveLength(0);
+  });
+
+  /* ── 2b. the transfers that did not happen ────────────────────────── */
+
+  it('shows a cancelled transfer, with from, to, date, time and reason', async () => {
+    /*
+     * Emir, 14 Nov, with a real lead in front of him: *"show every transfer,
+     * also cancelled and refused ones, with from, to, date, time and reason.
+     * Today a cancelled transfer (Test Agents to Tej, 13 Nov) does not show
+     * on the lead."* It did not, because the query read
+     * `status = 'accepted'`. A cancelled request is the record of a manager
+     * pulling a lead back and it was invisible.
+     */
+    const boss = await createTestUser({ role: 'owner', name: 'Emir Dulovic' });
+    const sender = await createTestUser({ role: 'agent', name: 'Test Agents' });
+    const tej = await createTestUser({ role: 'agent', name: 'Tej Singh' });
+    const given = new Date(Date.UTC(2026, 10, 12, 6, 0, 0));
+    const asked = new Date(Date.UTC(2026, 10, 13, 6, 5, 0));
+    const pulled = new Date(Date.UTC(2026, 10, 13, 12, 20, 0));
+
+    const lead = await aLead(sender.id, given);
+    await handedTo(lead, sender.id, boss.id, given);
+    await requested(lead, sender.id, tej.id, 'cancelled', asked, {
+      reason: 'too_many', note: 'Changed my mind.', decidedAt: pulled,
+    });
+
+    const steps = await chain(lead.id, await signIn(base, boss));
+    expect(steps, 'the hand-out and the cancelled request').toHaveLength(2);
+    const attempt = steps[1]!;
+    expect(attempt.kind).toBe('attempt');
+    expect(attempt.outcome).toBe('cancelled');
+    expect(attempt.fromName).toBe('Test Agents');
+    expect(attempt.toName).toBe('Tej Singh');
+    expect(attempt.reason).toBe('too_many');
+    expect(attempt.note).toBe('Changed my mind.');
+    /* Dated by when it was asked for — the date an agent means by "the
+       transfer date" — with when it ended sent alongside. */
+    expect(Math.abs(new Date(attempt.at).getTime() - asked.getTime())).toBeLessThan(1_000);
+    expect(Math.abs(new Date(attempt.decidedAt as string).getTime() - pulled.getTime()))
+      .toBeLessThan(1_000);
+  });
+
+  it('shows a refused one, and one still waiting, in date order', async () => {
+    const boss = await createTestUser({ role: 'owner', name: 'Emir Dulovic' });
+    const talha = await createTestUser({ role: 'agent', name: 'Talha Khan' });
+    const raj = await createTestUser({ role: 'agent', name: 'Raj Mehta' });
+    const tej = await createTestUser({ role: 'agent', name: 'Tej Singh' });
+    const given = new Date(Date.UTC(2026, 10, 10, 6, 0, 0));
+    const refusedAt = new Date(Date.UTC(2026, 10, 11, 6, 0, 0));
+    const waitingAt = new Date(Date.UTC(2026, 10, 13, 6, 0, 0));
+
+    const lead = await aLead(talha.id, given);
+    await handedTo(lead, talha.id, boss.id, given);
+    await requested(lead, talha.id, tej.id, 'refused', refusedAt, { reason: 'language' });
+    await requested(lead, talha.id, raj.id, 'pending', waitingAt, { reason: 'leave' });
+
+    const steps = await chain(lead.id, await signIn(base, boss));
+    expect(steps.map((one) => one.kind)).toEqual(['handover', 'attempt', 'attempt']);
+    expect(steps[1]!.outcome).toBe('refused');
+    expect(steps[1]!.reason).toBe('language');
+    expect(steps[2]!.outcome).toBe('pending');
+    /* Still waiting, so there is genuinely no decision time. It is sent as
+       null rather than filled in with the request time. */
+    expect(steps[2]!.decidedAt).toBeNull();
+  });
+
+  it('a real cancel through the transfers endpoint lands on the lead', async () => {
+    /*
+     * The whole path, not hand-written rows: the owner hands the lead out,
+     * the agent asks to pass it on, then takes the request back. That is
+     * exactly the case Emir found missing.
+     */
+    const boss = await createTestUser({ role: 'owner', name: 'Emir Dulovic' });
+    const sender = await createTestUser({ role: 'agent', name: 'Test Agents' });
+    const tej = await createTestUser({ role: 'agent', name: 'Tej Singh' });
+    const lead = await aLead(null, null);
+
+    const bossCookie = await signIn(base, boss);
+    const post = (path: string, cookie: string, body: unknown) => fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const gave = await post('/api/incoming/assign', bossCookie, {
+      opportunityIds: [lead.id], agentUserId: sender.id,
+    });
+    expect(gave.status, await gave.clone().text()).toBe(200);
+
+    const senderCookie = await signIn(base, sender);
+    const asked = await post('/api/v2/transfers', senderCookie, {
+      opportunityId: lead.id, toUserId: tej.id, reason: 'too_many',
+    });
+    expect(asked.status, await asked.clone().text()).toBe(201);
+    const request = (await asked.json()) as { id: string };
+
+    const took = await post(`/api/v2/transfers/${request.id}/cancel`, senderCookie, {});
+    expect(took.status, await took.clone().text()).toBe(200);
+
+    const steps = await chain(lead.id, bossCookie);
+    expect(steps).toHaveLength(2);
+    expect(steps[0]!.kind, 'the owner handing it out').toBe('handover');
+    expect(steps[1]!.kind, 'the cancelled request, which used to vanish').toBe('attempt');
+    expect(steps[1]!.outcome).toBe('cancelled');
+    expect(steps[1]!.fromName).toBe('Test Agents');
+    expect(steps[1]!.toName).toBe('Tej Singh');
+    expect(steps[1]!.reason).toBe('too_many');
+    /* The lead did not move: it is still with the agent it was given to. */
+    expect(steps[0]!.toName).toBe('Test Agents');
   });
 
   /* ── 3. the CRM is not a person ───────────────────────────────────── */

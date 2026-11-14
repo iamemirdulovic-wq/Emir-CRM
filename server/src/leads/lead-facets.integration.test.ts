@@ -237,6 +237,38 @@ describeWithDb('country and language chips', () => {
     ]);
   });
 
+  it('keeps a chosen chip in the answer even when the other chip empties it', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await aLead(agent.id, { phone: '+971501110021', language: 'ar' });
+    await aLead(agent.id, { phone: '+447700900994', language: 'en' });
+    const cookie = await signIn(base, agent);
+
+    /* The UK, and Arabic: no lead is both. The UK chip must still come back,
+       at zero, or it vanishes from the row and there is no way to see which
+       filter to take off — and its name decays to the bare code "GB". */
+    const facets = await get<LeadFacets>(
+      '/api/my-leads/facets?tab=all&country=GB&language=ar', cookie,
+    );
+    const gb = facets.countries.find((one) => one.iso2 === 'GB');
+    expect(gb).toBeDefined();
+    expect(gb!.count).toBe(0);
+    expect(gb!.name).toBe('United Kingdom');
+    expect(gb!.flag).toBe('🇬🇧');
+
+    const arabic = facets.languages.find((one) => one.code === 'ar');
+    expect(arabic).toBeDefined();
+    expect(arabic!.count).toBe(0);
+    expect(arabic!.label).toBe('Arabic');
+  });
+
+  it('does not invent a chip for a country nobody could have meant', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await aLead(agent.id, { phone: '+971501110022' });
+    const cookie = await signIn(base, agent);
+    const facets = await get<LeadFacets>('/api/my-leads/facets?tab=all&country=zz', cookie);
+    expect(facets.countries.map((one) => one.iso2)).toEqual(['AE']);
+  });
+
   /* ── search ────────────────────────────────────────────────────────────── */
 
   it('searches by country, by dialling code and by language', async () => {
@@ -282,6 +314,65 @@ describeWithDb('country and language chips', () => {
       .toEqual(['Los Angeles', 'Sydney']);
     /* And no lead is in both answers at once. */
     expect(names(asleep.items).filter((one) => names(awake.items).includes(one))).toEqual([]);
+  });
+
+
+  /* ── Added, and Export ─────────────────────────────────────────────────── */
+
+  it('narrows by when the lead arrived, in Dubai days', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const old = await aLead(agent.id, { phone: '+971501110031', name: 'Months ago' });
+    await execute('UPDATE opportunities SET created_at = DATE_SUB(NOW(3), INTERVAL 60 DAY) WHERE id = ?', [old]);
+    await aLead(agent.id, { phone: '+971501110032', name: 'Just now' });
+    const cookie = await signIn(base, agent);
+
+    const today = await get<{ total: number; items: Array<{ full_name: string }> }>(
+      '/api/my-leads?tab=all&added=today', cookie,
+    );
+    expect(today.items.map((one) => one.full_name)).toEqual(['Just now']);
+    const month = await get<{ total: number }>('/api/my-leads?tab=all&added=month', cookie);
+    expect(month.total).toBe(1);
+    const any = await get<{ total: number }>('/api/my-leads?tab=all', cookie);
+    expect(any.total).toBe(2);
+  });
+
+  it('refuses the export to an agent, and gives it to the owner', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const owner = await createTestUser({ role: 'owner' });
+    await aLead(agent.id, { phone: '+971501110033', name: 'Exported', language: 'ar' });
+
+    const refused = await fetch(`${base}/api/my-leads/export.csv?tab=all`, {
+      headers: { cookie: await signIn(base, agent) },
+    });
+    /* The fence is the server's, not a hidden button: `requireAdmin` and
+       `requirePermission('export')`, exactly as the list export has. */
+    expect(refused.status).toBeGreaterThanOrEqual(400);
+
+    const allowed = await fetch(`${base}/api/my-leads/export.csv?tab=all`, {
+      headers: { cookie: await signIn(base, owner) },
+    });
+    expect(allowed.status).toBe(200);
+    expect(allowed.headers.get('content-type')).toContain('text/csv');
+    const body = await allowed.text();
+    expect(body).toContain('Exported');
+    /* Never a raw code in a file somebody opens in Excel — §0 of the fix
+       list. "ar" is written out as Arabic, and the country is read off the
+       number the same way the dropdown counts it. */
+    expect(body).toContain('Arabic');
+    expect(body).not.toMatch(/,ar,/);
+    expect(body).toContain('UAE');
+  });
+
+  it('counts the calls the black bar shows, for the person reading it', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await aLead(agent.id, { phone: '+971501110034' });
+    const counts = await get<{ callsToday: number; callGoal: number }>(
+      '/api/my-leads/counts', await signIn(base, agent),
+    );
+    /* No calls logged, so none are claimed. The goal is the server's own
+       `DAILY_GOALS.calls`, never a number written into the page. */
+    expect(counts.callsToday).toBe(0);
+    expect(counts.callGoal).toBe(40);
   });
 
   /* ── the chips narrow the tabs too ─────────────────────────────────────── */

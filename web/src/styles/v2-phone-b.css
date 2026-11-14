@@ -667,3 +667,420 @@
      and the title gives way, rather than the chip wrapping to its own line. */
   .v2.v2-phone .p-calendar .d-plan-row > .d-chip { flex: none; font-size: 11px; }
 }
+
+/*
+ * ══ THE TWO PHONE HOME SCREENS ═════════════════════════════════════════════
+ *
+ * `design/screens/Main.dc.html` (the agent's My Day) and `OwnerHome.dc.html`
+ * (the owner's Home), plus the owner's change list of 14 Nov — pictures 07
+ * and 08. Written here rather than in `v2-phone-a.css` because two people are
+ * in this repository at once and that file belongs to somebody else.
+ *
+ * The one colour change the owner asked for on the phone: where the design is
+ * green, this is black and orange. Everything else — the order of the blocks,
+ * their sizes, the position of the buttons and the words on them — is the
+ * design's.
+ *
+ * Every selector starts `.v2.v2-phone` and every rule is inside the media
+ * query, for the reasons at the head of this file.
+ */
+@media (max-width: 767px) {
+  /* ── the greeting ──────────────────────────────────────────────────────
+     "Good afternoon, **Rocky**" — the name in grey, as both designs draw it.
+     Three classes, so it beats `.v2-hi span`, which is the date. */
+  .v2.v2-phone .v2-b-hi-line {
+    font-size: inherit; font-weight: inherit; letter-spacing: inherit;
+    color: var(--ink);
+  }
+  .v2.v2-phone .v2-b-hi-name {
+    font-size: inherit; font-weight: inherit; letter-spacing: inherit;
+    color: var(--ink-3);
+  }
+
+  /* ══ the banner, on both homes ═══════════════════════════════════════════
+   *
+   * A picture the width of the screen with the words over it, and dots under
+   * it. 168px tall and 22px round, the prototype's own numbers.
+   */
+  .v2.v2-phone .v2-b-ban { display: flex; flex-direction: column; gap: 10px; }
+  /*
+   * The strip is a scroller that snaps, not a translated row: a thumb pushes
+   * it along with no handlers of ours, and the slides waiting their turn are
+   * inside something the browser knows scrolls sideways — which is also what
+   * keeps `npm run polish` from reading them as content hanging off the
+   * right-hand edge of the screen.
+   */
+  .v2.v2-phone .v2-b-ban-win {
+    position: relative; height: 168px;
+    display: flex;
+    border-radius: 22px;
+    box-shadow: var(--shadow-2);
+    overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .v2.v2-phone .v2-b-ban-win::-webkit-scrollbar { display: none; }
+  .v2.v2-phone .v2-b-ban-slide {
+    position: relative; flex: 0 0 100%; min-width: 0; height: 100%;
+    scroll-snap-align: start; scroll-snap-stop: always;
+    display: block; color: #FFFFFF; text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-ban-pic { position: absolute; inset: 0; display: block; }
+  .v2.v2-phone .v2-b-ban-art {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; display: block;
+    object-fit: cover;
+  }
+  /* Dark on the left so the words hold, clear on the right so the picture
+     still reads as a picture. The prototype's own gradient. */
+  .v2.v2-phone .v2-b-ban-wash {
+    position: absolute; inset: 0; display: block;
+    background: linear-gradient(90deg,
+      rgba(10, 11, 13, .88) 0%, rgba(10, 11, 13, .58) 58%, rgba(10, 11, 13, 0) 100%);
+  }
+  /*
+   * The words sit in a 136px box (168 less the 16px top and bottom), and all
+   * four pieces have to fit inside it whatever the owner wrote: a label, two
+   * lines of headline, two lines of text and a button. The sizes below are
+   * the largest that add up to 136 in the worst case, which is why they are a
+   * hair under the prototype's.
+   */
+  .v2.v2-phone .v2-b-ban-txt {
+    position: absolute; left: 18px; top: 16px; bottom: 16px; right: 104px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-b-ban-tag {
+    flex: none;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .v2.v2-phone .v2-b-ban-title {
+    flex: 0 1 auto; min-height: 0;
+    font-size: 18px; font-weight: 800; line-height: 1.18;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-b-ban-body {
+    flex: 0 1 auto; min-height: 0;
+    font-size: 11.5px; line-height: 1.3; color: rgba(255, 255, 255, .82);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .v2.v2-phone .v2-b-ban-go {
+    margin-top: auto; flex: none;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 700;
+    padding: 6px 11px; border-radius: 12px;
+    background: #FFFFFF; color: #16151A;
+  }
+  .v2.v2-phone .v2-b-ban-dots {
+    display: flex; gap: 6px; justify-content: center; align-items: center;
+    min-height: 8px;
+  }
+  /*
+   * The dot a thumb hits is 28px; the dot an eye sees is the design's 8px
+   * pill drawn on a pseudo-element. The negative margin pulls the hit area
+   * back out of the layout, so the row on the screen is 8px tall with 6px
+   * between the dots — exactly as the prototype draws it.
+   */
+  .v2.v2-phone .v2-b-ban-dot {
+    width: 28px; height: 28px; margin: -10px; padding: 0;
+    border: 0; background: none;
+    display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-b-ban-dot-on { width: 42px; }
+  .v2.v2-phone .v2-b-ban-dot::before {
+    content: ""; display: block;
+    width: 8px; height: 8px; border-radius: 4px;
+    background: var(--line-2);
+    transition: width .3s, background .3s;
+  }
+  .v2.v2-phone .v2-b-ban-dot-on::before { width: 22px; background: var(--accent); }
+
+  /* ══ the VIP lead, on My Day ═════════════════════════════════════════════
+   *
+   * A white card with an orange edge — the one thing on the screen with a
+   * clock running on it. The edge colour is translucent orange rather than a
+   * token so that it reads the same over a white card and a dark one.
+   */
+  .v2.v2-phone .v2-b-vip {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 18px; border-radius: 22px;
+    background: var(--surface);
+    border: 2px solid rgba(255, 100, 54, .45);
+    box-shadow: var(--shadow-2);
+  }
+  .v2.v2-phone .v2-b-vip-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .v2.v2-phone .v2-b-vip-from,
+  .v2.v2-phone .v2-b-vip-left {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-b-vip-from {
+    flex: 0 1 auto; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-b-vip-from .lucide,
+  .v2.v2-phone .v2-b-vip-left .lucide { flex: none; }
+  .v2.v2-phone .v2-b-vip-left { flex: none; white-space: nowrap; }
+  .v2.v2-phone .v2-b-vip-who { display: flex; align-items: center; gap: 12px; }
+  .v2.v2-phone .v2-b-vip-who .avatar { flex: none; color: var(--accent-ink); font-weight: 800; }
+  .v2.v2-phone .v2-b-vip-who .d-grow { min-width: 0; }
+  .v2.v2-phone .v2-b-vip-who b {
+    display: block; font-size: 17px; font-weight: 700; line-height: 1.25;
+  }
+  .v2.v2-phone .v2-b-vip-who b + span {
+    display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px;
+  }
+  .v2.v2-phone .v2-b-vip-note {
+    margin: 0; padding: 10px 12px;
+    border-radius: 14px; background: var(--surface-2);
+    font-size: 13px; line-height: 1.45; color: var(--ink);
+  }
+  .v2.v2-phone .v2-b-vip-btns { display: flex; gap: 8px; }
+  .v2.v2-phone .v2-b-vip-yes {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 50px; padding: 0 12px;
+    border: 0; border-radius: 16px;
+    /* Black with white words in the light theme, as the design has it; the
+       other way round in the dark one, where a black button on a black card
+       is a button nobody can see. */
+    background: var(--ink); color: var(--bg);
+    font-size: 15px; font-weight: 700; text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-vip-no {
+    flex: 0 1 auto;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 50px; padding: 0 14px;
+    border: 1px solid var(--line); border-radius: 16px;
+    background: var(--surface); color: var(--ink);
+    font-size: 13px; font-weight: 700; text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-vip-foot {
+    margin: 0; font-size: 12px; line-height: 1.4; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-b-vip-done {
+    margin: 0; display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 16px;
+    background: var(--green-soft); color: var(--green-ink);
+    font-size: 14px; font-weight: 700;
+  }
+  .v2.v2-phone .v2-b-vip-said {
+    margin: 0; font-size: 13px; font-weight: 600; color: var(--accent-ink);
+  }
+
+  /* ══ "Turn on notifications" ═════════════════════════════════════════════
+   *
+   * Dark, with the bell in a bright square: the one block on My Day that is
+   * asking for something rather than telling you something.
+   */
+  .v2.v2-phone .v2-b-notify {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 18px; border-radius: 24px;
+    background: linear-gradient(135deg, var(--hero), var(--hero-3));
+    color: #FFFFFF;
+  }
+  .v2.v2-phone .v2-b-notify-top { display: flex; align-items: center; gap: 12px; }
+  .v2.v2-phone .v2-b-notify-ic {
+    width: 46px; height: 46px; flex: none;
+    border-radius: 15px; display: grid; place-items: center;
+    background: var(--accent); color: var(--on-accent);
+  }
+  .v2.v2-phone .v2-b-notify .d-grow { min-width: 0; }
+  .v2.v2-phone .v2-b-notify b { display: block; font-size: 16px; font-weight: 800; }
+  .v2.v2-phone .v2-b-notify p {
+    margin: 2px 0 0; font-size: 12px; line-height: 1.4; color: rgba(255, 255, 255, .72);
+  }
+  .v2.v2-phone .v2-b-notify-said {
+    margin: 0; font-size: 13px; font-weight: 600; color: #FFFFFF;
+  }
+  .v2.v2-phone .v2-b-notify-btns { display: flex; gap: 8px; }
+  .v2.v2-phone .v2-b-notify-yes {
+    flex: 1 1 auto;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 48px; padding: 0 14px;
+    border: 0; border-radius: 15px;
+    background: var(--accent); color: var(--on-accent);
+    font-size: 14px; font-weight: 800;
+  }
+  .v2.v2-phone .v2-b-notify-how {
+    flex: none;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 48px; padding: 0 14px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, .12); color: #FFFFFF;
+    font-size: 13px; font-weight: 700; text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-notify-x {
+    width: 48px; height: 48px; flex: none;
+    border: 0; border-radius: 15px;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, .08); color: rgba(255, 255, 255, .72);
+  }
+
+  /* ══ the owner's home ════════════════════════════════════════════════════ */
+
+  /* The six soft colour squares the design uses, shared by the two openings
+     and by every row of "Needs you now". */
+  .v2.v2-phone .v2-b-ic-accent { background: var(--accent-soft); color: var(--accent-ink); }
+  .v2.v2-phone .v2-b-ic-violet { background: var(--violet-soft); color: var(--violet-ink); }
+  .v2.v2-phone .v2-b-ic-red { background: var(--red-soft); color: var(--red-ink); }
+  .v2.v2-phone .v2-b-ic-amber { background: var(--amber-soft); color: var(--amber-ink); }
+  .v2.v2-phone .v2-b-ic-blue { background: var(--blue-soft); color: var(--blue-ink); }
+  .v2.v2-phone .v2-b-ic-green { background: var(--green-soft); color: var(--green-ink); }
+  .v2.v2-phone .v2-b-ic-plain { background: var(--surface-2); color: var(--ink-2); }
+
+  /* Import Excel and Incoming: the square on the left, the words beside it,
+     rather than a plain black line icon in the middle. */
+  .v2.v2-phone .p-owner-home .v2-a-act2 {
+    justify-content: flex-start; gap: 10px; padding: 0 12px; min-height: 62px;
+  }
+  .v2.v2-phone .v2-b-act-ic {
+    width: 38px; height: 38px; flex: none;
+    border-radius: 14px; display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-b-act-ic .lucide { width: 19px; height: 19px; }
+
+  /* "Needs you now": a small label rather than a heading, then one row per
+     thing, each with its colour square and a word on the right. */
+  .v2.v2-phone .p-owner-home .d-card.v2-b-needs { padding: 12px 16px; }
+  .v2.v2-phone .v2-b-cardlabel {
+    margin: 0 0 2px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em;
+    color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-b-need {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; min-height: 52px;
+    border-top: 1px solid var(--line);
+    color: var(--ink); text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-need .d-grow { min-width: 0; }
+  .v2.v2-phone .v2-b-need b {
+    display: block; font-size: 14px; font-weight: 700; line-height: 1.3;
+  }
+  .v2.v2-phone .v2-b-need b + span {
+    display: block; font-size: 12px; line-height: 1.35; color: var(--ink-3); margin-top: 2px;
+  }
+  .v2.v2-phone .v2-b-need-ic {
+    width: 40px; height: 40px; flex: none;
+    border-radius: 13px; display: grid; place-items: center;
+  }
+  .v2.v2-phone .v2-b-need-ic .lucide { width: 18px; height: 18px; }
+  .v2.v2-phone .v2-b-need-go {
+    flex: none; font-size: 12px; font-weight: 800; color: var(--accent-ink);
+    white-space: nowrap;
+  }
+
+  /* "Team today": the heading sits on the page, not inside a card, and the
+     four boxes carry their own colour — green, yellow, blue, red. */
+  .v2.v2-phone .v2-b-teamhead {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 2px 0 -6px;
+  }
+  .v2.v2-phone .v2-b-teamhead h2 {
+    margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em;
+  }
+  .v2.v2-phone .v2-b-teamhead a {
+    display: inline-flex; align-items: center; min-height: 28px;
+    font-size: 13px; font-weight: 700; color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-b-team4 {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  }
+  .v2.v2-phone .v2-b-t4 {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 14px 10px; border-radius: 20px;
+    color: var(--ink); text-decoration: none;
+  }
+  .v2.v2-phone .v2-b-t4 b { font-size: 26px; font-weight: 800; line-height: 1.05; }
+  .v2.v2-phone .v2-b-t4 span { font-size: 11.5px; font-weight: 700; line-height: 1.2; }
+  .v2.v2-phone .v2-b-t4-green { background: var(--green-soft); }
+  .v2.v2-phone .v2-b-t4-green b { color: var(--green-ink); }
+  .v2.v2-phone .v2-b-t4-amber { background: var(--amber-soft); }
+  .v2.v2-phone .v2-b-t4-amber b { color: var(--amber-ink); }
+  .v2.v2-phone .v2-b-t4-blue { background: var(--blue-soft); }
+  .v2.v2-phone .v2-b-t4-blue b { color: var(--blue-ink); }
+  .v2.v2-phone .v2-b-t4-red { background: var(--red-soft); }
+  .v2.v2-phone .v2-b-t4-red b { color: var(--red-ink); }
+
+  /* "Today in numbers": two boxes a row, so the block is half as long. */
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums > [class*="d-c-"] { grid-column: auto; }
+  /* `v2-phone-a.css` lays every tile on these two screens out as one row —
+     label on the left, number on the right — which is the "long list of
+     plain rows" the owner asked to be rid of. Inside this block the box goes
+     back to a label over a big number. */
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-tile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16px;
+    align-items: start;
+    gap: 4px 8px;
+    padding: 14px;
+    min-height: 92px;
+  }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-label {
+    grid-column: 1; grid-row: 1;
+    font-size: 11.5px; font-weight: 700; color: var(--ink-3);
+  }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .lucide {
+    grid-column: 2; grid-row: 1;
+  }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-stat-row {
+    grid-column: 1 / -1; grid-row: 2;
+    display: flex; flex-direction: column; align-items: flex-start;
+    justify-content: flex-start; gap: 1px;
+  }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-num { font-size: 28px; line-height: 1.1; }
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-state {
+    display: block; font-size: 11px; line-height: 1.3; color: var(--ink-3);
+  }
+  /* The urgent note — "past their time" — as a red line of words rather than
+     a pill: "nobody coming back to them" is wider than half a phone. The
+     number above it is already red, which `v2-phone-a.css` does. */
+  .v2.v2-phone .p-owner-home .d-bento.v2-b-nums .d-chip {
+    display: block; max-width: 100%;
+    padding: 0; border: 0; background: none;
+    font-size: 11px; font-weight: 600; line-height: 1.3; white-space: normal;
+    color: var(--red-ink);
+  }
+
+  /* The way out to the whole dashboard, as the design ends the screen. */
+  .v2.v2-phone .v2-b-dashbtn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 52px; border-radius: 16px;
+    background: var(--surface); color: var(--ink);
+    box-shadow: var(--shadow-1);
+    font-size: 14px; font-weight: 700; text-decoration: none;
+  }
+
+  /* ── the "Next:" line inside the day's hero ────────────────────────────
+     It only shows on a phone now that the hero and the VIP card are two
+     cards rather than four states of one, and it ran 66px off the right
+     edge: "Next: Sara Al Mansoori · Overdue since 08:58 · UAE 15:58" on one
+     unbreakable line. */
+  .v2.v2-phone .p-my-day .v2-next {
+    display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%;
+  }
+  .v2.v2-phone .p-my-day .v2-next > span {
+    min-width: 0; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── "Start calling", the day's own card ───────────────────────────────
+     `v2-shell.css` draws `.d-num-hero` at 56px on a phone, which left the
+     heading beside it on two words and two lines. `Main.dc.html` gives the
+     count and the words equal room. */
+  .v2.v2-phone .p-my-day .d-h-ready .d-num-hero { font-size: 40px; line-height: 1; }
+  .v2.v2-phone .p-my-day .d-h-ready h2 { font-size: 20px; line-height: 1.15; }
+}

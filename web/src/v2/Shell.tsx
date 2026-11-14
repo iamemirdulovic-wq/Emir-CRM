@@ -249,7 +249,20 @@ function TopBar() {
   return (
     <header className="v2-top">
       {onRecord ? (
-        <Link to="/v2/leads" className="v2-back"><Icon name="arrow-left" />All leads</Link>
+        /*
+         * Emir, 14 Nov, §5.1: *"Lead NAME as the page title, '← All leads'
+         * above it."* The back link was the whole header, so the top of the
+         * lead page said "All leads" and never said whose lead it was —
+         * `design-pictures/Computer-Lead-page.png` puts "← All leads" small
+         * over "Marco Bellini". `.v2-topttl` is already a flex column, so
+         * the two stack with no new rule. The title is the one the page puts
+         * in the head slot; without one the back link stands alone, exactly
+         * as it did before.
+         */
+        <div className="v2-topttl">
+          <Link to="/v2/leads" className="v2-back"><Icon name="arrow-left" />All leads</Link>
+          {head.title && <h1 className="v2-title">{head.title}</h1>}
+        </div>
       ) : (
         <div className="v2-topttl">
           <h1 className="v2-title">{head.title ?? titleFor(pathname, user?.role ?? 'agent')}</h1>

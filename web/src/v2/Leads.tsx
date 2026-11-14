@@ -8,13 +8,13 @@ import { Avatar, Spinner, ErrorNote, budgetLabel, useToast } from '../design/ui.
 import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction, type CallActions } from './call.js';
-import { SOURCE_STYLES, sourceStyle } from '../design/stages.js';
+import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { given, groupByGivenDay } from '../lib/assigned.js';
-import {
-  SEARCH_UNDERSTANDS, callNote, visibleFacets,
-  type CountryFacet, type LanguageFacet, type LeadFacets,
-} from '../lib/facets.js';
+import { callNote, type LeadFacets } from '../lib/facets.js';
+/* Moved out on 14 Nov so two people can work on this screen at once. A pure
+   move: same markup, same behaviour. */
+import { LeadPanel } from './LeadPanel.js';
 
 /**
  * The leads list, built from the design package.
@@ -56,84 +56,32 @@ import {
 const PHONE = 768;
 
 /**
- * How tall the leads card may be, so that its header pins instead of leaving.
+ * Under this, the row's buttons lose their words.
  *
- * The card scrolls in both directions — the owner's own words, *"our all
- * leads should be like move right left, same like sheet"* — which makes it
- * the scroll container, and a `position:sticky` header then resolves against
- * it rather than against the page. With no height limit the card never
- * scrolled vertically, so the header pinned to nothing: measured at 1440px on
- * the build before this, the owner's `thead th` sat at 206 before a scroll
- * and −394 after 600px of it. It went with the page, on a list of 2,041.
- *
- * So the card needs a height to scroll against, and it must not be a guess.
- * `calc(100dvh - 300px)` would be one: the chrome above the table is a tab
- * strip, a filter row, two rows of country and language chips, and on Today a
- * start-calling strip that is not there on any other tab. Four heights, three
- * of which change while you use the screen.
- *
- * This measures where the card really begins and gives it the rest of the
- * window. It re-measures after every render, because every one of those
- * things changing height is a render — and a render that does not move the
- * card sets no state, so it settles immediately.
- *
- * `max-height`, never `height`: a list of three leads keeps the height of
- * three leads rather than sitting in a tall empty box.
+ * The agent's list has eight columns and "Call" and "WhatsApp" with their
+ * labels take 176px of them. At 1280px that leaves the next step 98px, and
+ * §2.2 calls it *"wide and always readable"*. Below 1400 the two buttons
+ * become their icons, which is 104px, and the word is still in the button's
+ * own label for a screen reader and in its tooltip for everybody else.
  */
-/** Breathing room under the card, so it does not touch the window's edge. */
-const SHEET_GUTTER = 20;
-/**
- * The least we will squeeze it to. Below this the page scrolls instead, which
- * is the right answer on a short window — a 200px sheet is not a sheet.
- */
-const SHEET_FLOOR = 360;
-
-function useSheetHeight(enabled: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [max, setMax] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!enabled) {
-      setMax((was) => (was === null ? was : null));
-      return undefined;
-    }
-    const measure = () => {
-      const el = ref.current;
-      if (!el) return;
-      /*
-       * Where the card starts in the document, not in the window: the page
-       * may already be scrolled when this runs, and the answer must be the
-       * same either way.
-       */
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      const room = Math.round(window.innerHeight - top - SHEET_GUTTER);
-      /* Only when it changed, or an effect with no dependency list would
-         re-render for ever. */
-      setMax((was) => {
-        const next = Math.max(SHEET_FLOOR, room);
-        return was === next ? was : next;
-      });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-    /* No dependency list on purpose: see the note above. */
-  });
-
-  return { ref, max };
-}
+const TIGHT = 1400;
 
 function useIsPhone(): boolean {
-  const [phone, setPhone] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
+  return useBelow(PHONE);
+}
+
+/** True while the window is narrower than `width`. */
+function useBelow(width: number): boolean {
+  const [below, setBelow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${width - 1}px)`).matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia(`(max-width:${PHONE - 1}px)`);
-    const onChange = () => setPhone(mq.matches);
+    const mq = window.matchMedia(`(max-width:${width - 1}px)`);
+    const onChange = () => setBelow(mq.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return phone;
+  }, [width]);
+  return below;
 }
 
 /**
@@ -181,7 +129,7 @@ const PAGE = 50;
 const MOVE_LIMIT = 200;
 
 /** The six stages, as the design's neutral pills. */
-const STAGE_LABEL: Record<string, string> = {
+export const STAGE_LABEL: Record<string, string> = {
   new_lead: 'New',
   attempted_contact: 'Called',
   engaged_qualified: 'Interested',
@@ -192,7 +140,7 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 /** `chip stage-*` in the design; the pill's dot colour comes from the key. */
-const STAGE_CHIP: Record<string, string> = {
+export const STAGE_CHIP: Record<string, string> = {
   new_lead: 'new',
   attempted_contact: 'called',
   engaged_qualified: 'interested',
@@ -202,7 +150,7 @@ const STAGE_CHIP: Record<string, string> = {
   lost: 'lost',
 };
 
-interface Row {
+export interface Row {
   id: string;
   contact_id: string;
   full_name: string | null;
@@ -268,7 +216,7 @@ interface Taker {
  * Red means late, or waiting on you — the same rule as the sidebar badges, so
  * the colour means one thing across the whole product.
  */
-function nextStep(row: Row): { text: string; urgent: boolean; none: boolean } {
+export function nextStep(row: Row): { text: string; urgent: boolean; none: boolean } {
   if (row.returned_at) return { text: 'Came back to you', urgent: true, none: false };
   if (row.is_vip === 1 && !row.last_contact_at) {
     return { text: 'VIP — not called yet', urgent: true, none: false };
@@ -324,7 +272,7 @@ function reason(row: Row): { text: string; tone: 'red' | 'amber' | 'calm' } {
 }
 
 /** "Today 10:30", "Yesterday", "9 Nov" — the design's own shorthand. */
-function whenShort(value: string | null): string {
+export function whenShort(value: string | null): string {
   if (!value) return 'Not yet';
   const at = new Date(value);
   if (Number.isNaN(at.getTime())) return 'Not yet';
@@ -373,180 +321,197 @@ function GivenLine({ at, label }: { at: string | null; label?: string }) {
 }
 
 /**
- * The two rows of chips above the list: Country, then Language.
+ * One row inside a filter dropdown: a flag, a name, a count, maybe a moon.
  *
- * Emir, 14 November 2026, with a picture of `All 26 · UAE 24 · USA/Canada 1 🌙
- * · India 1`: *"we need to add also this option, like country based leads,
- * language based leads, add also with flag, so our agents can see easily which
- * country they can filter the leads easily"* — and, over the plain table that
- * came instead: *"it should be smooth... nice way... more cool way, I don't
- * like it anymore."*
- *
- * Four rules, all of them load-bearing:
- *
- *   - **The number is the server's.** One `GROUP BY` over the whole filtered
- *     book, fenced to what this person may see. Nothing here counts rows.
- *   - **Only countries that have leads appear.** The row is built from what
- *     came back, so there is no empty chip to press.
- *   - **A dialling code we cannot read is "Unknown", with no flag.** That is
- *     `dialling.ts`'s own rule and it is not softened here.
- *   - **The moon is the server's too** — outside 09:00–20:00 in that
- *     country's own clock, the same hours `whenToCall()` recommends, so the
- *     chip and the search word "asleep" cannot mean two different things.
- *
- * One component for the computer and the phone. The markup is the same and
- * only the classes differ, because two copies of a chip row is two chances
- * for one of them to stop agreeing with the counts.
+ * `flag` is empty for the Unknown row and for every language. An empty flag
+ * draws nothing — never a placeholder, never a guess — which is
+ * `lib/dialling.ts`'s own rule and the reason the Unknown row exists at all.
  */
-function FacetRows({ facets, country, language, openRow, onOpenRow, onPick, phone }: {
-  facets: LeadFacets | null;
-  country: string;
-  language: string;
-  openRow: 'country' | 'language' | null;
-  onOpenRow: (row: 'country' | 'language' | null) => void;
-  onPick: (key: 'country' | 'language', value: string) => void;
-  phone?: boolean;
+interface PickOption {
+  value: string;
+  label: string;
+  flag: string;
+  count: number;
+  /** True where it is outside calling hours in that country right now. */
+  night: boolean;
+  /** "03:12 in London — too early to call", for the hover. */
+  note: string | null;
+}
+
+/**
+ * The Country and Language filters, as dropdowns in the one filter row.
+ *
+ * They were two rows of chips. Emir, 14 November 2026, on the fix list:
+ * *"Keep the country filter, as a dropdown with flags and counts in the
+ * filter row"*, *"Language is a dropdown with counts. No help sentence"*,
+ * and *"Remove the chip rows, '+59 more' and all grey help sentences."* The
+ * filtering itself he kept — *"country and language filter (it is live)"* —
+ * so everything behind this is unchanged; only the control is new.
+ *
+ * Not a `<select>`. His own list asks for flags, counts **and a search
+ * inside**, because the book runs to 59 countries, and a native dropdown can
+ * hold none of the three. So it is a button that opens a panel: a search box,
+ * then one row per country with the flag, the name, the real count and the
+ * moon where it is the middle of the night there.
+ *
+ * Two rules it does not bend:
+ *
+ *   - **Every number is the server's**, one `GROUP BY` over the whole
+ *     filtered book. Nothing in this file counts a row.
+ *   - **No raw codes.** The label is "English", never "en" — §0 of the fix
+ *     list, and `labelsAreWords` in `leads-filters.test.ts` is the check.
+ */
+function FilterPicker({ label, value, options, allLabel, allCount, onPick, searchHint }: {
+  /** "Country" or "Language" — what the button says when nothing is picked. */
+  label: string;
+  value: string;
+  options: PickOption[];
+  allLabel: string;
+  allCount: number;
+  onPick: (value: string) => void;
+  /** The placeholder inside the panel's own search box. */
+  searchHint: string;
 }) {
-  /* Nothing to draw until the counts land, and nothing worth drawing when
-     there is only one country in the book: a row of one chip is furniture. */
-  if (!facets) return null;
-  /*
-   * `?? []` rather than trusting the shape. A screen ten people open every
-   * morning must not go white because one key is missing from one response —
-   * which is exactly what happened the first time this ran against a stubbed
-   * API in `leads-call.test.ts`.
-   */
-  const countries = facets.countries ?? [];
-  const languages = facets.languages ?? [];
-  if (countries.length < 2 && languages.length < 2) return null;
-  /* The totals come from the same response; summing the chips is the same
-     arithmetic the server did, and it keeps the "All" chip honest if one
-     field is ever missing. */
-  const countryTotal = facets.countryTotal
-    ?? countries.reduce((sum, one) => sum + one.count, 0);
-  const languageTotal = facets.languageTotal
-    ?? languages.reduce((sum, one) => sum + one.count, 0);
-  const defaultLanguage = facets.languageDefault ?? 'en';
+  const [open, setOpen] = useState(false);
+  const [find, setFind] = useState('');
+  const box = useRef<HTMLDivElement>(null);
 
-  const shownCountries = visibleFacets<CountryFacet>(countries, {
-    expanded: openRow === 'country',
-    picked: (one) => one.iso2 === country,
-  });
-  const shownLanguages = visibleFacets<LanguageFacet>(languages, {
-    expanded: openRow === 'language',
-    picked: (one) => one.code === language,
-  });
+  /* Escape closes it, and so does a click anywhere else — the same two ways
+     out as every other menu in the design. */
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    /* `globalThis.MouseEvent`, not `MouseEvent`: React's own `MouseEvent`
+       type is imported at the top of this file and shadows the DOM one. */
+    const onDown = (e: globalThis.MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onDown);
+    };
+  }, [open]);
 
-  const row = phone ? 'v2-facet-row v2-facet-row-phone' : 'v2-facet-row';
-  const pill = phone ? 'v2-facet v2-facet-phone' : 'v2-facet';
+  const chosen = options.find((one) => one.value === value) ?? null;
+  const want = find.trim().toLowerCase();
+  /* Matched on the start of a word, like the server's own search: "in" means
+     India and Indonesia, not Argentina and Finland. */
+  const shown = want
+    ? options.filter((one) => one.label.toLowerCase().split(/[\s/·]+/).some((w) => w.startsWith(want)))
+    : options;
 
   return (
-    <div className={phone ? 'v2-facets v2-facets-phone' : 'v2-facets'}>
-      {countries.length > 1 && (
-        <div className={row}>
-          <span className="v2-facet-label">Country</span>
-          <div className="v2-facet-pills" role="group" aria-label="Filter by country">
-            <button
-              type="button"
-              className={country === '' ? `${pill} v2-facet-on` : pill}
-              aria-pressed={country === ''}
-              onClick={() => onPick('country', '')}
-            >
-              <span className="v2-facet-flag" aria-hidden>🌐</span>
-              All
-              <span className="v2-facet-n">{countryTotal.toLocaleString()}</span>
-            </button>
-            {shownCountries.shown.map((one) => {
-              const note = callNote(one);
-              return (
-                <button
-                  key={one.iso2}
-                  type="button"
-                  className={country === one.iso2 ? `${pill} v2-facet-on` : pill}
-                  aria-pressed={country === one.iso2}
-                  /* The clock is the whole hover: "03:12 in London — too late
-                     to call". Absent, not invented, where there is no zone. */
-                  title={note ?? undefined}
-                  onClick={() => onPick('country', one.iso2)}
-                >
-                  {/* No flag at all for a code we could not read, rather than
-                      the wrong one. The chip still says "Unknown" in words. */}
-                  {one.flag && <span className="v2-facet-flag" aria-hidden>{one.flag}</span>}
-                  {one.name}
-                  <span className="v2-facet-n">{one.count.toLocaleString()}</span>
-                  {one.night === true && (
-                    <span className="v2-facet-moon" role="img" aria-label="night there now">🌙</span>
-                  )}
-                </button>
-              );
-            })}
-            {shownCountries.hidden > 0 && (
-              <button type="button" className="v2-facet-more" onClick={() => onOpenRow('country')}>
-                +{shownCountries.hidden} more
-              </button>
-            )}
-            {openRow === 'country' && countries.length > 1 && (
-              <button type="button" className="v2-facet-more" onClick={() => onOpenRow(null)}>
-                Show fewer
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+    <div className="v2-filt" ref={box}>
+      <button
+        type="button"
+        className={value ? 'v2-filt-btn v2-filt-btn-on' : 'v2-filt-btn'}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => { setOpen(!open); setFind(''); }}
+      >
+        {chosen?.flag && <span className="v2-filt-flag" aria-hidden>{chosen.flag}</span>}
+        <span className="v2-filt-text">
+          {chosen ? chosen.label : `${label}: all`}
+        </span>
+        <Icon name="chevron-down" size={14} />
+      </button>
 
-      {languages.length > 1 && (
-        <div className={row}>
-          <span className="v2-facet-label">Language</span>
-          <div className="v2-facet-pills" role="group" aria-label="Filter by language">
+      {open && (
+        <div className="v2-filt-panel" role="listbox" aria-label={label}>
+          {/* The search inside, which is what makes 59 countries usable. */}
+          <label className="v2-filt-find">
+            <Icon name="search" size={14} />
+            <input
+              type="search"
+              autoFocus
+              value={find}
+              aria-label={searchHint}
+              placeholder={searchHint}
+              onChange={(e) => setFind(e.target.value)}
+            />
+          </label>
+
+          <div className="v2-filt-list">
             <button
               type="button"
-              className={language === '' ? `${pill} v2-facet-on` : pill}
-              aria-pressed={language === ''}
-              onClick={() => onPick('language', '')}
+              role="option"
+              aria-selected={value === ''}
+              className={value === '' ? 'v2-filt-row v2-filt-row-on' : 'v2-filt-row'}
+              onClick={() => { onPick(''); setOpen(false); }}
             >
-              All
-              <span className="v2-facet-n">{languageTotal.toLocaleString()}</span>
+              <span className="v2-filt-name">{allLabel}</span>
+              <span className="v2-filt-n">{allCount.toLocaleString()}</span>
             </button>
-            {shownLanguages.shown.map((one) => (
+
+            {shown.map((one) => (
               <button
-                key={one.code}
+                key={one.value}
                 type="button"
-                className={language === one.code ? `${pill} v2-facet-on` : pill}
-                aria-pressed={language === one.code}
-                title={one.code === defaultLanguage
-                  ? 'Also every lead nobody was asked — English is what the field defaults to'
-                  : undefined}
-                onClick={() => onPick('language', one.code)}
+                role="option"
+                aria-selected={value === one.value}
+                className={value === one.value ? 'v2-filt-row v2-filt-row-on' : 'v2-filt-row'}
+                title={one.note ?? undefined}
+                onClick={() => { onPick(one.value); setOpen(false); }}
               >
-                {one.label}
-                <span className="v2-facet-n">{one.count.toLocaleString()}</span>
+                {/* No flag at all where the dialling code is not one we know,
+                    rather than the wrong one. */}
+                {one.flag && <span className="v2-filt-flag" aria-hidden>{one.flag}</span>}
+                <span className="v2-filt-name">{one.label}</span>
+                {one.night && (
+                  <span className="v2-filt-moon" role="img" aria-label="night there now">🌙</span>
+                )}
+                <span className="v2-filt-n">{one.count.toLocaleString()}</span>
               </button>
             ))}
-            {shownLanguages.hidden > 0 && (
-              <button type="button" className="v2-facet-more" onClick={() => onOpenRow('language')}>
-                +{shownLanguages.hidden} more
-              </button>
+
+            {shown.length === 0 && (
+              <span className="v2-filt-none">Nothing matches “{find.trim()}”</span>
             )}
           </div>
         </div>
-      )}
-
-      {/*
-        * Said plainly rather than left for somebody to find out.
-        *
-        * `contacts.language` is `NOT NULL DEFAULT 'en'`, so a lead nobody ever
-        * asked reads English exactly like one who said "English, please".
-        * Presenting that as a fact would be the kind of number this product
-        * has already been caught inventing twice.
-        */}
-      {languages.some((one) => one.code === defaultLanguage) && (
-        <p className="v2-facet-note">
-          English is what the language field starts as, so that chip also holds
-          every lead nobody has been asked.
-        </p>
       )}
     </div>
   );
+}
+
+/** The country rows for the dropdown, straight from what the server counted. */
+function countryOptions(facets: LeadFacets | null): PickOption[] {
+  return (facets?.countries ?? []).map((one) => ({
+    value: one.iso2,
+    label: one.name,
+    flag: one.flag,
+    count: one.count,
+    night: one.night === true,
+    note: callNote(one),
+  }));
+}
+
+/** And the language rows. No flags: a language is not a country. */
+function languageOptions(facets: LeadFacets | null): PickOption[] {
+  return (facets?.languages ?? []).map((one) => ({
+    value: one.code,
+    /* Always a word. `languageName` on the server turns "ar" into "Arabic"
+       and a blank into "Not known"; §0 of the fix list: never a raw code. */
+    label: one.label,
+    flag: '',
+    count: one.count,
+    night: false,
+    note: null,
+  }));
+}
+
+/**
+ * The lead one step up or down the list, or the one we are on at either end.
+ *
+ * Clamped, not wrapped: §4.9 is a walk through what is on screen, and a walk
+ * that comes back round to the top is how an agent rings somebody twice.
+ */
+function stepTo(list: Row[], here: Row, by: 1 | -1): Row {
+  const at = list.findIndex((one) => one.id === here.id);
+  if (at < 0) return here;
+  return list[Math.min(list.length - 1, Math.max(0, at + by))] ?? here;
 }
 
 /**
@@ -568,8 +533,29 @@ function narrowedTo(chips: Array<{ key: string; text: string }>, search: string)
   return `Nothing here is ${names.slice(0, -1).join(', ')} and ${last}. Take one away.`;
 }
 
+/**
+ * The city a time zone is named for — "Europe/London" → "London".
+ *
+ * Picture 01 draws the Local time column as "Dubai 14:55", "Lisbon 10:55",
+ * "London 10:55", "Dhaka 16:55": cities, not countries. It is also what fits.
+ * The column is 100px wide and "United Kingdom 06:57" is 150, so the country
+ * name came out as "United King…" — which tells an agent nothing the flag in
+ * the Country filter does not.
+ *
+ * Nothing is invented: the city is the IANA zone's own last segment, which is
+ * where the zone is defined. `zoneLabel` wins where the table sets one, so a
+ * Russian number still says "Moscow" rather than implying the whole country
+ * is on that clock.
+ */
+function cityOf(origin: { zoneLabel?: string; timeZone: string | null; name: string }): string {
+  if (origin.zoneLabel) return origin.zoneLabel;
+  const zone = origin.timeZone;
+  if (!zone) return origin.name;
+  return (zone.split('/').pop() ?? origin.name).replace(/_/g, ' ');
+}
+
 /** The second line of the project cell: what they asked for. */
-function wanted(row: Row): string {
+export function wanted(row: Row): string {
   const budget = row.budget_min_aed || row.budget_max_aed
     ? budgetLabel(row.budget_min_aed, row.budget_max_aed, row.budget_band ?? null)
     : null;
@@ -578,6 +564,9 @@ function wanted(row: Row): string {
 
 export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const isPhone = useIsPhone();
+  /* Below 1400 the row's buttons lose their words, so the next step keeps
+     the width §2.2 asks for. See `TIGHT`. */
+  const tight = useBelow(TIGHT);
   /*
    * One of these for the whole screen, handed down to the cards, the rows and
    * the panel. Not one per row: the helper's check-in gate reads
@@ -602,6 +591,13 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * computer as well as on the phone, which is the fault the owner found.
    */
   const owns = user ? user.role !== 'agent' : false;
+  /*
+   * Who sees the Export button. The server is the fence —
+   * `/api/my-leads/export.csv` is behind `requireAdmin` and
+   * `requirePermission('export')` — so this only keeps a button off a screen
+   * where pressing it would be refused.
+   */
+  const canExport = user ? user.role === 'owner' || user.role === 'admin' : false;
   const firstTab: TabKey = owns ? 'all' : 'today';
   const tabs = owns ? OWNER_TABS : AGENT_TABS;
   const tab = (fixedTab ?? (params.get('tab') as TabKey) ?? firstTab) as TabKey;
@@ -658,17 +654,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    */
   const country = params.get('country') ?? '';
   const language = params.get('language') ?? '';
-  /* Fifty countries is a wall, not a filter, so each row folds after eight
-     until somebody asks for the rest. */
-  const [openRow, setOpenRow] = useState<'country' | 'language' | null>(null);
-  /*
-   * The card's height, so the table's header pins to it rather than leaving
-   * with the page. Off on a phone, where the rows are cards and there is no
-   * table to pin. Declared here with the other state, above the phone's early
-   * return, because a hook cannot be called conditionally — `hook-order.test.ts`
-   * is the check that says so.
-   */
-  const sheet = useSheetHeight(!isPhone);
+  /* "Added: any time / Today / This week / This month" — picture 02's last
+     dropdown. Dubai days, worked out on the server. */
+  const added = params.get('added') ?? '';
 
   /* The All tab is the whole book, so it is the wide screen with the agent in
      it. Hot arrives from the dashboard; the design shows it as a chip over
@@ -697,7 +685,8 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    */
   const columns = (book ? 1 : 0) + 5
     + (wide ? (isAgent ? 1 : 2) : 1)
-    + 1 + (wide ? 0 : 1);
+    /* the next step, then the buttons, which both lists now give a column */
+    + 1 + 1;
 
   const qs = useMemo(() => {
     const next = new URLSearchParams();
@@ -710,8 +699,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     if (source) next.set('source', source);
     if (country) next.set('country', country);
     if (language) next.set('language', language);
+    if (added) next.set('added', added);
     return next.toString();
-  }, [tab, search, stage, project, agent, source, country, language]);
+  }, [tab, search, stage, project, agent, source, country, language, added]);
 
   const leads = useAsync<ListResponse>(() => api.get(`/api/my-leads?${qs}`), [qs]);
   /* Deliberately unnarrowed, like it was: a tab says how many leads that
@@ -726,6 +716,16 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    * page of them.
    */
   const facets = useAsync<LeadFacets>(() => api.get(`/api/my-leads/facets?${qs}`), [qs]);
+  /*
+   * The two lists, never undefined.
+   *
+   * `?? []` rather than trusting the shape: a screen ten people open every
+   * morning must not go white because one key is missing from one response,
+   * which is exactly what happened the first time this ran against a stubbed
+   * API in `leads-call.test.ts`.
+   */
+  const countries = facets.data?.countries ?? [];
+  const languages = facets.data?.languages ?? [];
   /*
    * The projects the leads are actually on — not the library.
    *
@@ -774,7 +774,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
   function clearAll() {
     const next = new URLSearchParams(params);
-    for (const key of ['stage', 'project', 'agent', 'source', 'country', 'language']) next.delete(key);
+    for (const key of ['stage', 'project', 'agent', 'source', 'country', 'language', 'added']) {
+      next.delete(key);
+    }
     if (tab === 'hot') next.set('tab', 'all');
     setParams(next, { replace: true });
     setSearch('');
@@ -798,6 +800,10 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const rows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
   const total = leads.data?.total ?? 0;
   const todayCount = counts.data?.today ?? 0;
+  /* The black bar's two other numbers, both from the counts endpoint: real
+     calls out of Emir's own daily goal. No goal, no progress line. */
+  const callsToday = counts.data?.callsToday ?? 0;
+  const callGoal = counts.data?.callGoal ?? 0;
 
   /*
    * The same list, cut into the days the leads were given out on.
@@ -814,6 +820,13 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     return new Map<string | null, number>(got.map((d) => [d.day, d.count] as const));
   }, [leads.data]);
   const byDay = groupByGivenDay(rows, (row) => row.assigned_at, undefined, dayTotals);
+  /*
+   * The rows as the table really draws them — every day's leads in order,
+   * the day headings left out. The side panel's arrow keys walk this, so
+   * "the next lead" means the next one on screen rather than the next one in
+   * some other ordering.
+   */
+  const drawn = useMemo(() => byDay.flatMap((day) => day.rows), [byDay]);
 
   /* One chip per narrowing in force, which is how the design says what the
      list is showing without making anybody read the controls. */
@@ -845,6 +858,10 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   if (language) {
     const one = facets.data?.languages.find((row) => row.code === language);
     chips.push({ key: 'language', text: `Language: ${one?.label ?? language}` });
+  }
+  if (added) {
+    const when = { today: 'Today', week: 'This week', month: 'This month' }[added] ?? added;
+    chips.push({ key: 'added', text: `Added: ${when}` });
   }
 
   function dropChip(key: string) {
@@ -1064,23 +1081,36 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
         )}
 
         {/*
-          * The country and language rows, under the tabs.
+          * No country or language control on the phone, deliberately.
           *
-          * `design/screens/Leads.dc.html` draws one scrolling row of pills and
-          * bleeds it to the screen edges; these are two more of the same,
-          * each with its own label, so they read as part of the strip rather
-          * than as a new idea. The counts are the server's, the same ones the
-          * computer shows.
+          * §0 of Emir's 14 November list: *"Each phone screen is its own
+          * layout from its picture… Do not squeeze the computer page."*
+          * `design/screens/Leads.dc.html` draws a search box and one strip of
+          * pills, and the filter row he redrew is the computer's. A phone
+          * design for these two is a thing to draw, not to inherit, so it is
+          * left for the phone pass — see `docs/v2/questions-filters.md`.
+          *
+          * What IS here is the way back out. A link carrying `?country=GB`
+          * opens on a phone like any other, and without this the list would
+          * be narrowed with nothing on screen saying so and no way to undo
+          * it. One pill in the strip the design already draws, not a new
+          * control.
           */}
-        <FacetRows
-          phone
-          facets={facets.data ?? null}
-          country={country}
-          language={language}
-          openRow={openRow}
-          onOpenRow={setOpenRow}
-          onPick={narrow}
-        />
+        {chips.length > 0 && (
+          <div className="v2-a-chips">
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className="v2-a-chip v2-a-chip-on"
+                aria-label={`Remove ${chip.text}`}
+                onClick={() => dropChip(chip.key)}
+              >
+                {chip.text} ×
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="v2-a-count-row">
           <span className="v2-a-count">{leads.data ? resultLine : 'Loading…'}</span>
@@ -1299,44 +1329,73 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
         )}
       </div>
 
-      {/* The strip that starts the day. Only over the Today tab, which is the
-          only list that is a call list — and never on the owner's book, which
-          has no Today tab and is not a call list at all. */}
+      {/*
+        * The black bar above the table — picture 01, point 9: *"Black bar on
+        * top: leads ready to call, calls today with progress, Start
+        * calling."*
+        *
+        * Three real numbers and nothing else. `todayCount` is the Today tab's
+        * own count; `callsToday` and `callGoal` come back with the counts,
+        * from `call_logs` and `DAILY_GOALS.calls` — Emir's own 40 from his
+        * design package, sent by the server so that when Settings can set it
+        * per agent there is one place to change. The progress line is drawn
+        * from those two and from nothing else; if the counts have not landed
+        * yet the bar waits rather than drawing an empty rail.
+        *
+        * Only over the agent's call list. The owner's book has no Today tab
+        * and is not a call list.
+        */}
       {!book && tab === 'today' && todayCount > 0 && (
-        <div className="d-start-strip">
-          <span className="d-card-icon v2-leadlist-dial"><Icon name="phone" /></span>
-          <div className="d-grow">
-            <b className="d-big">
+        <div className="v2-callbar">
+          <span className="v2-callbar-ic"><Icon name="phone" /></span>
+          <div className="v2-callbar-main">
+            <b className="v2-callbar-head">
               {todayCount} {todayCount === 1 ? 'lead is' : 'leads are'} ready to call
-            </b>{' '}
-            <span className="d-s">· one at a time, VIP first</span>
+            </b>
+            <span className="v2-callbar-sub">one at a time, VIP first</span>
           </div>
-          <Link className="d-btn d-primary" to="/v2/calling">
+          {callGoal > 0 && (
+            <div className="v2-callbar-prog">
+              <span className="v2-callbar-count">
+                {callsToday} of {callGoal} calls today
+              </span>
+              <span className="v2-callbar-rail">
+                <span
+                  className="v2-callbar-fill"
+                  style={{ width: `${Math.min(100, Math.round((callsToday / callGoal) * 100))}%` }}
+                />
+              </span>
+            </div>
+          )}
+          <Link className="d-btn d-primary v2-callbar-go" to="/v2/calling">
             <Icon name="phone" />Start calling · {todayCount} ready
           </Link>
         </div>
       )}
 
+      {/*
+        * One row: search, the dropdowns, the count on the right. Emir's own
+        * §2.7 — *"One filter row: search | Stage | Project | Country |
+        * Language | lead count on the right"* — and the owner's §3 adds Agent,
+        * Source, Added and Export to the same row rather than a second one.
+        * The two rows of chips that were here cost about 100px of the screen
+        * the table has to live in.
+        */}
       <div className="d-filters">
-        <div className="d-input-icon v2-searchbox">
+        <div className="d-input-icon">
           <Icon name="search" />
           <input
             className="d-input d-sm"
             type="search"
             value={search}
             aria-label="Search this list"
-            /*
-             * The placeholder says what it takes, because a box that quietly
-             * understands "asleep" is a box nobody ever types "asleep" into.
-             * `SEARCH_UNDERSTANDS` is the list, kept beside the types so it
-             * cannot drift from `searchClause` on the server.
-             */
-            placeholder="Name, phone, project, country, language, awake/asleep"
+            /* A clean box: §2.5, *"Clean search box only. Remove the hint
+               line."* It still takes a country, a language and awake/asleep —
+               `searchClause` on the server does the matching — and the
+               placeholder no longer recites them. */
+            placeholder="Search in this list"
             onChange={(e) => setSearch(e.target.value)}
           />
-          <span className="v2-search-hint">
-            Understands {SEARCH_UNDERSTANDS.join(' · ')}
-          </span>
         </div>
 
         {wide && !isAgent && (
@@ -1377,6 +1436,35 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           ))}
         </select>
 
+        {/*
+          * Country and Language, as dropdowns with flags, counts and a search
+          * inside. The numbers are the server's, over the whole filtered book
+          * — see `server/src/leads/facets.ts`. They appear only once there is
+          * more than one of them: a dropdown offering one choice is furniture.
+          */}
+        {countries.length > 1 && (
+          <FilterPicker
+            label="Country"
+            value={country}
+            options={countryOptions(facets.data ?? null)}
+            allLabel="Every country"
+            allCount={facets.data?.countryTotal ?? 0}
+            searchHint="Find a country"
+            onPick={(next) => narrow('country', next)}
+          />
+        )}
+        {languages.length > 1 && (
+          <FilterPicker
+            label="Language"
+            value={language}
+            options={languageOptions(facets.data ?? null)}
+            allLabel="Every language"
+            allCount={facets.data?.languageTotal ?? 0}
+            searchHint="Find a language"
+            onPick={(next) => narrow('language', next)}
+          />
+        )}
+
         {wide && (
           <select
             className="d-select d-sm"
@@ -1388,6 +1476,22 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             {Object.entries(SOURCE_STYLES).map(([key, style]) => (
               <option key={key} value={key}>{style.label}</option>
             ))}
+          </select>
+        )}
+
+        {/* "Added: any time" — picture 02's last dropdown. Dubai days: a lead
+            that arrived at 02:00 Dubai arrived today. */}
+        {book && (
+          <select
+            className="d-select d-sm"
+            aria-label="Added"
+            value={added}
+            onChange={(e) => narrow('added', e.target.value)}
+          >
+            <option value="">Added: any time</option>
+            <option value="today">Today</option>
+            <option value="week">This week</option>
+            <option value="month">This month</option>
           </select>
         )}
 
@@ -1403,31 +1507,35 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
         <span className="d-grow" />
         <span className="d-result-count">{leads.data ? count : ''}</span>
+        {/*
+          * Export, beside the count — picture 02 §7. Owner and admin only,
+          * and the server says so too: `/api/my-leads/export.csv` is behind
+          * `requireAdmin` and `requirePermission('export')` and writes an
+          * audit entry, so hiding the button is the courtesy, not the fence.
+          */}
+        {canExport && (
+          <a
+            className="d-btn d-sm"
+            href={`/api/my-leads/export.csv?${qs}`}
+            /* The browser downloads it; it never opens in the app. */
+            download
+          >
+            <Icon name="download" />Export
+          </a>
+        )}
       </div>
-
-      <FacetRows
-        facets={facets.data ?? null}
-        country={country}
-        language={language}
-        openRow={openRow}
-        onOpenRow={setOpenRow}
-        onPick={narrow}
-      />
 
       {leads.error && <ErrorNote>{leads.error}</ErrorNote>}
       {!leads.data && !leads.error && <Spinner />}
 
       {leads.data && (
-        <div
-          className="d-table-wrap"
-          ref={sheet.ref}
-          /*
-           * Measured, not guessed. The card ends at the bottom of the window
-           * whatever the chrome above it is doing, so both scrollbars live on
-           * the card and the header pins to its top edge.
-           */
-          style={sheet.max === null ? undefined : { maxHeight: `${sheet.max}px` }}
-        >
+        /*
+         * No height and no overflow on this card: the table fits inside it,
+         * so the card is not a scroll container and the header sticks to the
+         * PAGE at the design's own `top:var(--tb-h)`. §2.9: "no sideways
+         * scroll", "NO column on top of another".
+         */
+        <div className="d-table-wrap">
           {/*
             * "All 50 leads on this page are selected. Select all 863."
             * Only once the page is full of ticks, and only when there is more
@@ -1458,7 +1566,14 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           )}
 
           {rows.length > 0 && (
-            <table className="d-table d-sticky d-id-leads">
+            /*
+             * The column budget is keyed off this class, not off the page
+             * class. An agent on their own All tab renders `p-all-leads`
+             * with eight columns, not the owner's ten, and a budget written
+             * for ten would have put a 32px tick-box width on their Lead
+             * column.
+             */
+            <table className={`d-table d-sticky d-id-leads ${book ? 'v2-cols-book' : 'v2-cols-mine'}`}>
               <thead>
                 <tr>
                   {book && (
@@ -1500,10 +1615,22 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                     Given
                   </th>
                   {wide
-                    ? <>{!isAgent && <th>Agent</th>}<th>Last contact</th></>
+                    ? (
+                      <>
+                        {!isAgent && <th>Agent</th>}
+                        <th title="When this lead was last spoken to">Last contact</th>
+                      </>
+                    )
                     : <th>Local time</th>}
                   <th>{wide ? 'Attention · next step' : 'Next step'}</th>
-                  {!wide && <th />}
+                  {/*
+                    * The buttons get a column of their own on both lists.
+                    * §2.8: *"Call, WhatsApp and the menu at the end of the
+                    * row, never over text."* On the owner's book they used to
+                    * float over the next-step cell with a shadow drawn across
+                    * whatever somebody was reading.
+                    */}
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -1523,6 +1650,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                         key={row.id}
                         row={row}
                         wide={wide}
+                        book={book}
                         showOwner={wide && !isAgent}
                         selectable={book}
                         picked={picked[row.id] === true}
@@ -1534,6 +1662,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                         onOpen={() => setPanelFor(row)}
                         onMenu={(x, y) => setMenuAt({ row, x, y })}
                         dial={dial}
+                        tight={tight}
                       />
                     ))}
                   </Fragment>
@@ -1610,7 +1739,10 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             className="d-btn d-sm d-on-dark"
             onClick={() => openMove(chosen, null)}
           >
-            <Icon name="inbox" />Move to Incoming
+            {/* "Back to Incoming" — §3.4's own words. "Move to Incoming"
+                read as a third destination beside the agents; "back" says
+                what it is, which is undoing an assignment. */}
+            <Icon name="inbox" />Back to Incoming
           </button>
           <button
             type="button"
@@ -1699,6 +1831,19 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           onClose={() => setPanelFor(null)}
           onGive={() => { const row = panelFor; setPanelFor(null); openMove([row.id]); }}
           dial={dial}
+          /*
+           * §4.9: *"Arrow keys up and down move to the next lead in the
+           * list."* The list is what is on screen — this tab, these filters,
+           * in the day order the table draws — so it walks `drawn`, which is
+           * the same array the rows come from, and clamps at both ends
+           * rather than wrapping. Walking back round to the top from the
+           * last lead is how an agent calls somebody twice.
+           */
+          onPrev={() => setPanelFor(stepTo(drawn, panelFor, -1))}
+          onNext={() => setPanelFor(stepTo(drawn, panelFor, 1))}
+          /* After a Won, a Lost, a transfer or a note, the row behind the
+             panel is stale and the list does not know. */
+          onChanged={() => { leads.reload(); counts.reload(); facets.reload(); }}
         />
       )}
 
@@ -1966,11 +2111,21 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
 }
 
 function LeadRow({
-  row, wide, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu, dial,
+  row, wide, book, showOwner, selectable, picked, movedTo, onTick, onOpen, onMenu, dial, tight,
 }: {
   row: Row;
   wide: boolean;
+  /**
+   * The owner's whole book, not merely the wide layout.
+   *
+   * An agent on their own All tab is `wide` too, and taking Call and WhatsApp
+   * off their row would have been the wrong half of the distinction: it is
+   * the owner's ten-column book that has no room for them.
+   */
+  book: boolean;
   showOwner: boolean;
+  /** Narrow window: the buttons are their icons, with the word in the label. */
+  tight?: boolean;
   /** The screen's one call helper, so the row records what it did. */
   dial: CallActions;
   /** The owner's book has a tick box on every row; the agent's list does not. */
@@ -2007,28 +2162,45 @@ function LeadRow({
     else navigate(to);
   }
 
+  /*
+   * The row's three buttons, in their own cell at the end of the row.
+   *
+   * §2.8: *"Call, WhatsApp and the menu at the end of the row, never over
+   * text."* And §2.4's seventh point: a lead with no phone number shows "No
+   * phone" in grey and **no Call button** — pressing Call on a lead there is
+   * no number for is a dead end an agent should never be offered.
+   *
+   * Call and WhatsApp are the agent's list only. Picture 02 draws the
+   * owner's book with no buttons on the row at all, and the owner's book has
+   * three more columns to fit: at 1440px three buttons would leave the next
+   * step 112px, which is the column §2.2 calls "always readable". The owner
+   * keeps the ⋯ menu, and a row click opens the quick panel, where Call and
+   * WhatsApp are — so nothing is unreachable, it is one tap further.
+   */
   const actions = (
     <div className="d-row-actions">
-      {phone && (
+      {phone && !book && (
         <a
-          className="d-btn d-xs"
+          className={tight ? 'd-btn d-xs d-icon' : 'd-btn d-xs'}
           href={`tel:${phone}`}
+          title="Call"
           aria-label={`Call ${row.full_name ?? 'this lead'}`}
           onClick={(e) => { e.preventDefault(); void dial.call(row); }}
         >
-          <Icon name="phone" />Call
+          <Icon name="phone" />{tight ? '' : 'Call'}
         </a>
       )}
-      {phone && (
+      {phone && !book && (
         <a
-          className="d-btn d-xs"
+          className={tight ? 'd-btn d-xs d-icon' : 'd-btn d-xs'}
           href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
           target="_blank"
           rel="noreferrer"
+          title="WhatsApp"
           aria-label="WhatsApp"
           onClick={(e) => { e.preventDefault(); void dial.whatsapp(row); }}
         >
-          <Icon name="message-circle" />WhatsApp
+          <Icon name="message-circle" />{tight ? '' : 'WhatsApp'}
         </a>
       )}
       {onMenu
@@ -2091,13 +2263,28 @@ function LeadRow({
               <Avatar name={row.full_name ?? '?'} size={34} />
               <span className="v2-t-who">
                 <span className="v2-t-nm">
-                  <Link className="d-t-main" to={to} dir="auto">{row.full_name ?? 'Unnamed lead'}</Link>
+                  {/* The whole name on hover: the column is 158px wide on a
+                      book with nine other columns in it, so a long one
+                      ellipsises, and a name is the thing you must be able to
+                      read in full. */}
+                  <Link
+                    className="d-t-main"
+                    to={to}
+                    dir="auto"
+                    title={row.full_name ?? undefined}
+                  >
+                    {row.full_name ?? 'Unnamed lead'}
+                  </Link>
                   {row.is_vip === 1 && <span className="d-vip-tag">VIP</span>}
                 </span>
-                {/* Where it came from, under the name. The design puts it
-                    there, and it is the question asked straight after "who is
-                    this". */}
-                {row.source && <span className="v2-t-from">{sourceStyle(row.source).label}</span>}
+                {/*
+                  * The source used to sit under the name here. Emir's 14
+                  * November pictures draw the lead cell as initials, name and
+                  * the VIP tag and nothing else, and §2.6 is the complaint it
+                  * was costing: rows about 130px tall with only four leads on
+                  * a screen, where twelve should fit. The source is still on
+                  * the lead page and in the side panel.
+                  */}
               </span>
             </span>
           </td>
@@ -2116,23 +2303,23 @@ function LeadRow({
         * Grouped for reading aloud. This is the column an agent dictates
         * from, and it printed `+971501234567` in one run.
         *
-        * The flag goes here rather than in a column of its own: it is a fact
-        * about the number, it costs no width, and on the owner's book — which
-        * has no local-time column at all — it was the only place the country
-        * was visible. The `span` is because `dir="ltr"` on the cell would
-        * otherwise put the flag after the digits in an Arabic UI.
-        *
-        * No flag at all where the dialling code is not one we know. A wrong
-        * flag on a row an agent is about to ring is worse than none, which is
-        * the rule `lib/dialling.ts` was written to.
+        * No flag in front of it. There was one for a few hours on 14
+        * November; it cost 22px of a column that has to hold
+        * "+971 50 123 4567" without ever cutting it, and at 1440px the
+        * number came out as "+971 50 1…". Emir's own pictures draw the cell
+        * as the number alone, the flags are in the Country dropdown where he
+        * asked for them, and the agent's list still names the country in its
+        * Local time column.
         */}
       <td className="d-t-mono" dir="ltr">
-        {origin && (
-          <span className="v2-t-flag" title={origin.zoneLabel ?? origin.name} aria-hidden>
-            {flagOf(origin.iso2)}
-          </span>
-        )}
-        {spacedE164(phone) ?? '–'}
+        {/*
+          * "No phone" in words, not "–". §2.4's seventh point. A dash is a
+          * character somebody has to interpret; "No phone" is the answer. The
+          * Call button is dropped for the same row, above.
+          */}
+        {phone
+          ? spacedE164(phone)
+          : <span className="v2-t-nophone">No phone</span>}
       </td>
 
       <td>
@@ -2140,7 +2327,10 @@ function LeadRow({
         {!wide && wanted(row) && <span className="d-t-sub">{wanted(row)}</span>}
       </td>
 
-      <td>
+      {/* The stage pill. Its cell never ellipsises: a pill either fits or it
+          does not, and "Interested .." with the dots of a text overflow after
+          it reads like a bug, because it is one. */}
+      <td className="v2-t-stage">
         <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
           {STAGE_LABEL[row.stage_key] ?? row.stage_key}
         </span>
@@ -2162,11 +2352,17 @@ function LeadRow({
                  straight away rather than waiting for the list to come back,
                  so the Undo in the toast is about something visible. */
               <td className={movedTo ? 'd-pulse-row' : undefined}>
+                {/*
+                  * The first name, as picture 02 draws it — "Rocky",
+                  * "Nelson", "Talha", "Yuliia". The avatar carries the rest,
+                  * the full name is one hover away, and the column is 100px
+                  * wide on a book with nine other columns in it.
+                  */}
                 {(movedTo ?? row.owner_name)
                   ? (
-                    <span className="d-person">
+                    <span className="d-person" title={(movedTo ?? row.owner_name) as string}>
                       <Avatar name={(movedTo ?? row.owner_name) as string} size={26} />
-                      {movedTo ?? row.owner_name}
+                      {String(movedTo ?? row.owner_name).split(' ')[0]}
                     </span>
                   )
                   : <span className="d-chip d-red d-pip">Incoming</span>}
@@ -2200,251 +2396,29 @@ function LeadRow({
                   {advice && !advice.ok
                     ? <span className="v2-t-moon" aria-label="night there now" role="img">🌙</span>
                     : <Icon name="clock" size={13} />}
-                  {origin.zoneLabel ?? origin.name} {local.time}
+                  {cityOf(origin)} {local.time}
                 </span>
               )
               : <span className="d-localtime">–</span>}
           </td>
         )}
 
-      {wide
-        ? (
-          <td className={step.urgent ? 'd-t-act d-overdue' : 'd-t-act'}>
-            <span className="d-next" title={step.text}>{step.text}</span>
-            {actions}
-          </td>
-        )
-        : (
-          <>
-            <td
-              className={step.urgent ? 'd-next d-overdue' : step.none ? 'd-next d-muted' : 'd-next'}
-              title={step.text}
-            >
-              {step.text}
-            </td>
-            <td>{actions}</td>
-          </>
-        )}
+      {/*
+        * The next step, and then the buttons in a cell of their own.
+        *
+        * §2.2's fourth point: *"Next step is wide and always readable. Red
+        * when overdue, grey when empty."* It is the one column with no width
+        * in the budget, so it takes whatever is left, and it is the same cell
+        * on both lists now: the owner's used to hold the buttons on top of
+        * the words with a shadow drawn over them.
+        */}
+      <td
+        className={step.urgent ? 'd-next d-overdue' : step.none ? 'd-next d-muted' : 'd-next'}
+        title={step.text}
+      >
+        {step.text}
+      </td>
+      <td className="v2-t-acts">{actions}</td>
     </tr>
-  );
-}
-
-/**
- * The 480px side panel a row click opens.
- *
- * `design/web/my-leads.html` and `all-leads.html` each draw one, and they are
- * not the same panel: an agent's is a quick view of their own lead (the big
- * phone number, what is owed next, the last note) and an owner's is a
- * position report (who holds it, what is late, the last three things that
- * happened, and a way to give it to somebody else).
- *
- * Both were absent from the computer entirely — a row click left the list for
- * the whole lead page, so looking at six leads cost six round trips and six
- * lost scroll positions. The owner reported it as fault three.
- *
- * It reads the lead once when it opens, which is what gives it the timeline
- * and the notes the list rows do not carry. Nothing here invents a figure: a
- * field the record does not hold is simply not drawn.
- */
-function LeadPanel({ row, book, onClose, onGive, dial }: {
-  row: Row;
-  book: boolean;
-  onClose: () => void;
-  onGive: () => void;
-  dial: CallActions;
-}) {
-  const detail = useAsync<{
-    lead: Row & { email: string | null; language: string | null; preferred_location: string | null };
-    activities: Array<{ id: string; type: string; title?: string | null; body: string | null; created_at: string }>;
-  }>(() => api.get(`/api/my-leads/${row.id}`), [row.id]);
-  const notes = useAsync<{ items: Array<{ id: string; body: string; author_name?: string | null; created_at: string }> }>(
-    () => (book ? Promise.resolve({ items: [] }) : api.get(`/api/notes/${row.contact_id}`)),
-    [row.contact_id, book],
-  );
-
-  const step = nextStep(row);
-  const phone = row.phone_e164 ?? '';
-  const origin = originOf(phone);
-  const local = origin ? clockIn(origin.timeZone) : null;
-  const name = row.full_name ?? 'Unnamed lead';
-  const to = `/v2/leads/${row.id}`;
-  const language = detail.data?.lead.language ?? null;
-
-  /* Escape closes it, like every other panel in the design. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const actions = (
-    <div className="d-p-acts">
-      {phone
-        ? (
-          <a
-            className="d-btn d-primary"
-            href={`tel:${phone}`}
-            onClick={(e) => { e.preventDefault(); void dial.call(row); }}
-          >
-            <Icon name="phone" />Call
-          </a>
-        )
-        : <span className="d-btn d-disabled"><Icon name="phone" />No number</span>}
-      {phone && (
-        <a
-          className="d-btn"
-          href={`https://wa.me/${phone.replace(/[^\d]/g, '')}`}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => { e.preventDefault(); void dial.whatsapp(row); }}
-        >
-          <Icon name="message-circle" />WhatsApp
-        </a>
-      )}
-      <Link className="d-btn" to={`${to}?tab=notes`}>
-        <Icon name="pencil" />Add note
-      </Link>
-    </div>
-  );
-
-  return (
-    <>
-      <div className="d-scrim d-show" onClick={onClose} aria-hidden />
-      <aside className="d-panel d-open" aria-label="Lead">
-        <div className="d-panel-head">
-          <h2>
-            {name}
-            {row.is_vip === 1 && <> <span className="d-vip-tag">VIP</span></>}
-          </h2>
-          <Link className="d-btn d-sm" to={to}>
-            <Icon name="external-link" />Open full page
-          </Link>
-          <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
-            <Icon name="x" />
-          </button>
-        </div>
-
-        <div className="d-panel-body d-col d-gap-16">
-          <div className="d-p-top">
-            <div className={book ? 'd-phone-big' : 'd-phone-xl'} dir="ltr">
-              {spacedE164(phone) ?? 'No phone number'}
-            </div>
-            <div className="d-row d-gap-8 d-wrap">
-              <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
-                {STAGE_LABEL[row.stage_key] ?? row.stage_key}
-              </span>
-              {origin && local && (
-                <span className="d-localtime">
-                  <Icon name="clock" size={13} />
-                  {origin.zoneLabel ?? origin.name} {local.time}
-                </span>
-              )}
-              <span className="d-muted d-small">
-                {row.owner_name ? `· with ${row.owner_name}` : '· in Incoming, no agent yet'}
-              </span>
-            </div>
-          </div>
-
-          {actions}
-
-          {/* What is owed. Red when it is late, which is the one thing the
-              owner is scanning this panel for. */}
-          {book
-            ? (
-              <div className={step.urgent ? 'd-banner d-red' : 'd-banner'}>
-                <Icon name="clock" />
-                <span className="d-grow">{step.text}</span>
-              </div>
-            )
-            : (
-              <div className={step.urgent ? 'd-pv-next d-red' : 'd-pv-next'}>
-                <span className="d-sec-label">Next step</span>
-                <b className="d-bold">{step.text}</b>
-              </div>
-            )}
-
-          <dl className="d-kv">
-            <PanelRow label="Project" value={row.project_name} />
-            {book
-              ? <PanelRow label="Budget" value={wanted(row) || null} />
-              : <PanelRow label="Unit · budget" value={wanted(row) || null} />}
-            {book && (
-              <PanelRow label="Agent" value={row.owner_name ?? 'Incoming'} />
-            )}
-            {!book && <PanelRow label="Speaks" value={language} />}
-            <PanelRow label="Last contact" value={whenShort(row.last_contact_at)} />
-            {book && (
-              <PanelRow
-                label="Source"
-                value={row.source ? SOURCE_STYLES[row.source]?.label ?? row.source : null}
-              />
-            )}
-            {book && <PanelRow label="Lead #" value={`#${row.id.slice(0, 8)}`} />}
-          </dl>
-
-          {/* The owner's panel ends with the last three things that happened;
-              the agent's with the last note, which is what they left for
-              themselves. */}
-          {book
-            ? (
-              <div>
-                <h4 className="d-mb-8">Latest on the timeline</h4>
-                {!detail.data && <span className="d-small d-muted">Reading the lead…</span>}
-                {detail.data && detail.data.activities.length === 0 && (
-                  <span className="d-small d-muted">Nothing has happened yet.</span>
-                )}
-                <div className="d-timeline">
-                  {(detail.data?.activities ?? []).slice(0, 3).map((one) => (
-                    <div className="d-tl-item" key={one.id}>
-                      <span className="d-tl-dot"><Icon name="circle" size={14} /></span>
-                      <div className="d-tl-body">
-                        <b>{one.title?.trim() || one.type.replace(/[._]/g, ' ')}</b>
-                        {one.body && <p>{one.body}</p>}
-                        <span className="d-tl-time">{whenShort(one.created_at)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-            : (
-              <div>
-                <span className="d-sec-label d-mb-8">Last note</span>
-                {!notes.data && <p className="d-small d-muted">Reading the notes…</p>}
-                {notes.data && (
-                  <p className="d-mt-8">
-                    {notes.data.items[0]?.body ?? 'No notes yet. Write the first one after your call.'}
-                  </p>
-                )}
-              </div>
-            )}
-        </div>
-
-        <div className="d-panel-foot">
-          {book
-            ? (
-              <button type="button" className="d-btn" onClick={onGive}>
-                <Icon name="repeat" />Give to another agent
-              </button>
-            )
-            : (
-              <Link className="d-btn" to={`${to}?do=transfer`}>
-                <Icon name="repeat" />Transfer
-              </Link>
-            )}
-          <span className="d-grow" />
-          <button type="button" className="d-btn d-ghost" onClick={onClose}>Close</button>
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function PanelRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="d-kv-row">
-      <dt>{label}</dt>
-      <dd dir="auto">{value && String(value).trim() !== '' ? value : '—'}</dd>
-    </div>
   );
 }

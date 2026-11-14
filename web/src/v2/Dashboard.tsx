@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -263,6 +263,16 @@ export function V2Dashboard() {
   const toast = useToast();
 
   const got = useAsync<Dash>(() => api.get(`/api/v2/dashboard?period=${period}`), [period]);
+  /*
+   * The company's own name, for the line under the title: "Emigeo Homes ·
+   * all leads". Everybody signed in may read `/api/company`; when nobody has
+   * filled it in yet the line says what this CRM is rather than guessing a
+   * brand, which is what `Email.tsx` does with the same endpoint.
+   */
+  const company = useAsync<{ company: { legalName?: string; tradingName?: string } }>(
+    () => api.get('/api/company'),
+    [],
+  );
   /* The line at the top of the brief. The card is useful without it, so it is
      read separately and simply shows less when it is quiet. */
   const insight = useAsync<Insight>(() => api.get('/api/activity/insight'), []);
@@ -347,9 +357,14 @@ export function V2Dashboard() {
    * to Team live — because the screen under it is a long column of cards
    * that wants the height.
    */
+  const brand = company.data?.company?.tradingName?.trim()
+    || company.data?.company?.legalName?.trim()
+    || 'homes.me';
   usePhoneHead({
     title: 'Dashboard',
-    sub: 'Every agent · lead totals are always now',
+    /* §7.1, and only on a phone: the computer header keeps the line it had,
+       because nothing was asked of it and 768px and wider must not move. */
+    sub: isPhone ? `${brand} · all leads` : 'Every agent · lead totals are always now',
     compact: true,
     action: { icon: 'monitor', label: 'Team live', to: '/v2/team-live' },
   });
@@ -373,28 +388,160 @@ export function V2Dashboard() {
    */
   const brief = (d?.brief ?? []).slice(0, 3);
 
-  return (
-    <div className="p-dashboard">
-      <div className="d-filters">
-        <div className="d-seg" role="tablist" aria-label="Period">
-          {PERIODS.map((one) => (
-            <button
-              key={one.key}
-              type="button"
-              role="tab"
-              aria-selected={period === one.key}
-              className={period === one.key ? 'd-on' : undefined}
-              onClick={() => setPeriod(one.key)}
-            >
-              {one.label}
-            </button>
-          ))}
-        </div>
+  /*
+   * Two pieces of the computer's first row that the phone wants somewhere
+   * else, lifted out so there is one copy of each.
+   *
+   * §7.5 of the owner's list: the four small figures go "below the three main
+   * cards", and the Homes AI lines go under the attendance card. On a
+   * computer both stay exactly where `dashboard.html` draws them.
+   */
+  const briefCard = d ? (
+    <section className="d-card d-hero d-c-5" aria-label="What yesterday looked like">
+      <div className="d-brief-top">
+        <span className="d-brief-tag">
+          <Icon name="sparkles" />
+          {insight.data?.source ?? 'Counted from your own data'}
+        </span>
         <span className="d-grow" />
-        <span className="d-small d-muted">
-          {d ? `Live · ${d.now}` : 'Calls, meetings and units follow the period'}
+        <span className="d-hero-chip">{d.now}</span>
+      </div>
+
+      <p className="d-brief-say">
+        {insight.data && insight.data.lines.length > 0
+          ? insight.data.lines[0]?.text
+          : `${count(d.work.calls)} calls and ${count(d.work.meetings)} meetings `
+            + `${period === 'today' ? 'today' : `in the ${period}`}.`}
+        {brief.length > 0 && (
+          <>
+            {' '}
+            <em>
+              {brief.length} {brief.length === 1 ? 'thing needs' : 'things need'} a
+              decision.
+            </em>
+          </>
+        )}
+      </p>
+
+      <div className="d-arows">
+        {brief.map((row) => (
+          <div className="d-arow" key={`${row.kind}-${row.to}`}>
+            <span className={row.kind === 'leave' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
+              <Icon name={BRIEF_ICON[row.kind]} />
+            </span>
+            <Link className="d-arow-txt" to={row.to}>
+              <b>{row.text}</b>
+              {/* The reason the row is here, not the button's own
+                  word — which is what made the card read
+                  "Move 31 / Move 31". */}
+              <span className="d-s">{row.sub}</span>
+            </Link>
+            {row.move
+              ? (
+                <button
+                  type="button"
+                  className="d-btn d-sm d-on-dark d-primary"
+                  onClick={() => setMovingWho(row.move)}
+                >
+                  {row.action}
+                </button>
+              )
+              : <Link className="d-btn d-sm d-on-dark" to={row.to}>{row.action}</Link>}
+          </div>
+        ))}
+        {brief.length === 0 && (
+          <div className="d-arow">
+            <span className="d-arow-ic"><Icon name="check" /></span>
+            <span className="d-arow-txt">
+              <b>Nothing needs a decision</b>
+              <span className="d-s">
+                Nobody is away with leads stranded, nobody is over their desk maximum
+                and every lead has been touched
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  ) : null;
+
+  const workTiles = d ? (
+    <div className="d-ptiles">
+      <Link className="d-ptile" to="/v2/messaging">
+        <span className="d-k">Call clicks</span>
+        <b className="d-num-sm">{count(d.work.calls)}</b>
+        <Delta n={d.work.calls - d.work.callsPrevious} note={against} />
+      </Link>
+      <Link className="d-ptile" to="/v2/calendar">
+        <span className="d-k">Meetings booked</span>
+        <b className="d-num-sm">{count(d.work.meetings)}</b>
+        <Delta n={d.work.meetings - d.work.meetingsPrevious} note={against} />
+      </Link>
+      <Link className="d-ptile" to="/v2/wall">
+        <span className="d-k">Units booked</span>
+        <b className="d-num-sm">{count(d.work.units)}</b>
+        <span className="d-s">
+          {d.work.unitsValueAed ? money(d.work.unitsValueAed) : 'no value recorded'}
+        </span>
+      </Link>
+      <div
+        className="d-ptile"
+        title={d.work.touchedIn2hPct === null
+          ? 'No lead has arrived in this period yet'
+          : `${Math.round((d.work.touchedIn2hPct / 100) * d.work.touchedIn2hOf)} of the `
+            + `${count(d.work.touchedIn2hOf)} new leads in this period got a call or a `
+            + 'message inside 2 hours'}
+      >
+        <span className="d-k">Touched in 2 h</span>
+        <b className="d-num-sm">
+          {d.work.touchedIn2hPct === null ? '—' : `${d.work.touchedIn2hPct}%`}
+        </b>
+        <span className="d-s">
+          {d.work.firstAnswerMinutes === null
+            ? `of ${count(d.work.touchedIn2hOf)} new leads`
+            : <>First click <b className="d-t-green">{d.work.firstAnswerMinutes} min</b></>}
         </span>
       </div>
+    </div>
+  ) : null;
+
+  /*
+   * The period switch. On a computer it is the first thing on the screen,
+   * where `dashboard.html` puts it; on a phone the owner moved it under the
+   * hero card and made it small (§7.1 and §7.6), because the first thing an
+   * owner wants on a phone is the number, not a control.
+   */
+  const periodRow = (
+    <div className={isPhone ? 'd-filters v2-a-dash-period' : 'd-filters'}>
+      <div className="d-seg" role="tablist" aria-label="Period">
+        {PERIODS.map((one) => (
+          <button
+            key={one.key}
+            type="button"
+            role="tab"
+            aria-selected={period === one.key}
+            className={period === one.key ? 'd-on' : undefined}
+            onClick={() => setPeriod(one.key)}
+          >
+            {one.label}
+          </button>
+        ))}
+      </div>
+      <span className="d-grow" />
+      {isPhone && d && (
+        <button type="button" className="d-btn d-xs" onClick={() => download(d)}>
+          <Icon name="download" />Download
+        </button>
+      )}
+      <span className="d-small d-muted">
+        {d ? `Live · ${d.now}` : 'Calls, meetings and units follow the period'}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="p-dashboard">
+      {!isPhone && periodRow}
 
       {got.error && <ErrorNote>{String(got.error)}</ErrorNote>}
       {!d && !got.error && <Spinner />}
@@ -402,73 +549,17 @@ export function V2Dashboard() {
       {d && (
         <>
           {/* ── row 1: the brief, and the totals ──────────────────────── */}
+          {isPhone && (
+            <PhoneDashTop
+              d={d}
+              periodRow={periodRow}
+              briefCard={briefCard}
+              workTiles={workTiles}
+            />
+          )}
+          {!isPhone && (
           <div className="d-bento d-row1">
-            <section className="d-card d-hero d-c-5" aria-label="What yesterday looked like">
-              <div className="d-brief-top">
-                <span className="d-brief-tag">
-                  <Icon name="sparkles" />
-                  {insight.data?.source ?? 'Counted from your own data'}
-                </span>
-                <span className="d-grow" />
-                <span className="d-hero-chip">{d.now}</span>
-              </div>
-
-              <p className="d-brief-say">
-                {insight.data && insight.data.lines.length > 0
-                  ? insight.data.lines[0]?.text
-                  : `${count(d.work.calls)} calls and ${count(d.work.meetings)} meetings `
-                    + `${period === 'today' ? 'today' : `in the ${period}`}.`}
-                {brief.length > 0 && (
-                  <>
-                    {' '}
-                    <em>
-                      {brief.length} {brief.length === 1 ? 'thing needs' : 'things need'} a
-                      decision.
-                    </em>
-                  </>
-                )}
-              </p>
-
-              <div className="d-arows">
-                {brief.map((row) => (
-                  <div className="d-arow" key={`${row.kind}-${row.to}`}>
-                    <span className={row.kind === 'leave' ? 'd-arow-ic d-accent' : 'd-arow-ic'}>
-                      <Icon name={BRIEF_ICON[row.kind]} />
-                    </span>
-                    <Link className="d-arow-txt" to={row.to}>
-                      <b>{row.text}</b>
-                      {/* The reason the row is here, not the button's own
-                          word — which is what made the card read
-                          "Move 31 / Move 31". */}
-                      <span className="d-s">{row.sub}</span>
-                    </Link>
-                    {row.move
-                      ? (
-                        <button
-                          type="button"
-                          className="d-btn d-sm d-on-dark d-primary"
-                          onClick={() => setMovingWho(row.move)}
-                        >
-                          {row.action}
-                        </button>
-                      )
-                      : <Link className="d-btn d-sm d-on-dark" to={row.to}>{row.action}</Link>}
-                  </div>
-                ))}
-                {brief.length === 0 && (
-                  <div className="d-arow">
-                    <span className="d-arow-ic"><Icon name="check" /></span>
-                    <span className="d-arow-txt">
-                      <b>Nothing needs a decision</b>
-                      <span className="d-s">
-                        Nobody is away with leads stranded, nobody is over their desk maximum
-                        and every lead has been touched
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            </section>
+            {briefCard}
 
             <section className="d-card d-c-7" aria-label="Totals">
               <div className="d-card-head">
@@ -516,47 +607,13 @@ export function V2Dashboard() {
                 </div>
               </div>
 
-              <div className="d-ptiles">
-                <Link className="d-ptile" to="/v2/messaging">
-                  <span className="d-k">Call clicks</span>
-                  <b className="d-num-sm">{count(d.work.calls)}</b>
-                  <Delta n={d.work.calls - d.work.callsPrevious} note={against} />
-                </Link>
-                <Link className="d-ptile" to="/v2/calendar">
-                  <span className="d-k">Meetings booked</span>
-                  <b className="d-num-sm">{count(d.work.meetings)}</b>
-                  <Delta n={d.work.meetings - d.work.meetingsPrevious} note={against} />
-                </Link>
-                <Link className="d-ptile" to="/v2/wall">
-                  <span className="d-k">Units booked</span>
-                  <b className="d-num-sm">{count(d.work.units)}</b>
-                  <span className="d-s">
-                    {d.work.unitsValueAed ? money(d.work.unitsValueAed) : 'no value recorded'}
-                  </span>
-                </Link>
-                <div
-                  className="d-ptile"
-                  title={d.work.touchedIn2hPct === null
-                    ? 'No lead has arrived in this period yet'
-                    : `${Math.round((d.work.touchedIn2hPct / 100) * d.work.touchedIn2hOf)} of the `
-                      + `${count(d.work.touchedIn2hOf)} new leads in this period got a call or a `
-                      + 'message inside 2 hours'}
-                >
-                  <span className="d-k">Touched in 2 h</span>
-                  <b className="d-num-sm">
-                    {d.work.touchedIn2hPct === null ? '—' : `${d.work.touchedIn2hPct}%`}
-                  </b>
-                  <span className="d-s">
-                    {d.work.firstAnswerMinutes === null
-                      ? `of ${count(d.work.touchedIn2hOf)} new leads`
-                      : <>First click <b className="d-t-green">{d.work.firstAnswerMinutes} min</b></>}
-                  </span>
-                </div>
-              </div>
+              {workTiles}
             </section>
           </div>
+          )}
 
-          {/* ── row 2: by stage ───────────────────────────────────────── */}
+          {/* ── row 2: by stage. On a phone this is the ring above. ──── */}
+          {!isPhone && (
           <section className="d-card d-mt-16 v2-dash-stages" aria-label="Leads by stage">
             <div className="v2-dash-stages-head">
               <h3>By stage</h3>
@@ -585,6 +642,7 @@ export function V2Dashboard() {
               </Link>
             </div>
           </section>
+          )}
 
           {/* ── row 3: per day · by project · sources ─────────────────── */}
           <div className="d-bento d-mt-16">
@@ -704,6 +762,7 @@ export function V2Dashboard() {
               {/* Each band and each legend entry carries `?show=`, so a
                   click opens attendance already filtered to the people it
                   counted rather than to everybody. */}
+              {!isPhone && (
               <div className="d-att-head">
                 <div className="d-segbar d-tall">
                   {BANDS.filter((band) => band.of(d.teamToday) > 0).map((band) => (
@@ -725,6 +784,7 @@ export function V2Dashboard() {
                   ))}
                 </div>
               </div>
+              )}
 
               {/*
                 * On a phone this was a seven-column table whose last cell
@@ -951,6 +1011,200 @@ export function V2Dashboard() {
       )}
     </div>
   );
+}
+
+/* ── the phone dashboard ─────────────────────────────────────────────────── */
+
+/** The ring: `OwnerDashboard.dc.html` draws r=52 at 18px inside a 140 box. */
+const RING_R = 52;
+const RING_C = 2 * Math.PI * RING_R;
+
+interface Slice { key: string; label: string; n: number; colour: string; to: string }
+
+/**
+ * The top of the phone dashboard, in the order the owner set on 14 November.
+ *
+ * Hero · period switch · the stage ring · attendance · Homes AI · the four
+ * small figures. The computer's own first row and its stage strip are not
+ * drawn under 768px: every number and every link in them is here instead,
+ * in the shape `OwnerDashboard.dc.html` draws for a phone.
+ */
+function PhoneDashTop({ d, periodRow, briefCard, workTiles }: {
+  d: Dash;
+  periodRow: ReactNode;
+  briefCard: ReactNode;
+  workTiles: ReactNode;
+}) {
+  const won = d.stages.find((one) => one.key === 'won')?.n ?? 0;
+
+  /* Every stage the board has, then Lost, which the pipeline keeps apart. */
+  const slices: Slice[] = [
+    ...d.stages.map((one) => ({
+      key: one.key,
+      label: one.label,
+      n: one.n,
+      colour: `var(--st-${one.tone})`,
+      to: `/v2/pipeline?stage=${one.key}`,
+    })),
+    { key: 'lost', label: 'Lost', n: d.lost.n, colour: 'var(--st-lost)', to: '/v2/leads?tab=lost' },
+  ];
+  /* The number in the middle is the sum of the ring, so the two always
+     agree — not a total from somewhere else that happens to be near it. */
+  const inRing = slices.reduce((sum, one) => sum + one.n, 0);
+
+  let around = 0;
+  const arcs = slices.filter((one) => one.n > 0).map((one) => {
+    const length = inRing > 0 ? (one.n / inRing) * RING_C : 0;
+    const arc = { key: one.key, colour: one.colour, length, offset: -around };
+    around += length;
+    return arc;
+  });
+
+  const t = d.teamToday;
+  const away = t.leave + t.absent;
+
+  return (
+    <div className="v2-a-dash">
+      <section className="v2-a-dash-hero" aria-label="All leads in the CRM">
+        <div className="v2-a-dash-hero-top">
+          <div className="v2-a-dash-hero-who">
+            <span className="v2-a-dash-hero-k">All leads in the CRM</span>
+            <Link className="v2-a-dash-hero-n" to="/v2/leads?tab=all">{count(d.totals.all)}</Link>
+          </div>
+          {/* The design's pill says "+240 last night". What this CRM counts
+              is the leads that arrived today, so that is what it says. */}
+          {d.totals.newToday > 0
+            ? (
+              <Link className="v2-a-dash-hero-pill" to="/v2/leads?tab=today">
+                <Icon name="plus" size={14} />{count(d.totals.newToday)} new today
+              </Link>
+            )
+            : <span className="v2-a-dash-hero-pill v2-a-dash-hero-quiet">No new leads yet today</span>}
+        </div>
+        <div className="v2-a-dash-hero-boxes">
+          <Link to="/v2/leads?tab=all">
+            <b>{count(d.totals.open)}</b><span>Open</span>
+          </Link>
+          <Link to="/v2/leads?tab=new">
+            <b>{count(d.totals.untouched)}</b><span>Untouched</span>
+          </Link>
+          <Link to="/v2/pipeline?stage=won">
+            <b className="v2-a-dash-hero-won">{count(won)}</b><span>Won</span>
+          </Link>
+        </div>
+      </section>
+
+      {periodRow}
+
+      <section className="d-card v2-a-dash-stage" aria-label="Every lead by stage">
+        <div className="v2-a-dash-stage-head">
+          <h3>Every lead by stage</h3>
+          <Link className="d-card-link" to="/v2/pipeline">
+            Open pipeline <Icon name="arrow-right" />
+          </Link>
+        </div>
+        <div className="v2-a-dash-ringrow">
+          <div className="v2-a-dash-ring">
+            <svg viewBox="0 0 140 140" aria-hidden="true">
+              <circle
+                cx="70" cy="70" r={RING_R}
+                fill="none" stroke="var(--surface-3)" strokeWidth="18"
+              />
+              {arcs.map((arc) => (
+                <circle
+                  key={arc.key}
+                  cx="70" cy="70" r={RING_R}
+                  fill="none"
+                  stroke={arc.colour}
+                  strokeWidth="18"
+                  strokeDasharray={`${arc.length.toFixed(1)} ${RING_C.toFixed(1)}`}
+                  strokeDashoffset={arc.offset.toFixed(1)}
+                  transform="rotate(-90 70 70)"
+                />
+              ))}
+            </svg>
+            <div className="v2-a-dash-ring-mid">
+              <b>{count(inRing)}</b>
+              <span>leads</span>
+            </div>
+          </div>
+          <div className="v2-a-dash-legend">
+            {slices.map((one) => (
+              <Link key={one.key} to={one.to}>
+                <i style={{ background: one.colour }} />
+                <span>{one.label}</span>
+                <b>{count(one.n)}</b>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="d-card v2-a-dash-att" aria-label="Attendance today">
+        <div className="v2-a-dash-stage-head">
+          <h3>Attendance today</h3>
+          <span className="v2-a-dash-live"><i />live</span>
+        </div>
+        <div className="v2-a-dash-boxes">
+          <Link className="v2-a-dash-box v2-a-dash-in" to="/v2/attendance?show=office">
+            <b>{count(t.inOffice)}</b><span>In</span>
+          </Link>
+          <Link className="v2-a-dash-box v2-a-dash-late" to="/v2/attendance?show=late">
+            <b>{count(t.late)}</b><span>Late</span>
+          </Link>
+          <Link className="v2-a-dash-box v2-a-dash-out" to="/v2/attendance?show=outside">
+            <b>{count(t.outside)}</b><span>Outside</span>
+          </Link>
+          {/* Leave and absent are two filters and one box, the way the design
+              draws it, so this one opens attendance whole. */}
+          <Link className="v2-a-dash-box v2-a-dash-away" to="/v2/attendance">
+            <b>{count(away)}</b><span>Leave / absent</span>
+          </Link>
+        </div>
+        <Link className="v2-a-dash-faces" to="/v2/attendance">
+          <span className="v2-a-dash-heads">
+            {d.agents.slice(0, 5).map((one) => (
+              <Avatar key={one.userId} name={one.name} src={one.photoUrl ?? undefined} size={30} />
+            ))}
+          </span>
+          <span className="v2-a-dash-say">{attendanceLine(d)}</span>
+          <Icon name="chevron-right" size={18} />
+        </Link>
+      </section>
+
+      {briefCard}
+      {workTiles}
+    </div>
+  );
+}
+
+/**
+ * The line beside the faces: who is not where they should be.
+ *
+ * Names, from the same rows the table below is drawn from. When everybody is
+ * accounted for it says so rather than leaving an empty line.
+ */
+function attendanceLine(d: Dash): string {
+  if (d.teamToday.closed) return 'The office is closed today';
+  const missing = d.agents.filter((one) => !one.onLeave && one.marked === null);
+  const outside = d.agents.filter((one) => one.marked === 'outside');
+  const parts: string[] = [];
+  if (missing.length > 0) {
+    parts.push(missing.length <= 2
+      ? `${missing.map((one) => firstName(one.name)).join(' and ')} not checked in`
+      : `${missing.length} not checked in`);
+  }
+  if (outside.length > 0) {
+    parts.push(outside.length <= 2
+      ? `${outside.map((one) => firstName(one.name)).join(' and ')} outside`
+      : `${outside.length} outside`);
+  }
+  if (parts.length === 0) return 'Everybody is accounted for';
+  return parts.join(' · ');
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name;
 }
 
 /**

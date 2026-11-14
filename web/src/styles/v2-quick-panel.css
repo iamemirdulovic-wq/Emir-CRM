@@ -1,0 +1,189 @@
+/*
+ * The leads quick panel — the 480px side panel a row click opens.
+ *
+ * Imported by `v2/LeadPanel.tsx` itself rather than from `index.css`, so the
+ * panel is one component plus one stylesheet and work on it cannot collide
+ * with work on the leads table next door.
+ *
+ * ── Read this before adding a rule ──────────────────────────────────────
+ *
+ * **This file is bundled BEFORE the design's own sheets, not after.**
+ * `main.tsx` imports `./App.js` on line 4 and `./styles/index.css` on line 8,
+ * so every stylesheet the app's own modules pull in — this one — is emitted
+ * ahead of `v2-ui.css`. At equal specificity the design wins, not us. It is
+ * the same trap as `.v2 .p-X .d-foo` on the ported page CSS, in reverse.
+ *
+ * So every rule here that touches an element also carrying a `d-` class is
+ * written with that class in the selector — `.v2 .d-btn.v2-qp-rec`, not
+ * `.v2 .v2-qp-rec` — which wins on specificity whatever the order. Rules for
+ * our own elements, which no `d-` rule can reach, are left plain.
+ *
+ * ── Why its own classes at all ──────────────────────────────────────────
+ *
+ * The design package has two quick panels — `my-leads.html`'s and
+ * `all-leads.html`'s — and the owner's fix list (§4, 14 Nov) asks for one
+ * panel with more in it than either of them draws: five action buttons, a
+ * next-step card with buttons on it, "In short", a note box that is always
+ * open with a microphone, the last three notes, and Won and Lost at the foot.
+ * Those blocks have no `d-` class because the design never drew them, and the
+ * two the design *did* draw — `.d-pv-next`, `.d-p-acts` — are page-scoped:
+ * `.v2 .p-my-leads .d-pv-next` styles nothing on the owner's `.p-all-leads`
+ * screen, so the owner's panel would have come out unstyled in exactly the
+ * way `design-classes.test.ts` was written to catch.
+ *
+ * Everything here is `v2-qp-`, under `.v2` alone, and works under either page
+ * class. Colours are tokens only, so dark mode follows without a second block.
+ */
+
+/* ── The five action buttons ───────────────────────────────────────────── */
+
+/*
+ * Six columns: Call, WhatsApp and Telegram take two each, Follow-up and
+ * Meeting take three each. One grid rather than two rows, so the gaps line
+ * up and nothing reflows into a ragged last row at 480px.
+ */
+.v2 .v2-qp-acts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* `.d-btn` is 0 16px, which pushes "WhatsApp" out of a 140px cell. */
+.v2 .v2-qp-acts .d-btn {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.v2 .v2-qp-acts .d-btn.v2-qp-a3 { grid-column: span 2; }
+.v2 .v2-qp-acts .d-btn.v2-qp-a2 { grid-column: span 3; }
+
+/* ── The next step ─────────────────────────────────────────────────────── */
+
+.v2 .v2-qp-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.v2 .v2-qp-next.v2-qp-next-late {
+  background: var(--red-soft);
+  color: var(--red-ink);
+}
+
+.v2 .v2-qp-next-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.v2 .v2-qp-next-text b {
+  display: block;
+  margin-top: 2px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* ── In short ──────────────────────────────────────────────────────────── */
+
+.v2 .v2-qp-short p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.v2 .v2-qp-short p + p { margin-top: 4px; }
+.v2 .v2-qp-short p b { color: var(--ink); font-weight: 620; }
+
+/* ── The note box, always open ─────────────────────────────────────────── */
+
+.v2 .v2-qp-note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.v2 .v2-qp-note .d-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.v2 .v2-qp-note-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.v2 .v2-qp-note-foot .d-grow { flex: 1; }
+
+/* The microphone while it is running: red, so nobody leaves it on. */
+.v2 .d-btn.v2-qp-rec,
+.v2 .d-btn.v2-qp-rec:hover {
+  background: var(--red);
+  color: #fff;
+  box-shadow: none;
+}
+
+.v2 .v2-qp-staged {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* ── The last three notes ──────────────────────────────────────────────── */
+
+.v2 .v2-qp-notes {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2 .v2-qp-notes > * + * {
+  border-top: 1px solid var(--line);
+}
+
+.v2 .v2-qp-note-row { padding: 10px 0; }
+.v2 .v2-qp-note-row:first-child { padding-top: 2px; }
+
+.v2 .v2-qp-note-who {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.v2 .v2-qp-note-who b {
+  color: var(--ink-2);
+  font-weight: 620;
+}
+
+.v2 .v2-qp-note-body {
+  margin-top: 3px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* ── The foot: Transfer, Won, Lost ─────────────────────────────────────── */
+
+/*
+ * Three buttons at 480px are tight once two of them carry icons, so the foot
+ * wraps rather than squeezing the words out of them.
+ */
+.v2 .d-panel-foot.v2-qp-foot {
+  flex-wrap: wrap;
+}
+
+.v2 .d-panel-foot.v2-qp-foot .d-btn { flex: none; }

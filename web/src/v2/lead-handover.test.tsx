@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LeadHandover, type HandoverStep } from './LeadHandover.js';
+import { LeadHandover, type AttemptOutcome, type HandoverStep } from './LeadHandover.js';
+import { when } from './Transfers.js';
 
 /**
  * "Who has had this lead" — the owner's two dates.
@@ -89,11 +90,19 @@ async function mount(tree: ReactNode): Promise<void> {
 const block = async (): Promise<void> => mount(<LeadHandover leadId="o-1" />);
 const text = (): string => (container.textContent ?? '').replace(/\s+/g, ' ');
 
-/** A step with everything blank but what the test cares about. */
+/** A hand-over with everything blank but what the test cares about. */
 function step(over: Partial<HandoverStep> & { id: string; at: string }): HandoverStep {
   return {
-    toName: null, fromName: null, by: 'unknown', byName: null, reason: null, note: null, ...over,
+    kind: 'handover', toName: null, fromName: null, by: 'unknown', byName: null,
+    reason: null, note: null, outcome: null, decidedAt: null, ...over,
   };
+}
+
+/** A transfer request that did not move the lead. */
+function attempt(
+  over: Partial<HandoverStep> & { id: string; at: string; outcome: AttemptOutcome },
+): HandoverStep {
+  return step({ kind: 'attempt', by: 'person', ...over });
 }
 
 /* ── 1. one hand-out, one line ────────────────────────────────────────── */
@@ -305,6 +314,147 @@ describe('the dates', () => {
   });
 });
 
+/* ── 4b. transfers that did not happen ────────────────────────────────── */
+
+describe('a transfer that did not happen', () => {
+  /*
+   * Emir, 14 Nov, looking at a real lead: *"show every transfer, also
+   * cancelled and refused ones, with from, to, date, time and reason. Today a
+   * cancelled transfer (Test Agents to Tej, 13 Nov) does not show on the
+   * lead."* A refused request is the record of an agent turning a lead down
+   * and a cancelled one of a manager pulling it back. Neither moved the lead;
+   * both are history.
+   */
+  const cancelled = (): HandoverStep => attempt({
+    id: 't:1',
+    at: '2026-11-13T06:05:00.000Z',
+    outcome: 'cancelled',
+    fromName: 'Test Agents',
+    toName: 'Tej Singh',
+    byName: 'Test Agents',
+    reason: 'too_many',
+    decidedAt: '2026-11-13T12:20:00.000Z',
+  });
+
+  it('shows the cancelled one, with from, to, date, time and reason', async () => {
+    answer = { items: [cancelled()] };
+    await block();
+    expect(text()).toContain('Transfer from Test Agents to Tej Singh');
+    expect(text(), 'the outcome, in plain English').toContain('cancelled');
+    expect(text(), 'the reason, in plain English').toContain('Too many leads');
+    /* 06:05 UTC is 10:05 in Dubai, on the 13th — yesterday, against the
+       frozen clock, which is how the rest of the product words it. */
+    expect(text()).toContain('Yesterday 10:05');
+    expect(container.querySelector('.v2-leadhand-when')?.getAttribute('title'))
+      .toContain('13 Nov 2026');
+  });
+
+  it('never shows the stored status code', async () => {
+    answer = {
+      items: [
+        cancelled(),
+        attempt({
+          id: 't:2', at: '2026-11-13T07:00:00.000Z', outcome: 'needs_approval',
+          fromName: 'Talha Khan', toName: 'Raj Mehta', reason: 'language',
+        }),
+      ],
+    };
+    await block();
+    /* Emir's first rule: never a raw code. `needs_approval` is a column
+       value, not a sentence. */
+    expect(text()).not.toContain('needs_approval');
+    expect(text()).toContain('waiting for the owner');
+  });
+
+  it('reads as not-completed: a noun, not the past tense, and greyed', async () => {
+    answer = { items: [cancelled()] };
+    await block();
+    /* "Transferred from" means it moved. "Transfer from" does not. */
+    expect(text()).not.toContain('Transferred from');
+    const row = container.querySelector('.v2-leadhand-row');
+    expect(row?.className).toContain('v2-leadhand-off');
+    expect(container.querySelector('.v2-leadhand-out')?.textContent).toBe('cancelled');
+  });
+
+  it('does not grey a transfer that did happen', async () => {
+    answer = {
+      items: [step({
+        id: 'a2', at: '2026-11-13T06:05:00.000Z', toName: 'Raj Mehta',
+        fromName: 'Talha Khan', by: 'person', byName: 'Talha Khan', reason: 'knows_project',
+      })],
+    };
+    await block();
+    expect(text()).toContain('Transferred from Talha Khan to Raj Mehta');
+    expect(container.querySelector('.v2-leadhand-row')?.className)
+      .not.toContain('v2-leadhand-off');
+  });
+
+  it('names who is being waited on, so nobody has to go and look it up', async () => {
+    answer = {
+      items: [attempt({
+        id: 't:3', at: '2026-11-13T06:05:00.000Z', outcome: 'pending',
+        fromName: 'Talha Khan', toName: 'Raj Mehta', reason: 'leave',
+      })],
+    };
+    await block();
+    expect(text()).toContain('waiting for Raj Mehta');
+  });
+
+  it('says only "refused", because two different people can refuse', async () => {
+    /*
+     * The agent it was offered to and the owner whose approval a Meeting or
+     * Offer lead needs both store `refused`, and `lead_transfers` keeps no
+     * record of which. Naming one would be a guess.
+     */
+    answer = {
+      items: [attempt({
+        id: 't:4', at: '2026-11-13T06:05:00.000Z', outcome: 'refused',
+        fromName: 'Talha Khan', toName: 'Raj Mehta', reason: 'client_asked',
+      })],
+    };
+    await block();
+    expect(text()).toContain('refused');
+    expect(text()).not.toMatch(/refused by/);
+  });
+
+  it('puts when it ended on the hover, not as a second date on the line', async () => {
+    answer = { items: [cancelled()] };
+    await block();
+    const title = container.querySelector('.v2-leadhand-when')?.getAttribute('title') ?? '';
+    expect(title).toContain('Asked');
+    expect(title).toContain('13 Nov 2026, 10:05');
+    expect(title, 'cancelled at 12:20 UTC, which is 16:20 in Dubai')
+      .toContain('Cancelled');
+    expect(title).toContain('16:20');
+  });
+
+  it('weaves attempts into the chain by date, oldest first', async () => {
+    answer = {
+      items: [
+        step({
+          id: 'a1', at: '2026-11-10T06:00:00.000Z', toName: 'Talha Khan',
+          by: 'person', byName: 'Emir Dulovic',
+        }),
+        attempt({
+          id: 't:1', at: '2026-11-11T06:00:00.000Z', outcome: 'refused',
+          fromName: 'Talha Khan', toName: 'Tej Singh', reason: 'too_many',
+        }),
+        step({
+          id: 'a2', at: '2026-11-12T06:00:00.000Z', toName: 'Raj Mehta',
+          fromName: 'Talha Khan', by: 'person', byName: 'Talha Khan', reason: 'knows_project',
+        }),
+      ],
+    };
+    await block();
+    const said = text();
+    expect(said.indexOf('Given out by Emir Dulovic'))
+      .toBeLessThan(said.indexOf('Transfer from Talha Khan to Tej Singh'));
+    expect(said.indexOf('Transfer from Talha Khan to Tej Singh'))
+      .toBeLessThan(said.indexOf('Transferred from Talha Khan to Raj Mehta'));
+    expect(rows()).toHaveLength(3);
+  });
+});
+
 /* ── 5. the ends of the range ─────────────────────────────────────────── */
 
 describe('a lead nobody has been given', () => {
@@ -345,6 +495,31 @@ describe('the lead page', () => {
     expect(short).toBeGreaterThan(-1);
     expect(hand).toBeGreaterThan(short);
     expect(hand, 'above the Notes/Timeline/Info/Files card').toBeLessThan(tabs);
+  });
+});
+
+/* ── 6b. the Transfers page's own When column ─────────────────────────── */
+
+describe('the Transfers page “When” column', () => {
+  /*
+   * Emir, 14 Nov: *"Transfers page: the When column shows only the day. Show
+   * date AND time."* Today's rows already carried a clock and everything
+   * older dropped it, so there was no telling a request sent before the
+   * morning meeting from one sent after it.
+   */
+  it('carries the time on an older row, not just the day', () => {
+    /* 13 Nov 06:05 UTC is 10:05 in Dubai, against the frozen 14 Nov clock. */
+    expect(when('2026-11-13T06:05:00.000Z')).toBe('Fri 13 Nov 10:05');
+  });
+
+  it('still says “Today” with the clock on today’s rows', () => {
+    expect(when('2026-11-14T05:30:00.000Z')).toBe('Today 09:30');
+  });
+
+  it('is 24-hour and Dubai', () => {
+    /* 20:45 UTC on the 13th is 00:45 on the 14th in Dubai — today. */
+    expect(when('2026-11-13T20:45:00.000Z')).toBe('Today 00:45');
+    expect(when('2026-11-12T13:40:00.000Z')).toBe('Thu 12 Nov 17:40');
   });
 });
 
