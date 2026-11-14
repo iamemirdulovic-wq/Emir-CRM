@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
 import { formatAedShort, humanize, maskPhone, relativeTime } from '../lib/format.js';
 import { Icon, SkeletonRows, Tabs, type TabItem } from '../design/index.js';
+import { given, groupByGivenDay } from '../lib/assigned.js';
 import { Avatar, Empty, ErrorNote, Score, StagePill } from '../design/ui.js';
 import type { StageKey } from '../lib/types.js';
 import { Button } from '../design/forms.js';
@@ -48,6 +49,19 @@ interface Lead {
   last_contact_at: string | null;
   no_answer_count: number;
   created_at: string;
+  /**
+   * When this lead was handed to the agent who holds it.
+   *
+   * Talha, 14 Nov 2026, over a screenshot of 105 new leads in which every row
+   * looked the same: "you need to put dates on the leads once they assign, so
+   * we know which one is today leads, which one is yesterday, and which one is
+   * day before yesterday."
+   *
+   * `assigned_at`, not `created_at`. Null when the lead has never been given
+   * out, or has gone back to the pool, and the row says so in words rather
+   * than borrowing the date beside it.
+   */
+  assigned_at: string | null;
   full_name: string | null;
   phone_e164: string | null;
   email: string | null;
@@ -209,15 +223,33 @@ export function MyLeads() {
 
       {leads.data && leads.data.items.length > 0 && (
         <>
+          {/*
+            * Cut into the days the leads were given out on — "Today",
+            * "Yesterday", then the weekday and the date — because that is
+            * exactly how the agent described the problem, so it is the shape
+            * of the answer. Newest day first; the order inside a day is the
+            * tab's own, which is what an agent works down.
+            */}
           <ul className="leads-list">
-            {[...leads.data.items, ...more].map((lead) => (
-              <LeadRow
-                key={lead.id}
-                lead={lead}
-                tab={tab}
-                onChanged={refresh}
-                showOwner={user?.role !== 'agent'}
-              />
+            {groupByGivenDay(
+              [...leads.data.items, ...more],
+              (lead) => lead.assigned_at,
+            ).map((day) => (
+              <Fragment key={day.key ?? 'none'}>
+                <li className="lead-day">
+                  <b>{day.heading}</b>
+                  <span>{day.count}</span>
+                </li>
+                {day.rows.map((lead) => (
+                  <LeadRow
+                    key={lead.id}
+                    lead={lead}
+                    tab={tab}
+                    onChanged={refresh}
+                    showOwner={user?.role !== 'agent'}
+                  />
+                ))}
+              </Fragment>
             ))}
           </ul>
 
@@ -262,6 +294,17 @@ function LeadRow({
                 decide whether to ring, and the Call button is an inch away. */}
             {lead.phone_e164 && <span className="lead-phone"> · {maskPhone(lead.phone_e164)}</span>}
           </span>
+          {/*
+            * When it was given to this agent. A third line inside the name
+            * cell rather than a sixth column, so the row's grid — and the two
+            * breakpoints under it — are left alone.
+            *
+            * Today reads "Given to you 11:42"; anything older reads
+            * "Yesterday 16:30 · 21 h ago" in warm amber, so a two-day-old
+            * lead with no call on it looks wrong at a glance. A lead that has
+            * never been given out says so.
+            */}
+          <GivenOn at={lead.assigned_at} label={showOwner ? 'Given' : 'Given to you'} />
         </span>
       </Link>
 
@@ -294,6 +337,22 @@ function LeadRow({
       <LeadActionBar lead={lead} state={actions} compact />
       <LeadActionSheets state={actions} />
     </li>
+  );
+}
+
+/**
+ * "Given to you 11:42" — one line, warm once it is not today's.
+ *
+ * `label` is "Given to you" on an agent's own list and a plain "Given" to a
+ * manager or the owner, who is reading somebody else's row.
+ */
+function GivenOn({ at, label }: { at: string | null; label: string }) {
+  const line = given(at);
+  const tone = line.stale ? ' lead-given-old' : line.missing ? ' lead-given-none' : '';
+  return (
+    <span className={`lead-given${tone}`} title={line.exact ?? undefined}>
+      {line.missing ? line.text : `${label} ${line.text}`}
+    </span>
   );
 }
 

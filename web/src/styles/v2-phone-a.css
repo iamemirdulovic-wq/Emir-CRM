@@ -812,3 +812,42 @@
   .v2.v2-phone .v2-a-count { white-space: normal; overflow: visible; }
   .v2.v2-phone .v2-a-count-row { align-items: flex-start; }
 }
+
+@media (max-width: 767px) {
+  /* ── when a lead was given out ────────────────────────────────────────
+     Talha, 14 Nov 2026, over a screenshot of 105 identical new lead cards:
+     "you need to put dates on the leads once they assign, so we know which
+     one is today leads, which one is yesterday, and which one is day before
+     yesterday." The list is cut into those days, with a heading over each.
+
+     Both selectors carry `.v2.v2-phone` so they beat the three-class ported
+     page CSS, and both are inside the media query — the two rules at the
+     head of this file. */
+  .v2.v2-phone .v2-a-daygroup { display: flex; flex-direction: column; gap: 12px; }
+  .v2.v2-phone .v2-a-day {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 4px 4px 0;
+  }
+  .v2.v2-phone .v2-a-day b { font-size: 14px; font-weight: 750; color: var(--ink); }
+  .v2.v2-phone .v2-a-day span { font-size: 12px; color: var(--ink-3); }
+  /* A little more air before the next heading than between two cards. */
+  .v2.v2-phone .v2-a-daygroup + .v2-a-daygroup { margin-top: 6px; }
+
+  /* The owner's book is one card with a tight row per lead, so its headings
+     sit inside the card and the rows keep their own hairlines. */
+  .v2.v2-phone .v2-a-allcard .v2-a-daygroup { gap: 0; }
+  .v2.v2-phone .v2-a-allcard .v2-a-day { padding: 12px 0 8px; }
+  .v2.v2-phone .v2-a-allcard .v2-a-daygroup + .v2-a-daygroup { margin-top: 0; }
+
+  /* The line itself: 12px, and warm once it is not today's. */
+  .v2.v2-phone .v2-given {
+    font-size: 12px; font-weight: 600; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2.v2-phone .v2-given.v2-given-old { color: var(--amber-ink); }
+  .v2.v2-phone .v2-given.v2-given-none { color: var(--ink-4); font-weight: 500; }
+  /* On a card the given line leads the foot stack, so the clock underneath
+     it is the quieter of the two. */
+  .v2.v2-phone .v2-a-card-foot .v2-given { margin-bottom: 1px; }
+  .v2.v2-phone .v2-a-allwho .v2-given { margin-top: 2px; }
+}

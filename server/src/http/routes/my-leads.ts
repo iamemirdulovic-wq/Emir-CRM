@@ -141,6 +141,24 @@ const SELECT = `
             the existing shape rather than a second endpoint -- one list, one
             query, whichever version is asking. */
          o.is_vip, o.returned_at,
+         /*
+          * When this lead was given to the agent who holds it.
+          *
+          * Talha, 14 Nov 2026, over a screenshot of 105 identical new lead
+          * cards: "you need to put dates on the leads once they assign, so we
+          * know which one is today leads, which one is yesterday". The column
+          * has been on the opportunities table since migration 0001 and is
+          * written by every assignment path -- Workflow A, Incoming, a
+          * transfer, a bulk move, an import -- and was never once selected
+          * into this list.
+          *
+          * It is deliberately NOT created_at. The two differ exactly where
+          * it matters: a lead moved between agents, and an old list imported
+          * months after those people enquired. NULL means never given out
+          * (or returned to the pool), and the screens say so rather than
+          * substituting another date.
+          */
+         o.assigned_at,
          c.full_name, c.phone_e164, c.email, c.language, c.dnc, c.last_inbound_at,
          u.name AS owner_name
     FROM opportunities o

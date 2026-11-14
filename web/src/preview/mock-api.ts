@@ -154,7 +154,40 @@ function myLeadRows() {
        gave", `returned_at` for a hand-off that came back. */
     is_vip: index % 7 === 0 ? 1 : 0,
     returned_at: index % 21 === 0 ? at(-2) : null,
+    /*
+     * When the lead was given out — the column Talha asked for on 14 Nov.
+     *
+     * Spread across today, yesterday and the two days before, with one in
+     * every eleven never given out at all, so the day headings, the warm
+     * colour on anything older than today and the "Not given out yet" line
+     * all have something to draw in the preview. `givenHoursAgo` keeps the
+     * hours honest: an hour of the day, not "now minus N hours", so a lead
+     * dated yesterday really sits in yesterday's Dubai day.
+     */
+    assigned_at: index % 11 === 10 ? null : givenHoursAgo(index),
   }));
+}
+
+/**
+ * A plausible hand-over time for the preview's lead number `index`.
+ *
+ * Dubai office hours on one of the last four days, so the groups are
+ * "Today / Yesterday / <weekday> / <weekday>" and every card inside a group
+ * carries a different clock time rather than all of them the same minute.
+ */
+function givenHoursAgo(index: number): string {
+  const daysBack = [0, 0, 0, 1, 1, 2, 0, 1, 3, 2][index % 10] as number;
+  const hour = [9, 11, 14, 16, 10, 13, 18, 12][index % 8] as number;
+  const minute = (index * 17) % 60;
+  /* Dubai is UTC+4 with no daylight saving: the fixed offset is deliberate. */
+  const day = new Date(Date.now() - daysBack * 86_400_000 + 4 * 3_600_000);
+  const at = new Date(Date.UTC(
+    day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(),
+    hour - 4, minute, 0,
+  ));
+  /* Never ahead of now: a lead "given at 18:00" on a morning would read as
+     today's future, which the real data cannot be. */
+  return (at.getTime() > Date.now() ? new Date(Date.now() - 90 * 60_000) : at).toISOString();
 }
 
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */

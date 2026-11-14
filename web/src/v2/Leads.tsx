@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
@@ -10,6 +10,7 @@ import { usePhoneHead } from './phone.js';
 import { useCallAction, type CallActions } from './call.js';
 import { SOURCE_STYLES } from '../design/stages.js';
 import { clockIn, originOf } from '../lib/dialling.js';
+import { given, groupByGivenDay } from '../lib/assigned.js';
 
 /**
  * The leads list, built from the design package.
@@ -147,6 +148,13 @@ interface Row {
   next_step_at: string | null;
   next_step_note: string | null;
   last_contact_at: string | null;
+  /**
+   * When this lead was given to the agent who holds it — `assigned_at`.
+   *
+   * Null when it has never been given out, or has gone back to the pool. It
+   * is never stood in for by `created_at`: see `lib/assigned.ts`.
+   */
+  assigned_at: string | null;
   owner_name: string | null;
 }
 
@@ -251,6 +259,31 @@ function whenShort(value: string | null): string {
   return at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+/**
+ * "Given to you 11:42" — when this lead was handed over.
+ *
+ * Talha's own words, 14 Nov 2026, over a screenshot of 105 new leads in which
+ * every card was identical: *"you need to put dates on the leads once they
+ * assign, so we know which one is today leads, which one is yesterday, and
+ * which one is day before yesterday."*
+ *
+ * Today shows the time alone; anything older shows the day, the time and how
+ * long it has been sitting, in warm amber — so a two-day-old lead with no call
+ * on it looks wrong at a glance. `label` is the prefix: "Given to you" on an
+ * agent's own list, nothing in a column that is already headed.
+ */
+function GivenLine({ at, label }: { at: string | null; label?: string }) {
+  const line = given(at);
+  return (
+    <span
+      className={line.stale ? 'v2-given v2-given-old' : line.missing ? 'v2-given v2-given-none' : 'v2-given'}
+      title={line.exact ?? undefined}
+    >
+      {label && !line.missing ? `${label} ` : ''}{line.text}
+    </span>
+  );
+}
+
 /** The second line of the project cell: what they asked for. */
 function wanted(row: Row): string {
   const budget = row.budget_min_aed || row.budget_max_aed
@@ -346,6 +379,21 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   /* The whole book, not one person's share of it. */
   const book = wide && !isAgent;
 
+  /*
+   * How wide a day heading has to stretch across the table.
+   *
+   * Counted from the same conditions that draw the `<th>`s, right here, so
+   * that adding or dropping a column cannot leave the heading short and the
+   * group separator ending halfway across the row.
+   *
+   *   tick box · Lead · Phone · Project · Stage · Given
+   *   then: the owner's Agent and Last contact, or the agent's Local time
+   *   then: next step, and on the agent's list the actions cell
+   */
+  const columns = (book ? 1 : 0) + 5
+    + (wide ? (isAgent ? 1 : 2) : 1)
+    + 1 + (wide ? 0 : 1);
+
   const qs = useMemo(() => {
     const next = new URLSearchParams();
     next.set('tab', tab);
@@ -432,6 +480,15 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const rows = leads.data ? [...leads.data.items, ...loaded.rows] : [];
   const total = leads.data?.total ?? 0;
   const todayCount = counts.data?.today ?? 0;
+
+  /*
+   * The same list, cut into the days the leads were given out on.
+   *
+   * Newest day first, "Not given out yet" last, and the order inside each day
+   * left exactly as the server sent it — the tab decides that, and an agent
+   * works down it.
+   */
+  const byDay = groupByGivenDay(rows, (row) => row.assigned_at);
 
   /* One chip per narrowing in force, which is how the design says what the
      list is showing without making anybody read the controls. */
@@ -695,21 +752,43 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           wide
             ? (
               <div className="v2-a-allcard">
-                {rows.map((row) => (
-                  <AllLeadRow
-                    key={row.id}
-                    row={row}
-                    selecting={selecting}
-                    picked={picked[row.id] === true}
-                    movedTo={moved[row.id] ?? null}
-                    onTick={() => setPicked((was) => ({ ...was, [row.id]: !was[row.id] }))}
-                  />
+                {byDay.map((day) => (
+                  <div key={day.key ?? 'none'} className="v2-a-daygroup">
+                    <div className="v2-a-day">
+                      <b>{day.heading}</b>
+                      <span>{day.count}</span>
+                    </div>
+                    {day.rows.map((row) => (
+                      <AllLeadRow
+                        key={row.id}
+                        row={row}
+                        selecting={selecting}
+                        picked={picked[row.id] === true}
+                        movedTo={moved[row.id] ?? null}
+                        onTick={() => setPicked((was) => ({ ...was, [row.id]: !was[row.id] }))}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
             )
             : (
               <div className="v2-a-cards">
-                {rows.map((row) => <PhoneLeadCard key={row.id} row={row} dial={dial} />)}
+                {/*
+                  * Cut into the days the leads were given out on, which is
+                  * exactly how Talha described the problem — "which one is
+                  * today leads, which one is yesterday, and which one is day
+                  * before yesterday" — so it is the shape of the answer.
+                  */}
+                {byDay.map((day) => (
+                  <div key={day.key ?? 'none'} className="v2-a-daygroup">
+                    <div className="v2-a-day">
+                      <b>{day.heading}</b>
+                      <span>{day.count}</span>
+                    </div>
+                    {day.rows.map((row) => <PhoneLeadCard key={row.id} row={row} dial={dial} />)}
+                  </div>
+                ))}
               </div>
             )
         )}
@@ -1011,6 +1090,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   <th>Phone</th>
                   <th>Project</th>
                   <th>Stage</th>
+                  {/* The column Talha asked for. "Given out" on a book of
+                      everybody's leads; "Given to you" on your own list. */}
+                  <th>{book ? 'Given out' : 'Given to you'}</th>
                   {wide
                     ? <>{!isAgent && <th>Agent</th>}<th>Last contact</th></>
                     : <th>Local time</th>}
@@ -1019,23 +1101,36 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <LeadRow
-                    key={row.id}
-                    row={row}
-                    wide={wide}
-                    showOwner={wide && !isAgent}
-                    selectable={book}
-                    picked={picked[row.id] === true}
-                    movedTo={moved[row.id] ?? null}
-                    onTick={(on) => {
-                      setWholeList(null);
-                      setPicked((was) => ({ ...was, [row.id]: on }));
-                    }}
-                    onOpen={() => setPanelFor(row)}
-                    onMenu={(x, y) => setMenuAt({ row, x, y })}
-                    dial={dial}
-                  />
+                {byDay.map((day) => (
+                  <Fragment key={day.key ?? 'none'}>
+                    {/* Today · Yesterday · Wednesday 12 Nov, with how many
+                        sit under it. The heading, not the row, is what makes
+                        105 identical cards readable. */}
+                    <tr className="v2-daygroup">
+                      <td colSpan={columns}>
+                        <b>{day.heading}</b>
+                        <span>{day.count}</span>
+                      </td>
+                    </tr>
+                    {day.rows.map((row) => (
+                      <LeadRow
+                        key={row.id}
+                        row={row}
+                        wide={wide}
+                        showOwner={wide && !isAgent}
+                        selectable={book}
+                        picked={picked[row.id] === true}
+                        movedTo={moved[row.id] ?? null}
+                        onTick={(on) => {
+                          setWholeList(null);
+                          setPicked((was) => ({ ...was, [row.id]: on }));
+                        }}
+                        onOpen={() => setPanelFor(row)}
+                        onMenu={(x, y) => setMenuAt({ row, x, y })}
+                        dial={dial}
+                      />
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -1350,13 +1445,28 @@ function PhoneLeadCard({ row, dial }: { row: Row; dial: CallActions }) {
             {[row.project_name, wanted(row)].filter(Boolean).join(' · ') || 'No project yet'}
           </span>
         </span>
-        <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
-          {STAGE_LABEL[row.stage_key] ?? row.stage_key}
-        </span>
+        {/*
+          * The stage pill, except on a new lead.
+          *
+          * "New Lead" on every card was the other half of what Talha reported:
+          * on the New tab it repeats the heading above the list, and it was
+          * sitting in the one piece of space the date could have. Every other
+          * stage — Called, Interested, Meeting, Offer, Won — still shows,
+          * because those say something the rest of the card does not.
+          */}
+        {row.stage_key !== 'new_lead' && (
+          <span className={`d-chip d-stage-${STAGE_CHIP[row.stage_key] ?? 'new'}`}>
+            {STAGE_LABEL[row.stage_key] ?? row.stage_key}
+          </span>
+        )}
       </Link>
 
       <div className="v2-a-card-foot">
         <span className="v2-a-when">
+          {/* When it landed on you. First line of the three, because on a
+              list of a hundred identical new leads it is the one that tells
+              them apart. */}
+          <GivenLine at={row.assigned_at} label="Given to you" />
           {/* Twelve-hour, and only here: Emir asked for it by name on 10 Nov
               so the column reads at a glance. */}
           <span className="v2-a-local">
@@ -1427,6 +1537,9 @@ function AllLeadRow({ row, selecting, picked, movedTo, onTick }: {
           {[row.project_name ?? 'No project yet', stage, row.is_vip === 1 ? 'VIP' : null]
             .filter(Boolean).join(' · ')}
         </span>
+        {/* The owner's book is grouped by day as well, so the row only needs
+            the clock time — and the warm colour when it is not today's. */}
+        <GivenLine at={row.assigned_at} label="Given" />
         {why.tone !== 'calm' && <span className="v2-a-warn">{why.text}</span>}
       </Link>
       <span className={movedTo ? 'v2-a-agpill v2-a-agpill-moved' : 'v2-a-agpill'}>
@@ -1575,6 +1688,13 @@ function LeadRow({
           {STAGE_LABEL[row.stage_key] ?? row.stage_key}
         </span>
       </td>
+
+      {/*
+        * When it was given out. The column is headed, so the cell says only
+        * the date — the time alone on today's, the day and the time plus how
+        * long it has been sitting on anything older, in warm amber.
+        */}
+      <td><GivenLine at={row.assigned_at} /></td>
 
       {wide
         ? (

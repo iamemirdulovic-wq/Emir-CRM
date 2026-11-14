@@ -3280,3 +3280,57 @@
   background:var(--surface-2); border-radius:14px; padding:12px 14px;
   font-size:13.5px; line-height:1.5; color:var(--ink-2);
 }
+
+/*
+ * When a lead was given out, on the leads table and on the phone cards.
+ *
+ * Talha, 14 Nov 2026, with a screenshot of 105 new leads in which every card
+ * was identical: *"you need to put dates on the leads once they assign, so we
+ * know which one is today leads, which one is yesterday, and which one is day
+ * before yesterday."*
+ *
+ * Three rules about the colour, because they are the whole point:
+ *   - today's is ordinary ink. It is not a problem.
+ *   - anything older is `--amber-ink`, the design system's own warm token, so
+ *     a two-day-old lead with no call on it looks wrong at a glance.
+ *   - a lead with no date at all is the faintest ink and says so in words.
+ *     It never borrows another date — see `lib/assigned.ts`.
+ *
+ * This block is at the very end of the file, which is the BASE layer: the
+ * bottom half of this file is inside `@media (max-width:767px)` and three
+ * fixes written for the computer have already landed in there and done
+ * nothing at any width above 767px, in silence, with the suite green.
+ */
+.v2 .v2-given{
+  display:block; font-variant-numeric:tabular-nums;
+  color:var(--ink-2); font-size:12.5px;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.v2 .v2-given.v2-given-old{ color:var(--amber-ink); font-weight:650; }
+.v2 .v2-given.v2-given-none{ color:var(--ink-4); font-style:italic; }
+
+/*
+ * The day heading between the groups of the leads table.
+ *
+ * Specificity: the ported page CSS is `.v2 .p-my-leads .d-id-leads td` —
+ * three classes and one element — so `.v2 .d-id-leads tr.v2-daygroup td`
+ * ties on classes and wins on elements. Two classes would have lost and the
+ * heading row would have been 52px tall with the cell padding of a lead.
+ */
+.v2 .d-id-leads tr.v2-daygroup td{
+  height:auto; padding:16px 12px 6px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line-2);
+  white-space:nowrap;
+}
+.v2 .d-id-leads tbody tr.v2-daygroup:first-child td{ padding-top:6px; }
+/* The table lifts a row on hover. A heading is not a row. */
+.v2 .d-id-leads tbody tr.v2-daygroup:hover td{
+  background:var(--surface); border-radius:0; cursor:default;
+}
+.v2 .d-id-leads tr.v2-daygroup b{
+  font-size:13px; font-weight:750; letter-spacing:.01em; color:var(--ink);
+}
+.v2 .d-id-leads tr.v2-daygroup span{
+  margin-left:10px; font-size:12px; font-weight:500; color:var(--ink-3);
+}
