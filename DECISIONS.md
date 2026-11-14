@@ -5,6 +5,30 @@ Written as the build goes. Read this before changing anything that looks odd.
 
 ---
 
+2026-11-14 — ai — **No outside AI at all. Homes AI becomes rules over our own
+database** — Emir's decision, made after being shown what it costs.
+
+I put the five losses to him before he chose, and he chose anyway, so this is
+settled and not to be re-argued. What goes, and what an agent does instead:
+
+| Gone | What happens instead |
+|---|---|
+| Reading a developer's brochure or price list into a project | Every project is typed by hand. This is the biggest loss by far — the "Add project" flow in the brief above is built around it |
+| Reading a developer's website into a developer record (legal name, ORN, TRN, address) | Typed by hand |
+| Writing a project description, and the rewrites (shorter, luxury, investor, family, Arabic, Russian) | Typed by hand, or a saved template |
+| Understanding a question nobody anticipated | Keyword matching. Anything unexpected gets "I can help with these:" and the buttons. What was typed is saved for the owner to read, so the gaps are visible |
+| Summarising what people typed — "do not put her with the Damac agent again, she fell out with them over a missed call" | "In short" is built from fields: stage, last contact, tries, next step, what the client wants. True and useful, and much flatter |
+
+Everything else the brief asks for is counting, ranking and thresholds — heat
+score, priority order, golden hour, the owner's radar, every "who is overdue /
+hot / going cold / awake" question. Rules do all of that **better** than a
+model: the same number as the page every time, no cost, no key, and no client
+data leaving the server.
+
+One upside worth writing down: the Gemini key that leaked in a screenshot and
+has been sitting in `SETUP_NEEDED.md` waiting to be rotated can simply be
+deleted. There is nothing left to rotate.
+
 2026-11-14 — everything — **Production is MariaDB; the tests are MySQL 8, and
 that gap caused four separate outages in one day** — Written here because it
 will cause a fifth otherwise.
