@@ -244,39 +244,67 @@ function dubaiNow(at: Date = new Date()): string {
  * Being shown one is recorded once per person, which is what "seen by 9 of 10"
  * on the banners screen counts.
  */
-async function banners(userId: string, role: string) {
-  const rows = await query<{
-    id: string; title: string; body: string | null; link_url: string | null;
-    label: string | null; button_text: string | null; opens: string | null;
-  }>(
-    /*
-     * `label`, `button_text` and `opens` are selected because the owner sets
-     * all three on Settings → Home banners and 0039 has stored them since.
-     * Leaving them out of this one SELECT is why the phone drew "FROM THE
-     * OFFICE" and no button at all: the card had nothing to put on them.
-     */
-    `SELECT b.id, b.title, b.body, b.link_url, b.label, b.button_text, b.opens
-       FROM banners b
+type BannerRow = {
+  id: string; title: string; body: string | null; link_url: string | null;
+  label?: string | null; button_text?: string | null; opens?: string | null;
+};
+
+const BANNER_WHERE = `
       WHERE b.is_active = 1
         AND (b.starts_at IS NULL OR b.starts_at <= NOW(3))
-        AND (b.ends_at IS NULL OR DATE(b.ends_at) >= DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')))
+        AND (b.ends_at IS NULL OR DATE(b.ends_at) >= DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')))`;
+
+/* The audience rule lives in 0039 too, so it is in the same fallback. */
+const BANNER_AUDIENCE = `
         AND (
           b.audience = 'everyone'
           OR (b.audience = 'agents' AND ? = 'agent')
           OR (b.audience = 'desk' AND EXISTS (
                 SELECT 1 FROM desk_members dm
                  WHERE dm.desk_id = b.desk_id AND dm.user_id = ?))
-        )
+        )`;
+
+const BANNER_ORDER = `
       ORDER BY b.position ASC, b.created_at DESC
-      LIMIT 5`,
-    [role, userId],
-  );
+      LIMIT 5`;
+
+async function banners(userId: string, role: string) {
+  /*
+   * `label`, `button_text`, `opens` and `audience` all come from migration
+   * 0039. On 14 Nov the live database was found to be stuck on 0038, which
+   * the runner hits first and which therefore blocks everything behind it —
+   * so a server can be running this code against a `banners` table that has
+   * none of these columns.
+   *
+   * My Day is the first screen ten people open every morning. It is not
+   * allowed to fail because a banner is missing a label, so the richer query
+   * is tried first and the one that worked before is the fallback. When the
+   * schema catches up the fallback simply stops being used; until then the
+   * banner reads as it did yesterday instead of the screen returning 500.
+   *
+   * System health shows which migrations are stuck, so this hiding place is
+   * visible rather than silent.
+   */
+  let rows: BannerRow[];
+  try {
+    rows = await query<BannerRow>(
+      `SELECT b.id, b.title, b.body, b.link_url, b.label, b.button_text, b.opens
+         FROM banners b${BANNER_WHERE}${BANNER_AUDIENCE}${BANNER_ORDER}`,
+      [role, userId],
+    );
+  } catch {
+    rows = await query<BannerRow>(
+      `SELECT b.id, b.title, b.body, b.link_url
+         FROM banners b${BANNER_WHERE}${BANNER_ORDER}`,
+      [],
+    );
+  }
   /* Never allowed to break My Day: a view that cannot be written is a lost
      statistic, not a reason for the morning screen to fail. */
   await recordBannerViews(userId, rows.map((row) => row.id)).catch(() => {});
   return rows.map((r) => ({
     id: r.id, title: r.title, body: r.body, linkUrl: r.link_url,
-    label: r.label, buttonText: r.button_text, opens: r.opens,
+    label: r.label ?? null, buttonText: r.button_text ?? null, opens: r.opens ?? null,
   }));
 }
 
