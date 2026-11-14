@@ -55,6 +55,74 @@ import {
  */
 const PHONE = 768;
 
+/**
+ * How tall the leads card may be, so that its header pins instead of leaving.
+ *
+ * The card scrolls in both directions — the owner's own words, *"our all
+ * leads should be like move right left, same like sheet"* — which makes it
+ * the scroll container, and a `position:sticky` header then resolves against
+ * it rather than against the page. With no height limit the card never
+ * scrolled vertically, so the header pinned to nothing: measured at 1440px on
+ * the build before this, the owner's `thead th` sat at 206 before a scroll
+ * and −394 after 600px of it. It went with the page, on a list of 2,041.
+ *
+ * So the card needs a height to scroll against, and it must not be a guess.
+ * `calc(100dvh - 300px)` would be one: the chrome above the table is a tab
+ * strip, a filter row, two rows of country and language chips, and on Today a
+ * start-calling strip that is not there on any other tab. Four heights, three
+ * of which change while you use the screen.
+ *
+ * This measures where the card really begins and gives it the rest of the
+ * window. It re-measures after every render, because every one of those
+ * things changing height is a render — and a render that does not move the
+ * card sets no state, so it settles immediately.
+ *
+ * `max-height`, never `height`: a list of three leads keeps the height of
+ * three leads rather than sitting in a tall empty box.
+ */
+/** Breathing room under the card, so it does not touch the window's edge. */
+const SHEET_GUTTER = 20;
+/**
+ * The least we will squeeze it to. Below this the page scrolls instead, which
+ * is the right answer on a short window — a 200px sheet is not a sheet.
+ */
+const SHEET_FLOOR = 360;
+
+function useSheetHeight(enabled: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [max, setMax] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setMax((was) => (was === null ? was : null));
+      return undefined;
+    }
+    const measure = () => {
+      const el = ref.current;
+      if (!el) return;
+      /*
+       * Where the card starts in the document, not in the window: the page
+       * may already be scrolled when this runs, and the answer must be the
+       * same either way.
+       */
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const room = Math.round(window.innerHeight - top - SHEET_GUTTER);
+      /* Only when it changed, or an effect with no dependency list would
+         re-render for ever. */
+      setMax((was) => {
+        const next = Math.max(SHEET_FLOOR, room);
+        return was === next ? was : next;
+      });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+    /* No dependency list on purpose: see the note above. */
+  });
+
+  return { ref, max };
+}
+
 function useIsPhone(): boolean {
   const [phone, setPhone] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${PHONE - 1}px)`).matches,
@@ -593,6 +661,14 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   /* Fifty countries is a wall, not a filter, so each row folds after eight
      until somebody asks for the rest. */
   const [openRow, setOpenRow] = useState<'country' | 'language' | null>(null);
+  /*
+   * The card's height, so the table's header pins to it rather than leaving
+   * with the page. Off on a phone, where the rows are cards and there is no
+   * table to pin. Declared here with the other state, above the phone's early
+   * return, because a hook cannot be called conditionally — `hook-order.test.ts`
+   * is the check that says so.
+   */
+  const sheet = useSheetHeight(!isPhone);
 
   /* The All tab is the whole book, so it is the wide screen with the agent in
      it. Hot arrives from the dashboard; the design shows it as a chip over
@@ -1342,7 +1418,16 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       {!leads.data && !leads.error && <Spinner />}
 
       {leads.data && (
-        <div className="d-table-wrap">
+        <div
+          className="d-table-wrap"
+          ref={sheet.ref}
+          /*
+           * Measured, not guessed. The card ends at the bottom of the window
+           * whatever the chrome above it is doing, so both scrollbars live on
+           * the card and the header pins to its top edge.
+           */
+          style={sheet.max === null ? undefined : { maxHeight: `${sheet.max}px` }}
+        >
           {/*
             * "All 50 leads on this page are selected. Select all 863."
             * Only once the page is full of ticks, and only when there is more

@@ -2374,8 +2374,50 @@
  * the right, so Call is always reachable. The owner asked for no shadow on
  * those edges, so they are marked with the same hairline the rows use.
  */
+/*
+ * ── Why `overflow`, and not `overflow-x` ─────────────────────────────────
+ *
+ * `overflow-x:auto` alone made the card a scroll container in BOTH axes —
+ * CSS computes an `overflow-y:visible` to `auto` the moment the other axis
+ * scrolls — and a `position:sticky` header then resolves against the card
+ * rather than the page. The card had no height limit, so it never scrolled
+ * vertically and the header never pinned to anything: measured on the live
+ * build at 1440px, the owner's `thead th` sat at 206 before a scroll and
+ * -394 after 600px of it. It left with the page, on a list of 2,041 leads.
+ *
+ * So the card is the scroller in both directions on purpose, which is also
+ * what the owner asked for — *"our all leads should be like move right left,
+ * same like sheet"*. Both scrollbars live on the card, the header pins to the
+ * card's own top (`th{top:0}` above), and the left-hand name column pins to
+ * its left edge. That is a spreadsheet.
+ *
+ * The height it scrolls against is NOT set here. A `calc(100dvh - 300px)`
+ * would be a guess about the chrome above the table, and the chrome moves:
+ * the tab strip, the filter row, the two chip rows, the start-calling strip
+ * that only appears on Today. `useSheetHeight` in `Leads.tsx` measures where
+ * the card really starts and sets `max-height` from that, so the card ends at
+ * the bottom of the window whatever is above it. A list shorter than that
+ * room keeps its own height — `max-height`, not `height`, so there is no
+ * tall empty box under a short list.
+ */
 .v2 .p-my-leads .d-table-wrap,
-.v2 .p-all-leads .d-table-wrap{ overflow-x:auto; }
+.v2 .p-all-leads .d-table-wrap{ overflow:auto; }
+/*
+ * The card's own top padding would scroll away with the first row, leaving
+ * the pinned header flush against the card's rounded corner. `padding-top:0`
+ * and the header owns the top edge.
+ */
+.v2 .p-my-leads .d-table-wrap,
+.v2 .p-all-leads .d-table-wrap{ padding-top:0; }
+/*
+ * The pinned header has to cover the rows passing under it. `th` already
+ * carries `background:var(--surface)` from the design, and the hairline under
+ * it is what stops the first row appearing to touch the titles.
+ */
+.v2 .p-my-leads .d-id-leads thead th,
+.v2 .p-all-leads .d-id-leads thead th{
+  border-bottom:1px solid var(--line-2);
+}
 
 /* No squeezing. Each column gets room for its longest honest value. */
 .v2 .p-my-leads .d-id-leads td:first-child,
@@ -2505,8 +2547,11 @@
  * on a project page, which is the pattern Emir has already seen.
  */
 @media (max-width: 767px) {
+  /* `overflow`, not `overflow-x`: setting one axis back to visible while the
+     other stays `auto` computes it straight back to `auto`, so the card would
+     still be a scrollport and the rows-as-cards would still be trapped in it. */
   .v2 .p-my-leads .d-table-wrap,
-  .v2 .p-all-leads .d-table-wrap{ overflow-x:visible; padding:6px 10px 8px; }
+  .v2 .p-all-leads .d-table-wrap{ overflow:visible; max-height:none; padding:6px 10px 8px; }
   .v2 .p-my-leads .d-id-leads,
   .v2 .p-my-leads .d-id-leads tbody,
   .v2 .p-all-leads .d-id-leads,
@@ -3482,9 +3527,14 @@
  * `css-collisions.test.ts` reads a class that is both a bare rule and
  * somebody else's modifier as a collision, and it is right to.
  */
+/*
+ * Tight on purpose. Two rows of chips plus the honest footnote cost about
+ * 100px of the height the table has to live in, and the table is the screen.
+ * Measured at 1440x900: the card below gets 522px with these numbers.
+ */
 .v2 .v2-facets{
-  display:flex; flex-direction:column; gap:7px;
-  margin:0 0 14px;
+  display:flex; flex-direction:column; gap:5px;
+  margin:0 0 10px;
 }
 .v2 .v2-facet-row{
   display:flex; align-items:flex-start; gap:12px; min-width:0;
@@ -3495,7 +3545,7 @@
  * part of the table rather than as a banner over it.
  */
 .v2 .v2-facet-label{
-  flex:none; width:64px; padding-top:9px;
+  flex:none; width:64px; padding-top:8px;
   font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
   color:var(--ink-4);
 }
@@ -3504,7 +3554,7 @@
 }
 .v2 .v2-facet{
   display:inline-flex; align-items:center; gap:7px;
-  height:30px; padding:0 12px;
+  height:28px; padding:0 11px;
   border:0; border-radius:999px;
   font-size:13px; font-weight:560; white-space:nowrap;
   background:var(--surface); color:var(--ink-2);
@@ -3534,7 +3584,7 @@
 .v2 .v2-facet .v2-facet-moon{ font-size:11.5px; line-height:1; opacity:.85; }
 .v2 .v2-facet-more{
   display:inline-flex; align-items:center;
-  height:30px; padding:0 8px; border:0; background:transparent;
+  height:28px; padding:0 8px; border:0; background:transparent;
   font-size:12.5px; font-weight:650; color:var(--accent-ink);
   cursor:pointer;
 }
@@ -3546,7 +3596,7 @@
  * default as a fact. See `docs/v2/questions-filters.md`.
  */
 .v2 .v2-facet-note{
-  margin:1px 0 0 76px; font-size:11.5px; line-height:1.45; color:var(--ink-4);
+  margin:0 0 0 76px; font-size:11.5px; line-height:1.45; color:var(--ink-4);
 }
 
 /*

@@ -307,3 +307,61 @@ describe('the stylesheets', () => {
     expect(ours).toContain('var(--accent)');
   });
 });
+
+/* ── 7. the table's header pins instead of leaving ─────────────────────── */
+
+describe('the leads card scrolls like a sheet', () => {
+  const shell = read(path.join(HERE, '..', 'styles', 'v2-shell.css'));
+  const text = read(path.join(HERE, 'Leads.tsx'));
+
+  it('scrolls in both directions, not only sideways', () => {
+    /*
+     * `overflow-x:auto` alone made the card a scroll container in both axes
+     * anyway — CSS computes the other axis from `visible` to `auto` — so a
+     * sticky header resolved against the card while the card had no height to
+     * scroll against. Measured at 1440px: `thead th` at 206 before a scroll,
+     * −394 after 600px of it. It left with the page.
+     */
+    expect(shell).toMatch(/\.v2 \.p-all-leads \.d-table-wrap\{ overflow:auto; \}/);
+    expect(shell).not.toMatch(/\.v2 \.p-all-leads \.d-table-wrap\{ overflow-x:auto; \}/);
+  });
+
+  it('pins the header to the card’s own top', () => {
+    expect(shell).toMatch(/\.p-all-leads \.d-table\.d-sticky th\{ top:0; \}/);
+  });
+
+  it('turns the scroller off again where the rows become cards', () => {
+    /* Under 768px a row is a card, and `overflow-x:visible` on its own would
+       have computed straight back to `auto`. */
+    expect(shell).toContain('.d-table-wrap{ overflow:visible; max-height:none; padding:6px 10px 8px; }');
+  });
+
+  it('measures the height rather than guessing it', () => {
+    /*
+     * `calc(100dvh - 300px)` would be a guess about chrome that moves: a tab
+     * strip, a filter row, two rows of chips, and a start-calling strip that
+     * is only on Today.
+     */
+    expect(text).toContain('function useSheetHeight');
+    expect(text).toContain('el.getBoundingClientRect().top + window.scrollY');
+    expect(text).toContain("window.addEventListener('resize', measure)");
+    /* No magic number in the stylesheet for it. */
+    const ours = shell.slice(shell.indexOf('.v2 .p-my-leads .d-table-wrap,\n.v2 .p-all-leads .d-table-wrap{ overflow:auto; }'));
+    expect(ours.slice(0, 600)).not.toMatch(/max-height:\s*calc/);
+  });
+
+  it('caps the height and never sets it, so a short list stays short', () => {
+    expect(text).toContain('{ maxHeight: `${sheet.max}px` }');
+    expect(text).not.toMatch(/\{ height: `\$\{sheet\.max\}px` \}/);
+  });
+
+  it('stops squeezing the card on a short window', () => {
+    /* Below the floor the page scrolls instead: a 200px sheet is not a sheet. */
+    expect(text).toMatch(/const SHEET_FLOOR = \d+;/);
+    expect(text).toContain('Math.max(SHEET_FLOOR, room)');
+  });
+
+  it('is off on a phone, where there is no table to pin', () => {
+    expect(text).toContain('useSheetHeight(!isPhone)');
+  });
+});
