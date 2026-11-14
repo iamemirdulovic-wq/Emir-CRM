@@ -851,3 +851,63 @@
   .v2.v2-phone .v2-a-card-foot .v2-given { margin-bottom: 1px; }
   .v2.v2-phone .v2-a-allwho .v2-given { margin-top: 2px; }
 }
+
+@media (max-width: 767px) {
+  /* ── The country and language chips, on the phone ──────────────────────
+     `design/screens/Leads.dc.html` draws one scrolling row of pills bled to
+     the screen edges (`margin:0 -20px; padding:0 20px`). These are two more
+     of the same under it, each with its own small label, so they read as part
+     of that strip rather than as a new idea stacked on top of it.
+
+     At 390px the computer's 64px label beside the pills would leave 300px for
+     eight chips, so here the label sits above its row instead. The counts are
+     the server's, the same numbers the computer shows. */
+  .v2.v2-phone .v2-facets { display: flex; flex-direction: column; gap: 10px; }
+  .v2.v2-phone .v2-facet-row { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .v2.v2-phone .v2-facet-label {
+    width: auto; padding: 0;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  /* One scrolling row, bled to the edges, no scrollbar — the prototype's
+     own treatment for the tab strip above. */
+  .v2.v2-phone .v2-facet-pills {
+    display: flex; flex-wrap: nowrap; gap: 8px;
+    overflow-x: auto;
+    margin: 0 -16px; padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+  .v2.v2-phone .v2-facet-pills::-webkit-scrollbar { display: none; }
+  /* 40px, like `.v2-a-chip` beside it: a thumb needs the target, and two
+     chip rows of two different heights look like two different controls. */
+  .v2.v2-phone .v2-facet {
+    flex: none;
+    min-height: 40px; padding: 0 14px; gap: 7px;
+    border: 0; border-radius: 20px;
+    font-size: 14px; font-weight: 600; white-space: nowrap;
+    background: var(--surface-3); color: var(--ink);
+    box-shadow: none;
+  }
+  .v2.v2-phone .v2-facet.v2-facet-on { background: var(--hero); color: var(--hero-ink); }
+  .v2.v2-phone .v2-facet .v2-facet-n {
+    font-size: 13px; font-weight: 450; color: var(--ink-3);
+  }
+  .v2.v2-phone .v2-facet.v2-facet-on .v2-facet-n { color: var(--hero-ink); opacity: .7; }
+  .v2.v2-phone .v2-facet .v2-facet-flag { font-size: 15px; }
+  .v2.v2-phone .v2-facet-more {
+    flex: none; min-height: 40px; padding: 0 10px;
+    border: 0; background: transparent;
+    font-size: 13px; font-weight: 800; color: var(--accent-ink);
+  }
+  .v2.v2-phone .v2-facet-note {
+    margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-4);
+  }
+
+  /* The phone card has no table cell to put a flag in, so the country sits
+     on the line that already carries the clock: "🇬🇧 London 06:12". */
+  .v2.v2-phone .v2-a-local .v2-a-flag { margin-inline-end: 5px; font-size: 13px; }
+
+  /* "Clear all filters" in the empty card, above "Add a new lead": with two
+     rows of chips it is far easier to narrow down to nothing by accident. */
+  .v2.v2-phone .v2-a-none .v2-a-clear { align-self: stretch; justify-content: center; }
+}

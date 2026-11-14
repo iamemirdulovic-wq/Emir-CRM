@@ -24,6 +24,10 @@ import {
 } from '../../leads/note-files.js';
 import { addNote } from '../../leads/notes.js';
 import { MOVE_LIMIT, moveLeads } from '../../leads/move.js';
+import {
+  asleepNow, awakeNow, countriesClause, countriesMatching, countryClause, languagesMatching,
+} from '../../leads/countries.js';
+import { leadFacets } from '../../leads/facets.js';
 
 /**
  * My Leads: the screen an agent lives in.
@@ -45,6 +49,15 @@ const listSchema = z.object({
   source: z.string().max(48).optional(),
   project: z.string().max(160).optional(),
   band: z.enum(['hot', 'warm', 'cold']).optional(),
+  /*
+   * The country chips. An ISO 3166-1 alpha-2 code the dialling table holds,
+   * or `unknown` for a number whose code we cannot read. A value that is
+   * neither is ignored rather than refused: a hand-typed `?country=xx` in
+   * the URL should not empty somebody's screen.
+   */
+  country: z.string().max(12).optional(),
+  /* `contacts.language` as stored, or `unknown` for a blank one. */
+  language: z.string().max(12).optional(),
   /* `namespace:value`, e.g. `batch:expo-2026-30oct-a3f2` — how one upload is
      found again after the fact. */
   tag: z.string().max(160).optional(),
@@ -57,16 +70,109 @@ interface Filters {
   args: Array<string | number>;
 }
 
-/** The filters that apply whichever tab is open. */
-function buildFilters(params: z.infer<typeof listSchema>, visible: string[] | null): Filters {
+/**
+ * What the search box understands.
+ *
+ * It always matched a name, a number, an email and a project. Emir, 14
+ * November 2026: *"also in the search button... our search button should be
+ * very advance"*. So it now also takes:
+ *
+ *   - a country — "india", "uae", "ae", "971", "+971", "moscow"
+ *   - a language — "arabic", "ar", "russian"
+ *   - "asleep" / "awake", which agents ask for out loud, because the one
+ *     thing they want before a calling session is the list they may ring
+ *     right now
+ *
+ * All of it is plain matching against real columns: the country comes out of
+ * the digits of the number, the language out of `contacts.language`, and
+ * asleep out of the clock in the client's own zone. No model is asked.
+ *
+ * The terms are OR'd on top of the four original fields rather than replacing
+ * them, so typing a word that happens to be both — a project called "India",
+ * say — finds everything it could reasonably mean. The screen says what it
+ * understood; it never silently narrows.
+ *
+ * Written once and used by the list, the counts, the facets, "select all" and
+ * the "next lead" walk, which each had their own copy of the four-field
+ * version and would otherwise have drifted the moment this grew.
+ */
+export function searchClause(search: string, now: Date = new Date()): Filters | null {
+  const term = search.trim();
+  if (!term) return null;
+
+  const parts = ['c.full_name LIKE ?', 'c.phone_e164 LIKE ?', 'c.email LIKE ?', 'o.project_name LIKE ?'];
+  const like = `%${term}%`;
+  const args: Array<string | number> = [like, like, like, like];
+
+  const countries = countriesMatching(term);
+  if (countries.length > 0) {
+    const clause = countriesClause('c.phone_e164', countries);
+    if (clause) { parts.push(clause.sql); args.push(...clause.params); }
+  }
+
+  const languages = languagesMatching(term);
+  if (languages.length > 0) {
+    parts.push(`LOWER(TRIM(COALESCE(c.language, ''))) IN (${languages.map(() => '?').join(', ')})`);
+    args.push(...languages);
+  }
+
+  /* "asleep", "sleeping", "night" — one word for one idea, and the hours are
+     `countries.ts`'s, which is the same rule as the moon on the chip. */
+  const word = term.toLowerCase();
+  const asleep = ['asleep', 'sleeping', 'night', 'night time', 'do not call'].includes(word);
+  const awake = ['awake', 'daytime', 'day time', 'ok to call', 'can call'].includes(word);
+  if (asleep || awake) {
+    const clause = countriesClause('c.phone_e164', asleep ? asleepNow(now) : awakeNow(now));
+    if (clause) { parts.push(clause.sql); args.push(...clause.params); }
+  }
+
+  return { where: [`(${parts.join(' OR ')})`], args };
+}
+
+/**
+ * The filters that apply whichever tab is open.
+ *
+ * `except` leaves one of them out, which is what a chip's own count needs: a
+ * country chip's number is the list as it would be without the country chip,
+ * or picking UAE would make every other country read 0.
+ */
+function buildFilters(
+  params: z.infer<typeof listSchema>,
+  visible: string[] | null,
+  except: 'country' | 'language' | null = null,
+): Filters {
   const scope = ownerPredicate('o.owner_user_id', visible);
   const where = [scope.sql];
   const args: Array<string | number> = [...scope.params];
 
   if (params.search) {
-    where.push('(c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?)');
-    const like = `%${params.search}%`;
-    args.push(like, like, like, like);
+    const clause = searchClause(params.search);
+    if (clause) {
+      where.push(...clause.where);
+      args.push(...clause.args);
+    }
+  }
+  /*
+   * Which country the number is from, worked out from its dialling code.
+   *
+   * Deliberately not `contacts.country`, which exists and means something
+   * else — where the person told us they live, filled in by a form. The chips
+   * are about the number an agent is about to ring.
+   */
+  if (params.country && except !== 'country') {
+    const clause = countryClause('c.phone_e164', params.country);
+    if (clause) {
+      where.push(clause.sql);
+      args.push(...clause.params);
+    }
+  }
+  if (params.language && except !== 'language') {
+    if (params.language === 'unknown') {
+      where.push("TRIM(COALESCE(c.language, '')) = ''");
+    } else {
+      where.push("LOWER(TRIM(COALESCE(c.language, ''))) = ?");
+      args.push(params.language.toLowerCase());
+    }
   }
   /* A manager narrowing to one of their agents. The scope above already
      limits which agents that can be, so no extra check is needed. */
@@ -226,10 +332,12 @@ myLeadsRouter.get(
 
     let clause = `${scope.sql} AND ${definition.where} AND o.owner_user_id IS NOT NULL`;
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    if (search) {
-      clause += ' AND (c.full_name LIKE ? OR c.phone_e164 LIKE ? OR c.email LIKE ? OR o.project_name LIKE ?)';
-      const like = `%${search}%`;
-      args.push(like, like, like, like);
+    /* The same clause the list is built from — `searchClause`, not a second
+       copy of it, so the walk cannot skip a lead the list is showing. */
+    const typed = searchClause(search);
+    if (typed) {
+      clause += ` AND ${typed.where.join(' AND ')}`;
+      args.push(...typed.args);
     }
 
     const next = await queryOne<{ id: string; contact_id: string; full_name: string | null }>(
@@ -341,6 +449,38 @@ myLeadsRouter.get(
     const mineArgs = args.slice(ownerPredicate('o.owner_user_id', visible).params.length);
 
     res.json(await leadTabCounts(visible, { where: mine, args: mineArgs }));
+  }),
+);
+
+/**
+ * The country and language chips, with their real counts.
+ *
+ * Fenced exactly like every other query on this screen: an agent's chips add
+ * up to their own leads and nobody else's, a manager's to their team, an
+ * owner's to the whole book. The fence is `ownerPredicate` in SQL, inside
+ * `buildFilters`, so there is no parameter that widens it.
+ *
+ * Registered above `/:id` with `/counts` and `/projects`: Express matches in
+ * declaration order, and `/:id` placed first would swallow this for ever.
+ */
+myLeadsRouter.get(
+  '/facets',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const params = listSchema.parse(req.query);
+    const tab: LeadTab = isLeadTab(params.tab) ? params.tab : 'all';
+    const visible = await visibleUserIds(user);
+    const definition = TABS[tab];
+
+    /* Each facet is counted over the list the *other* filters allow, so the
+       chips you are not standing on still say how many are behind them. */
+    const forCountries = buildFilters(params, visible, 'country');
+    const forLanguages = buildFilters(params, visible, 'language');
+
+    res.json(await leadFacets(
+      { where: [definition.where, ...forCountries.where], args: forCountries.args },
+      { where: [definition.where, ...forLanguages.where], args: forLanguages.args },
+    ));
   }),
 );
 

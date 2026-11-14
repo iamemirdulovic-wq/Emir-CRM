@@ -3454,3 +3454,139 @@
 .v2 .d-id-leads tr.v2-daygroup span{
   margin-left:10px; font-size:12px; font-weight:500; color:var(--ink-3);
 }
+
+/*
+ * ── The country and language chips above the leads list ──────────────────
+ *
+ * Emir, 14 Nov 2026, over a picture of `All 26 · UAE 24 · USA/Canada 1 🌙 ·
+ * India 1`: *"we need to add also this option, like country based leads,
+ * language based leads, add also with flag, so our agents can see easily
+ * which country they can filter the leads easily"* — and then, over the plain
+ * table that arrived instead: *"it should be smooth... nice way... more cool
+ * way, I don't like it anymore."*
+ *
+ * This block is at the very END of the file, which is the BASE layer. The
+ * bottom half of this file is inside `@media (max-width:767px)` and three
+ * fixes written for the computer have already landed in there and done
+ * nothing at any width above 767px, in silence, with the suite green. The
+ * phone's own version of these rows is in `v2-phone-a.css`.
+ *
+ * The pill is `ui.css`'s `.chip-opt` recipe — 999px radius, 13px/560, the
+ * `--line-2` hairline, `--ink` when it is chosen — with one thing added that
+ * `.chip-opt` has no notion of: the count, in a lighter weight beside the
+ * name, which is what the reference picture shows and what makes a row of
+ * these readable rather than shouty. No new colour is invented; orange is
+ * `--accent` and appears only on the hairline of the chosen chip's hover.
+ *
+ * It is our own class rather than `.d-chip-opt` with a modifier on purpose:
+ * `css-collisions.test.ts` reads a class that is both a bare rule and
+ * somebody else's modifier as a collision, and it is right to.
+ */
+.v2 .v2-facets{
+  display:flex; flex-direction:column; gap:7px;
+  margin:0 0 14px;
+}
+.v2 .v2-facet-row{
+  display:flex; align-items:flex-start; gap:12px; min-width:0;
+}
+/*
+ * "Country" / "Language", in the table-header voice — 11px uppercase with
+ * letter-spacing, the same as the `<th>`s under it, so the two rows read as
+ * part of the table rather than as a banner over it.
+ */
+.v2 .v2-facet-label{
+  flex:none; width:64px; padding-top:9px;
+  font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-4);
+}
+.v2 .v2-facet-pills{
+  display:flex; flex-wrap:wrap; gap:6px; min-width:0; flex:1;
+}
+.v2 .v2-facet{
+  display:inline-flex; align-items:center; gap:7px;
+  height:30px; padding:0 12px;
+  border:0; border-radius:999px;
+  font-size:13px; font-weight:560; white-space:nowrap;
+  background:var(--surface); color:var(--ink-2);
+  box-shadow:inset 0 0 0 1px var(--line-2);
+  transition:box-shadow .15s, color .15s, background .15s;
+  cursor:pointer;
+}
+.v2 .v2-facet:hover{ box-shadow:inset 0 0 0 1px var(--ink-3); color:var(--ink); }
+.v2 .v2-facet.v2-facet-on{
+  background:var(--ink); color:var(--bg); box-shadow:none;
+}
+.v2 .v2-facet.v2-facet-on:hover{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+/*
+ * The count, a shade lighter than the name it sits beside. This is the whole
+ * difference between a row of filters you scan and a row of filters you
+ * read: the name is what you are looking for, the number is the answer.
+ */
+.v2 .v2-facet .v2-facet-n{
+  font-size:12px; font-weight:450; font-variant-numeric:tabular-nums;
+  color:var(--ink-4);
+}
+.v2 .v2-facet.v2-facet-on .v2-facet-n{ color:var(--bg); opacity:.66; }
+/* The flag reads at 14px where the text reads at 13: an emoji sits small. */
+.v2 .v2-facet .v2-facet-flag{ font-size:14px; line-height:1; }
+/* 03:12 there. Warm, because it is the one thing on the chip that is a
+   warning — ring them now and you wake them up. */
+.v2 .v2-facet .v2-facet-moon{ font-size:11.5px; line-height:1; opacity:.85; }
+.v2 .v2-facet-more{
+  display:inline-flex; align-items:center;
+  height:30px; padding:0 8px; border:0; background:transparent;
+  font-size:12.5px; font-weight:650; color:var(--accent-ink);
+  cursor:pointer;
+}
+.v2 .v2-facet-more:hover{ text-decoration:underline; text-underline-offset:3px; }
+/*
+ * "English is what the language field starts as…" — the honest footnote.
+ * `contacts.language` is NOT NULL DEFAULT 'en', so a lead nobody asked reads
+ * English, and this product has already been caught twice presenting a
+ * default as a fact. See `docs/v2/questions-filters.md`.
+ */
+.v2 .v2-facet-note{
+  margin:1px 0 0 76px; font-size:11.5px; line-height:1.45; color:var(--ink-4);
+}
+
+/*
+ * The hint under the search box, which says what it understands.
+ *
+ * A box that quietly takes "asleep" is a box nobody types "asleep" into. It
+ * sits under the field rather than in it, because the placeholder is already
+ * as long as the field will hold.
+ */
+.v2 .v2-searchbox{ position:relative; width:260px; }
+.v2 .v2-searchbox .v2-search-hint{
+  position:absolute; left:2px; top:100%; margin-top:4px;
+  font-size:10.5px; line-height:1.3; color:var(--ink-4);
+  white-space:nowrap; pointer-events:none;
+}
+/* The hint hangs below the filter row, so the row needs the room for it. */
+.v2 .d-filters{ padding-bottom:16px; }
+
+/*
+ * The flag in front of the phone number, and the moon on the local clock.
+ *
+ * Both are facts about the number the row already holds — no new column, no
+ * extra request — and on the owner's book, which has no local-time column at
+ * all, the flag is the only place the country shows. A code `dialling.ts`
+ * does not know produces no flag rather than a wrong one.
+ */
+.v2 .d-id-leads td.d-t-mono .v2-t-flag{
+  margin-inline-end:7px; font-size:14px; line-height:1;
+}
+.v2 .d-localtime .v2-t-moon{ font-size:12px; line-height:1; }
+/* Outside calling hours there — the same hours `whenToCall()` recommends. */
+.v2 .d-localtime.v2-t-night{ color:var(--amber-ink); font-weight:600; }
+
+/*
+ * A little more air between the rows of the leads table.
+ *
+ * The owner's words about the list as it was: *"I don't like it anymore."*
+ * Nothing moves sideways and no column changes width — only the space inside
+ * a cell — so `scripts/desktop-layout.mjs` sees taller rows and the same
+ * shape. 13px was set when the Given column grew a second line; 14 is what a
+ * row with a face, two lines of name and a flag in it wants.
+ */
+.v2 .d-id-leads tbody td{ padding-top:14px; padding-bottom:14px; }

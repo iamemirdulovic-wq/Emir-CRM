@@ -9,8 +9,12 @@ import { spacedE164 } from '../design/phone.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction, type CallActions } from './call.js';
 import { SOURCE_STYLES, sourceStyle } from '../design/stages.js';
-import { clockIn, originOf } from '../lib/dialling.js';
+import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { given, groupByGivenDay } from '../lib/assigned.js';
+import {
+  SEARCH_UNDERSTANDS, callNote, visibleFacets,
+  type CountryFacet, type LanguageFacet, type LeadFacets,
+} from '../lib/facets.js';
 
 /**
  * The leads list, built from the design package.
@@ -301,29 +305,199 @@ function GivenLine({ at, label }: { at: string | null; label?: string }) {
 }
 
 /**
- * The same thing in a table cell, on two short lines.
+ * The two rows of chips above the list: Country, then Language.
  *
- * One line would be right, and one line does not fit: the leads table sizes
- * its columns to their content and every cell in it is `nowrap`, so a column
- * holding "Yesterday 16:30 · 21 h ago" pushed the owner's book 104px past the
- * right edge of the page at 1440px. Measured, not guessed — see
- * `docs/v2/questions-dates.md`.
+ * Emir, 14 November 2026, with a picture of `All 26 · UAE 24 · USA/Canada 1 🌙
+ * · India 1`: *"we need to add also this option, like country based leads,
+ * language based leads, add also with flag, so our agents can see easily which
+ * country they can filter the leads easily"* — and, over the plain table that
+ * came instead: *"it should be smooth... nice way... more cool way, I don't
+ * like it anymore."*
  *
- * So the day and time sit on the first line and how long it has been sitting
- * on the second, and this cell alone wraps rather than staying on one line.
- * That gives the column an elastic width: about 110px when there is room, and
- * as little as 84px when the rest of the table needs it, instead of forcing
- * the whole table wider than the card it sits in.
+ * Four rules, all of them load-bearing:
+ *
+ *   - **The number is the server's.** One `GROUP BY` over the whole filtered
+ *     book, fenced to what this person may see. Nothing here counts rows.
+ *   - **Only countries that have leads appear.** The row is built from what
+ *     came back, so there is no empty chip to press.
+ *   - **A dialling code we cannot read is "Unknown", with no flag.** That is
+ *     `dialling.ts`'s own rule and it is not softened here.
+ *   - **The moon is the server's too** — outside 09:00–20:00 in that
+ *     country's own clock, the same hours `whenToCall()` recommends, so the
+ *     chip and the search word "asleep" cannot mean two different things.
+ *
+ * One component for the computer and the phone. The markup is the same and
+ * only the classes differ, because two copies of a chip row is two chances
+ * for one of them to stop agreeing with the counts.
  */
-function GivenCell({ at }: { at: string | null }) {
-  const line = given(at);
-  const tone = line.stale ? ' v2-given-old' : line.missing ? ' v2-given-none' : '';
+function FacetRows({ facets, country, language, openRow, onOpenRow, onPick, phone }: {
+  facets: LeadFacets | null;
+  country: string;
+  language: string;
+  openRow: 'country' | 'language' | null;
+  onOpenRow: (row: 'country' | 'language' | null) => void;
+  onPick: (key: 'country' | 'language', value: string) => void;
+  phone?: boolean;
+}) {
+  /* Nothing to draw until the counts land, and nothing worth drawing when
+     there is only one country in the book: a row of one chip is furniture. */
+  if (!facets) return null;
+  /*
+   * `?? []` rather than trusting the shape. A screen ten people open every
+   * morning must not go white because one key is missing from one response —
+   * which is exactly what happened the first time this ran against a stubbed
+   * API in `leads-call.test.ts`.
+   */
+  const countries = facets.countries ?? [];
+  const languages = facets.languages ?? [];
+  if (countries.length < 2 && languages.length < 2) return null;
+  /* The totals come from the same response; summing the chips is the same
+     arithmetic the server did, and it keeps the "All" chip honest if one
+     field is ever missing. */
+  const countryTotal = facets.countryTotal
+    ?? countries.reduce((sum, one) => sum + one.count, 0);
+  const languageTotal = facets.languageTotal
+    ?? languages.reduce((sum, one) => sum + one.count, 0);
+  const defaultLanguage = facets.languageDefault ?? 'en';
+
+  const shownCountries = visibleFacets<CountryFacet>(countries, {
+    expanded: openRow === 'country',
+    picked: (one) => one.iso2 === country,
+  });
+  const shownLanguages = visibleFacets<LanguageFacet>(languages, {
+    expanded: openRow === 'language',
+    picked: (one) => one.code === language,
+  });
+
+  const row = phone ? 'v2-facet-row v2-facet-row-phone' : 'v2-facet-row';
+  const pill = phone ? 'v2-facet v2-facet-phone' : 'v2-facet';
+
   return (
-    <>
-      <span className={`v2-given${tone}`} title={line.exact ?? undefined}>{line.when}</span>
-      {line.ago && <span className="v2-given-ago">{line.ago}</span>}
-    </>
+    <div className={phone ? 'v2-facets v2-facets-phone' : 'v2-facets'}>
+      {countries.length > 1 && (
+        <div className={row}>
+          <span className="v2-facet-label">Country</span>
+          <div className="v2-facet-pills" role="group" aria-label="Filter by country">
+            <button
+              type="button"
+              className={country === '' ? `${pill} v2-facet-on` : pill}
+              aria-pressed={country === ''}
+              onClick={() => onPick('country', '')}
+            >
+              <span className="v2-facet-flag" aria-hidden>🌐</span>
+              All
+              <span className="v2-facet-n">{countryTotal.toLocaleString()}</span>
+            </button>
+            {shownCountries.shown.map((one) => {
+              const note = callNote(one);
+              return (
+                <button
+                  key={one.iso2}
+                  type="button"
+                  className={country === one.iso2 ? `${pill} v2-facet-on` : pill}
+                  aria-pressed={country === one.iso2}
+                  /* The clock is the whole hover: "03:12 in London — too late
+                     to call". Absent, not invented, where there is no zone. */
+                  title={note ?? undefined}
+                  onClick={() => onPick('country', one.iso2)}
+                >
+                  {/* No flag at all for a code we could not read, rather than
+                      the wrong one. The chip still says "Unknown" in words. */}
+                  {one.flag && <span className="v2-facet-flag" aria-hidden>{one.flag}</span>}
+                  {one.name}
+                  <span className="v2-facet-n">{one.count.toLocaleString()}</span>
+                  {one.night === true && (
+                    <span className="v2-facet-moon" role="img" aria-label="night there now">🌙</span>
+                  )}
+                </button>
+              );
+            })}
+            {shownCountries.hidden > 0 && (
+              <button type="button" className="v2-facet-more" onClick={() => onOpenRow('country')}>
+                +{shownCountries.hidden} more
+              </button>
+            )}
+            {openRow === 'country' && countries.length > 1 && (
+              <button type="button" className="v2-facet-more" onClick={() => onOpenRow(null)}>
+                Show fewer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {languages.length > 1 && (
+        <div className={row}>
+          <span className="v2-facet-label">Language</span>
+          <div className="v2-facet-pills" role="group" aria-label="Filter by language">
+            <button
+              type="button"
+              className={language === '' ? `${pill} v2-facet-on` : pill}
+              aria-pressed={language === ''}
+              onClick={() => onPick('language', '')}
+            >
+              All
+              <span className="v2-facet-n">{languageTotal.toLocaleString()}</span>
+            </button>
+            {shownLanguages.shown.map((one) => (
+              <button
+                key={one.code}
+                type="button"
+                className={language === one.code ? `${pill} v2-facet-on` : pill}
+                aria-pressed={language === one.code}
+                title={one.code === defaultLanguage
+                  ? 'Also every lead nobody was asked — English is what the field defaults to'
+                  : undefined}
+                onClick={() => onPick('language', one.code)}
+              >
+                {one.label}
+                <span className="v2-facet-n">{one.count.toLocaleString()}</span>
+              </button>
+            ))}
+            {shownLanguages.hidden > 0 && (
+              <button type="button" className="v2-facet-more" onClick={() => onOpenRow('language')}>
+                +{shownLanguages.hidden} more
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/*
+        * Said plainly rather than left for somebody to find out.
+        *
+        * `contacts.language` is `NOT NULL DEFAULT 'en'`, so a lead nobody ever
+        * asked reads English exactly like one who said "English, please".
+        * Presenting that as a fact would be the kind of number this product
+        * has already been caught inventing twice.
+        */}
+      {languages.some((one) => one.code === defaultLanguage) && (
+        <p className="v2-facet-note">
+          English is what the language field starts as, so that chip also holds
+          every lead nobody has been asked.
+        </p>
+      )}
+    </div>
   );
+}
+
+/**
+ * "Nothing is both 🇷🇺 Russia / Kazakhstan and Arabic. Take one away."
+ *
+ * The empty state used to say "Take one filter away, or clear them all" over
+ * four dropdowns and two rows of chips, leaving the reader to work out which
+ * ones were on. Every name in the sentence comes from a chip that is really
+ * in force; nothing is guessed.
+ */
+function narrowedTo(chips: Array<{ key: string; text: string }>, search: string): string | null {
+  /* The chips read "Country: 🇦🇪 UAE"; the sentence wants the half after the
+     colon, because the row above already says which control it was. */
+  const names = chips.map((one) => one.text.split(': ').slice(1).join(': ') || one.text);
+  if (search.trim()) names.push(`“${search.trim()}”`);
+  if (names.length === 0) return null;
+  if (names.length === 1) return `Nothing here is ${names[0]}. Try another, or clear it.`;
+  const last = names[names.length - 1] as string;
+  return `Nothing here is ${names.slice(0, -1).join(', ')} and ${last}. Take one away.`;
 }
 
 /** The second line of the project cell: what they asked for. */
@@ -406,6 +580,19 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   const project = params.get('project') ?? '';
   const agent = params.get('agent') ?? '';
   const source = params.get('source') ?? '';
+  /*
+   * The two chip rows. In the URL like every other filter, so a refresh keeps
+   * them and a manager can send somebody the link to "the Russian leads".
+   *
+   * `country` is an ISO 3166-1 alpha-2 code, or `unknown` for a number whose
+   * dialling code the table does not hold. `language` is `contacts.language`
+   * as stored, or `unknown` for a blank one.
+   */
+  const country = params.get('country') ?? '';
+  const language = params.get('language') ?? '';
+  /* Fifty countries is a wall, not a filter, so each row folds after eight
+     until somebody asks for the rest. */
+  const [openRow, setOpenRow] = useState<'country' | 'language' | null>(null);
 
   /* The All tab is the whole book, so it is the wide screen with the agent in
      it. Hot arrives from the dashboard; the design shows it as a chip over
@@ -445,11 +632,24 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
     if (project) next.set('project', project);
     if (agent) next.set('agent', agent);
     if (source) next.set('source', source);
+    if (country) next.set('country', country);
+    if (language) next.set('language', language);
     return next.toString();
-  }, [tab, search, stage, project, agent, source]);
+  }, [tab, search, stage, project, agent, source, country, language]);
 
   const leads = useAsync<ListResponse>(() => api.get(`/api/my-leads?${qs}`), [qs]);
+  /* Deliberately unnarrowed, like it was: a tab says how many leads that
+     question has in total, exactly as it does while a project or a stage is
+     picked. The chips' own numbers are the narrowed ones. */
   const counts = useAsync<Record<string, number>>(() => api.get('/api/my-leads/counts'), []);
+  /*
+   * The country and language chips, counted by the server over the whole
+   * filtered book rather than the fifty rows on this page — which is the only
+   * reason it is an endpoint and not a loop over `rows`. The browser's
+   * `dialling.ts` can read a flag off a number but has only ever seen one
+   * page of them.
+   */
+  const facets = useAsync<LeadFacets>(() => api.get(`/api/my-leads/facets?${qs}`), [qs]);
   /*
    * The projects the leads are actually on — not the library.
    *
@@ -498,7 +698,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
 
   function clearAll() {
     const next = new URLSearchParams(params);
-    for (const key of ['stage', 'project', 'agent', 'source']) next.delete(key);
+    for (const key of ['stage', 'project', 'agent', 'source', 'country', 'language']) next.delete(key);
     if (tab === 'hot') next.set('tab', 'all');
     setParams(next, { replace: true });
     setSearch('');
@@ -551,6 +751,24 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
   }
   if (source) {
     chips.push({ key: 'source', text: `Source: ${SOURCE_STYLES[source]?.label ?? source}` });
+  }
+  /*
+   * The two chip rows get a filter chip as well, so "Clear all" takes them
+   * off and the row of chips says everything the list is narrowed to in one
+   * place. The name comes from the facet the server sent — never from a
+   * lookup here, which would have to invent a name for a code the server
+   * could not read.
+   */
+  if (country) {
+    const one = facets.data?.countries.find((row) => row.iso2 === country);
+    chips.push({
+      key: 'country',
+      text: `Country: ${one ? `${one.flag} ${one.name}`.trim() : country}`,
+    });
+  }
+  if (language) {
+    const one = facets.data?.languages.find((row) => row.code === language);
+    chips.push({ key: 'language', text: `Language: ${one?.label ?? language}` });
   }
 
   function dropChip(key: string) {
@@ -716,7 +934,9 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             type="search"
             value={search}
             aria-label={wide ? 'Search all leads' : 'Search my leads'}
-            placeholder="Search name, phone or project"
+            /* Shorter than the computer's, because 390px will not hold the
+               whole list — the line under the chips says the rest. */
+            placeholder="Name, phone, country, language…"
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
@@ -766,6 +986,25 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
             })}
           </div>
         )}
+
+        {/*
+          * The country and language rows, under the tabs.
+          *
+          * `design/screens/Leads.dc.html` draws one scrolling row of pills and
+          * bleeds it to the screen edges; these are two more of the same,
+          * each with its own label, so they read as part of the strip rather
+          * than as a new idea. The counts are the server's, the same ones the
+          * computer shows.
+          */}
+        <FacetRows
+          phone
+          facets={facets.data ?? null}
+          country={country}
+          language={language}
+          openRow={openRow}
+          onOpenRow={setOpenRow}
+          onPick={narrow}
+        />
 
         <div className="v2-a-count-row">
           <span className="v2-a-count">{leads.data ? resultLine : 'Loading…'}</span>
@@ -846,10 +1085,16 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           <div className="d-card v2-a-none">
             <b>No lead found</b>
             <p className="d-muted">
-              {search.trim()
-                ? `Nothing matches “${search.trim()}”. Check the spelling or add the lead.`
-                : leads.data.empty.hint}
+              {/* Which chip emptied it, by name — same sentence as the
+                  computer's, because the chip rows are on both. */}
+              {narrowedTo(chips, search)
+                ?? leads.data.empty.hint}
             </p>
+            {chips.length > 0 && (
+              <button type="button" className="d-btn v2-a-clear" onClick={clearAll}>
+                Clear all filters
+              </button>
+            )}
             <Link className="d-btn d-primary" to="/v2/leads/new">Add a new lead</Link>
           </div>
         )}
@@ -997,16 +1242,25 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
       )}
 
       <div className="d-filters">
-        <div className="d-input-icon">
+        <div className="d-input-icon v2-searchbox">
           <Icon name="search" />
           <input
             className="d-input d-sm"
             type="search"
             value={search}
             aria-label="Search this list"
-            placeholder={wide ? 'Search in this list' : 'Name, phone or project'}
+            /*
+             * The placeholder says what it takes, because a box that quietly
+             * understands "asleep" is a box nobody ever types "asleep" into.
+             * `SEARCH_UNDERSTANDS` is the list, kept beside the types so it
+             * cannot drift from `searchClause` on the server.
+             */
+            placeholder="Name, phone, project, country, language, awake/asleep"
             onChange={(e) => setSearch(e.target.value)}
           />
+          <span className="v2-search-hint">
+            Understands {SEARCH_UNDERSTANDS.join(' · ')}
+          </span>
         </div>
 
         {wide && !isAgent && (
@@ -1074,6 +1328,15 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
         <span className="d-grow" />
         <span className="d-result-count">{leads.data ? count : ''}</span>
       </div>
+
+      <FacetRows
+        facets={facets.data ?? null}
+        country={country}
+        language={language}
+        openRow={openRow}
+        onOpenRow={setOpenRow}
+        onPick={narrow}
+      />
 
       {leads.error && <ErrorNote>{leads.error}</ErrorNote>}
       {!leads.data && !leads.error && <Spinner />}
@@ -1203,8 +1466,14 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
                   : leads.data.empty.title}
               </b>
               <p>
+                {/*
+                  * Which filters, by name. "Take one filter away" over four
+                  * dropdowns and two rows of chips is a sentence that leaves
+                  * the reader to hunt, and the chip rows have made it easier
+                  * to narrow down to nothing by accident.
+                  */}
                 {chips.length > 0 || search.trim()
-                  ? 'Take one filter away, or clear them all.'
+                  ? narrowedTo(chips, search) ?? 'Take one filter away, or clear them all.'
                   : leads.data.empty.hint}
               </p>
               {chips.length > 0 || search.trim()
@@ -1528,6 +1797,10 @@ function PhoneLeadCard({ row, dial }: { row: Row; dial: CallActions }) {
           {/* Twelve-hour, and only here: Emir asked for it by name on 10 Nov
               so the column reads at a glance. */}
           <span className="v2-a-local">
+            {/* The flag goes on the line that already carries the clock —
+                there is no table cell to put it in on a phone card. None at
+                all where the dialling code is not one we know. */}
+            {origin && <span className="v2-a-flag" aria-hidden>{flagOf(origin.iso2)}</span>}
             {origin && local ? `${origin.zoneLabel ?? origin.name} ${local.time}` : 'No number'}
           </span>
           <span className={`v2-a-note v2-a-note-${why.tone}`}>{why.text}</span>
@@ -1629,6 +1902,9 @@ function LeadRow({
   const step = nextStep(row);
   const origin = originOf(row.phone_e164);
   const local = origin ? clockIn(origin.timeZone) : null;
+  /* "Too early there — call after 13:00 Dubai time". The one rule about
+     calling hours, shared with the moon on the country chips above. */
+  const advice = origin ? whenToCall(local, origin.timeZone) : null;
   const phone = row.phone_e164 ?? '';
   const to = `/v2/leads/${row.id}`;
 
@@ -1751,9 +2027,28 @@ function LeadRow({
           </td>
         )}
 
-      {/* Grouped for reading aloud. This is the column an agent dictates
-          from, and it printed `+971501234567` in one run. */}
-      <td className="d-t-mono" dir="ltr">{spacedE164(phone) ?? '–'}</td>
+      {/*
+        * Grouped for reading aloud. This is the column an agent dictates
+        * from, and it printed `+971501234567` in one run.
+        *
+        * The flag goes here rather than in a column of its own: it is a fact
+        * about the number, it costs no width, and on the owner's book — which
+        * has no local-time column at all — it was the only place the country
+        * was visible. The `span` is because `dir="ltr"` on the cell would
+        * otherwise put the flag after the digits in an Arabic UI.
+        *
+        * No flag at all where the dialling code is not one we know. A wrong
+        * flag on a row an agent is about to ring is worse than none, which is
+        * the rule `lib/dialling.ts` was written to.
+        */}
+      <td className="d-t-mono" dir="ltr">
+        {origin && (
+          <span className="v2-t-flag" title={origin.zoneLabel ?? origin.name} aria-hidden>
+            {flagOf(origin.iso2)}
+          </span>
+        )}
+        {spacedE164(phone) ?? '–'}
+      </td>
 
       <td>
         {row.project_name ?? '–'}
@@ -1772,7 +2067,7 @@ function LeadRow({
         * the day and time plus how long it has been sitting on anything
         * older, in warm amber.
         */}
-      <td className="v2-given-cell"><GivenCell at={row.assigned_at} /></td>
+      <td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>
 
       {wide
         ? (
@@ -1810,8 +2105,16 @@ function LeadRow({
               */}
             {origin && local
               ? (
-                <span className="d-localtime" title={`${local.time} in ${origin.zoneLabel ?? origin.name}`}>
-                  <Icon name="clock" size={13} />
+                <span
+                  className={advice && !advice.ok ? 'd-localtime v2-t-night' : 'd-localtime'}
+                  title={advice ? advice.line : `${local.time} in ${origin.zoneLabel ?? origin.name}`}
+                >
+                  {/* The moon replaces the clock face when it is the wrong
+                      hour there — the same rule as the chip above, and the
+                      same `whenToCall()` that writes the hover. */}
+                  {advice && !advice.ok
+                    ? <span className="v2-t-moon" aria-label="night there now" role="img">🌙</span>
+                    : <Icon name="clock" size={13} />}
                   {origin.zoneLabel ?? origin.name} {local.time}
                 </span>
               )

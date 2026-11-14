@@ -19,6 +19,9 @@ import {
   previewArrivals,
   previewSeries,
 } from './data.js';
+/* The browser's own dialling table — the preview's chips are folded with the
+   same function the row beside them draws its flag with. */
+import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { SETTINGS_ROUTES } from './mock-settings.js';
 import { DASHBOARD_ROUTES } from './mock-dashboard.js';
 import { previewLive } from './live.js';
@@ -115,6 +118,23 @@ const NOTIFICATIONS: Array<{
  */
 const DEMO_LEAD_ROWS = 124;
 
+/*
+ * Numbers for the preview's synthetic leads, weighted the way Emir's own
+ * export is: mostly UAE and UK, then Russia, India, Saudi and a handful of
+ * others, plus one dialling code the table does not hold.
+ */
+const DEMO_PHONES = [
+  '+971501230001', '+447700900101', '+971551230002', '+79161230003', '+919812300041',
+  '+971561230005', '+447700900102', '+966551230006', '+971501230007', '+13105550108',
+  '+971551230009', '+447700900103', '+4915112300010', '+971561230011', '+79161230012',
+  '+971501230013', '+5999123014', '+971551230015', '+61412300016', '+971501230017',
+  '+447700900104', '+971561230018', '+92301230019', '+971501230020', '+33612300021',
+];
+
+/* 'en' is the column's default, so most of them read English whether or not
+   anybody asked; '' is a lead with nothing recorded at all. */
+const DEMO_LANGUAGES = ['en', 'en', 'ar', 'en', 'ru', 'en', 'hi', 'en', '', 'ar', 'en', 'en'];
+
 function myLeadRows() {
   const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
   return Array.from({ length: DEMO_LEAD_ROWS }, (_unused, index) => {
@@ -146,7 +166,21 @@ function myLeadRows() {
     no_answer_count: index % 3,
     created_at: at(-index * 24 - 6),
     full_name: lead.name,
-    phone_e164: lead.phone,
+    /*
+     * The nine real preview leads keep their own numbers. The synthetic ones
+     * behind them — `opp-9` onwards — get a spread of countries, because the
+     * country chips cannot be looked at in the preview if every lead in it is
+     * a +971. Emir's own export runs 186 UK numbers, 184 UAE and 31 Russian,
+     * so the spread is in that shape rather than one of each.
+     *
+     * `+5999` (Curaçao) is in there on purpose: it is not in the dialling
+     * table, so the preview also shows what an unreadable code looks like —
+     * an "Unknown" chip with no flag on it.
+     */
+    phone_e164: index < LEADS.length ? lead.phone : DEMO_PHONES[index % DEMO_PHONES.length]!,
+    /* The language chips read this. `''` is a lead nobody was ever asked,
+       which is the "Not known" chip. */
+    language: index < LEADS.length ? lead.language : DEMO_LANGUAGES[index % DEMO_LANGUAGES.length]!,
     email: null,
     owner_name: lead.owner ? 'Layla Hassan' : null,
     /* Group A, phone build: the real list endpoint sends these two and the
@@ -185,9 +219,15 @@ function givenHoursAgo(index: number): string {
     day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(),
     hour - 4, minute, 0,
   ));
-  /* Never ahead of now: a lead "given at 18:00" on a morning would read as
-     today's future, which the real data cannot be. */
-  return (at.getTime() > Date.now() ? new Date(Date.now() - 90 * 60_000) : at).toISOString();
+  /*
+   * Never ahead of now: a lead "given at 18:00" read on a morning would be
+   * today's future, which the real data cannot be. Backed off by a different
+   * number of minutes per lead, or every clamped card in the preview reads
+   * the same minute — which is the very fault this column exists to fix, and
+   * reviewing a screenshot of it would be reviewing the wrong thing.
+   */
+  if (at.getTime() <= Date.now()) return at.toISOString();
+  return new Date(Date.now() - (37 + (index * 23) % 300) * 60_000).toISOString();
 }
 
 /** Set once the preview's new-lead card has been accepted, so it stays gone. */
@@ -2620,6 +2660,66 @@ const ROUTES: Route[] = [
     return {
       tab, items, total: matching.length, page, pageSize,
       empty: { title: 'Nothing here', hint: 'Try another tab.' },
+    };
+  } },
+  /*
+   * The country and language chips.
+   *
+   * Worked out from the preview's own rows with the browser's own dialling
+   * table — `originOf`, the same function the row beside the chip draws its
+   * flag with — so the preview cannot show a chip whose number disagrees
+   * with the list under it. The live endpoint does the same arithmetic in
+   * SQL over the whole book; see `server/src/leads/facets.ts`.
+   */
+  { method: 'GET', pattern: /^\/api\/my-leads\/facets$/, handler: ({ query }) => {
+    const rows = myLeadRows().filter((row) => {
+      const project = query.get('project');
+      return !project || row.project_name === project;
+    });
+    const countries = new Map<string, { n: number; origin: ReturnType<typeof originOf> }>();
+    for (const row of rows) {
+      const origin = originOf(row.phone_e164);
+      const key = origin?.iso2 ?? 'unknown';
+      const seen = countries.get(key);
+      if (seen) seen.n += 1;
+      else countries.set(key, { n: 1, origin });
+    }
+    const languages = new Map<string, number>();
+    for (const row of rows) {
+      const code = (row.language ?? '').trim().toLowerCase() || 'unknown';
+      languages.set(code, (languages.get(code) ?? 0) + 1);
+    }
+    const LABELS: Record<string, string> = {
+      en: 'English', ar: 'Arabic', ru: 'Russian', hi: 'Hindi', unknown: 'Not known',
+    };
+    return {
+      countries: [...countries].map(([iso2, { n, origin }]) => {
+        const clock = origin ? clockIn(origin.timeZone) : null;
+        const advice = origin ? whenToCall(clock, origin.timeZone) : null;
+        return {
+          iso2,
+          name: origin?.name ?? 'Unknown',
+          flag: origin ? flagOf(origin.iso2) : '',
+          count: n,
+          timeZone: origin?.timeZone ?? null,
+          zoneLabel: origin?.zoneLabel ?? null,
+          localTime: clock?.time ?? null,
+          localHour: clock?.hour ?? null,
+          night: advice ? !advice.ok : null,
+        };
+      }).sort((a, b) => {
+        if ((a.iso2 === 'unknown') !== (b.iso2 === 'unknown')) return a.iso2 === 'unknown' ? 1 : -1;
+        return b.count - a.count || a.name.localeCompare(b.name);
+      }),
+      languages: [...languages].map(([code, count]) => ({
+        code, label: LABELS[code] ?? code.toUpperCase(), count,
+      })).sort((a, b) => {
+        if ((a.code === 'unknown') !== (b.code === 'unknown')) return a.code === 'unknown' ? 1 : -1;
+        return b.count - a.count || a.label.localeCompare(b.label);
+      }),
+      countryTotal: rows.length,
+      languageTotal: rows.length,
+      languageDefault: 'en',
     };
   } },
   { method: 'GET', pattern: /^\/api\/my-leads\/counts$/, handler: () => {

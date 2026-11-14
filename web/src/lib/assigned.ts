@@ -39,13 +39,6 @@ export interface Given {
   stale: boolean;
   /** `11:42` today, `Yesterday 16:30`, `12 Nov 10:05`. */
   when: string;
-  /**
-   * The clock time on its own: `11:42`, `16:30`, `00:30`.
-   *
-   * For the computer table, where the day heading above the group already
-   * says which day it was and the column is too narrow to repeat it. Empty
-   * when there is no date. */
-  clock: string;
   /** `21 h ago`, `2 days ago`. Null on today's, where the time is enough. */
   ago: string | null;
   /** The whole line: `Yesterday 16:30 · 21 h ago`, or the missing sentence. */
@@ -104,7 +97,7 @@ export function given(value: string | Date | null | undefined, now = new Date())
   const key = givenDayKey(value);
   if (!key || !value) {
     return {
-      missing: true, stale: false, when: NOT_GIVEN, clock: '', ago: null,
+      missing: true, stale: false, when: NOT_GIVEN, ago: null,
       text: NOT_GIVEN, exact: null,
     };
   }
@@ -122,7 +115,6 @@ export function given(value: string | Date | null | undefined, now = new Date())
       missing: false,
       stale: false,
       when: clock,
-      clock,
       ago: null,
       text: clock,
       exact: exactly(at),
@@ -134,7 +126,7 @@ export function given(value: string | Date | null | undefined, now = new Date())
     : `${civil(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} ${clock}`;
   const ago = sittingFor(at, now, back);
   return {
-    missing: false, stale: true, when, clock, ago,
+    missing: false, stale: true, when, ago,
     text: `${when} · ${ago}`, exact: exactly(at),
   };
 }

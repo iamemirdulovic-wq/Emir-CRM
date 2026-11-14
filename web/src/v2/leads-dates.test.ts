@@ -71,7 +71,14 @@ describe('the v2 computer table', () => {
   const computer = computerLayout();
 
   it('has a column for when the lead was given out', () => {
-    expect(computer).toContain("<th>{book ? 'Given out' : 'Given to you'}</th>");
+    /*
+     * One word in the header, because an 11px uppercase `th` with letter
+     * spacing set the whole column's width and the table has none to spare —
+     * the `title` says which "given" it means.
+     */
+    expect(computer).toContain('className="v2-given-cell"');
+    expect(computer).toContain('When the lead was given to its agent');
+    expect(computer).toContain('When the lead was given to you');
   });
 
   it('draws the day headings between the groups, spanning the whole row', () => {
@@ -93,11 +100,21 @@ describe('the v2 computer table', () => {
   });
 
   it('renders the row’s cell through the shared helper', () => {
-    expect(computer).not.toContain('toLocaleTimeString');
     const text = read(path.join(HERE, 'Leads.tsx'));
-    expect(text).toContain('<td><GivenLine at={row.assigned_at} /></td>');
+    expect(text).toContain('<td className="v2-given-cell"><GivenLine at={row.assigned_at} /></td>');
     expect(text, 'the one helper, so the three screens word it the same')
       .toContain("from '../lib/assigned.js'");
+  });
+
+  it('uses the one component for the table, the card and the owner’s row', () => {
+    /*
+     * One `GivenLine` for all three, so the three screens cannot word the
+     * same date three ways — which is how "Yesterday" ended up meaning two
+     * different days on two screens of this product before.
+     */
+    const text = read(path.join(HERE, 'Leads.tsx'));
+    expect(text.match(/function Given/g) ?? [], 'exactly one of them').toHaveLength(1);
+    expect(text, 'the whole date is one hover away').toContain('title={line.exact ?? undefined}');
   });
 });
 
