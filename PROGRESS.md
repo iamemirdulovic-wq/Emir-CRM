@@ -6,12 +6,12 @@ keeping 14. The path is printed in the deploy log as `[start] backup …`.
 The build environment has no route to the live database, so no dump could be
 taken from here — see `DECISIONS.md`.
 
-Last updated: 30 Oct 2026
+Last updated: 14 Nov 2026
 
 A box is ticked only when the item is **built, tested and screenshotted**.
 
 **All seventeen steps are closed, and all of it is live.** Hostinger deploys
-every push to **mycrm.emirdulovic.com** by itself, in about 75 seconds. Read
+every push to **crm.homes.me** by itself, in about 75 seconds. Read
 `FINAL_REPORT.md`, then `SETUP_NEEDED.md`.
 
 (An earlier version of this note said nothing had deployed. That was my error —
@@ -599,3 +599,67 @@ below was opened in a browser and used, not just compiled.
       themes. No page scrolls sideways, nothing is clipped, no console errors
 - [ ] **Cutover.** v2 is on the `v2` branch and on a test address only.
       Putting it on crm.homes.me is Emir's decision and has not been made
+
+
+## 14 November 2026 — the owner's fix list, and four outages
+
+Emir checked the live site on a real phone and a 1440px laptop and sent a
+master fix list with his own design pictures. Everything below was built,
+pushed and seen on crm.homes.me unless it says otherwise.
+
+**The screens**
+
+- [x] **Leads list** — 52px rows so thirteen leads fit where four did; the Lead
+      column a fixed 230px so a full name is never cut, which was the
+      complaint that opened the list; country and language as dropdowns with
+      flags, counts and a search inside; the black "ready to call" bar with
+      real numbers; no sideways scroll at 1280, 1440 or 1920
+- [x] **Quick panel** — the whole lead workable without leaving the list;
+      arrow keys walk the list in the order the table really draws it
+- [x] **Lead page** — the name as the title, only clean tags, Notes opens
+      first, the Excel text out of the timeline and into Info
+- [x] **Who has had this lead** — every transfer, including the cancelled and
+      refused ones the query had been filtering out
+- [x] **Phone dialler** on one 390px screen, measured block by block;
+      **phone dashboard**; **phone home with the banner**
+- [x] **The note box and the result bar**, built from Emir's picture: no
+      emoji, type pills, quick phrases, Attach / Voice / Remind me, Ctrl +
+      Enter printed on screen, a call result as one thin line
+- [x] **The no-answer rule** — one tap counts the try and makes the next
+      follow-up by itself, inside both our hours and the client's waking
+      hours. No new table, no new column
+- [x] **Search finds a partial phone number**, and the links it hands back are
+      real routes. A check now reads every link in every v2 screen against the
+      route table
+- [ ] **Columns cut at 1440 on real data.** The first measurement said nothing
+      was cut; it was measuring test names half the length of Emir's. Being
+      redone against properly long ones
+- [ ] **Phone alerts.** Blocked on Emir: needs a Firebase key, and the Google
+      console refused to create one
+
+**Four outages in one day, all from the same gap**
+
+Production is MariaDB; the tests are MySQL 8. The calendar had been returning
+"Internal server error" for every person on every device for days. It took
+three diagnoses and two wrong ones, and what finally found it was putting the
+database's own words on the owner's screen rather than reasoning again.
+
+- [x] **A migration that could never finish** — `0038` added ten columns in one
+      statement against a database that already had some, failed on the first
+      duplicate, added none of the rest, and blocked every migration behind it
+      on every boot. Rewritten to add one column at a time
+- [x] **The server applies pending migrations in its own boot**, so it no
+      longer matters which command the hosting panel runs
+- [x] **System health names every stuck migration** and what the database
+      said, so this is never again invisible from outside
+- [x] **My Day and the calendar fall back** when the database is behind the
+      code. This hides a fault on purpose; `DECISIONS.md` says why and when to
+      take it out
+
+**Found while looking for something else**
+
+- [x] The try count had been counting **up** since January and never **down**
+- [x] Every notification about a lead linked to a route that does not exist
+- [x] The dialler scheduled its own follow-ups, ignoring the ladder entirely
+- [x] A test that failed **every Saturday** and passed the rest of the week
+- [x] Times printed in the reader's timezone beside a Dubai day
