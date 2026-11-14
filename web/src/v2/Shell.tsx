@@ -14,6 +14,7 @@ import {
 import { Bell } from './Bell.js';
 import { useCheckIn } from './check-in.js';
 import { Find } from './Find.js';
+import { HomesAiOrb } from './HomesAiOrb.js';
 import {
   barIsHiddenAt, FullAttentionProvider, PhoneHeadProvider, usePhoneHeadSlot,
   usePhoneSheets, useRiseIn,
@@ -448,6 +449,18 @@ export function V2Shell() {
                 * one on purpose — see `phone.tsx`.
                 */}
               {isPhone && !oneJob && !barIsHiddenAt(pathname) && <PhoneBar />}
+              {/*
+                * Homes AI, on every screen and inside no screen.
+                *
+                * Emir, 14 Nov: "A small glowing Homes AI orb sits in the
+                * corner of EVERY page, on computer and phone. It is never
+                * hidden." Mounted here, once, outside `<main>`, so a screen
+                * cannot forget it and a route change cannot remount it —
+                * which also means its breath does not restart every time
+                * somebody opens a lead. Where it sits relative to the phone's
+                * floating bar is CSS keyed off `v2-has-bar` above.
+                */}
+              <HomesAiOrb />
             </div>
           )}
         </FullAttentionProvider>
