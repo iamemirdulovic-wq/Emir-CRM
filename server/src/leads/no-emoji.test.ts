@@ -30,6 +30,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SENTENCE_FILES = [
   join(HERE, 'actions.ts'),
   join(HERE, '..', 'v2', 'call-results.ts'),
+  /* Homes AI writes a sentence for every heat reason, priority row and risk. */
+  join(HERE, '..', 'ai', 'rules.ts'),
 ];
 
 /**
