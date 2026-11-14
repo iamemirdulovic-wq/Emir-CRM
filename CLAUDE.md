@@ -943,6 +943,16 @@ Three things about that port that have each already cost a day:
   because every push here is a release. There are two migrations numbered
   `0038` and they must stay that way; `DECISIONS.md` says why and what the
   safe alternative is.
+- **Production is MariaDB; your tests are MySQL 8.** This has now caused two
+  500s that were green in every test: the KPI endpoint (an aggregate alias in
+  HAVING, which MySQL allows and MariaDB rejects) and the calendar, which
+  passed the browser's raw `2026-12-01T00:00:00.000Z` straight into
+  `starts_at < ?`. MySQL answers that with warning 1292, truncates to the
+  right instant and carries on; MariaDB refuses it, so the screen returned
+  "Internal server error" for every person on every device while 3,000 tests
+  stayed green. **Never pass a date to a query as a string — always `new
+  Date(x)`** — and when something 500s only on the live site, suspect this
+  difference before you suspect the data.
 - **Dubai is UTC+4 with no daylight saving.** Business-hours arithmetic uses a
   fixed offset on purpose. Do not "fix" it into a timezone library.
 - **Four checks read the source rather than trusting it**, and they exist

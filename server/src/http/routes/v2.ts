@@ -520,7 +520,18 @@ v2Router.get(
             AND m.starts_at < ? AND m.ends_at > ?
           ORDER BY m.starts_at ASC
           LIMIT 500`,
-        [...fence.params, to, from],
+        /*
+         * `Date`, never the raw `…T00:00:00.000Z` string the browser sent.
+         *
+         * MySQL 8 takes that literal, warns 1292 "Incorrect datetime value"
+         * and truncates it to the right instant, so this worked here and in
+         * every test. MariaDB — which is what runs in production, see the KPI
+         * 500 in CHANGELOG — refuses it outright, which is why the calendar
+         * returned "Internal server error" for every person on every device
+         * while the whole suite stayed green. `tasksInRange`, the other half
+         * of this same handler, already passed Dates; only this query did not.
+         */
+        [...fence.params, new Date(to), new Date(from)],
       ),
     ]);
 
