@@ -28,7 +28,30 @@ export const errorHandler: ErrorRequestHandler = (err, req: Request, res: Respon
   }
 
   logger.error('unhandled error', { path: req.path, method: req.method, ...errorContext(err) });
-  res.status(500).json({ error: { code: 'server_error', message: 'Internal server error' } });
+
+  /*
+   * The owner can see what actually broke; nobody else can.
+   *
+   * This exists because the calendar returned "Internal server error" for
+   * every person on the live site for days, and the real reason was written
+   * only to a server log that neither the owner nor I can read. Two fixes
+   * were shipped on reasoning alone and both were wrong. A message a person
+   * can read off their own screen and quote back is worth more than another
+   * round of guessing.
+   *
+   * Owner and admin only, so an agent — or anyone who gets hold of an agent's
+   * session — still sees nothing. The message alone, never the stack and
+   * never the SQL parameters, because those carry client phone numbers.
+   */
+  const detail = req.user?.role === 'owner' || req.user?.role === 'admin'
+    ? (err instanceof Error ? err.message : String(err)).slice(0, 300)
+    : null;
+  res.status(500).json({
+    error: {
+      code: 'server_error',
+      message: detail ? `Internal server error — ${detail}` : 'Internal server error',
+    },
+  });
 };
 
 /** Wrap an async handler so rejected promises reach the error handler. */
