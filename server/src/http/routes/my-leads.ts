@@ -19,6 +19,7 @@ import {
 import {
   PAYMENTS, PURPOSES, TIMELINES, WANT_CHOICES, fieldHistory, updateWants,
 } from '../../leads/wants.js';
+import { handoverChain } from '../../leads/handovers.js';
 import {
   FILE_FOLDERS, FOLDER_LABELS, filesForContact, isFileFolder,
 } from '../../leads/note-files.js';
@@ -779,6 +780,28 @@ myLeadsRouter.get(
     const opportunityId = String(req.params.id);
     await assertLeadIsVisible(req, opportunityId);
     res.json({ items: await fieldHistory(opportunityId) });
+  }),
+);
+
+/**
+ * Who has had this lead — the owner's "two dates".
+ *
+ * The first hand-out with its date, and every move since with the date and
+ * who it came from. `opportunities.assigned_at` only holds the current
+ * holder's date, so the second date can only come from `lead_assignments`;
+ * `leads/handovers.ts` says which table is the truth and why.
+ *
+ * Fenced by the same `assertLeadIsVisible` as everything else on this screen,
+ * so an agent can read the history of their own leads and of nobody else's.
+ * Registered above `/:id`, like `/:id/history` — Express matches in
+ * declaration order.
+ */
+myLeadsRouter.get(
+  '/:id/handover',
+  asyncHandler(async (req: Request, res: Response) => {
+    const opportunityId = String(req.params.id);
+    await assertLeadIsVisible(req, opportunityId);
+    res.json({ items: await handoverChain(opportunityId) });
   }),
 );
 

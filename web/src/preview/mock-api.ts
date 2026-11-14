@@ -3405,6 +3405,64 @@ const ROUTES: Route[] = [
     return { ok: true };
   } },
 
+  /*
+   * Who has had this lead — the owner's "two dates", 14 Nov.
+   *
+   * Three shapes, so the block can actually be looked at: a lead the CRM
+   * placed by itself, a lead an owner handed out, and a lead that has moved
+   * twice between agents with a reason on each move. The dates come from the
+   * same `givenHoursAgo` the list uses, so the last line of the chain agrees
+   * with the date on the card the reviewer clicked.
+   *
+   * Declared above `/api/my-leads/:id`, which matches anything and would
+   * swallow this — the same trap as the real route.
+   */
+  { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/handover$/, handler: ({ params }) => {
+    const id = params[0] ?? '';
+    const rows = myLeadRows();
+    const index = Math.max(0, rows.findIndex((r) => r.id === id));
+    const row = rows[index] ?? rows[0]!;
+    if (row.assigned_at === null) return { items: [] };
+    const held = row.owner_name ?? 'Layla Hassan';
+    const earlier = (hours: number) => new Date(
+      new Date(row.assigned_at as string).getTime() - hours * 3_600_000,
+    ).toISOString();
+
+    /* Every third lead has moved twice; every other even one was handed out
+       by the owner; the rest the CRM placed by itself. */
+    if (index % 3 === 0) {
+      return {
+        items: [
+          {
+            id: `h-${row.id}-1`, at: earlier(74), toName: 'Omar Farouk', fromName: null,
+            by: 'person', byName: 'Emir Dulovic', reason: null, note: null,
+          },
+          {
+            id: `h-${row.id}-2`, at: earlier(26), toName: 'Priya Nair', fromName: 'Omar Farouk',
+            by: 'person', byName: 'Omar Farouk', reason: 'too_many', note: null,
+          },
+          {
+            id: `h-${row.id}-3`, at: row.assigned_at, toName: held, fromName: 'Priya Nair',
+            by: 'person', byName: 'Priya Nair', reason: 'knows_project',
+            note: 'She sold three in that tower.',
+          },
+        ],
+      };
+    }
+    return {
+      items: [{
+        id: `h-${row.id}-1`,
+        at: row.assigned_at,
+        toName: held,
+        fromName: null,
+        by: index % 2 === 0 ? 'person' : 'crm',
+        byName: index % 2 === 0 ? 'Emir Dulovic' : null,
+        reason: null,
+        note: null,
+      }],
+    };
+  } },
+
   { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)\/brief$/, handler: ({ params }) => leadBrief(params[0] ?? '') },
   { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/brief$/, handler: ({ params }) => ({
     ...leadBrief(params[0] ?? ''), refreshed: true,

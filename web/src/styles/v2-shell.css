@@ -2474,6 +2474,30 @@
 /* The rule above Source and Lead #, which the design sets inline. */
 .v2-leadpage-wants-foot{ border-top:1px solid var(--line); padding-top:8px; }
 
+/*
+ * "Who has had this lead" — the owner's two dates, 14 Nov.
+ *
+ * The design has no block for a hand-over chain, so this borrows the one it
+ * does have for a short list of past events with a date on the right: the
+ * Change history's `divide small` of `row`s, `padding:8px 0` and all. These
+ * three rules are the difference between that and a two-line row.
+ *
+ * Base layer on purpose. The bottom half of this file is inside
+ * `@media (max-width:767px)` and a rule put there would do nothing on the
+ * computer, in silence — see the note at the top of the file.
+ *
+ * The first selector carries two classes and `.v2` on purpose: the design's
+ * own `.v2 .d-row` centres its children, and a bare `.v2-leadhand-row` loses
+ * to it on specificity — which it did, silently, leaving the date floating
+ * half-way down a two-line row while the code looked right.
+ */
+.v2 .d-row.v2-leadhand-row{ align-items:flex-start; padding:8px 0; }
+/* The reason under the sentence. A block, so it is its own line without a
+   `<br>` inside a flex child. */
+.v2-leadhand-why{ display:block; color:var(--ink-3); margin-top:2px; }
+/* The date keeps its width and stays on one line; the sentence wraps. */
+.v2-leadhand-when{ flex:none; white-space:nowrap; text-align:right; }
+
 /* Two textareas the design sizes inline. */
 .v2-leadact-note,
 .v2-leadtr-note{ min-height:64px; }
@@ -3612,8 +3636,14 @@
   font-size:10.5px; line-height:1.3; color:var(--ink-4);
   white-space:nowrap; pointer-events:none;
 }
-/* The hint hangs below the filter row, so the row needs the room for it. */
-.v2 .d-filters{ padding-bottom:16px; }
+/*
+ * The hint hangs below the filter row, so the row needs the room for it —
+ * on these two screens only. A bare `.v2 .d-filters` would have added 16px
+ * under the filter row of every screen in the product that has one, for a
+ * line that only exists here.
+ */
+.v2 .p-my-leads .d-filters,
+.v2 .p-all-leads .d-filters{ padding-bottom:16px; }
 
 /*
  * The flag in front of the phone number, and the moon on the local clock.

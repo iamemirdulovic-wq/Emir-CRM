@@ -9,6 +9,7 @@ import { Avatar, Spinner, ErrorNote, budgetLabel } from '../design/ui.js';
 import { clockIn, flagOf, originOf, whenToCall } from '../lib/dialling.js';
 import { spacedE164 } from '../design/phone.js';
 import { TransferLead } from './TransferLead.js';
+import { LeadHandover } from './LeadHandover.js';
 import { LeadAction, type LeadActionKind } from './LeadAction.js';
 import { usePhoneHead } from './phone.js';
 import { useCallAction } from './call.js';
@@ -472,6 +473,12 @@ export function V2Lead() {
             * AI chip appears only when the AI really wrote it.
             */}
           <InShort lead={lead} brief={brief.data ?? null} budget={budget} />
+
+          {/*
+            * The owner's "two dates", 14 Nov. Always on the page, because the
+            * whole complaint was that a lead carried no date at all.
+            */}
+          <LeadHandover leadId={lead.id} />
 
           <section className="d-card v2-leadpage-tabs" ref={tabsAt}>
             <div className="d-tabs" role="tablist">
