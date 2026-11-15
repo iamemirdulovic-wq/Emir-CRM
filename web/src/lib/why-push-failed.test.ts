@@ -55,6 +55,23 @@ describe('why turning alerts on failed', () => {
     expect(said).toMatch(/something nobody predicted/);
   });
 
+  it('keeps a DOM error\u2019s message, because its name alone decides nothing', () => {
+    /* This is the one that cost an evening. Emir's card read "(TypeError)"
+       and stopped there, and a TypeError is what Chrome calls both of these
+       \u2014 which need opposite fixes. The name alone is useless. */
+    const badKey = whyPushFailed(Object.assign(new TypeError(
+      "Failed to execute 'subscribe' on 'PushManager': The provided applicationServerKey is not valid.",
+    )));
+    expect(badKey).toMatch(/FCM_VAPID_KEY/);
+
+    const badChunk = whyPushFailed(new TypeError('Failed to fetch dynamically imported module: /assets/x.js'));
+    expect(badChunk).toMatch(/did not download/i);
+
+    /* And whatever it is, the message reaches the screen. */
+    const odd = whyPushFailed(new TypeError('something new entirely'));
+    expect(odd).toMatch(/something new entirely/);
+  });
+
   it('never throws, whatever it is handed', () => {
     for (const err of [null, undefined, 0, '', [], {}, new Error('')]) {
       expect(() => whyPushFailed(err)).not.toThrow();

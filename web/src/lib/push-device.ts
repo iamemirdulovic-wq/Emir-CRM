@@ -38,19 +38,32 @@ import {
  * a USB cable.
  */
 export function whyPushFailed(err: unknown): string {
+  const e = err as { code?: unknown; name?: unknown; message?: unknown };
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : '');
+  const message = str(e?.message);
   const code = (() => {
-    const e = err as { code?: unknown; name?: unknown; message?: unknown };
-    /* A bare `Error` names itself "Error", which says nothing and would hide
-       the message behind it — the one piece of detail worth photographing.
-       Only a name that distinguishes something is used as the code. */
-    for (const v of [e?.code, e?.name]) {
-      if (typeof v === 'string' && v && v !== 'Error') return v;
-    }
-    return typeof e?.message === 'string' && e.message ? e.message.slice(0, 60) : 'unknown';
+    /* `code` is Firebase's own, and it names the fault on its own
+       ("messaging/token-subscribe-failed"). A DOM error has only `name` and
+       `message`, and for those the NAME IS NOT ENOUGH: "TypeError" is what
+       the browser calls both "Failed to fetch dynamically imported module"
+       and "The provided applicationServerKey is not valid", which need
+       opposite fixes.
+       Emir got exactly "(TypeError)" on 15 Nov from the first version of
+       this function, which dropped the message — the same mistake, twice in
+       one evening, as the button that said "it works". So the message comes
+       too, whenever there is one. */
+    if (str(e?.code)) return str(e.code);
+    const name = str(e?.name);
+    if (name && message) return `${name}: ${message}`.slice(0, 160);
+    return name || message.slice(0, 160) || 'unknown';
   })();
-  const say = /permission-blocked|NotAllowedError/i.test(code)
+  const say = /permission-blocked|NotAllowedError|denied/i.test(code)
     ? 'Your phone is blocking alerts for this site. Turn them on in the phone’s own settings for the browser.'
-    : /unsupported-browser|only-available-in-window/i.test(code)
+    : /applicationServerKey|InvalidAccessError/i.test(code)
+      ? 'The alert address Google gave us is not being accepted. Tell Emir: it is the FCM_VAPID_KEY value.'
+      : /dynamically imported module|Importing a module script failed|Load failed/i.test(code)
+        ? 'Part of the app did not download. Close every CRM tab, open it again, and retry \u2014 if it keeps failing you are offline or the site is mid-update.'
+        : /unsupported-browser|only-available-in-window/i.test(code)
       ? 'This browser cannot receive alerts. On an iPhone, add the CRM to your home screen first.'
       : /service-worker/i.test(code)
         ? 'The app could not start its background part. Close every CRM tab, open it again, and retry.'
