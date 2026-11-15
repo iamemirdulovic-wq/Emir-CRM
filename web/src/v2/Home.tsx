@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../design/index.js';
 import { Avatar, Spinner, ErrorNote } from '../design/ui.js';
 import { clockIn, originOf, whenToCall } from '../lib/dialling.js';
 import { iosNeedsInstall, pushState, enablePush, type PushState } from '../lib/push.js';
+import { whyPushFailed } from '../lib/push-device.js';
 import { useCallAction, type CallActions } from './call.js';
 import { usePhoneHead } from './phone.js';
 import { myDaySub, ownerHomeSub } from './subs.js';
@@ -705,13 +706,19 @@ export function NotifyCard() {
         return;
       }
       setState(got);
+      /* `off` here means the browser handed back no token without throwing —
+         it refused quietly. Say that rather than "that did not work", which
+         is what this line said on 15 Nov while the owner and I had no way to
+         tell six different failures apart. */
       setSaid(got === 'on'
         ? 'Notifications are on.'
         : got === 'blocked'
           ? 'Your phone refused. Turn them on in its own settings.'
-          : 'That did not work.');
-    } catch {
-      setSaid('That did not work.');
+          : got === 'unsupported'
+            ? 'This browser cannot receive alerts. On an iPhone, add the CRM to your home screen first.'
+            : 'Your phone did not give out an alert address, and did not say why. Try again, or try the browser instead of the app.');
+    } catch (err) {
+      setSaid(whyPushFailed(err));
     } finally {
       setBusy(false);
     }

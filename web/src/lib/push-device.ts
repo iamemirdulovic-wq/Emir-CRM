@@ -23,6 +23,43 @@ import {
  * tells somebody their phone is registered after they cleared their browser.
  */
 
+/**
+ * Why turning alerts on failed, in words plus the browser's own short code.
+ *
+ * Both screens used to catch the error and say "That did not work" — the same
+ * failure as the test button that said "it works", only the other way round:
+ * a sentence that tells nobody anything. On 15 Nov the owner pressed Turn on,
+ * got that line, and there was no way for either of us to find out which of
+ * six things had happened; the keys were right, the service worker was right,
+ * and the error that would have said so was thrown away.
+ *
+ * The code is kept on the end on purpose. It is not for him to read — it is so
+ * that a screenshot of the card is enough to diagnose it without a laptop and
+ * a USB cable.
+ */
+export function whyPushFailed(err: unknown): string {
+  const code = (() => {
+    const e = err as { code?: unknown; name?: unknown; message?: unknown };
+    /* A bare `Error` names itself "Error", which says nothing and would hide
+       the message behind it — the one piece of detail worth photographing.
+       Only a name that distinguishes something is used as the code. */
+    for (const v of [e?.code, e?.name]) {
+      if (typeof v === 'string' && v && v !== 'Error') return v;
+    }
+    return typeof e?.message === 'string' && e.message ? e.message.slice(0, 60) : 'unknown';
+  })();
+  const say = /permission-blocked|NotAllowedError/i.test(code)
+    ? 'Your phone is blocking alerts for this site. Turn them on in the phone’s own settings for the browser.'
+    : /unsupported-browser|only-available-in-window/i.test(code)
+      ? 'This browser cannot receive alerts. On an iPhone, add the CRM to your home screen first.'
+      : /service-worker/i.test(code)
+        ? 'The app could not start its background part. Close every CRM tab, open it again, and retry.'
+        : /token-subscribe-failed|AbortError|push service/i.test(code)
+          ? 'Your phone could not register with Google. This is usually the network or the FCM_VAPID_KEY value. Try again on a different connection, and tell Emir if it keeps failing.'
+          : 'Turning alerts on failed before anything was registered.';
+  return `${say} (${code})`;
+}
+
 export type PushTone = 'ok' | 'warn' | 'plain';
 
 export interface PushLook {
@@ -127,8 +164,8 @@ export function usePushDevice(): PushDevice {
       setState(next);
       setSaid(line);
       return { state: next, said: line };
-    } catch {
-      const line = 'That did not work — try again in a moment.';
+    } catch (err) {
+      const line = whyPushFailed(err);
       setSaid(line);
       return { state: state ?? 'off', said: line };
     } finally {
