@@ -81,7 +81,7 @@ export function Login() {
     setError(null);
     try {
       const user = await signIn(email, password, rememberMe);
-      navigate(user.mustChangePassword ? '/change-password' : '/dashboard', { replace: true });
+      navigate(user.mustChangePassword ? '/change-password' : '/v2', { replace: true });
     } catch (err) {
       // The server deliberately does not say which of the two was wrong.
       setError(err instanceof ApiError ? err.message : 'Could not sign in. Please try again.');

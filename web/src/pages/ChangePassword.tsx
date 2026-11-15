@@ -30,7 +30,7 @@ export function ChangePassword() {
     try {
       await api.post('/api/auth/change-password', { currentPassword, newPassword });
       await refresh();
-      navigate('/dashboard', { replace: true });
+      navigate('/v2', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not change the password.');
     } finally {

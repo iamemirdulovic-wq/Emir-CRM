@@ -72,6 +72,15 @@ describe('why turning alerts on failed', () => {
     expect(odd).toMatch(/something new entirely/);
   });
 
+  it('blames the network, not the CRM, when the phone could not reach Google', () => {
+    /* Emir's, 15 Nov, with a VPN running: the keys were right, the service
+       worker was right, and the phone simply could not get to Google. Saying
+       so saves the next person checking seven values that are already fine. */
+    const said = whyPushFailed(new TypeError('Failed to fetch'));
+    expect(said).toMatch(/VPN/);
+    expect(said).toMatch(/Nothing is wrong with the CRM/);
+  });
+
   it('never throws, whatever it is handed', () => {
     for (const err of [null, undefined, 0, '', [], {}, new Error('')]) {
       expect(() => whyPushFailed(err)).not.toThrow();

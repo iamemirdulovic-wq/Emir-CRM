@@ -88,11 +88,26 @@ import { OwnerOnly } from './v2/OwnerOnly.js';
  * Everything behind the login, with the temporary-password gate in front.
  *
  * `signedOutTo` is which sign-in screen a visitor with no session is sent to.
- * It is `/login` for every live screen and `/v2/login` for the v2 ones, so
- * that the two versions each keep their own front door while they exist side
- * by side.
+ * It defaults to `/v2/login` now, and the v1 screens that pass it explicitly
+ * are the only ones that still use the old front door.
+ *
+ * **The cutover, 15 Nov 2026.** Emir chose it twice in one evening: first
+ * that the installed app opens v2, then — once that still dropped him into
+ * the old CRM — that everybody lands in v2 everywhere, computer and phone.
+ *
+ * The chain that forced it is worth keeping, because each link looked fine
+ * on its own: clearing his phone's stored data signed him out, the app
+ * opened `/v2`, `/v2` sent him to sign in, and signing in sent him to
+ * `/dashboard`. The app's own setting was right the whole time and could not
+ * save him, because what came after it pointed the other way.
+ *
+ * So every landing place points at v2: here, `PublicOnly`, `/`, the v1
+ * login's success, the change-password screen and the end of the welcome
+ * flow. The old CRM is still there and still works — nothing is deleted and
+ * typing its address still reaches it — but nothing *sends* anybody to it
+ * any more.
  */
-function Protected({ children, signedOutTo = '/login' }: { children: ReactNode; signedOutTo?: string }) {
+function Protected({ children, signedOutTo = '/v2/login' }: { children: ReactNode; signedOutTo?: string }) {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
   if (!user) return <Navigate to={signedOutTo} replace />;
@@ -107,7 +122,7 @@ function Protected({ children, signedOutTo = '/login' }: { children: ReactNode; 
 function PublicOnly({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
-  if (user && !user.mustChangePassword) return <Navigate to="/dashboard" replace />;
+  if (user && !user.mustChangePassword) return <Navigate to="/v2" replace />;
   return <>{children}</>;
 }
 
@@ -318,7 +333,7 @@ export function App() {
           <Route path="/dev/components" element={<Components />} />
         </Route>
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/v2" replace />} />
         {/* Keep the old board URL working for anyone who bookmarked it. */}
         <Route path="/board" element={<Navigate to="/pipeline" replace />} />
         {/* Inside the shell, so a mistyped address still has the nav on it. */}

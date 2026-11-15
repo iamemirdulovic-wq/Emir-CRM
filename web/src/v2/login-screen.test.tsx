@@ -292,12 +292,32 @@ describe('a signed-out visitor', () => {
     expect(container.querySelector('.p-login')).not.toBeNull();
   });
 
-  it('still lands on the live /login from everywhere else', async () => {
+  it('lands on /v2/login from the old screens too, since the cutover', async () => {
+    /*
+     * This test asserted the opposite until 15 Nov, and it was right to: the
+     * two versions each kept their own front door while they ran side by side.
+     *
+     * Emir ended that. He cleared his phone, installed the app, and it opened
+     * the old CRM anyway — because being signed out sent him to `/login` and
+     * `/login` finished at `/dashboard`. Asked whether the app alone should be
+     * v2 or everybody everywhere, he chose everybody. So `Protected` defaults
+     * to `/v2/login` and the old screens are reached by typing their address,
+     * not by being sent there.
+     */
     await mount(
       <MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>,
     );
-    /* `/login` is the screen ten people use every morning and it is untouched:
-       its own sign-in-link button is how we know it is the one rendering. */
+    expect(text()).toContain('Every lead called.');
+    expect(container.querySelector('.p-login')).not.toBeNull();
+  });
+
+  it('still has the old sign-in screen for anyone who asks for it by name', async () => {
+    /* Nothing is deleted. `/login` is untouched and reachable — its own
+       sign-in-link button is how we know it is the one rendering — so if v2
+       has to be backed out, the way back exists. */
+    await mount(
+      <MemoryRouter initialEntries={['/login']}><App /></MemoryRouter>,
+    );
     expect(text()).toContain('Email me a sign-in link');
     expect(container.querySelector('.p-login')).toBeNull();
   });

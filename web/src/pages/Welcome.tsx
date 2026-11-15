@@ -234,7 +234,7 @@ export function Welcome() {
       <div className="wc" data-scene="error">
         <div className="wc-card">
           <p className="wc-lede">{error}</p>
-          <Button variant="primary" onClick={() => navigate('/dashboard', { replace: true })}>
+          <Button variant="primary" onClick={() => navigate('/v2', { replace: true })}>
             Go to the CRM
           </Button>
         </div>

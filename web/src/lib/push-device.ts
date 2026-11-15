@@ -57,19 +57,31 @@ export function whyPushFailed(err: unknown): string {
     if (name && message) return `${name}: ${message}`.slice(0, 160);
     return name || message.slice(0, 160) || 'unknown';
   })();
-  const say = /permission-blocked|NotAllowedError|denied/i.test(code)
-    ? 'Your phone is blocking alerts for this site. Turn them on in the phone’s own settings for the browser.'
-    : /applicationServerKey|InvalidAccessError/i.test(code)
-      ? 'The alert address Google gave us is not being accepted. Tell Emir: it is the FCM_VAPID_KEY value.'
-      : /dynamically imported module|Importing a module script failed|Load failed/i.test(code)
-        ? 'Part of the app did not download. Close every CRM tab, open it again, and retry \u2014 if it keeps failing you are offline or the site is mid-update.'
-        : /unsupported-browser|only-available-in-window/i.test(code)
-      ? 'This browser cannot receive alerts. On an iPhone, add the CRM to your home screen first.'
-      : /service-worker/i.test(code)
-        ? 'The app could not start its background part. Close every CRM tab, open it again, and retry.'
-        : /token-subscribe-failed|AbortError|push service/i.test(code)
-          ? 'Your phone could not register with Google. This is usually the network or the FCM_VAPID_KEY value. Try again on a different connection, and tell Emir if it keeps failing.'
-          : 'Turning alerts on failed before anything was registered.';
+  /*
+   * Ordered, and the order is the whole point: these patterns overlap.
+   * "Failed to fetch dynamically imported module" contains "Failed to fetch",
+   * so the specific one has to be asked first or a half-downloaded app reads
+   * as a broken connection and sends somebody hunting through their VPN. A
+   * test holds this order; if you add a line, add its case there too.
+   */
+  const REASONS: Array<[RegExp, string]> = [
+    [/permission-blocked|NotAllowedError|denied/i,
+      'Your phone is blocking alerts for this site. Turn them on in the phone\u2019s own settings for the browser.'],
+    [/unsupported-browser|only-available-in-window/i,
+      'This browser cannot receive alerts. On an iPhone, add the CRM to your home screen first.'],
+    [/applicationServerKey|InvalidAccessError/i,
+      'The alert address Google gave us is not being accepted. Tell Emir: it is the FCM_VAPID_KEY value.'],
+    [/dynamically imported module|Importing a module script failed|Load failed/i,
+      'Part of the app did not download. Close every CRM tab, open it again, and retry \u2014 if it keeps failing you are offline or the site is mid-update.'],
+    [/service-worker/i,
+      'The app could not start its background part. Close every CRM tab, open it again, and retry.'],
+    [/Failed to fetch|NetworkError|network error|ERR_/i,
+      'Your phone could not reach Google. Turn off any VPN and try again, or switch between Wi-Fi and mobile data. Nothing is wrong with the CRM or the keys.'],
+    [/token-subscribe-failed|AbortError|push service/i,
+      'Your phone could not register with Google. This is usually the network or the FCM_VAPID_KEY value. Try again on a different connection, and tell Emir if it keeps failing.'],
+  ];
+  const say = REASONS.find(([pattern]) => pattern.test(code))?.[1]
+    ?? 'Turning alerts on failed before anything was registered.';
   return `${say} (${code})`;
 }
 

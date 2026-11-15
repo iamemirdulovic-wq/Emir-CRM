@@ -1558,3 +1558,40 @@ wired as the default. That is the next piece of the cutover, not this one.
 An app already installed keeps its old manifest until the browser refetches
 it, so a phone that installed the CRM before today may keep opening
 `/dashboard` until it is reinstalled.
+
+## The cutover: everybody lands in v2 — 15 Nov 2026
+
+Emir decided this in two steps, an hour apart, and the second only because
+the first was not enough.
+
+First: the installed app opens `/v2`. Done, deployed, and it still gave him
+the old CRM. The chain behind that is worth keeping, because every link
+looked correct on its own:
+
+1. Clearing his phone's stored data signed him out.
+2. The app opened `/v2`. Correct.
+3. `/v2` with no session sent him to a sign-in screen.
+4. Signing in sent him to `/dashboard` — the old CRM.
+5. The installed app then remembered that page.
+
+The manifest was right the whole time and could not save him, because what
+came after it pointed the other way. Asked whether the app alone should be
+v2 or everybody everywhere, he chose **everybody, computer and phone**.
+
+So every place that *sends* somebody somewhere now points at v2:
+`Protected`'s default `signedOutTo`, `PublicOnly`, the `/` route, the v1
+login's success, `/change-password`, and the end of the welcome flow.
+
+**Nothing is deleted.** `/login`, `/dashboard` and every other v1 screen
+still exist and still work; they are reached by typing the address. A test
+holds that open on purpose, so backing the cutover out is a one-line change
+rather than an excavation.
+
+**What this means tomorrow morning:** ten people sign in and see v2 instead
+of the CRM they used yesterday. That is the intended effect and it is his
+call, but it is the single largest change of the day and the one most worth
+watching.
+
+Two things that still show v1 and are not covered by this: the welcome flow
+and the change-password screen themselves (one-time screens, which now *end*
+in v2), and the old `/dashboard` if somebody has it bookmarked.
