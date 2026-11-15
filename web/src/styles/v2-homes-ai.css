@@ -633,9 +633,9 @@
    * **Bottom left**, a bar's height clear of the floating bar.
    *
    * It was bottom *right*, above the dial button, which put two orange
-   * circles one above the other in the same corner — Emir, 15 Nov, looking at
-   * `phone-light-home-with-bar.png`: *"It reads as a mistake, not a design.
-   * Opposite corners read as deliberate."* The bar's left end is the Home
+   * circles one above the other in the same corner. Decided on review of
+   * `phone-light-home-with-bar.png` inside the build, not by Emir: stacked
+   * reads as a mistake, opposite corners read as deliberate. The bar's left end is the Home
    * tab, so the orb keeps the same lift and changes corner. `v2-has-bar` is
    * on the shell's root whenever the bar is there, so the lift follows that
    * rather than keeping a second list of the screens that hide it.
@@ -670,10 +670,10 @@
    * Back / Skip / Next lead edge to edge, and lifting the orb clear of it
    * puts it on "Not interested" in the card above.
    *
-   * The first answer was to float it halfway down the right edge. Emir, 15
-   * Nov: *"The orb is floating mid-way down the right edge, half over the
-   * 'Wants · 2 Bedroom' chip, attached to nothing... on those four
-   * full-attention screens it should not float at all."* So it does not: the
+   * The first answer was to float it halfway down the right edge, which put
+   * it half over the "Wants · 2 Bedroom" chip, attached to nothing. Rejected
+   * in review inside the build — Emir has not seen that placement and said
+   * none of this. A full-attention screen should not carry a float. So the
    * orb is portalled into the screen's own header (`useDockHost`), and this
    * dock holds nothing but the panel and the dim behind it.
    */

@@ -463,17 +463,24 @@ const DOCK_HOSTS = ['.d-ib-head', '.v2-ptop-row'];
  *  1. *Bottom right, where the hidden bar would have been.* It landed on
  *     **Next lead**, and `v2-dialler.css` carries Emir's rule in capitals:
  *     "Nothing may cover the bottom bar: Back, Skip, Next lead."
- *  2. *Floating halfway down the right edge.* Emir, 15 Nov: "half over the
- *     'Wants · 2 Bedroom' chip, attached to nothing... on those four
- *     full-attention screens it should not float at all."
+ *  2. *Floating halfway down the right edge.* Rejected on reviewing the
+ *     screenshot: half over the "Wants · 2 Bedroom" chip, attached to
+ *     nothing. On a full-attention screen it should not float at all.
  *  3. *Docked in the header, like the chat and email.* Those two cost 0px —
  *     measured, their rows have slack. This one does not: the header row is
  *     ✕ + title + the points pill + ☰ edge to edge at 390px, so a 36px orb
  *     took the title's column from 126px to 83px. The header grew 46px → 71px,
  *     "POWER DIALLER · 11 LEFT AFTER THIS" wrapped to four lines, "Lead 1 of
  *     12" truncated to "Lead 1 …", and the 25px pushed the lead card down far
- *     enough to clip **"Emaar Beachfront"** mid-word. Emir, 15 Nov: *"That is
- *     the client's project name on the screen an agent uses all day."*
+ *     enough to clip **"Emaar Beachfront"** mid-word — the client's project
+ *     name, on the screen an agent uses all day.
+ *
+ * **Attribution.** The three rejections above were decided inside the build,
+ * on screenshots. Emir has not seen these placements and did not say any of
+ * this; an earlier draft of this comment quoted him for two of them and it
+ * was wrong. Covering the points pill was refused for a reason that IS his:
+ * he asked for "+2 if they answer" by name, so it is a reward signal, not
+ * decoration. Do not quote a decision back to him as his own words.
  *
  * Covering the points pill instead was considered and refused: the owner
  * asked for that pill by name and it is a reward signal, not decoration.
