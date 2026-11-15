@@ -1534,3 +1534,27 @@ Both were in a green suite, on a screen that looked right in the code.
 
 The lesson is the one this repository keeps teaching: a green suite says the
 code does what it says, not that the screen is right. Photograph it.
+
+## The installed app opens v2 — 15 Nov 2026
+
+`manifest.webmanifest` had `start_url: "/dashboard"`, so installing the CRM
+from any address — `/v2` included — produced an app that opened the **old**
+CRM. Emir hit this trying to install v2 on his phone.
+
+Asked, because it changes what everyone who installs gets, not just him. His
+answer: **v2, for everybody.** So `start_url` is `/v2`.
+
+`theme_color` and `background_color` were `#EAF3F8` and `#faf8f5`, the old
+design's. They are both `#F2F0EC` now — v2's own `--bg` token, copied from
+`v2-tokens.css` rather than picked by eye. (An earlier draft of this change
+set a near-black theme colour that exists nowhere in the design; v2's header
+is light, and the token is the only honest source.)
+
+**What this does not change:** `scope` stays `/`, so the old CRM still works
+inside the installed app and nobody is locked out of it. Signing out still
+lands on `/login`, which is the v1 screen — `/v2/login` exists and is not
+wired as the default. That is the next piece of the cutover, not this one.
+
+An app already installed keeps its old manifest until the browser refetches
+it, so a phone that installed the CRM before today may keep opening
+`/dashboard` until it is reinstalled.

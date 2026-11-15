@@ -1,13 +1,13 @@
 {
   "name": "Emigeo Homes CRM",
   "short_name": "homes.me",
-  "description": "Lead management for Emigeo Homes Real Estate — Dubai and Abu Dhabi off-plan",
-  "start_url": "/dashboard",
+  "description": "Lead management for Emigeo Homes Real Estate \u2014 Dubai and Abu Dhabi off-plan",
+  "start_url": "/v2",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#faf8f5",
-  "theme_color": "#EAF3F8",
+  "background_color": "#F2F0EC",
+  "theme_color": "#F2F0EC",
   "icons": [
     {
       "src": "/icon.svg",
