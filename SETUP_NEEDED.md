@@ -87,7 +87,6 @@ rest of the address the same.
 | Meta → WhatsApp → Configuration → Webhook | `https://crm.homes.me/webhooks/whatsapp` |
 | Google Ads → Lead form → Webhook URL | `https://crm.homes.me/webhooks/google` |
 | property-investment.ae → form settings | `https://crm.homes.me/api/webhooks/property-investment` |
-| Firebase → Project settings → Authorized domains → **Add** | `crm.homes.me` |
 
 Keep the old address `mycrm.emirdulovic.com` pointing at the CRM for now, so
 anything you forget keeps working.
@@ -292,8 +291,14 @@ this is the short version.
    | `FCM_PRIVATE_KEY` | `private_key` from that file — the whole thing, `-----BEGIN` to `-----END` |
 
 6. **Save**, then **Restart**
-7. Also add `crm.homes.me` under **Project settings → Authorized domains**
-   (it is in step 3 of this file too)
+7. **There is no step 7.** Earlier versions of this file said to add
+   `crm.homes.me` under "Authorized domains". That was wrong and it sent Emir
+   looking for a setting that does not apply. Authorized domains belongs to
+   **Firebase Authentication**, which this CRM does not use — the login is our
+   own email and password (see CLAUDE.md). Web push needs only the VAPID key
+   and the service worker, and `web/src/lib/push.ts` imports
+   `firebase/messaging` and nothing else. Six values and a restart is the
+   whole job.
 
 The first four are public by design — they ship to every phone that opens the
 CRM. **`FCM_PRIVATE_KEY` is the real secret:** keep it off chat, screenshots and
