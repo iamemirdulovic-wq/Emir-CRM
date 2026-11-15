@@ -3,8 +3,32 @@
  * available offline. API responses are deliberately never cached — a stale lead
  * board is worse than no board.
  */
-const CACHE = 'emir-crm-v2';
+/*
+ * Bump this whenever a precached file must reach phones that already have it.
+ *
+ * `activate` deletes every cache whose name is not this one, so the name is
+ * the only way an old copy is ever thrown away. It sat at `-v2` from the day
+ * it was written, which meant the three files below were frozen on every
+ * device that had ever opened the CRM.
+ *
+ * On 15 Nov that bit: `start_url` in the manifest was changed to `/v2`, the
+ * deploy went out, and Emir's phone kept installing an app that opened the
+ * old CRM — because his service worker was still serving the manifest it had
+ * cached weeks earlier. He tried three times. Nothing he could have done
+ * would have worked.
+ */
+const CACHE = 'emir-crm-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+
+/*
+ * Files that must always be re-read from the network, with the cached copy
+ * kept only for when there is no network.
+ *
+ * The manifest decides which CRM the installed app opens and what it is
+ * called; a stale one cannot be corrected by any change we deploy. It is
+ * under a kilobyte, so fetching it fresh costs nothing worth saving.
+ */
+const ALWAYS_FRESH = ['/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -27,6 +51,22 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   // Never serve stale CRM data.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/') || url.pathname.startsWith('/b/')) return;
+
+  // The manifest: network first, so a change to it can actually arrive.
+  if (ALWAYS_FRESH.includes(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            void caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((r) => r ?? Response.error())),
+    );
+    return;
+  }
 
   // Navigations: network first, falling back to the cached shell.
   if (request.mode === 'navigate') {
