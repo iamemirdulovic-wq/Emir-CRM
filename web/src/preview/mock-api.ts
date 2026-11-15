@@ -1271,6 +1271,36 @@ const NOTIFY_GROUPS = [
 /** The same six that start off on the real server. */
 const NOTIFY_OFF = new Set(['check_in', 'wall', 'wrong_number', 'agent_late', 'working_outside', 'ai_budget']);
 
+/**
+ * Which alert state the preview is standing in.
+ *
+ * `?alerts=ok|no-device|no-key` on the address, the same trick `?as=` and
+ * `?pending=` already use. The notifications card has three headings, three
+ * sub-lines and six answers to "Send a test", and every one of them is a
+ * state a normal morning never shows — which is exactly how a button that
+ * said "it works" without sending anything survived to 15 Nov.
+ *
+ * `no-device` is the default because it is the state the owner was really in.
+ */
+function previewAlerts(): 'ok' | 'no-device' | 'no-key' {
+  const asked = typeof window === 'undefined'
+    ? null
+    : new URLSearchParams(window.location.search).get('alerts');
+  return asked === 'ok' || asked === 'no-key' ? asked : 'no-device';
+}
+
+/** The same three sentences `server/src/v2/test-push.ts` writes. */
+function previewAlertsBlock() {
+  switch (previewAlerts()) {
+    case 'no-key':
+      return { state: 'no-key', keySet: false, devices: 0, say: 'Notifications cannot be sent yet', to: null };
+    case 'ok':
+      return { state: 'ok', keySet: true, devices: 2, say: 'Notifications are on · 2 devices', to: null };
+    default:
+      return { state: 'no-device', keySet: true, devices: 0, say: 'No device gets your alerts yet', to: '/v2/home' };
+  }
+}
+
 function previewNotify() {
   const switches: Record<string, boolean> = {};
   for (const group of NOTIFY_GROUPS) {
@@ -1278,7 +1308,34 @@ function previewNotify() {
       switches[one.id] = notifyState.switches[one.id] ?? !NOTIFY_OFF.has(one.id);
     }
   }
-  return { ...notifyState, switches, groups: NOTIFY_GROUPS };
+  return {
+    ...notifyState, switches, groups: NOTIFY_GROUPS, alerts: previewAlertsBlock(),
+  };
+}
+
+/** The same six answers, so each can be looked at rather than imagined. */
+function previewTestPush() {
+  switch (previewAlerts()) {
+    case 'no-key':
+      return {
+        outcome: 'no-credentials', reached: 0, registered: 0, removed: 0, to: null,
+        say: 'Nothing was sent. The server has no Firebase key, so no alert can reach any '
+          + 'device. The seven Firebase values go in the hosting panel under Node.js '
+          + 'environment variables, and the site needs a restart afterwards.',
+      };
+    case 'ok':
+      return {
+        outcome: 'sent', reached: 2, registered: 2, removed: 0, to: null,
+        say: 'It works. The test alert reached 2 devices.',
+      };
+    default:
+      return {
+        outcome: 'no-device', reached: 0, registered: 0, removed: 0, to: '/v2/home',
+        say: 'Nothing was sent. No device is registered for you yet. Open My Day and tap '
+          + '"Turn on notifications" on the card at the top — on the phone you want the '
+          + 'alerts on, not here.',
+      };
+  }
 }
 
 const companyState = {
@@ -1637,9 +1694,20 @@ const ROUTES: Route[] = [
     return routing;
   } },
 
-  /* Push is a real browser capability the preview has no server for; saying
-     "not configured" is what the screen expects when it is switched off. */
-  { method: 'GET', pattern: /^\/api\/users\/me\/push-config$/, handler: () => ({ configured: false }) },
+  /* Push is a real browser capability the preview has no server for. The
+     answer follows `?alerts=`: with a key set the screen's device switch is
+     reachable, without one it is honestly unreachable. The keys are not real
+     and no token is ever minted, so nothing is sent either way. */
+  { method: 'GET', pattern: /^\/api\/users\/me\/push-config$/, handler: () => (
+    previewAlerts() === 'no-key' ? { configured: false } : {
+      configured: true,
+      vapidKey: 'preview-only-not-a-real-vapid-key',
+      firebase: {
+        apiKey: 'preview-only', authDomain: 'preview.firebaseapp.com', projectId: 'preview',
+        messagingSenderId: '0', appId: 'preview',
+      },
+    }
+  ) },
 
   /* The bell. A couple of each kind so the grouping and the unread tint can
      both be seen in the preview. */
@@ -2589,6 +2657,7 @@ const ROUTES: Route[] = [
     }
     return previewNotify();
   } },
+  { method: 'POST', pattern: /^\/api\/v2\/notifications\/test$/, handler: () => previewTestPush() },
 
   { method: 'GET', pattern: /^\/api\/v2\/settings-summary$/, handler: () => ({
     people: 13,

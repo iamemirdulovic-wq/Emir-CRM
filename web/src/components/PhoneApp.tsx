@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../design/index.js';
 import { Note, Panel, useToast } from '../design/ui.js';
-import {
-  disablePush, enablePush, iosNeedsInstall, pushState, supported, type PushState,
-} from '../lib/push.js';
+import { iosNeedsInstall, supported } from '../lib/push.js';
+import { usePushDevice } from '../lib/push-device.js';
 import { BRAND } from '../brand.js';
 
 /**
@@ -76,42 +74,23 @@ function steps(host: string): Record<Platform, { icon: 'share-2' | 'menu' | 'mon
 
 export function PhoneAppPanel({ index = 0 }: { index?: number }) {
   const toast = useToast();
-  const [state, setState] = useState<PushState | null>(null);
-  const [busy, setBusy] = useState(false);
+  /* The reading of "can this device get alerts" lives in `lib/push-device.ts`,
+     shared with the two v2 screens that ask the same question. This panel
+     keeps its own words and its own pills; only the reasoning is shared. */
+  const { state, look, busy, toggle } = usePushDevice();
   const here = platform();
   const install = steps(thisSite())[here];
   const isInstalled = installed();
   const needsInstallFirst = iosNeedsInstall();
 
-  const read = useCallback(() => { void pushState().then(setState); }, []);
-  useEffect(read, [read]);
-
-  async function toggle() {
-    setBusy(true);
-    try {
-      const next = state === 'on' ? await disablePush() : await enablePush();
-      setState(next);
-      if (next === 'on') toast('Notifications are on for this device');
-      if (next === 'blocked') toast('Your phone is blocking notifications for this site');
-    } catch {
-      toast('That did not work — try again in a moment');
-    } finally {
-      setBusy(false);
-    }
+  async function press() {
+    const next = await toggle();
+    if (next.state === 'on') toast('Notifications are on for this device');
+    if (next.state === 'blocked') toast('Your phone is blocking notifications for this site');
   }
 
-  /** What the agent should read, in the order they need to hear it. */
-  const status = (() => {
-    if (!supported()) return { pill: 'pill', label: 'Not possible in this browser' };
-    if (needsInstallFirst) return { pill: 'pill due', label: 'Add to your home screen first' };
-    switch (state) {
-      case 'on': return { pill: 'pill ok', label: 'On for this device' };
-      case 'blocked': return { pill: 'pill due', label: 'Blocked in your phone settings' };
-      case 'not-configured': return { pill: 'pill', label: 'Not set up yet' };
-      case null: return { pill: 'pill', label: 'Checking…' };
-      default: return { pill: 'pill due', label: 'Off — you will miss new leads' };
-    }
-  })();
+  const TONE_PILL = { ok: 'pill ok', warn: 'pill due', plain: 'pill' } as const;
+  const status = { pill: TONE_PILL[look.tone], label: look.label };
 
   return (
     <Panel span={12} index={index} icon="smartphone" title="Using the CRM on your phone">
@@ -156,7 +135,7 @@ export function PhoneAppPanel({ index = 0 }: { index?: number }) {
           className={state === 'on' ? 'btn' : 'btn btn-primary'}
           disabled={busy}
           style={{ marginTop: 12 }}
-          onClick={() => { void toggle(); }}
+          onClick={() => { void press(); }}
         >
           <Icon name={state === 'on' ? 'bell-ring' : 'bell'} />
           <span>{busy ? 'Just a moment…' : state === 'on' ? 'Turn off on this device' : 'Turn on notifications'}</span>

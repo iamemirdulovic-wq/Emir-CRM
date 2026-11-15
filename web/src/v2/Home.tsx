@@ -617,19 +617,34 @@ function MyDay({ home, reload }: { home: AgentHome; reload: () => void }) {
 }
 
 /**
+ * The two shapes a stored "not now" can take.
+ *
+ * `no` was pressed when nothing could be delivered — no Firebase key on the
+ * server — so it is cleared once a key exists. `no-live` was pressed with the
+ * card able to do its job, and stands.
+ */
+const DISMISSED = new Set(['no', 'no-live']);
+
+function readDismissal(): string | null {
+  try { return localStorage.getItem('emir-notify-ask'); } catch { return null; }
+}
+
+/**
  * "Turn on notifications" — `Main.dc.html`, and `my-day.html` has it too.
  *
  * Both designs draw this card and neither half of the build had it, so the
  * permission was never asked for on the one device where it matters. The
  * wording is the prototype's own. It shows itself only when there is
- * something to ask for: never once notifications are on, never when nobody
- * has set the Firebase keys, and never again after "not now".
+ * something to ask for: never once notifications are on, and not again after
+ * a "not now" that was given while it could actually have worked.
+ *
+ * Exported for `notify-card.test.tsx`, which is about when it appears: that
+ * is a rule about stored state and three device states, and mounting the
+ * whole of My Day to reach it would test the mocks.
  */
-function NotifyCard() {
+export function NotifyCard() {
   const [state, setState] = useState<PushState | null>(null);
-  const [gone, setGone] = useState(() => {
-    try { return localStorage.getItem('emir-notify-ask') === 'no'; } catch { return false; }
-  });
+  const [gone, setGone] = useState(() => DISMISSED.has(readDismissal() ?? ''));
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
 
@@ -638,6 +653,32 @@ function NotifyCard() {
     void pushState().then((got) => { if (alive) setState(got); }).catch(() => undefined);
     return () => { alive = false; };
   }, []);
+
+  /*
+   * A "not now" from before there was a key does not count any more.
+   *
+   * 15 Nov. The owner pressed the X on this card weeks ago, when no Firebase
+   * key existed and pressing "Turn on" could not have delivered anything to
+   * anybody. The dismissal was stored for ever — and this card was the ONLY
+   * thing in the whole of v2 that called `enablePush()`. So from that moment
+   * he had no way to register a phone anywhere in the CRM, his team's alerts
+   * were unreachable, and he spent an hour on it.
+   *
+   * So the old dismissal is cleared the first time this device is in the one
+   * state where the card has a job to do and one tap finishes it: the server
+   * has a key and this device is simply off. A fresh X press records
+   * `no-live`, which sticks — pressing it is still a real answer, it just
+   * cannot be an answer to a question that could not be asked yet.
+   *
+   * Do not fold this back into one stored "no". There is a switch in Settings
+   * now (My notifications, Where alerts go), but somebody who dismissed this
+   * card has no reason ever to go and look there.
+   */
+  useEffect(() => {
+    if (state !== 'off' || readDismissal() !== 'no') return;
+    try { localStorage.removeItem('emir-notify-ask'); } catch { /* private mode */ }
+    setGone(false);
+  }, [state]);
 
   if (gone || state === null || state === 'on') return null;
   /* An iPhone in Safari has no switch to press and a browser that has been
@@ -709,7 +750,9 @@ function NotifyCard() {
           className="v2-b-notify-x"
           aria-label="Not now"
           onClick={() => {
-            try { localStorage.setItem('emir-notify-ask', 'no'); } catch { /* private mode */ }
+            /* `no-live`, not `no`: this one was pressed with the card able to
+               do its job, so it is not cleared again. See above. */
+            try { localStorage.setItem('emir-notify-ask', state === 'off' ? 'no-live' : 'no'); } catch { /* private mode */ }
             setGone(true);
           }}
         >

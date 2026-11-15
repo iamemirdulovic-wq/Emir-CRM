@@ -477,6 +477,27 @@
     flex: none;
     align-self: center;
   }
+  /* The Phone app row is the exception to the rule above. It carries four
+     controls now — a state chip, "How to install" and the switch that
+     registers this device — and `nowrap` squeezed its words to one syllable
+     a line and pushed the switch off the right edge entirely, which on the
+     one row that turns alerts on is the worst place to lose a control.
+     So this row alone wraps: icon, words and switch on the first line, the
+     chip and the link underneath. */
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device { flex-wrap: wrap; row-gap: 10px; }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device > .d-card-icon { order: 1; }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device .d-txt { order: 2; flex: 1 1 0; min-width: 0; }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device > .d-switch { order: 3; flex: none; }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device > .v2-ntf-break {
+    display: block;
+    order: 4;
+    flex: 1 0 100%;
+    height: 0;
+    margin: 0;
+  }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device > .d-chip { order: 5; flex: none; }
+  .v2.v2-phone .v2-c-ntf .v2-ntf-device > .d-btn { order: 6; flex: none; margin-left: auto; }
+
   /* The top card is an icon, a heading and the test button. At 390px the
      three in a row leave the heading two words wide. */
   .v2.v2-phone .v2-c-ntf .v2-ntf-top { flex-wrap: wrap; row-gap: 12px; }

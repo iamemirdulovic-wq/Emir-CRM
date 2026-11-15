@@ -20,6 +20,31 @@ export interface NotifyGroup {
   switches: NotifySwitch[];
 }
 
+/**
+ * Whether an alert could reach this person at all.
+ *
+ * Two separate facts, and the screen used to assert both of them: a Firebase
+ * key on the server, and a device registered to this person. `server/src/v2/
+ * test-push.ts` writes the sentence; nothing here invents one.
+ */
+export interface Alerts {
+  state: 'no-key' | 'no-device' | 'ok';
+  keySet: boolean;
+  devices: number;
+  say: string;
+  to: string | null;
+}
+
+/** What `POST /api/v2/notifications/test` answers with. */
+export interface TestPush {
+  outcome: 'sent' | 'no-credentials' | 'no-device' | 'token-rejected' | 'failed' | 'test-copy';
+  reached: number;
+  registered: number;
+  removed: number;
+  say: string;
+  to: string | null;
+}
+
 export interface Notify {
   switches: Record<string, boolean>;
   computer: boolean;
@@ -30,4 +55,5 @@ export interface Notify {
   quiet: string | null;
   vipIgnoresQuiet: boolean;
   groups: NotifyGroup[];
+  alerts: Alerts;
 }

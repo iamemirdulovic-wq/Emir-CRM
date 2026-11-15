@@ -12,6 +12,7 @@
 import { getPool, query, queryOne, type Executor } from '../db/client.js';
 import { secret, secretSource, setting } from '../config/secrets.js';
 import { env } from '../config/env.js';
+import { pushConfigured } from '../messaging/push.js';
 import { SITE } from '../ingestion/sources/property-investment.js';
 
 export type WebsiteConnection = {
@@ -116,8 +117,9 @@ export type PushReadiness = {
  * phone to pick up and fix.
  */
 export async function pushReadiness(exec: Executor = getPool()): Promise<PushReadiness> {
-  const cfg = env();
-  const configured = Boolean(cfg.FCM_PROJECT_ID && cfg.FCM_CLIENT_EMAIL && cfg.FCM_PRIVATE_KEY);
+  /* One definition of "a key is set", in `messaging/push.ts`, so this page and
+     the health page can never disagree about whether anything can be sent. */
+  const configured = pushConfigured();
 
   const rows = await query<{ name: string; devices: number }>(
     `SELECT u.name,

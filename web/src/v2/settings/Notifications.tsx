@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import { useAsync } from '../../lib/hooks.js';
 import { useAuth } from '../../lib/auth.js';
+import { usePushDevice } from '../../lib/push-device.js';
 import { Icon } from '../../design/index.js';
 import { Spinner, ErrorNote, useToast } from '../../design/ui.js';
 import { SettingsRow, SettingsShell, SettingsSwitch, SettingsTitle } from './Shell.js';
 import { usePhoneHead } from '../phone.js';
-import type { Notify, NotifyGroup } from './notify.js';
+import type { Notify, NotifyGroup, TestPush } from './notify.js';
 
 /**
  * Settings → My notifications.
@@ -46,10 +47,49 @@ export function V2SettingsNotifications() {
   const { user } = useAuth();
   const got = useAsync<Notify>(() => api.get('/api/v2/notify'), []);
   const [draft, setDraft] = useState<Notify | null>(null);
-  const [tested, setTested] = useState(false);
+  /* What the server said the last time "Send a test" was pressed. Null until
+     it is — never a default of "test sent just now", which is what the old
+     screen showed whether or not anything had been sent. */
+  const [tested, setTested] = useState<TestPush | null>(null);
+  const [testing, setTesting] = useState(false);
+  const device = usePushDevice();
   const toast = useToast();
 
   useEffect(() => { if (got.data) setDraft(got.data); }, [got.data]);
+
+  /**
+   * Press the button, say what the server said.
+   *
+   * No claim is made here at all: `say` is written on the server beside the
+   * send, where the outcome is actually known. "It works" is one of six
+   * answers and it is the only one the server writes when a device accepted
+   * it — see `server/src/v2/test-push.ts`.
+   */
+  async function sendTest() {
+    setTesting(true);
+    try {
+      const result = await api.post<TestPush>('/api/v2/notifications/test');
+      setTested(result);
+      toast(result.say);
+      /* A rejected token was just deleted on the server, and the heading
+         counts devices, so re-read rather than leave a stale count. */
+      if (result.outcome === 'token-rejected') got.reload();
+    } catch (err) {
+      setTested(null);
+      toast(err instanceof Error ? err.message : 'The test could not be sent. Try again.');
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  /** Register or unregister the device this screen is open on. */
+  async function toggleDevice() {
+    const { state, said } = await device.toggle();
+    toast(said);
+    /* The server now knows about one more or one fewer device, and the
+       heading is counting them. */
+    if (state === 'on' || state === 'off') got.reload();
+  }
 
 
   async function change(patch: Record<string, unknown>, say?: string) {
@@ -117,43 +157,83 @@ export function V2SettingsNotifications() {
           sub="Choose what reaches you. Each alert opens the exact page when you tap it."
         />
 
+        {/* The heading is the server's sentence, not a claim this screen
+            makes. It used to read "Notifications are on" whatever was true —
+            with no Firebase key set, with no device ever registered — which
+            is half of what cost the owner an hour on 15 Nov. The other half
+            was the button below it. */}
         <section className="d-card v2-ntf-top">
-          <span className="d-card-icon d-accent v2-ntf-mark">
-            <Icon name="bell" />
+          <span
+            className={draft.alerts.state === 'ok'
+              ? 'd-card-icon d-accent v2-ntf-mark'
+              : 'd-card-icon v2-ntf-mark'}
+          >
+            <Icon name={draft.alerts.state === 'ok' ? 'bell' : 'bell-off'} />
           </span>
           <div className="d-grow">
-            <h2>Notifications are on</h2>
+            <h2>{draft.alerts.say}</h2>
             <p className="d-small d-muted d-mt-4">
-              Phone app and this computer
-              {tested ? ' · test sent just now' : ''}
+              {tested ? tested.say : restingLine(draft)}
+              {(tested ? tested.to : draft.alerts.to) && (
+                <>
+                  {' '}
+                  <Link
+                    className="v2-ntf-go"
+                    to={(tested ? tested.to : draft.alerts.to) ?? '/v2/home'}
+                  >
+                    Open My Day
+                  </Link>
+                </>
+              )}
             </p>
           </div>
           <button
             type="button"
             className="d-btn d-primary"
-            onClick={() => {
-              if (!draft.computer) {
-                toast('This computer is switched off below. Your phone still gets alerts.');
-                return;
-              }
-              setTested(true);
-              toast('homes.me · test notification — it works');
-            }}
+            disabled={testing}
+            onClick={() => void sendTest()}
           >
-            <Icon name="bell" />Send a test
+            <Icon name="bell" />
+            {testing ? 'Sending…' : 'Send a test'}
           </button>
         </section>
 
         <section className="d-card">
           <div className="d-card-head"><h4>Where alerts go</h4></div>
           <div>
-            <div className="d-switch-row" style={{ paddingTop: 0 }}>
+            <div className="d-switch-row v2-ntf-device" style={{ paddingTop: 0 }}>
               <span className="d-card-icon"><Icon name="smartphone" /></span>
               <div className="d-txt">
                 <b>Phone app</b>
                 <span>The main place. Works when the CRM is closed.</span>
               </div>
+              {/* The design draws a status chip here ("On · iPhone") and the
+                  build had none, so the row said nothing about whether this
+                  device was registered. It is read from the browser and the
+                  server every time, never from a saved preference. */}
+              <span className={chipFor(device.look.tone)}>{device.look.label}</span>
               <Link className="d-btn d-sm" to="/v2/settings/phone-app">How to install</Link>
+              {/* The switch that was missing entirely. Until 15 Nov the only
+                  thing in the whole of v2 that could register a device was
+                  the "Turn on notifications" card on My Day — and one "not
+                  now" hid that for good, which left an owner with no way to
+                  turn alerts on anywhere. */}
+              <label className="d-switch">
+                <input
+                  type="checkbox"
+                  checked={device.look.on}
+                  disabled={!device.look.canToggle || device.busy}
+                  aria-label="Get alerts on the device I am using now"
+                  onChange={() => void toggleDevice()}
+                />
+                <span className="d-track" />
+              </label>
+              {/* A line break for the phone, and nothing at all on a
+                  computer. Four controls do not fit across 390px, and
+                  squeezing them wraps "The main place" one syllable a line.
+                  A zero-height item with a full-width basis is how flexbox
+                  is made to break where you want it. */}
+              <span className="v2-ntf-break" aria-hidden="true" />
             </div>
             <div className="d-switch-row" style={{ paddingBottom: 0 }}>
               <span className="d-card-icon"><Icon name="monitor" /></span>
@@ -177,6 +257,12 @@ export function V2SettingsNotifications() {
               </label>
             </div>
           </div>
+          {/* Why the phone switch is the way it is, under both rows rather
+              than between them — a line in the middle takes the top border
+              off the row beneath it. */}
+          {deviceFoot(device.look, device.said) && (
+            <div className="d-card-foot">{deviceFoot(device.look, device.said)}</div>
+          )}
         </section>
 
         {mine.map((group) => {
@@ -274,6 +360,64 @@ export function V2SettingsNotifications() {
       </div>
     </SettingsShell>
   );
+}
+
+/**
+ * The line under the heading when nobody has pressed the test button yet.
+ *
+ * It says what is true now. The old screen printed "Phone app and this
+ * computer" in every case, including the case where no phone had ever been
+ * registered and no key was set — the two cases where nothing at all could
+ * arrive.
+ */
+function restingLine(draft: Notify): string {
+  switch (draft.alerts.state) {
+    case 'no-key':
+      return 'The Firebase values are not on the server yet. Alerts still wait for you in '
+        + 'the bell inside the CRM, and nothing is lost — they just cannot reach a closed app.';
+    case 'no-device':
+      return 'Tap "Turn on notifications" at the top of My Day, on the phone you want the '
+        + 'alerts on.';
+    default:
+      return draft.computer ? 'Phone app and this computer' : 'Phone app only';
+  }
+}
+
+/** The design's status chip, in the colour the state deserves. */
+function chipFor(tone: 'ok' | 'warn' | 'plain'): string {
+  if (tone === 'ok') return 'd-chip d-green d-pip';
+  if (tone === 'warn') return 'd-chip d-amber';
+  return 'd-chip';
+}
+
+/**
+ * The line under the two rows: what the device switch cannot do, and why.
+ *
+ * `said` wins once the switch has been pressed, because the answer to what
+ * just happened matters more than the standing explanation.
+ */
+function deviceFoot(look: { label: string; needsInstallFirst: boolean; canToggle: boolean },
+  said: string | null): string | null {
+  if (said) return said;
+  if (look.needsInstallFirst) {
+    return 'On an iPhone, alerts only work once the CRM is on the home screen. A Safari tab '
+      + 'gets none at all — that is Apple’s rule, not ours.';
+  }
+  if (look.label === 'Blocked in your phone settings') {
+    return 'This device is refusing alerts for homes.me and only you can undo it — the CRM '
+      + 'cannot ask again. iPhone: Settings, Notifications, homes.me. Android: hold the app '
+      + 'icon, App info, Notifications.';
+  }
+  if (look.label === 'Not set up yet') {
+    return 'The Firebase values are not on the server yet, so no device can be registered.';
+  }
+  if (look.label === 'Not possible in this browser') {
+    return 'This browser cannot show notifications at all. Use the CRM on a phone, or in '
+      + 'Chrome, Edge or Firefox.';
+  }
+  if (!look.canToggle) return null;
+  return 'The switch turns alerts on for the device you are using right now. Do it again on '
+    + 'each phone or computer you want them on.';
 }
 
 /**

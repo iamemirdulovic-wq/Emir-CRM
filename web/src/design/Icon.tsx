@@ -19,7 +19,7 @@
 import type { SVGProps } from 'react';
 import {
   Activity, AlarmClock, AlertCircle, AlertTriangle, ArrowDownLeft, ArrowLeft, ArrowRight,
-  ArrowUp, ArrowUpRight, BadgeCheck, Ban, Banknote, BarChart3, Bell, BellRing, Brain, Briefcase,
+  ArrowUp, ArrowUpRight, BadgeCheck, Ban, Banknote, BarChart3, Bell, BellOff, BellRing, Brain, Briefcase,
   Building, Building2, Calculator, CalendarCheck, CalendarCheck2, CalendarDays, CalendarPlus,
   Camera, Check, CheckCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronLeft, ChevronRight,
   ChevronUp, Circle, CircleAlert, CircleCheck, CircleX, Clock, Clock3, Crown, Download,
@@ -41,7 +41,7 @@ const ICONS = {
   'alert-triangle': AlertTriangle, 'arrow-down-left': ArrowDownLeft, 'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight, 'arrow-up': ArrowUp, 'arrow-up-right': ArrowUpRight,
   'badge-check': BadgeCheck, 'ban': Ban, 'banknote': Banknote, 'bar-chart-3': BarChart3,
-  'bell': Bell, 'bell-ring': BellRing, 'brain': Brain, 'briefcase': Briefcase,
+  'bell': Bell, 'bell-off': BellOff, 'bell-ring': BellRing, 'brain': Brain, 'briefcase': Briefcase,
   'building': Building, 'building-2': Building2, 'calculator': Calculator,
   'calendar-check': CalendarCheck, 'calendar-check-2': CalendarCheck2,
   'calendar-days': CalendarDays, 'calendar-plus': CalendarPlus, 'camera': Camera,

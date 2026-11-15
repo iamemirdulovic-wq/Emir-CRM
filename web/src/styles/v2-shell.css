@@ -1213,6 +1213,13 @@
 .v2 .v2-ntf-top {flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
 .v2-ntf-mark {width:52px;height:52px;border-radius:16px}
 .v2-ntf-mark svg.lucide {width:22px;height:22px}
+/* The way out of "no device is registered", at the end of a muted sentence.
+   Without this it is the same grey as the words around it and reads as prose
+   rather than as the thing to press — which is the whole point of it. */
+.v2 .v2-ntf-go {color:var(--accent-ink);font-weight:600;text-decoration:underline;white-space:nowrap}
+/* The phone's line break on the Phone app row, which a computer has no need
+   of. Switched on in `v2-phone-c.css`. */
+.v2 .v2-ntf-break {display:none}
 
 /* A field's own validation line. Red, and it takes the hint's place rather
    than appearing under it, so the row does not change height. */

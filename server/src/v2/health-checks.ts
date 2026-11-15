@@ -34,6 +34,7 @@ import { secret } from '../config/secrets.js';
 import { env } from '../config/env.js';
 import { monthSpend, usd } from '../ai/usage.js';
 import { AI_NAME } from '../ai/name.js';
+import { pushConfigured } from '../messaging/push.js';
 import { logger } from '../lib/logger.js';
 
 export type ServiceState = 'ok' | 'slow' | 'down';
@@ -256,9 +257,7 @@ async function measureLinks(exec: Executor): Promise<Measured> {
  * bounces, and it bounces off somebody who was never told.
  */
 async function measureNotifications(exec: Executor): Promise<Measured> {
-  const cfg = env();
-  const configured = Boolean(cfg.FCM_PROJECT_ID && cfg.FCM_CLIENT_EMAIL && cfg.FCM_PRIVATE_KEY);
-  if (!configured) {
+  if (!pushConfigured()) {
     return {
       service: 'notifications', state: 'down', ms: null,
       note: 'No phone-alert key is set, so no alert is sent',

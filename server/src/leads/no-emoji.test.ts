@@ -32,6 +32,8 @@ const SENTENCE_FILES = [
   join(HERE, '..', 'v2', 'call-results.ts'),
   /* Homes AI writes a sentence for every heat reason, priority row and risk. */
   join(HERE, '..', 'ai', 'rules.ts'),
+  /* "Send a test" writes the sentence the owner reads after pressing it. */
+  join(HERE, '..', 'v2', 'test-push.ts'),
 ];
 
 /**

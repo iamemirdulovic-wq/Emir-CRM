@@ -69,6 +69,7 @@ import {
 import { teamLive } from '../../v2/live.js';
 import { createDesk, deleteDesk, listDesks, updateDesk } from '../../v2/desks.js';
 import { notify } from '../../messaging/notify.js';
+import { alertsFor, sendTestPush } from '../../v2/test-push.js';
 import { listLibrary } from '../../services/project-library.js';
 import {
   ASKED_BY, createPlan, deletePlan, movePlan, openReceipt, PLAN_KINDS, PLAN_RESULTS,
@@ -1710,6 +1711,11 @@ v2Router.get(
     const user = currentUser(req);
     res.json({
       ...(await notifySettings(user.id)),
+      /* Whether an alert could reach this person at all, so the heading can
+         say what is true rather than "Notifications are on" regardless. Two
+         separate facts — a key on the server, a device registered to them —
+         read the same way the health page reads them. */
+      alerts: await alertsFor(user.id),
       groups: Object.entries(NOTIFY_GROUPS).map(([key, group]) => ({
         key,
         title: group.title,
@@ -1730,6 +1736,35 @@ v2Router.put(
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
     res.json(await saveNotifySettings(user.id, notifySchema.parse(req.body)));
+  }),
+);
+
+/**
+ * Send me one test alert.
+ *
+ * The button that used to lie. See `v2/test-push.ts` for what it got wrong and
+ * what it now answers with.
+ *
+ * It takes a body with nothing in it, and the schema is `strict` so that it
+ * stays that way: there is no `userId` to supply and an attempt to supply one
+ * is a 400 rather than something the next refactor might start honouring. The
+ * person it reaches is the person whose session made the request, which is the
+ * only fence worth having on a button that makes a phone buzz.
+ */
+const testPushSchema = z.strictObject({}).optional();
+
+v2Router.post(
+  '/notifications/test',
+  rateLimit({
+    max: 10,
+    windowMs: 10 * 60 * 1000,
+    keyFor: (req) => `push-test:${currentUser(req).id}`,
+    message: 'That is a lot of test alerts. Give it a few minutes.',
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    testPushSchema.parse(req.body);
+    res.json(await sendTestPush(user.id));
   }),
 );
 

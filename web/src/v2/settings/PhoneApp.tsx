@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../design/index.js';
 import { useToast } from '../../design/ui.js';
+import { usePushDevice } from '../../lib/push-device.js';
 import { SettingsShell, SettingsTitle } from './Shell.js';
 
 /**
@@ -108,10 +109,22 @@ export function V2SettingsPhoneApp() {
   const here = addressHere();
   const toast = useToast();
 
-  /* Whether this browser can be asked at all. On a desktop the answer is
-     usually yes and it is still not the point — the phone is. */
-  const canAsk = typeof Notification !== 'undefined';
-  const state = canAsk ? Notification.permission : 'unsupported';
+  /*
+   * Whether this device is really registered, not whether the browser once
+   * said yes.
+   *
+   * This page used to call `Notification.requestPermission()` on its own and
+   * then say "This computer will show alerts". Permission is not
+   * registration: no token was ever sent to the server, so nothing could be
+   * delivered and the sentence was false. 15 Nov — the same class of bug as
+   * the "Send a test" button next door. The reasoning is shared with the
+   * notifications panel in `lib/push-device.ts`.
+   */
+  const device = usePushDevice();
+  const state = device.look.on
+    ? 'granted'
+    : device.look.label === 'Blocked in your phone settings' ? 'denied' : 'default';
+  const canAsk = device.look.canToggle;
 
   const steps = phone === 'iphone' ? IPHONE : ANDROID;
 
@@ -140,12 +153,14 @@ export function V2SettingsPhoneApp() {
             </div>
           </div>
           <div className="d-ig-state">
-            <span className={state === 'granted' ? 'd-chip d-green d-pip d-lg' : 'd-chip d-lg'}>
-              {state === 'granted'
-                ? 'Alerts are on, on this computer'
-                : state === 'denied'
-                  ? 'Alerts are blocked on this computer'
-                  : 'Alerts are not on yet here'}
+            {/* The shared reading, so this chip and the one on the
+                notifications panel cannot disagree about the same device. */}
+            <span
+              className={device.look.tone === 'ok'
+                ? 'd-chip d-green d-pip d-lg'
+                : device.look.tone === 'warn' ? 'd-chip d-amber d-lg' : 'd-chip d-lg'}
+            >
+              {device.look.on ? 'Alerts are on, on this device' : device.look.label}
             </span>
             <span className="d-small d-muted">Your phone is the one that matters</span>
           </div>
@@ -236,17 +251,15 @@ export function V2SettingsPhoneApp() {
                 <button
                   type="button"
                   className="d-btn d-primary"
-                  disabled={!canAsk || state === 'granted'}
-                  onClick={async () => {
-                    if (!canAsk) return;
-                    const answer = await Notification.requestPermission();
-                    toast(answer === 'granted'
-                      ? 'This computer will show alerts'
-                      : 'This computer stays silent. Your phone still gets alerts.');
+                  disabled={!canAsk || device.busy}
+                  onClick={() => {
+                    void device.toggle().then(({ said }) => toast(said));
                   }}
                 >
                   <Icon name="bell" />
-                  {state === 'granted' ? 'Already on' : 'Turn on alerts here'}
+                  {device.busy
+                    ? 'Just a moment…'
+                    : state === 'granted' ? 'Turn off alerts here' : 'Turn on alerts here'}
                 </button>
                 <Link className="d-btn" to="/v2/settings/notifications">Choose my alerts</Link>
               </div>

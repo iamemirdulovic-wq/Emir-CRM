@@ -14,6 +14,19 @@ import { logger, errorContext } from '../lib/logger.js';
 type TokenCache = { token: string; expiresAt: number };
 let cachedToken: TokenCache | null = null;
 
+/**
+ * Forget the minted OAuth token. Test helper, like `resetRateLimits`.
+ *
+ * The token is cached for an hour and keyed on nothing, so a suite that
+ * changes `FCM_PRIVATE_KEY` between cases would otherwise keep sending with
+ * the token the previous case minted — and every "the key is broken" test
+ * would pass as "sent". In production the keys do not change without a
+ * restart, which clears this anyway.
+ */
+export function forgetFcmToken(): void {
+  cachedToken = null;
+}
+
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
 }
@@ -36,7 +49,25 @@ async function accessToken(): Promise<string | null> {
   );
   // Service-account keys are stored with literal \n in the environment.
   const privateKey = cfg.FCM_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const signature = createSign('RSA-SHA256').update(`${header}.${claims}`).sign(privateKey, 'base64url');
+  /*
+   * A key pasted wrong is the likeliest Firebase mistake there is — it is one
+   * long base64 block copied out of a JSON file into a hosting panel — and
+   * OpenSSL answers it by throwing, not by returning. Left unhandled that
+   * came out of the "Send a test" endpoint as "Internal server error", which
+   * tells the owner nothing about the thing he just pasted. Treated as "no
+   * token": the caller reports a failure, and the sentence it writes names
+   * the Firebase values.
+   */
+  let signature: string;
+  try {
+    signature = createSign('RSA-SHA256').update(`${header}.${claims}`).sign(privateKey, 'base64url');
+  } catch (err) {
+    logger.error('FCM_PRIVATE_KEY cannot be used to sign', {
+      /* The reason, never the key, not even its length. */
+      reason: err instanceof Error ? err.message : 'unknown',
+    });
+    return null;
+  }
 
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -68,26 +99,104 @@ export type PushMessage = {
   priority?: 'normal' | 'high';
 };
 
+/**
+ * Whether the server holds the credentials that let it send a push at all.
+ *
+ * The one definition of it. There used to be three copies of this expression —
+ * here, in `health-checks.ts` and in `integration-status.ts` — and three copies
+ * of "is the key set" is how a settings screen ends up disagreeing with the
+ * health page about whether anything can be delivered.
+ *
+ * It reads the environment only, because `FCM_PRIVATE_KEY` is an environment
+ * variable by design: it is the one value that authorises sending, and it is
+ * deliberately not pasteable into a screen.
+ */
+export function pushConfigured(): boolean {
+  const cfg = env();
+  return Boolean(cfg.FCM_PROJECT_ID && cfg.FCM_CLIENT_EMAIL && cfg.FCM_PRIVATE_KEY);
+}
+
+/**
+ * Why a push did or did not arrive.
+ *
+ * A count of devices is not enough on its own: zero devices reached has four
+ * entirely different causes, with four different people who have to do
+ * something about it. An owner who is told "it did not work" goes looking in
+ * Firebase; an owner who is told "no phone is registered for you yet" taps one
+ * card and is done.
+ */
+export type PushOutcome =
+  /** At least one device accepted it. */
+  | 'sent'
+  /** No Firebase credentials on the server, so nothing can reach any device. */
+  | 'no-credentials'
+  /** Credentials are set; this person has registered no device. */
+  | 'no-device'
+  /** A device was registered and Firebase says the token is dead. Removed. */
+  | 'token-rejected'
+  /** Firebase itself refused or could not be reached. */
+  | 'failed'
+  /** The test copy of the CRM, which never sends to a real device. */
+  | 'test-copy';
+
+export interface PushResult {
+  outcome: PushOutcome;
+  /** Devices that accepted it. */
+  delivered: number;
+  /** Devices registered to this person when we tried. */
+  registered: number;
+  /** Devices dropped because Firebase said the token is no longer valid. */
+  removed: number;
+}
+
 /** Send to every device registered to a user. Returns how many were accepted. */
 export async function pushToUser(userId: string, message: PushMessage): Promise<number> {
+  return (await pushToUserDetailed(userId, message)).delivered;
+}
+
+/**
+ * The same send, with the reason it went nowhere.
+ *
+ * This is the one push path — `pushToUser` is this function with the reason
+ * thrown away. Anything that wants to tell a person what happened (the "Send
+ * a test" button on the notification settings panel) calls this; everything that
+ * only wants a lead alert on a phone keeps calling `pushToUser`.
+ */
+export async function pushToUserDetailed(userId: string, message: PushMessage): Promise<PushResult> {
+  const none = { delivered: 0, registered: 0, removed: 0 };
+
   /* A phone registered against the real CRM is the same phone here: the test
      copy must not make it buzz. See config/test-copy.ts. */
-  if (refuseOutbound('push', userId)) return 0;
+  if (refuseOutbound('push', userId)) return { ...none, outcome: 'test-copy' };
+
+  /* Credentials before the database, and before the network. "No key is set"
+     is true however many phones are registered, and it is a different job for
+     a different person than "nobody has registered a phone" — the same order,
+     and the same two states, that `measureNotifications` reports on the
+     health page. Reading the environment costs nothing, so checking it first
+     also saves a pointless query and a pointless token mint. */
+  if (!pushConfigured()) {
+    logger.warn('FCM is not configured; skipping push', { userId, title: message.title });
+    return { ...none, outcome: 'no-credentials' };
+  }
+
   const tokens = await query<{ id: string; token: string }>('SELECT id, token FROM push_tokens WHERE user_id = ?', [userId]);
   if (tokens.length === 0) {
     logger.debug('no push tokens registered for user', { userId });
-    return 0;
+    return { ...none, outcome: 'no-device' };
   }
 
   const cfg = env();
   const oauth = await accessToken();
   if (!oauth) {
     // Push is a convenience; a lead is never lost because it did not fire.
-    logger.warn('FCM is not configured; skipping push', { userId, title: message.title });
-    return 0;
+    logger.warn('could not mint an FCM access token; skipping push', { userId, title: message.title });
+    return { ...none, registered: tokens.length, outcome: 'failed' };
   }
 
   let delivered = 0;
+  let removed = 0;
+  let failed = 0;
   for (const row of tokens) {
     try {
       const response = await fetch(`https://fcm.googleapis.com/v1/projects/${cfg.FCM_PROJECT_ID}/messages:send`, {
@@ -113,19 +222,33 @@ export async function pushToUser(userId: string, message: PushMessage): Promise<
         await execute('UPDATE push_tokens SET last_used_at = NOW(3) WHERE id = ?', [row.id]);
         continue;
       }
-      const json = (await response.json()) as { error?: { status?: string } };
+      const json = (await response.json().catch(() => ({}))) as { error?: { status?: string } };
       // A device that has uninstalled the app should not be retried forever.
       if (json.error?.status === 'NOT_FOUND' || json.error?.status === 'INVALID_ARGUMENT') {
         await execute('DELETE FROM push_tokens WHERE id = ?', [row.id]);
+        removed += 1;
         logger.info('removed a dead push token', { userId });
       } else {
+        failed += 1;
         logger.warn('push delivery failed', { userId, status: json.error?.status ?? response.status });
       }
     } catch (err) {
+      failed += 1;
       logger.warn('push delivery threw', { userId, ...errorContext(err) });
     }
   }
-  return delivered;
+
+  /*
+   * One device accepting it is a working notification, whatever the others
+   * did. Below that, the reason the owner needs is whichever thing happened:
+   * a token Firebase has disowned is the person's own phone to re-register,
+   * and anything else is Firebase's end.
+   */
+  const outcome: PushOutcome = delivered > 0
+    ? 'sent'
+    : failed > 0 || removed === 0 ? 'failed' : 'token-rejected';
+
+  return { outcome, delivered, registered: tokens.length, removed };
 }
 
 /** Alert every manager and admin — used for SLA breaches and the unassigned queue. */

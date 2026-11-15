@@ -2,6 +2,71 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The "Send a test" button that sent nothing, and the switch that was missing
+
+15 November. Emir finished setting up Firebase, opened Settings, My
+notifications, pressed **Send a test**, read **"it works"**, and spent an hour
+asking why no alert had arrived. Nothing had been sent. The button called no
+endpoint at all: it showed its own toast and flipped the card's subtitle to
+"test sent just now". Above it the card read **"Notifications are on"** as a
+hardcoded heading, whether or not a key was set and whether or not a single
+device had ever been registered.
+
+**The bigger half was found while fixing it: v2 had no way to register a phone
+at all.** The "Phone app" row under *Where alerts go* had a "How to install"
+link and no switch; the phone-app guide asked the browser for permission and
+never sent a token to the server, so it said "This computer will show alerts"
+and delivered none; and the only caller of `enablePush()` in the whole of v2
+was the "Turn on notifications" card on My Day, which stores a dismissal for
+ever. Emir had pressed its X weeks earlier, back when no Firebase key existed
+and the card could not have worked. From that press onwards he had no route to
+turning alerts on anywhere in the CRM — and his team showed 14 of 14 with no
+phone registered.
+
+**The endpoint answers with what happened, not a boolean.** `POST
+/api/v2/notifications/test` sends through the existing push path and reports
+one of six outcomes — sent, no key on the server, no device registered for
+this person, a device Firebase has disowned (and removed), Firebase itself
+failing, or the test copy declining to touch a real phone. Each gets its own
+plain sentence, written on the server beside the send, where the outcome is
+actually known. **"It works" is written for exactly one of them.** The one that
+cost the hour now reads: *"Nothing was sent. No device is registered for you
+yet. Open My Day and tap 'Turn on notifications' on the card at the top — on
+the phone you want the alerts on, not here."*
+
+**One push path, not two.** `pushToUserDetailed` is the existing `pushToUser`
+with the reason kept; `pushToUser` is now that function with the reason thrown
+away. Credentials are checked before the database and before the network, which
+is the order `measureNotifications` already used on the health page — "no key"
+and "no phone" are different jobs for different people. `pushConfigured()` is
+now the single definition of "a key is set", shared by the health page, the
+owner's team page and this screen, where there were three copies of the same
+expression.
+
+**A key pasted wrong used to be a 500.** The private key is one long block
+copied out of a JSON file into a hosting panel, and OpenSSL answers a bad one
+by throwing. That came back to the owner as "Internal server error", which says
+nothing about the thing he had just pasted. It is caught, and the sentence it
+produces names the Firebase values.
+
+**The heading now reads the real state** — `/api/v2/notify` carries a key-set
+flag and this person's own device count, drawn the same way the health page
+draws it — and the Phone app row has a switch that registers the device you are
+standing on, beside the install link rather than instead of it, with a chip
+saying what that device really is: on, off, blocked, not set up yet, or an
+iPhone that has to be installed first. The reading of those states lives once,
+in `web/src/lib/push-device.ts`, and the live phone panel was moved onto it
+rather than left as a fourth copy.
+
+**The My Day card comes back when it can do its job.** A dismissal stored while
+nothing could be delivered is cleared the first time the server has a key and
+the device is simply off; a "not now" pressed in that state is recorded
+differently and stands. Both halves are tested, because the fix is otherwise a
+card nobody can get rid of.
+
+Proof: `docs/v2/proof-test-push/` — the card and the row in each of their
+states, light, dark and at 390px.
+
 ## The no-answer rule: one tap, a counted try, and the next try worked out
 
 Emir's section A of 14 November: *"One tap on 'No answer' saves a call try with
