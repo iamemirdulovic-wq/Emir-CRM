@@ -418,7 +418,7 @@ export function V2Live() {
   const telegram = move(data.totals.telegram, data.yesterday.telegram);
 
   /* The one line worth acting on: a problem if the server found one, else
-     the first thing it counted. Gemini may reword these; it never writes a
+     the first thing it counted. Claude may reword these; it never writes a
      number into them. */
   const said = insight.data?.lines ?? [];
   const line = lineText(said.find((one) => typeof one !== 'string' && one.kind === 'problem'))

@@ -30,7 +30,7 @@ import { stat, readdir, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { getPool, query, queryOne, execute, type Executor } from '../db/client.js';
 import { newId } from '../lib/ids.js';
-import { secret } from '../config/secrets.js';
+import { secret, setting } from '../config/secrets.js';
 import { env } from '../config/env.js';
 import { monthSpend, usd } from '../ai/usage.js';
 import { AI_NAME } from '../ai/name.js';
@@ -281,14 +281,27 @@ async function measureNotifications(exec: Executor): Promise<Measured> {
   };
 }
 
-/** Whether a key is set, and what the month has cost. Never the key itself. */
+/**
+ * Whether a key is set, whether it works, and what the month has cost. Never
+ * the key itself.
+ *
+ * The second of those is the one this row got wrong: it said "Fine" on the
+ * strength of a key existing, while every question to Homes AI came back 400
+ * because the key was not valid. A stored key is not a working key, so the
+ * reason the last call failed is read here too — the providers write it, so
+ * saying so costs this check nothing and no extra call to Anthropic.
+ */
 async function measureAi(exec: Executor): Promise<Measured> {
-  const key = Boolean(await secret('GEMINI_API_KEY', exec).catch(() => null));
+  const key = Boolean(await secret('CLAUDE_API_KEY', exec).catch(() => null));
   if (!key) {
     return {
       service: 'ai', state: 'down', ms: null,
       note: `No key, so every ${AI_NAME} answer fails`,
     };
+  }
+  const lastError = (await setting('AI_LAST_ERROR', exec).catch(() => null))?.trim();
+  if (lastError) {
+    return { service: 'ai', state: 'down', ms: null, note: lastError };
   }
   const spend = await monthSpend(exec).catch(() => null);
   const capped = spend !== null && spend.capMicros > 0 && spend.micros >= spend.capMicros;

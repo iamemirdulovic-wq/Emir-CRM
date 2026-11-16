@@ -66,7 +66,7 @@ export async function setupChecklist(exec: Executor = getPool()): Promise<SetupC
     exec,
   ).catch(() => ({ n: 0 }));
 
-  const geminiKey = Boolean(await secret('GEMINI_API_KEY', exec));
+  const aiKey = Boolean(await secret('CLAUDE_API_KEY', exec));
 
   /*
    * Attendance hides itself completely until an owner saves an office address
@@ -105,7 +105,7 @@ export async function setupChecklist(exec: Executor = getPool()): Promise<SetupC
       key: 'ai',
       title: AI_NAME,
       consequence: 'Every question comes back as an error, for everyone.',
-      ready: geminiKey,
+      ready: aiKey,
       to: '/settings?tab=ai',
     },
     {

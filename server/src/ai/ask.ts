@@ -17,13 +17,13 @@
  *  - **Never promise on the brokerage's behalf** — no returns, no yields, no
  *    guarantees. That is regulated here.
  */
-import { withinCap } from './usage.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { recordUsage, withinCap } from './usage.js';
 import { buildKnowledge } from './knowledge.js';
 import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
-import { cachedModels, rankModels, resolveModel } from './models.js';
-import { callGemini, candidateNames } from './call-gemini.js';
+import { DEFAULT_CLAUDE_MODEL, explain } from './anthropic.js';
 import { runTool, TOOLS, type Asker } from './ask-tools.js';
 import { AI_NAME, AI_SETTINGS } from './name.js';
 
@@ -74,7 +74,7 @@ export async function ask(
   asker: Asker,
   history: { role: 'user' | 'assistant'; body: string }[] = [],
 ): Promise<AskResult> {
-  const apiKey = await secret('GEMINI_API_KEY');
+  const apiKey = await secret('CLAUDE_API_KEY');
   if (!apiKey) {
     throw badRequest(`${AI_NAME} is not connected yet. Ask your admin to add the key in ${AI_SETTINGS}.`);
   }
@@ -82,72 +82,107 @@ export async function ask(
     throw badRequest(`This month\u2019s AI budget is used up. It can be raised in ${AI_SETTINGS}.`);
   }
 
-  const available = await cachedModels(apiKey);
-  const candidates = candidateNames(
-    rankModels(available),
-    resolveModel((await setting('AI_MODEL')) ?? null, available),
-  );
+  const model = (await setting('AI_MODEL')) || DEFAULT_CLAUDE_MODEL;
+  const client = new Anthropic({ apiKey });
+
+  /* The same declarations, in Claude's spelling. `parameters` is already a
+     JSON Schema object, which is exactly what `input_schema` wants, so the
+     tools themselves did not have to change when the provider did. */
+  const tools: Anthropic.Tool[] = TOOLS.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters as Anthropic.Tool.InputSchema,
+  }));
 
   // The brokerage's own words, so the answers sound like them.
   const knowledge = await buildKnowledge('ask');
 
-  const contents: { role: string; parts: Part[] }[] = [
+  const messages: Anthropic.MessageParam[] = [
     // Only the last few turns: a long thread costs money on every question.
     ...history.slice(-6).map((turn) => ({
-      role: turn.role === 'user' ? 'user' : 'model',
-      parts: [{ text: turn.body }],
+      role: turn.role === 'user' ? ('user' as const) : ('assistant' as const),
+      content: turn.body,
     })),
-    { role: 'user', parts: [{ text: question }] },
+    { role: 'user', content: question },
   ];
 
   const toolsUsed: string[] = [];
-  let model = candidates[0] ?? 'unknown';
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const result = await callGemini({
-      apiKey,
-      candidates,
-      feature: 'ask',
-      userId: asker.id,
-      body: {
-        systemInstruction: { parts: [{ text: `${INSTRUCTION}\n\n${knowledge}` }] },
-        contents,
-        tools: [{ functionDeclarations: TOOLS }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1200 },
-      },
-    });
-    model = result.model;
+    let reply: Anthropic.Message;
+    try {
+      /* No `temperature` and no `thinking`: Claude Haiku 5.5 refuses a
+         non-default sampling value outright, and the models differ on which
+         `thinking` settings they accept. Sending neither works on all of
+         them, which matters because the model is a setting. */
+      reply = await client.messages.create({
+        model,
+        max_tokens: 1200,
+        system: `${INSTRUCTION}\n\n${knowledge}`,
+        messages,
+        tools,
+      });
+    } catch (err) {
+      /* Plain English, every time. The owner can read the exact error under
+         Settings → Homes AI → Test the key; nobody is shown raw JSON here. */
+      const failure = explain(err, model);
+      logger.warn('Homes AI call failed', { error: failure.detail });
+      throw badRequest(failure.say);
+    }
 
-    const calls = result.parts
-      .map((part: Record<string, unknown>) => (part as { functionCall?: { name?: string; args?: Record<string, unknown> } }).functionCall)
-      .filter((call): call is { name: string; args?: Record<string, unknown> } => Boolean(call?.name));
+    await recordUsage({
+      userId: asker.id,
+      feature: 'ask',
+      model,
+      inputTokens: reply.usage.input_tokens,
+      outputTokens: reply.usage.output_tokens,
+      ok: true,
+    });
+
+    const calls = reply.content.filter(
+      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
+    );
 
     if (calls.length === 0) {
-      const answer = (result.text ?? '').trim();
+      const answer = reply.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map((block) => block.text)
+        .join('')
+        .trim();
       if (!answer) throw badRequest(`${AI_NAME} did not answer. Try asking again.`);
       return { answer, toolsUsed, model };
     }
 
     // What it asked for goes back in, then what the tools said.
-    contents.push({ role: 'model', parts: result.parts });
+    messages.push({ role: 'assistant', content: reply.content });
 
-    const responses: Part[] = [];
+    /* Every result in ONE user message. Splitting them across several teaches
+       the model to stop asking for more than one at a time. */
+    const results: Anthropic.ToolResultBlockParam[] = [];
     for (const call of calls) {
       toolsUsed.push(call.name);
-      let output: unknown;
       try {
-        output = await runTool(call.name, call.args ?? {}, asker);
+        const output = await runTool(call.name, (call.input ?? {}) as Record<string, unknown>, asker);
+        results.push({
+          type: 'tool_result',
+          tool_use_id: call.id,
+          content: JSON.stringify(output),
+        });
       } catch (err) {
         // A tool that fails is information, not an outage: tell the model so
         // it can say it could not look that up.
         logger.warn('an ask tool failed', {
           tool: call.name, error: err instanceof Error ? err.message : String(err),
         });
-        output = { error: 'That lookup failed.' };
+        results.push({
+          type: 'tool_result',
+          tool_use_id: call.id,
+          content: 'That lookup failed.',
+          is_error: true,
+        });
       }
-      responses.push({ functionResponse: { name: call.name, response: { result: output } } });
     }
-    contents.push({ role: 'user', parts: responses });
+    messages.push({ role: 'user', content: results });
   }
 
   throw badRequest(`${AI_NAME} could not settle on an answer. Try asking more simply.`);

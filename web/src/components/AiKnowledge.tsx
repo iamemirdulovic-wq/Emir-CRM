@@ -287,20 +287,20 @@ function Connection({ provider, onSaved }: { provider: Payload['provider']; onSa
             <b>Your key is still saved, but the CRM can no longer read it.</b> That happens when the
             server&rsquo;s encryption key changes — usually a deploy that replaced the folder it was
             kept in. From this version the key is stored outside that folder, so it should not
-            happen again. Paste the Gemini key once more below.
+            happen again. Paste the Claude API key once more below.
           </div>
         </div>
       ) : (
         <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
-          Paste your Gemini key below and press Connect. Nothing else is needed — no hosting
+          Paste your Claude API key below and press Connect. Nothing else is needed — no hosting
           settings, no restart. Get a key at{' '}
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>.
+          <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">console.anthropic.com</a>.
         </p>
       )}
 
       {!fromHost && (
         <Field
-          label={provider.ready ? 'Replace the key' : 'Gemini API key'}
+          label={provider.ready ? 'Replace the key' : 'Claude API key'}
           hint="Stored encrypted. It is never shown again and never leaves the server."
         >
           <Input

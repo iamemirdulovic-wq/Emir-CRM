@@ -5,6 +5,7 @@ import { query, queryOne, execute } from '../db/client.js';
 import { newId } from '../lib/ids.js';
 import { INTENTS, type IntentResult, isKnownIntent } from '../workflows/intent.js';
 import { listVerifiedProjects } from '../services/projects.js';
+import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';
 import { OpenAiProvider } from './openai.js';
 import { NullProvider, parseJsonReply, type AiProvider } from './provider.js';
@@ -26,6 +27,8 @@ export async function aiProvider(): Promise<AiProvider> {
   const model = await setting('AI_MODEL');
 
   switch (name) {
+    case 'claude':
+      return new AnthropicProvider(await secret('CLAUDE_API_KEY'), model);
     case 'gemini':
       return new GeminiProvider(await secret('GEMINI_API_KEY'), model);
     case 'openai':
@@ -44,6 +47,8 @@ export async function aiProvider(): Promise<AiProvider> {
 export function ai(): AiProvider {
   if (override) return override;
   switch (env().AI_PROVIDER) {
+    case 'claude':
+      return new AnthropicProvider(env().CLAUDE_API_KEY ?? null, env().AI_MODEL);
     case 'gemini':
       return new GeminiProvider(env().GEMINI_API_KEY ?? null, env().AI_MODEL);
     case 'openai':

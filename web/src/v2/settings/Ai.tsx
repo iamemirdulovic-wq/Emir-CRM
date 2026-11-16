@@ -23,7 +23,7 @@ import { SettingsShell, SettingsSwitch, SettingsTitle } from './Shell.js';
  *    1st and 2nd it is not shown at all, because two days of a month tell you
  *    nothing about the other twenty-eight.
  *  - **An environment variable always beats the key saved here.**
- *    `server/src/config/secrets.ts` reads the host's `GEMINI_API_KEY` first.
+ *    `server/src/config/secrets.ts` reads the host's `CLAUDE_API_KEY` first.
  *    So when the key comes from the hosting panel the box says so and does
  *    not pretend saving would help — otherwise an owner pastes a new key,
  *    sees "saved", and watches the old one keep answering.
@@ -293,6 +293,10 @@ interface KnowledgeAnswer {
     keyEndsWith: string | null;
     keyUnreadable: boolean;
     capUsd: string;
+    /** Why the last call failed, in plain English. Empty means it worked. */
+    lastError: string | null;
+    /** What the owner may choose between, from the server. */
+    models: Array<{ name: string; label: string }>;
   };
 }
 
@@ -400,14 +404,14 @@ function Knowledge({ canEdit }: { canEdit: boolean }) {
 /* ── the key ───────────────────────────────────────────────────────────── */
 
 /**
- * The Gemini key.
+ * The Claude API key.
  *
  * It was on the old settings page and nowhere in v2, so the one page called
  * "Homes AI" could set the budget and the switches but not the thing that
  * makes any of it answer. The owner had to leave v2 to paste a key.
  *
  * The sentence that matters is the one about the hosting panel: the server
- * reads `GEMINI_API_KEY` from the environment first and the stored one second
+ * reads `CLAUDE_API_KEY` from the environment first and the stored one second
  * (`server/src/config/secrets.ts`). An owner who pastes a key here while one
  * is set in the host would see "saved" and nothing change, so when that is the
  * case the box says so and the field is not offered.
@@ -423,6 +427,9 @@ function ApiKey({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  /* What the last test said. `null` is "not tested in this sitting" — which
+     is not the same as working, so it shows nothing rather than a tick. */
+  const [tested, setTested] = useState<{ ok: boolean; say: string; detail: string | null } | null>(null);
   const toast = useToast();
 
   const fromHost = provider.keySource === 'env';
@@ -432,16 +439,62 @@ function ApiKey({
     setBusy(true);
     setProblem(null);
     try {
-      const answer = await api.put<{ ready: boolean; works: boolean | null }>(
+      const answer = await api.put<{ ready: boolean; works: boolean | null; why: string | null }>(
         '/api/ai/connection', { apiKey: key.trim() },
       );
       setKey('');
-      toast(answer.works === false
-        ? 'Key saved, but Google would not answer with it. Check it in the Google console.'
-        : 'Key saved. Homes AI is connected.');
+      if (answer.works === false) {
+        setTested({ ok: false, say: answer.why ?? 'Claude would not answer with that key.', detail: null });
+        toast('Key saved, but Claude would not answer with it.');
+      } else {
+        setTested({ ok: true, say: 'The key answered.', detail: null });
+        toast('Key saved. Homes AI is connected.');
+      }
       onSaved();
     } catch (err) {
       setProblem(err instanceof Error ? err.message : 'That key was not accepted.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * One small call on the key that is really in use.
+   *
+   * "Saved" and "works" are different facts: the CRM spent a week showing a
+   * connected key while every question came back 400. This is the button that
+   * tells them apart, and it shows the exact words Anthropic sent back,
+   * because a tidied-up version is not something an owner can act on.
+   */
+  async function test() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      setTested(await api.post<{ ok: boolean; say: string; detail: string | null }>(
+        '/api/ai/connection/test', {},
+      ));
+    } catch (err) {
+      setTested({
+        ok: false,
+        say: err instanceof Error ? err.message : 'The test did not run.',
+        detail: null,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Change the model. Nothing else on the connection is touched. */
+  async function chooseModel(model: string) {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await api.put('/api/ai/connection', { model });
+      setTested(null);
+      toast('Model changed.');
+      onSaved();
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'That did not work.');
     } finally {
       setBusy(false);
     }
@@ -488,11 +541,48 @@ function ApiKey({
             <dd className="d-t-mono">…{provider.keyEndsWith}</dd>
           </div>
         )}
-        <div className="d-kv-row">
-          <dt>Model</dt>
-          <dd>{provider.model || 'Not chosen yet'}</dd>
-        </div>
       </dl>
+
+      {/* The model is a setting, never a name written into the code, so moving
+          to a bigger one is a choice here and not a deploy. */}
+      <div className="d-field d-mt-12">
+        <label htmlFor="ai-model">Model</label>
+        <select
+          id="ai-model"
+          className="d-input"
+          value={provider.model || (provider.models[0]?.name ?? '')}
+          disabled={!canEdit || busy}
+          onChange={(e) => void chooseModel(e.target.value)}
+        >
+          {provider.models.map((one) => (
+            <option key={one.name} value={one.name}>{one.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {provider.lastError && !tested && (
+        <div className="d-banner d-red d-mt-12">
+          <Icon name="alert-triangle" />
+          <span className="d-grow">
+            <b>The last answer failed.</b> {provider.lastError}
+          </span>
+        </div>
+      )}
+
+      {tested && (
+        <div className={tested.ok ? 'd-banner d-green d-mt-12' : 'd-banner d-red d-mt-12'}>
+          <Icon name={tested.ok ? 'check' : 'alert-triangle'} />
+          <span className="d-grow">
+            <b>{tested.ok ? 'Working.' : 'Not working.'}</b> {tested.say}
+            {tested.detail && (
+              <>
+                {' '}
+                <span className="d-t-mono d-small d-muted">{tested.detail}</span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       {provider.keyUnreadable && (
         <div className="d-banner d-red d-mt-12">
@@ -513,22 +603,22 @@ function ApiKey({
           <span className="d-grow">
             <b>This key is set in the hosting panel, and that always wins.</b> A key typed here
             would be stored and never used. Change it where it is set, in Hostinger →
-            Environment variables → <span className="d-t-mono">GEMINI_API_KEY</span>, then restart
+            Environment variables → <span className="d-t-mono">CLAUDE_API_KEY</span>, then restart
             the app.
           </span>
         </div>
       ) : canEdit ? (
         <>
           <div className="d-field d-mt-12">
-            <label htmlFor="ai-key">Google Gemini key</label>
+            <label htmlFor="ai-key">Claude API key</label>
             <input
               id="ai-key"
               className="d-input"
               type="password"
               autoComplete="off"
               value={key}
-              placeholder={provider.keySource === 'crm' ? 'Paste a new key to replace it' : 'AIza…'}
-              aria-label="Google Gemini key"
+              placeholder={provider.keySource === 'crm' ? 'Paste a new key to replace it' : 'sk-ant-…'}
+              aria-label="Claude API key"
               onChange={(e) => setKey(e.target.value)}
             />
             <span className="d-hint">
@@ -560,6 +650,18 @@ function ApiKey({
         </>
       ) : (
         <p className="d-small d-muted d-mt-12">Only an owner or admin can change the key.</p>
+      )}
+
+      {/* Outside the branches above on purpose: a key set in the hosting panel
+          is the one most likely to be wrong and the one the owner has least
+          way of checking, so the test has to be reachable there too. */}
+      {provider.ready && canEdit && (
+        <div className="d-row d-gap-8 d-mt-12">
+          <button type="button" className="d-btn d-sm" disabled={busy} onClick={() => void test()}>
+            {busy ? 'Testing…' : 'Test the key'}
+          </button>
+          <span className="d-small d-muted">One small question to Claude. Costs about nothing.</span>
+        </div>
       )}
     </section>
   );

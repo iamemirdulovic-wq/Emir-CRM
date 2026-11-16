@@ -234,7 +234,7 @@ export const EXTRA_SCREENS: Screen[] = [
   { to: '/v2/settings/desks', label: 'Desks', icon: 'building', words: 'arabic russian abu dhabi', ownerOnly: true },
   { to: '/v2/settings/company', label: 'Company', icon: 'building', words: 'trn licence address', ownerOnly: true },
   { to: '/v2/settings/attendance', label: 'Attendance rules', icon: 'clock', words: 'wifi shift late days off', ownerOnly: true },
-  { to: '/v2/settings/ai', label: "Homes AI's settings", icon: 'sparkles', words: 'gemini budget limit', ownerOnly: true },
+  { to: '/v2/settings/ai', label: "Homes AI's settings", icon: 'sparkles', words: 'claude ai key budget limit', ownerOnly: true },
   { to: '/v2/settings/banners', label: 'Home banners', icon: 'megaphone', words: 'my day slides news', ownerOnly: true },
   { to: '/v2/settings/feedback', label: 'Feedback inbox', icon: 'inbox', words: 'bugs ideas reported', ownerOnly: true },
   { to: '/v2/settings/health', label: 'System health', icon: 'activity', words: 'keys whatsapp email push setup', ownerOnly: true },

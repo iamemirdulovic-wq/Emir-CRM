@@ -17,6 +17,9 @@ import { logger } from '../lib/logger.js';
 import { writeAudit, type AuditActor } from '../audit/audit.js';
 
 export type SecretName =
+  /* Homes AI runs on Claude since 16 Nov. Gemini stays named only so an old
+     stored key can still be read and cleared. */
+  | 'CLAUDE_API_KEY'
   | 'GEMINI_API_KEY'
   | 'OPENAI_API_KEY'
   /* Shared with property-investment.ae. Signs their leads in, and our stage
@@ -26,6 +29,9 @@ export type SettingName =
   | 'AI_PROVIDER'
   | 'AI_MODEL'
   | 'AI_MONTHLY_CAP_USD'
+  /* Why the last Claude call failed, in plain English, so System health can
+     say "Not working" and name the reason. Empty means the last one worked. */
+  | 'AI_LAST_ERROR'
   /* Where to POST a stage change back to. Empty means do not report back. */
   | 'PROPERTY_INVESTMENT_URL'
   /* Lead routing — see routing/settings.ts. Owner-only. */

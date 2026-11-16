@@ -2108,6 +2108,25 @@ const ROUTES: Route[] = [
   } },
 
   /* The team directory, with the numbers only an owner is sent. */
+  /* The orb's ready questions. Four real answers in the preview, shaped the
+     way `server/src/v2/ask.ts` shapes them, so a screenshot of the orb shows
+     what the CRM really sends back rather than an empty panel. */
+  { method: 'GET', pattern: /^\/api\/v2\/ask\/([^/]+)$/, handler: ({ params }) => {
+    const what = params[0];
+    const leads = [
+      { leadId: 'l-1', name: 'Ahmed Khan', phone: '+971501234567', project: 'Emaar Beachfront', heat: 86, band: 'hot', why: 'Asked for the price list yesterday and has not been called · Call them, today', to: '/v2/leads/l-1' },
+      { leadId: 'l-2', name: 'Priya Nair', phone: '+971552223344', project: 'Saadiyat Lagoons', heat: 74, band: 'hot', why: 'Next step was due 2 days ago · Overdue 14 Nov, 12:50', to: '/v2/leads/l-2' },
+      { leadId: 'l-3', name: 'Sergey Ivanov', phone: '+971563334455', project: 'Dubai Creek Harbour', heat: 61, band: 'warm', why: 'New, not called yet · Call them, today', to: '/v2/leads/l-3' },
+    ];
+    const say = what === 'going-cold' ? '3 going cold. Oldest first.'
+      : what === 'needs-me' ? '3 things need you.'
+        : what === 'awake-now' ? '3 to ring now. 🇮🇳 India closes first — 2 hours left.'
+          : what === 'due-today' ? '3 due today. Overdue first.'
+            : 'Ahmed Khan first — asked for the price list yesterday and has not been called.';
+    return {
+      asked: what, say, leads, total: 3, countedAt: 'Counted now, 17:28', startCalling: true,
+    };
+  } },
   { method: 'GET', pattern: /^\/api\/v2\/team$/, handler: () => {
     const isOwner = currentUser().role !== 'agent';
     return {
@@ -2763,9 +2782,9 @@ const ROUTES: Route[] = [
       { section_key: 'what_we_sell', language: 'en', content: knowledgeState.whatWeSell },
     ],
     provider: {
-      name: 'gemini',
+      name: 'claude',
       ready: true,
-      model: 'gemini-2.5-flash',
+      model: 'claude-haiku-5-5',
       /* 'crm' so the preview shows the key box rather than the "set in the
          hosting panel" banner; both states are worth seeing and this is the
          one with controls in it. */
@@ -2773,6 +2792,12 @@ const ROUTES: Route[] = [
       keyEndsWith: '9f2c',
       keyUnreadable: false,
       capUsd: String(aiState.capUsd),
+      lastError: null,
+      models: [
+        { name: 'claude-haiku-5-5', label: 'Haiku 5.5 — fastest and cheapest (recommended)' },
+        { name: 'claude-sonnet-5-5', label: 'Sonnet 5.5 — better at long answers, ~20× the price' },
+        { name: 'claude-opus-5-5', label: 'Opus 5.5 — the most capable, ~40× the price' },
+      ],
     },
   }) },
   { method: 'PUT', pattern: /^\/api\/ai\/knowledge\/([^/]+)$/, handler: ({ params, body }) => {
@@ -2781,8 +2806,11 @@ const ROUTES: Route[] = [
     else knowledgeState.company = text;
     return { saved: true };
   } },
+  { method: 'POST', pattern: /^\/api\/ai\/connection\/test$/, handler: () => ({
+    ok: true, say: 'claude-haiku-5-5 answered.', detail: null,
+  }) },
   { method: 'PUT', pattern: /^\/api\/ai\/connection$/, handler: () => ({
-    ok: true, ready: true, works: true,
+    ok: true, ready: true, works: true, why: null,
   }) },
   { method: 'DELETE', pattern: /^\/api\/ai\/connection$/, handler: () => ({ ok: true }) },
 

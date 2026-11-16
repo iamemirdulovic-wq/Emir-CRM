@@ -35,20 +35,29 @@ every change is tested before it is pushed.
 
 ---
 
-## 🔴 1. Change the leaked Gemini key (do this first)
+## 🔴 1. Put in the Claude API key (do this first)
 
-A Gemini API key was shown in a screenshot earlier, which means it must be
-treated as public. Anyone who has it can spend your money.
+Homes AI runs on Claude, not Gemini, since 16 November. **The old Gemini key
+`AQ.Ab8RN6JG…` was shown in a screenshot, so it is public — delete it at
+https://aistudio.google.com/apikey and never use it again.** Nothing in the
+CRM calls Gemini any more, so deleting it breaks nothing.
 
-1. Go to **https://aistudio.google.com/apikey**
-2. Find the key starting `AQ.Ab8RN6JG…` and click the **bin icon** → **Delete**
-3. Click **Create API key** → copy the new one
-4. Go to **hPanel → Websites → crm.homes.me → Advanced → Node.js**
-5. In **Environment variables**, find `GEMINI_API_KEY`, paste the new value
-6. While you are there, make sure `AI_PROVIDER` is set to `gemini` — the key
-   alone does not switch Emir AI on, and with `AI_PROVIDER` unset every AI
-   feature stays off
-7. Click **Save**, then **Restart**
+Then get the Claude key:
+
+1. Go to **https://console.anthropic.com** and sign in
+2. Add a payment card, then **API keys → Create key** → copy it (it starts
+   `sk-ant-`). Like every key, it is shown once — do not paste it into a chat
+3. Go to **hPanel → Websites → crm.homes.me → Advanced → Node.js**
+4. In **Environment variables**, add `CLAUDE_API_KEY` and paste the value
+5. Set `AI_PROVIDER` to `claude` — the key alone does not switch Homes AI on,
+   and with `AI_PROVIDER` unset every AI feature stays off
+6. Click **Save**, then **Restart**
+7. Open **Settings → Homes AI** and press **Test the key**. It says *Working*
+   or exactly what went wrong
+
+You can skip the hosting panel entirely and just paste the key at
+**Settings → Homes AI** instead — it is stored encrypted and never shown
+again. A key set in the hosting panel always wins over that one.
 
 ---
 
@@ -399,7 +408,7 @@ is how a CRM ends up showing an agent a welcome message that was never sent.
 | Google lead forms | `GOOGLE_LEAD_FORM_KEY` | nothing — you choose the value |
 | Google offline conversions | the five `GOOGLE_ADS_*` values | a Google Ads developer token |
 | WhatsApp inside the CRM | `WHATSAPP_PROVIDER` = `cloud`, plus `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_ACCESS_TOKEN` | WhatsApp Business API approval |
-| Emir AI | `AI_PROVIDER` = `gemini`, plus `GEMINI_API_KEY` | the new key from step 1 |
+| Homes AI | `AI_PROVIDER` = `claude`, plus `CLAUDE_API_KEY` | a paid Anthropic account |
 | Client email and campaigns | see step 7 | a Brevo account |
 | Phone alerts | see step 8 | a Firebase project |
 

@@ -213,8 +213,9 @@ const envSchema = z.object({
   FCM_VAPID_KEY: z.string().optional(),
 
   // --- AI -----------------------------------------------------------------
-  AI_PROVIDER: z.enum(['gemini', 'openai', 'none']).default('none'),
+  AI_PROVIDER: z.enum(['claude', 'gemini', 'openai', 'none']).default('none'),
   AI_MODEL: z.string().optional(),
+  CLAUDE_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   /**

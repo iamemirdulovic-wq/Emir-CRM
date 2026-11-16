@@ -483,8 +483,21 @@ describe('Homes AI', () => {
   });
 
   it('has the box for the key, which was only on the old settings page', () => {
-    expect(text).toContain('Google Gemini key');
+    expect(text).toContain('Claude API key');
     expect(text).toContain('/api/ai/connection');
+  });
+
+  it('can test the key, and says which it is', () => {
+    /* A stored key and a working key are different facts: the CRM showed
+       "Connected" for a week while every question came back 400. */
+    expect(text).toContain('Test the key');
+    expect(text).toContain('/api/ai/connection/test');
+    expect(text).toContain('Not working.');
+  });
+
+  it('offers the model as a choice, never a name written into the code', () => {
+    expect(text).toContain('provider.models.map');
+    expect(text).not.toContain("'claude-haiku-5-5'");
   });
 
   it('says plainly that the hosting panel always wins', () => {
@@ -494,7 +507,7 @@ describe('Homes AI', () => {
      * stale one keep answering.
      */
     expect(text).toContain('This key is set in the hosting panel, and that always wins.');
-    expect(text).toContain('GEMINI_API_KEY');
+    expect(text).toContain('CLAUDE_API_KEY');
   });
 
   it('never shows the key itself', () => {

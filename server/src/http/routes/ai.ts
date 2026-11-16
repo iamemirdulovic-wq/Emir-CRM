@@ -20,6 +20,9 @@ import {
   AI_FEATURE_KEYS, AI_FEATURES, aiFeatures, saveAiFeatures, type AiFeature,
 } from '../../ai/features.js';
 import { aiProvider } from '../../ai/index.js';
+import {
+  CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL, testClaudeKey,
+} from '../../ai/anthropic.js';
 import { ask } from '../../ai/ask.js';
 import { AI_NAME } from '../../ai/name.js';
 import { env } from '../../config/env.js';
@@ -77,16 +80,22 @@ aiRouter.get(
         model: (await setting('AI_MODEL')) ?? '',
         // Where the key came from, so the screen can be honest about it rather
         // than implying the owner can change one that is set in the host.
-        keySource: await secretSource('GEMINI_API_KEY'),
-        keyEndsWith: await secretHint('GEMINI_API_KEY'),
+        keySource: await secretSource('CLAUDE_API_KEY'),
+        keyEndsWith: await secretHint('CLAUDE_API_KEY'),
         /*
          * Stored but undecryptable — the encryption key changed underneath it.
          * Worth saying out loud: "not connected" to someone who connected it
          * last week explains nothing, and the cause is almost always a deploy
          * that replaced the folder the key file was sitting in.
          */
-        keyUnreadable: (await unreadableSecrets()).includes('GEMINI_API_KEY'),
+        keyUnreadable: (await unreadableSecrets()).includes('CLAUDE_API_KEY'),
         capUsd: (await setting('AI_MONTHLY_CAP_USD')) ?? '5',
+        /* Why the last call failed, in plain English. Empty means the last
+           one worked, which is what System health reads too. */
+        lastError: (await setting('AI_LAST_ERROR')) || null,
+        /* The models the owner may choose between, so the screen does not
+           have to carry a second copy of the list. */
+        models: CLAUDE_MODELS.map((one) => ({ name: one.name, label: one.label })),
       },
     });
   }),
@@ -408,7 +417,7 @@ aiRouter.post(
 
     const provider = await aiProvider();
     if (!provider.enabled) {
-      throw badRequest('No AI key is configured yet. Add GEMINI_API_KEY and set AI_PROVIDER=gemini, then restart.');
+      throw badRequest('No Claude API key is connected yet. Add one above, then try again.');
     }
     if (!(await withinCap())) {
       const spend = await monthSpend();
@@ -462,6 +471,9 @@ aiRouter.put(
     const body = connectionSchema.parse(req.body);
     const actor = actorFrom(req);
 
+    /* Saving a key is also choosing Claude. Before this, a first-time owner
+       pasted a perfectly good key and nothing answered, because AI_PROVIDER
+       was still 'none' and no screen said so. */
     if (body.apiKey) {
       /*
        * Encryption now looks after itself: with no ENCRYPTION_KEY set, one is
@@ -476,21 +488,53 @@ aiRouter.put(
           + 'its own key.',
         );
       }
-      await saveSecret(actor, 'GEMINI_API_KEY', body.apiKey);
+      await saveSecret(actor, 'CLAUDE_API_KEY', body.apiKey);
     }
+    if (body.apiKey) await saveSetting(actor, 'AI_PROVIDER', 'claude');
     if (body.model !== undefined) await saveSetting(actor, 'AI_MODEL', body.model || null);
     if (body.monthlyCapUsd !== undefined) await saveSetting(actor, 'AI_MONTHLY_CAP_USD', String(body.monthlyCapUsd));
-    if (body.enabled !== undefined) await saveSetting(actor, 'AI_PROVIDER', body.enabled ? 'gemini' : 'none');
+    if (body.enabled !== undefined) await saveSetting(actor, 'AI_PROVIDER', body.enabled ? 'claude' : 'none');
 
     // Prove it works before saying it does — a key that is merely stored is not
     // a key that answers.
     const provider = await aiProvider();
     let works: boolean | null = null;
+    let why: string | null = null;
     if (provider.enabled) {
-      works = Boolean(await provider.complete({ feature: 'connection_test', messages: [{ role: 'user', content: 'Reply with the single word: ready' }], maxOutputTokens: 8 }));
+      const tried = await testClaudeKey(
+        (await secret('CLAUDE_API_KEY')) ?? '', provider.model,
+      );
+      works = tried.ok;
+      why = tried.ok ? null : tried.say;
     }
 
-    res.json({ ok: true, ready: provider.enabled, works });
+    res.json({ ok: true, ready: provider.enabled, works, why });
+  }),
+);
+
+/**
+ * Test the key.
+ *
+ * One small call on the key that is actually in use — the stored one, or the
+ * host's if it set one — because "saved" and "works" are different facts and
+ * the owner had no way to tell them apart. Says `Working`, or exactly what
+ * Anthropic said back, which is the only version an owner can act on.
+ */
+aiRouter.post(
+  '/connection/test',
+  requireAdmin,
+  tryLimit,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const apiKey = await secret('CLAUDE_API_KEY');
+    if (!apiKey) {
+      res.json({ ok: false, say: 'No Claude API key is connected yet.', detail: null });
+      return;
+    }
+    const model = (await setting('AI_MODEL')) || DEFAULT_CLAUDE_MODEL;
+    const tried = await testClaudeKey(apiKey, model);
+    res.json(tried.ok
+      ? { ok: true, say: `${model} answered.`, detail: null }
+      : { ok: false, say: tried.say, detail: tried.detail });
   }),
 );
 
@@ -498,8 +542,9 @@ aiRouter.delete(
   '/connection',
   requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
-    await clearSecret(actorFrom(req), 'GEMINI_API_KEY');
+    await clearSecret(actorFrom(req), 'CLAUDE_API_KEY');
     await saveSetting(actorFrom(req), 'AI_PROVIDER', 'none');
+    await saveSetting(actorFrom(req), 'AI_LAST_ERROR', null);
     res.json({ ok: true });
   }),
 );

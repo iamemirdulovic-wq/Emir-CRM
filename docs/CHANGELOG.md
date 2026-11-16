@@ -2,6 +2,51 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Homes AI runs on Claude
+
+16 November. `POST /api/ai/ask` had been answering **400, "API key not valid"**
+for everyone, and System health said the row was **Fine** the whole time.
+
+Homes AI now calls **Claude** through Anthropic's own SDK, on Emir's
+instruction. The seam did not move: everything still goes through
+`AiProvider`, so *In short*, best time to call, voice notes and the morning
+brief changed provider without being touched. The chat was the one that had to
+be rewritten, because it spoke Gemini's function-calling format directly — the
+tools themselves are unchanged, since `ask-tools.ts` already declares them as
+JSON Schema, which is exactly what Claude's `input_schema` wants. The
+permission fence is the same one: the scope comes from the session, so an
+agent still gets only their own leads, and nothing Homes AI can call writes
+anything.
+
+Three things about this that would each have cost a day:
+
+- **Claude Haiku 5.5 refuses a non-default `temperature` with a 400.** The
+  Gemini call sent 0.2 on every request. Carried across, every call would have
+  failed on a key that was perfectly good — and the owner would have been told
+  their key was bad. `anthropic.test.ts` reads the source and fails if either
+  `temperature` or `thinking` ever appears in the request again.
+- **The model is a setting, never a name in the code.** `claude-haiku-5-5` is
+  the default — the cheapest, and enough for all of this — and Settings offers
+  Sonnet and Opus beside it. Each has its own row in the price table, because
+  an unpriced model fell through to a Gemini-era fallback that is *cheaper*
+  than Opus, which would have let an expensive model spend past the cap.
+- **"Stored" and "works" are different facts**, and the CRM had no way to tell
+  them apart. There is a **Test the key** button now; it makes one small call
+  and reports *Working* or exactly what Anthropic said back. System health
+  reads the same thing: the providers record why the last call failed, so that
+  row says **Not working** and names the reason instead of **Fine**.
+
+The monthly cap, the per-feature bars and the 80% warning are unchanged and
+now count Claude's own `usage.input_tokens` and `usage.output_tokens` rather
+than an estimate. Agents still never see a setup error — they are told the
+office has to finish setting it up, and the real reason is kept for the owner.
+
+**Not moved: the project library's AI** (reading a developer's brochure or
+price list) still calls Gemini, in `extract-project.ts`, `extract-developer.ts`
+and `describe-project.ts`. It reads uploaded PDFs through Google's file API,
+which is a different job from this one. It will stop working when the Gemini
+key goes — flagged for Emir rather than changed without asking.
+
 ## The "Send a test" button that sent nothing, and the switch that was missing
 
 15 November. Emir finished setting up Firebase, opened Settings, My

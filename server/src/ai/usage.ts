@@ -25,6 +25,17 @@ const MICROS_PER_DOLLAR = 1_000_000;
  * while one that stops late has already spent the money.
  */
 const PRICE: [prefix: string, price: { input: number; output: number }][] = [
+  /* Claude, from Anthropic's published rates. Haiku 5.5 is $0.10 in and $0.50
+     out per million for prompts up to 100K, and $0.50 / $2.50 beyond it; the
+     larger figure is used, because a cap that stops early costs nothing. */
+  ['claude-haiku-5-5', { input: 500_000, output: 2_500_000 }],
+  ['claude-haiku', { input: 1_000_000, output: 5_000_000 }],
+  ['claude-sonnet-5-5', { input: 2_000_000, output: 10_000_000 }],
+  ['claude-sonnet', { input: 3_000_000, output: 15_000_000 }],
+  ['claude-opus-5-5', { input: 4_000_000, output: 20_000_000 }],
+  ['claude-opus', { input: 5_000_000, output: 25_000_000 }],
+  ['claude-fable', { input: 8_000_000, output: 40_000_000 }],
+  ['claude', { input: 8_000_000, output: 40_000_000 }],
   // Longest prefix first: 'gemini-2.5-flash-lite' must win over 'gemini-2.5-flash'.
   ['gemini-2.5-flash-lite', { input: 120_000, output: 450_000 }],
   ['gemini-2.0-flash-lite', { input: 75_000, output: 300_000 }],
