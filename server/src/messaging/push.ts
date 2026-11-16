@@ -31,6 +31,29 @@ function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
 }
 
+/**
+ * The service-account key, however the hosting panel mangled it.
+ *
+ * Emir pasted a correct key into Hostinger on 15 Nov and the server logged
+ * "FCM_PRIVATE_KEY cannot be used to sign" on every send for a day. The value
+ * was right; the line breaks were not. A one-line environment field can hand
+ * back the literal two characters `\n`, real newlines, or nothing at all
+ * where the newlines were — and OpenSSL rejects the third outright.
+ *
+ * So the base64 is taken out and the PEM rebuilt, which is the same key
+ * whichever way it arrived.
+ */
+export function pemFromEnv(raw: string): string {
+  const withBreaks = raw.replace(/\\n/g, '\n').trim();
+  if (withBreaks.includes('\n')) return withBreaks;
+  const body = withBreaks
+    .replace(/-----(BEGIN|END)[A-Z ]*-----/g, '')
+    .replace(/\s+/g, '');
+  const header = /BEGIN RSA/.test(withBreaks) ? 'RSA PRIVATE KEY' : 'PRIVATE KEY';
+  const lines = body.match(/.{1,64}/g) ?? [];
+  return `-----BEGIN ${header}-----\n${lines.join('\n')}\n-----END ${header}-----\n`;
+}
+
 async function accessToken(): Promise<string | null> {
   const cfg = env();
   if (!cfg.FCM_CLIENT_EMAIL || !cfg.FCM_PRIVATE_KEY || !cfg.FCM_PROJECT_ID) return null;
@@ -48,7 +71,7 @@ async function accessToken(): Promise<string | null> {
     }),
   );
   // Service-account keys are stored with literal \n in the environment.
-  const privateKey = cfg.FCM_PRIVATE_KEY.replace(/\\n/g, '\n');
+  const privateKey = pemFromEnv(cfg.FCM_PRIVATE_KEY);
   /*
    * A key pasted wrong is the likeliest Firebase mistake there is — it is one
    * long base64 block copied out of a JSON file into a hosting panel — and
