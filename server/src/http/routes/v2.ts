@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { schemaState } from '../../db/migration-state.js';
 import { asyncHandler } from '../middleware/error.js';
+import { ASKS, ask, type Ask } from '../../v2/ask.js';
 import {
   actorFrom, blockUntilPasswordChanged, currentUser, requireAuth, requireRole,
 } from '../middleware/auth.js';
@@ -1786,3 +1787,24 @@ function readList(value: unknown): string[] {
   }
   return value.split(',').map((part) => part.trim()).filter(Boolean);
 }
+
+/*
+ * Homes AI's ready questions, answered from `ai/rules.ts` alone.
+ *
+ * Emir's decision of 14 November: no outside AI. Nothing is generated and
+ * nothing leaves the server; the rules read our own database and this hands
+ * their answer to the orb. The fence is inside `rules.ts`, so an agent asking
+ * gets only their own leads.
+ */
+v2Router.get(
+  '/ask/:what',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = currentUser(req);
+    const what = String(req.params.what ?? '');
+    if (!(ASKS as readonly string[]).includes(what)) {
+      res.status(400).json({ error: { code: 'unknown_question', message: 'Homes AI does not know that one yet.' } });
+      return;
+    }
+    res.json(await ask({ id: user.id, role: user.role }, what as Ask));
+  }),
+);

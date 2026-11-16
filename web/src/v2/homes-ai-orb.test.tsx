@@ -311,12 +311,15 @@ describe('the dialler', () => {
 });
 
 describe('the stand-in, until the brain lands', () => {
-  it('calls no API', () => {
-    /* The brain is being built in `server/` by other hands. This file must
-       not reach for it: a shell that fetches is a shell that breaks when the
-       endpoint shape changes under it. */
-    expect(TSX).not.toContain('api.get');
+  it('reads the rules and writes nothing', () => {
+    /* Until 16 Nov this asserted the opposite: the brain was being built in
+       `server/` and the shell was not to reach for it. It is wired now, so
+       the rule that matters is the other half of Emir's decision — Homes AI
+       reads and never changes anything. One GET, no POST, no bare fetch. */
+    expect(TSX).toContain("api.get<AskAnswer>(`/api/v2/ask/");
     expect(TSX).not.toContain('api.post');
+    expect(TSX).not.toContain('api.patch');
+    expect(TSX).not.toContain('api.del');
     expect(TSX).not.toContain('fetch(');
   });
 

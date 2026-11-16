@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { Icon } from '../design/index.js';
 import { useMaybeAuth } from '../lib/auth.js';
+import { api } from '../lib/api.js';
 import type { Role } from '../lib/types.js';
 import {
   extraScreensFor, groupsFor, MESSAGE_ITEMS, PHONE_BAR, pinnedFor,
@@ -218,7 +219,44 @@ const HINTS: { at: string; ask: string[] }[] = [
   { at: '/v2/offers', ask: ['Which offers were opened and not answered?'] },
 ];
 
-const EVERYWHERE = ['What needs me now?', 'What should I do next?'];
+const EVERYWHERE = ['What needs me now?', 'Who is awake now?'];
+
+/**
+ * The questions the rules can really answer, and the name the server knows
+ * them by. Everything outside this map still gets the stand-in, which says it
+ * cannot answer rather than inventing one — §18: never guess.
+ */
+const ASK_KEYS: Record<string, string> = {
+  'Who should I call first?': 'call-first',
+  'What should I do next?': 'call-first',
+  'What should I do first?': 'call-first',
+  'Which of these are going cold?': 'going-cold',
+  'What needs me now?': 'needs-me',
+  'Who is awake now?': 'awake-now',
+};
+
+interface AskLead { name: string | null; project: string | null; why: string; heat: number }
+interface AskAnswer {
+  say: string; leads: AskLead[]; total: number; countedAt: string; startCalling: boolean;
+}
+
+/**
+ * One question, one answer, written the way §53 asks: at most ten leads, a
+ * line of reason each, and the moment it was counted. Every number comes from
+ * `server/src/ai/rules.ts`; nothing here invents one.
+ */
+async function askTheRules(key: string): Promise<string> {
+  const got = await api.get<AskAnswer>(`/api/v2/ask/${key}`);
+  const lines = got.leads.map((lead, i) => {
+    const who = lead.name ?? 'Someone';
+    const where = lead.project ? ` · ${lead.project}` : '';
+    return `${i + 1}. ${who}${where} — ${lead.why}`;
+  });
+  const more = got.total > got.leads.length
+    ? [`… and ${got.total - got.leads.length} more.`]
+    : [];
+  return [got.say, ...lines, ...more, got.countedAt].filter(Boolean).join('\n');
+}
 
 function hintsFor(path: string): HomesAiHint[] {
   const found = HINTS.find((one) => path === one.at || path.startsWith(`${one.at}/`));
@@ -275,14 +313,24 @@ function useStandIn(place: HomesAiPlace, open: boolean): HomesAiBrain {
     setTurns((was) => [...was, { id: `me-${turnId}`, who: 'me', body: question }]);
     setStatus('working');
 
-    const answer = window.setTimeout(() => {
+    const say = (body: string) => {
       turnId += 1;
-      setTurns((was) => [...was, { id: `ai-${turnId}`, who: 'ai', body: standInAnswer(asked) }]);
+      setTurns((was) => [...was, { id: `ai-${turnId}`, who: 'ai', body }]);
       setStatus('done');
       /* Green for one second, then back to breathing. */
       timers.current.push(window.setTimeout(() => setStatus('idle'), 1000));
-    }, 850);
-    timers.current.push(answer);
+    };
+
+    /* The four the rules can answer. Everything else still gets the stand-in,
+       which says plainly that it cannot answer rather than inventing one. */
+    const key = ASK_KEYS[question];
+    if (!key) {
+      timers.current.push(window.setTimeout(() => say(standInAnswer(asked)), 850));
+      return;
+    }
+    void askTheRules(key).then(say).catch(() => say(
+      'I could not read the CRM just now. Try again in a moment.',
+    ));
   }, []);
 
   return useMemo(() => ({
