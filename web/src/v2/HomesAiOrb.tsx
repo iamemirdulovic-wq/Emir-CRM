@@ -231,6 +231,10 @@ const ASK_KEYS: Record<string, string> = {
   'What should I do next?': 'call-first',
   'What should I do first?': 'call-first',
   'Which of these are going cold?': 'going-cold',
+  'What is stuck here?': 'going-cold',
+  'Which deals need me today?': 'due-today',
+  'What is my day today?': 'due-today',
+  'How is the team doing today?': 'needs-me',
   'What needs me now?': 'needs-me',
   'Who is awake now?': 'awake-now',
 };
@@ -321,7 +325,7 @@ function useStandIn(place: HomesAiPlace, open: boolean): HomesAiBrain {
       timers.current.push(window.setTimeout(() => setStatus('idle'), 1000));
     };
 
-    /* The four the rules can answer. Everything else still gets the stand-in,
+    /* The ones the rules can answer. Everything else still gets the stand-in,
        which says plainly that it cannot answer rather than inventing one. */
     const key = ASK_KEYS[question];
     if (!key) {

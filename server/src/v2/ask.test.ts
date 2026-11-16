@@ -9,8 +9,8 @@ import { ASKS } from './ask.js';
  * easiest way for that to rot is one import added in a hurry.
  */
 describe('Homes AI answers', () => {
-  it('knows exactly the four questions the orb offers', () => {
-    expect([...ASKS]).toEqual(['call-first', 'going-cold', 'needs-me', 'awake-now']);
+  it('knows exactly the questions the orb offers', () => {
+    expect([...ASKS]).toEqual(['call-first', 'going-cold', 'due-today', 'needs-me', 'awake-now']);
   });
 
   it('reads our own rules and calls no outside service', async () => {

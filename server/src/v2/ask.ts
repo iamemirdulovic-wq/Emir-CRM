@@ -14,7 +14,7 @@ import {
  * counted, and that is the shape of every answer below.
  */
 
-export const ASKS = ['call-first', 'going-cold', 'needs-me', 'awake-now'] as const;
+export const ASKS = ['call-first', 'going-cold', 'due-today', 'needs-me', 'awake-now'] as const;
 export type Ask = typeof ASKS[number];
 
 export interface AskLead {
@@ -157,6 +157,17 @@ export async function ask(
       ? none('Which of these are going cold?', 'None are going cold. Everybody has been touched recently.', now)
       : answer('Which of these are going cold?',
         `${cold.length} going cold. Oldest first.`, cold, now);
+  }
+
+  if (what === 'due-today') {
+    /* Overdue counts as due today -- it was due before today and is still
+       owed. `plan.now` is already in bucket order, so the overdue ones come
+       out first without sorting them again. */
+    const due = plan.now.filter((r) => r.bucket === 'due_today' || r.bucket === 'overdue'
+      || r.alsoIn.includes('due_today') || r.alsoIn.includes('overdue'));
+    return due.length === 0
+      ? none('What is due today?', 'Nothing is due today, and nothing has run over.', now)
+      : answer('What is due today?', `${due.length} due today. Overdue first.`, due, now);
   }
 
   /* 'call-first', and an agent's 'needs-me', are the same question: the
