@@ -35,7 +35,15 @@ export function buildCsp(scriptHashes: string[]): string {
     // Agent-branded brochures and project photos can be hosted anywhere the
     // owner puts them; `img-src` is the one place that has to stay open.
     'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-    'connect-src': ["'self'"],
+    /* Firebase Cloud Messaging registers a device against these two. With
+       `'self'` alone the browser blocks the call and reports a bare
+       `TypeError: Failed to fetch`, identically on every device — which is
+       what made it look like a network fault for a day. */
+    'connect-src': [
+      "'self'",
+      'https://fcmregistrations.googleapis.com',
+      'https://firebaseinstallations.googleapis.com',
+    ],
     'manifest-src': ["'self'"],
     'worker-src': ["'self'", 'blob:'],
     'frame-ancestors': ["'none'"],
