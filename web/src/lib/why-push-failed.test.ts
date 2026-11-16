@@ -72,13 +72,42 @@ describe('why turning alerts on failed', () => {
     expect(odd).toMatch(/something new entirely/);
   });
 
-  it('blames the network, not the CRM, when the phone could not reach Google', () => {
-    /* Emir's, 15 Nov, with a VPN running: the keys were right, the service
-       worker was right, and the phone simply could not get to Google. Saying
-       so saves the next person checking seven values that are already fine. */
+  it('tells somebody to try their VPN and their connection', () => {
+    /* Emir's, 15 Nov, with a VPN running. Worth saying even untagged, since
+       it is the one thing the person holding the phone can act on. */
     const said = whyPushFailed(new TypeError('Failed to fetch'));
     expect(said).toMatch(/VPN/);
-    expect(said).toMatch(/Nothing is wrong with the CRM/);
+  });
+
+  it('names which step failed, rather than assuming Google', () => {
+    /*
+     * The correction of 16 Nov. "Failed to fetch" comes back identically from
+     * three steps: downloading our own code, asking Google for the address,
+     * and posting that address to our own server. The screen told Emir it was
+     * Google, and nobody had checked that it was — the message was a guess
+     * wearing the clothes of a diagnosis. `PushStepError` puts the step first.
+     */
+    const stepped = (step: string) => Object.assign(
+      new Error(`${step}: TypeError: Failed to fetch`), { step },
+    );
+    expect(whyPushFailed(stepped('download'))).toMatch(/did not download from the CRM/i);
+    expect(whyPushFailed(stepped('crm'))).toMatch(/could not send it back to the CRM/i);
+    expect(whyPushFailed(stepped('google'))).toMatch(/could not reach Google/i);
+
+    /* A fault the message names outright still wins over the step: a blocked
+       permission is the same answer whichever step surfaced it. */
+    const blocked = Object.assign(
+      new Error('google: messaging/permission-blocked'), { step: 'google' },
+    );
+    expect(whyPushFailed(blocked)).toMatch(/phone is blocking alerts/i);
+  });
+
+  it('stops claiming Google when it does not know the step', () => {
+    /* An untagged network failure says what is true — a connection failed —
+       and does not name a culprit it has not identified. */
+    const said = whyPushFailed(new TypeError('Failed to fetch'));
+    expect(said).toMatch(/A connection failed/i);
+    expect(said).not.toMatch(/could not reach Google/i);
   });
 
   it('never throws, whatever it is handed', () => {

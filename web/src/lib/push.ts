@@ -87,6 +87,41 @@ const TOKEN_KEY = 'emir-push-token';
  * Returns the state afterwards, so the screen shows what actually happened
  * rather than what was hoped for.
  */
+/**
+ * Which step of turning alerts on was running when it failed.
+ *
+ * Four separate things can throw here and three of them can throw the very
+ * same `TypeError: Failed to fetch`: downloading the Firebase code from our
+ * own site, asking Google for this device's address, and sending that
+ * address back to our own server. They are different faults with different
+ * cures — a half-deployed site, a blocked route to Google, and a phone that
+ * cannot reach the CRM — and for an evening on 15 Nov we could not tell them
+ * apart, so the screen asserted it was Google. It might not have been.
+ *
+ * `step` is on the error, so the sentence names the right one.
+ */
+export class PushStepError extends Error {
+  readonly step: 'download' | 'google' | 'crm';
+
+  constructor(step: 'download' | 'google' | 'crm', cause: unknown) {
+    const inner = cause as { message?: unknown; name?: unknown; code?: unknown };
+    const detail = [inner?.code, inner?.name, inner?.message]
+      .filter((v): v is string => typeof v === 'string' && v !== '')
+      .join(': ') || 'unknown';
+    super(`${step}: ${detail}`);
+    this.name = 'PushStepError';
+    this.step = step;
+  }
+}
+
+const at = async <T>(step: 'download' | 'google' | 'crm', run: () => Promise<T>): Promise<T> => {
+  try {
+    return await run();
+  } catch (cause) {
+    throw new PushStepError(step, cause);
+  }
+};
+
 export async function enablePush(): Promise<PushState> {
   if (!supported()) return 'unsupported';
   const cfg = await config();
@@ -96,10 +131,10 @@ export async function enablePush(): Promise<PushState> {
   if (permission === 'denied') return 'blocked';
   if (permission !== 'granted') return 'off';
 
-  const [{ initializeApp, getApps }, { getMessaging, getToken }] = await Promise.all([
+  const [{ initializeApp, getApps }, { getMessaging, getToken }] = await at('download', () => Promise.all([
     import('firebase/app'),
     import('firebase/messaging'),
-  ]);
+  ]));
 
   const app = getApps()[0] ?? initializeApp(cfg.firebase);
   /*
@@ -107,13 +142,13 @@ export async function enablePush(): Promise<PushState> {
    * answer the same push and the agent would get every lead twice.
    */
   const registration = await navigator.serviceWorker.ready;
-  const token = await getToken(getMessaging(app), {
+  const token = await at('google', () => getToken(getMessaging(app), {
     vapidKey: cfg.vapidKey,
     serviceWorkerRegistration: registration,
-  });
+  }));
   if (!token) return 'off';
 
-  await api.post('/api/users/me/push-tokens', { token, platform: 'web' });
+  await at('crm', () => api.post('/api/users/me/push-tokens', { token, platform: 'web' }));
   try { localStorage.setItem(TOKEN_KEY, token); } catch { /* private mode */ }
   return 'on';
 }

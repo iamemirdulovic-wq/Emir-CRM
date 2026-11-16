@@ -38,7 +38,7 @@ import {
  * a USB cable.
  */
 export function whyPushFailed(err: unknown): string {
-  const e = err as { code?: unknown; name?: unknown; message?: unknown };
+  const e = err as { code?: unknown; name?: unknown; message?: unknown; step?: unknown };
   const str = (v: unknown) => (typeof v === 'string' && v ? v : '');
   const message = str(e?.message);
   const code = (() => {
@@ -76,12 +76,36 @@ export function whyPushFailed(err: unknown): string {
     [/service-worker/i,
       'The app could not start its background part. Close every CRM tab, open it again, and retry.'],
     [/Failed to fetch|NetworkError|network error|ERR_/i,
-      'Your phone could not reach Google. Turn off any VPN and try again, or switch between Wi-Fi and mobile data. Nothing is wrong with the CRM or the keys.'],
+      'A connection failed before anything was registered. Turn off any VPN, switch between Wi-Fi and mobile data, and try again.'],
     [/token-subscribe-failed|AbortError|push service/i,
       'Your phone could not register with Google. This is usually the network or the FCM_VAPID_KEY value. Try again on a different connection, and tell Emir if it keeps failing.'],
   ];
-  const say = REASONS.find(([pattern]) => pattern.test(code))?.[1]
-    ?? 'Turning alerts on failed before anything was registered.';
+  /*
+   * The step comes first, when we have it, because it is the one thing that
+   * is known rather than inferred.
+   *
+   * Three of these steps throw an identical "Failed to fetch": downloading
+   * our own code, asking Google for this device's address, and posting that
+   * address back to our own server. Until 16 Nov the screen told Emir it was
+   * Google, and nobody had established that — it was a guess wearing the
+   * clothes of a diagnosis. `PushStepError` carries `step`, so read it; fall
+   * through to the patterns only when it is absent, and then say plainly
+   * that a connection failed without naming a culprit.
+   */
+  const byStep: Record<string, string> = {
+    download: 'Part of the app did not download from the CRM. Close every CRM tab, open it again, and retry.',
+    google: 'Your phone could not reach Google to get an alert address. Turn off any VPN and try again, or switch between Wi-Fi and mobile data. Nothing is wrong with the CRM or the keys.',
+    crm: 'Your phone got its alert address from Google but could not send it back to the CRM. The connection to crm.homes.me dropped — try again in a moment.',
+  };
+  const step = str(e?.step);
+  /* A step still loses to a fault the message names outright: a blocked
+     permission or a rejected VAPID key is the same answer whichever step
+     surfaced it, and more useful than "could not reach Google". */
+  const named = REASONS.find(([pattern]) => pattern.test(code))?.[1];
+  const networkish = /Failed to fetch|NetworkError|network error|ERR_/i.test(code);
+  const say = (step && byStep[step] && (!named || networkish))
+    ? byStep[step]
+    : named ?? 'Turning alerts on failed before anything was registered.';
   return `${say} (${code})`;
 }
 
