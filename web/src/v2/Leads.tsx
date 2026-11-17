@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAsync } from '../lib/hooks.js';
 import { useAuth } from '../lib/auth.js';
@@ -31,6 +31,7 @@ import {
 /* Moved out on 14 Nov so two people can work on this screen at once. A pure
    move: same markup, same behaviour. */
 import { LeadPanel } from './LeadPanel.js';
+import { rememberWalk } from './lead-walk.js';
 
 /**
  * The leads list, built from the design package.
@@ -1057,6 +1058,18 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
    */
   const inDayOrder = useMemo(() => byDay.flatMap((day) => day.rows), [byDay]);
   const drawn = onNoAnswerTab ? inTryOrder : inDayOrder;
+  /*
+   * The same order, written down for the full lead page's Next lead button
+   * (`lead-walk.ts`), so opening a lead and pressing Next goes down this very
+   * list, filters and "Show more" included, instead of back out to it.
+   */
+  const here = useLocation();
+  const listAt = here.pathname + here.search;
+  const walkKey = drawn.map((row) => row.id).join(',');
+  useEffect(() => {
+    rememberWalk(listAt, drawn.map((row) => ({ id: row.id, name: row.full_name })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listAt, walkKey]);
   /*
    * The phone draws cards under the same headings, so the No answer tab
    * hands it one group instead of a day each — the heading then says what
@@ -2499,6 +2512,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
            */
           onPrev={() => setPanelFor(stepTo(drawn, panelFor, -1))}
           onNext={() => setPanelFor(stepTo(drawn, panelFor, 1))}
+          isLast={drawn.length === 0 || drawn[drawn.length - 1]?.id === panelFor.id}
           /* After a Won, a Lost, a transfer or a note, the row behind the
              panel is stale and the list does not know. */
           onChanged={() => { leads.reload(); counts.reload(); facets.reload(); }}

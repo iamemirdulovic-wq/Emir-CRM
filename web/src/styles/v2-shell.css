@@ -753,6 +753,17 @@
 .v2-time-what{ color:var(--ink-2); min-width:0; }
 .v2-time-what b{ color:var(--ink); text-transform:capitalize; }
 
+/* Next lead on the full lead page (lead-walk.ts): back, "3 of 50", Previous, Next. */
+.v2-walk-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+.v2-walk-bar .v2-walk-at{ margin-right:auto; }
+.v2-walk-bar a{ text-decoration:none; }
+.v2-walk-bar a:hover{ text-decoration:none; }
+.v2-next-lead{ white-space:nowrap; }
+.v2-next-lead .v2-walk-name{ max-width:180px; overflow:hidden; text-overflow:ellipsis; display:inline-block; vertical-align:bottom; }
+@media (max-width:767px){
+  .v2-walk-bar{ position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; }
+  .v2-next-lead .v2-walk-name{ display:none; }
+}
 .v2-back-row{ margin:4px 0 0; }
 .v2-back-row a{ font-size:13px; color:var(--accent-ink); text-decoration:none; font-weight:600; }
 

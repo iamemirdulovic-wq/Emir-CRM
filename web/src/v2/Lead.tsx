@@ -19,6 +19,7 @@ import { useCallAction } from './call.js';
 import { LeadNotes } from './LeadNotes.js';
 import { LeadNoteBox, type NoteBoxHandle } from './LeadNoteBox.js';
 import { CallResultBar, type Asking } from './CallResultBar.js';
+import { placeIn, readWalk } from './lead-walk.js';
 import {
   plain, resultsFromActivities, type CallResultLine, type NoAnswerState,
 } from './call-result.js';
@@ -338,12 +339,38 @@ export function V2Lead() {
     ? budgetLabel(lead.budget_min_aed, lead.budget_max_aed, lead.budget_band ?? null)
     : lead.budget_band ?? null;
   const person = detail.data.contact;
+  /* Where this lead sits in the list it was opened from — `lead-walk.ts`.
+     Null when it was opened from anywhere else, and then there is no bar. */
+  const place = placeIn(readWalk(), lead.id);
 
   return (
     <div className="v2-leadpage p-lead">
       {/* The check-in sheet and anything the recording could not do. Without
           it on the page the question cannot be asked and Call would hang. */}
       {dial.banner}
+      {place && (
+        <nav className="v2-walk-bar" aria-label="Leads in this list">
+          <Link className="d-btn d-sm d-ghost" to={place.list}>← Back to the list</Link>
+          <span className="d-muted d-small v2-walk-at">{place.at} of {place.total}</span>
+          {place.prev && (
+            <Link className="d-btn d-sm" to={`/v2/leads/${encodeURIComponent(place.prev.id)}`}>
+              Previous
+            </Link>
+          )}
+          {place.next
+            ? (
+              <Link
+                className="d-btn d-sm d-primary v2-next-lead"
+                to={`/v2/leads/${encodeURIComponent(place.next.id)}`}
+                title={place.next.name ? `Next: ${place.next.name}` : 'Next lead'}
+              >
+                Next lead<span className="v2-walk-name">{place.next.name ? `: ${place.next.name}` : ''}</span>
+                <Icon name="arrow-right" />
+              </Link>
+            )
+            : <span className="d-muted d-small">Last lead in the list</span>}
+        </nav>
+      )}
       <div className="d-lead-grid">
 
         {/* ── LEFT: who they are, and what you can do right now ────────── */}
