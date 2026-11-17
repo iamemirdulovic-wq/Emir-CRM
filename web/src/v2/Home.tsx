@@ -1814,7 +1814,7 @@ function OwnerComputer({ home, period, onPeriod }: {
                           )
                           : <Link className="d-chip d-red d-pip" to="/v2/incoming">Incoming</Link>}
                       </td>
-                      <td className="d-t-right d-t-sub">{at(lead.createdAt)}</td>
+                      <td className="d-t-right d-t-sub">{addedAt(lead.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -2427,6 +2427,25 @@ function at(value: string | undefined): string {
   return new Date(value).toLocaleTimeString('en-GB', {
     hour: '2-digit', minute: '2-digit', hour12: false,
   });
+}
+
+/**
+ * When a lead arrived: "12:24" today, "Yesterday 17:49", then "Nov 15, 17:49".
+ * The Latest leads card showed the time alone, so today's 12:24 sat above
+ * Sunday's 17:49 and read like a sorting bug (the v2 test, 16 Nov 2026).
+ */
+export function addedAt(value: string | undefined, now = new Date()): string {
+  if (!value) return '';
+  const when = new Date(value);
+  const time = at(value);
+  const day = (d: Date) => d.toDateString();
+  if (day(when) === day(now)) return time;
+  if (day(when) === day(new Date(now.getTime() - 86_400_000))) return `Yesterday ${time}`;
+  const date = when.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+    ...(when.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  });
+  return `${date}, ${time}`;
 }
 
 /**

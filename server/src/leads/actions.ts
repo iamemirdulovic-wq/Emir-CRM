@@ -263,6 +263,15 @@ export async function runLeadAction(
     if (move.status) {
       sets.push('status = ?', 'closed_at = NOW(3)');
       args.push(move.status);
+    } else if (move.stage && before.status !== 'open') {
+      /*
+       * "Interested" or "No answer" on a Lost (or Won) lead puts it back in
+       * an open stage, so it is open again. Moving only the stage left the
+       * status Lost: the board drew the lead in an open column while the
+       * dashboard counted it Lost — 2,038 open against 2,037 in the v2 test
+       * of 16 Nov 2026.
+       */
+      sets.push("status = 'open'", 'closed_at = NULL');
     }
     if (input.action === 'lost') {
       const chosenReason = input.reason ?? 'not_interested';
@@ -387,7 +396,7 @@ export async function runLeadAction(
         before: { stageKey: before.stage_key, status: before.status },
         after: {
           stageKey: move.stage ?? before.stage_key,
-          status: move.status ?? before.status,
+          status: move.status ?? (move.stage ? 'open' : before.status),
           reason: input.reason ?? null,
           ...(input.action === 'won'
             ? {

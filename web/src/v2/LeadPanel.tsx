@@ -576,7 +576,7 @@ function InShort({ lead, brief, loading }: {
   const what = [lead.project_name, lead.unit_type, budget(lead)].filter(Boolean).join(' · ');
   const spoke = lead.last_contact_at
     ? `Last spoken to ${moment(lead.last_contact_at).toLowerCase()}`
-    : 'Not called yet';
+    : lead.stage_key === 'new_lead' ? 'Not called yet' : 'Not reached yet';
 
   return (
     <div className="v2-qp-short">

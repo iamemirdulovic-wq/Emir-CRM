@@ -8,6 +8,7 @@ import { useAsync } from '../lib/hooks.js';
 import { Icon, type IconName } from '../design/index.js';
 import { Avatar, ToastHost } from '../design/ui.js';
 import { useAuth } from '../lib/auth.js';
+import { useHeartbeat } from '../lib/heartbeat.js';
 import {
   extraScreensFor, groupsFor, pinnedFor, PHONE_BAR, MESSAGE_ITEMS, type NavItem,
 } from './nav.js';
@@ -379,6 +380,7 @@ function titleFor(pathname: string, role: string): string {
 }
 
 export function V2Shell() {
+  const { user: shellUser } = useAuth();
   const isPhone = useIsPhone();
   const [folded, toggleRail] = useRail();
   const { pathname } = useLocation();
@@ -386,6 +388,12 @@ export function V2Shell() {
      finishing a task all change a number, and all of them change the route. */
   const badges = useAsync<Record<string, number>>(() => api.get('/api/v2/badges'), [pathname]);
   const counts = useMemo(() => badges.data ?? {}, [badges.data]);
+  /*
+   * "I am still here", every thirty seconds while the tab is visible. Only
+   * the old screens' Layout sent it, so time spent in v2 was never counted
+   * and Team activity showed everyone at "0 min" (the v2 test, 16 Nov 2026).
+   */
+  useHeartbeat(Boolean(shellUser));
 
   /*
    * The orange system is opt-in per page (`:root[data-v2]`), so that the live

@@ -123,13 +123,18 @@ async function searchProjects(q: string, limit: number): Promise<SearchHit[]> {
   }));
 }
 
-/** Stage keys as a person reads them, for the one line under a lead's name. */
+/**
+ * Stage keys as a person reads them, for the one line under a lead's name.
+ * The same words as every v2 screen (`STAGE_LABEL` in web/src/v2/Leads.tsx):
+ * search said "Trying to reach" for a lead every other page called "Called"
+ * (the v2 test, 16 Nov 2026).
+ */
 const STAGE_WORDS: Record<string, string> = {
   new_lead: 'New',
-  attempted_contact: 'Trying to reach',
-  engaged_qualified: 'Engaged',
-  appointment_scheduled: 'Appointment',
-  deal_sent: 'Deal sent',
+  attempted_contact: 'Called',
+  engaged_qualified: 'Interested',
+  appointment_scheduled: 'Meeting',
+  deal_sent: 'Offer',
   won: 'Won',
   lost: 'Lost',
 };

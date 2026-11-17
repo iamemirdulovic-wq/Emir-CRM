@@ -51,36 +51,64 @@ const COMPANY = 'Emigeo Homes Real Estate LLC';
  * own title and gets one plain line about what it does once you are inside.
  * No names, no counts, nothing read from the API.
  */
-const PREVIEW: Array<{ title: string; line: string; accent?: boolean }> = [
-  {
-    title: 'Needs you now',
-    line: 'The calls that are late, and the ones with a timer running.',
+/*
+ * Every word on the page, in both languages the switch offers. The Arabic
+ * button used to mirror the layout and leave every word in English, so the
+ * full stops jumped to the front of each line (".Every lead called") — the
+ * v2 test, 16 Nov 2026.
+ */
+const WORDS = {
+  en: {
+    headline: 'Every lead called.', onTime: 'On time.',
+    lead: 'One screen tells you who to call now, what is late and what your team is doing. Dubai off-plan, made simple.',
+    preview: [
+      { title: 'Needs you now', line: 'The calls that are late, and the ones with a timer running.' },
+      { title: 'Calls today', line: 'Every call your team made, as they make them.' },
+      { title: 'In office now', line: 'Who is in, who is late and who is away.', accent: true },
+    ],
+    signIn: 'Sign in', sub: 'Use your work email and your password.',
+    email: 'Work email', password: 'Password', passwordHint: 'At least 8 letters or numbers',
+    show: 'Show', hide: 'Hide', keep: 'Keep me signed in', forgot: 'Forgot password?',
+    forgotNote: 'Ask the owner or an admin. They set a new password from Settings → '
+      + 'Team and you choose your own the next time you sign in.',
+    signingIn: 'Signing in…', failed: 'Could not sign in. Please try again.',
+    guide: 'Put homes.me on your phone · install guide',
+    noApp: 'No app to download.',
+    install: 'Open crm.homes.me in Safari or Chrome, then Share › Add to Home Screen. '
+      + 'It opens full-screen, like an app.',
   },
-  {
-    title: 'Calls today',
-    line: 'Every call your team made, as they make them.',
+  ar: {
+    headline: 'كل عميل يتلقى اتصالاً.', onTime: 'في الوقت المحدد.',
+    lead: 'شاشة واحدة تخبرك بمن تتصل الآن، وما الذي تأخر، وماذا يفعل فريقك. عقارات دبي على الخارطة، بكل بساطة.',
+    preview: [
+      { title: 'يحتاجك الآن', line: 'المكالمات المتأخرة، وتلك التي يعمل مؤقتها.' },
+      { title: 'مكالمات اليوم', line: 'كل مكالمة يجريها فريقك، لحظة بلحظة.' },
+      { title: 'في المكتب الآن', line: 'من حضر، ومن تأخر، ومن غاب.', accent: true },
+    ],
+    signIn: 'تسجيل الدخول', sub: 'استخدم بريد العمل وكلمة المرور.',
+    email: 'بريد العمل', password: 'كلمة المرور', passwordHint: 'ثمانية أحرف أو أرقام على الأقل',
+    show: 'إظهار', hide: 'إخفاء', keep: 'تذكّرني', forgot: 'نسيت كلمة المرور؟',
+    forgotNote: 'اطلب من المالك أو المسؤول. يعيّن لك كلمة مرور جديدة من الإعدادات ← الفريق، '
+      + 'ثم تختار كلمتك الخاصة عند تسجيل الدخول التالي.',
+    signingIn: 'جارٍ تسجيل الدخول…', failed: 'تعذّر تسجيل الدخول. حاول مرة أخرى.',
+    guide: 'ضع homes.me على هاتفك · دليل التثبيت',
+    noApp: 'لا يوجد تطبيق لتنزيله.',
+    install: 'افتح crm.homes.me في Safari أو Chrome، ثم مشاركة ‹ إضافة إلى الشاشة الرئيسية. '
+      + 'يفتح بملء الشاشة مثل التطبيق.',
   },
-  {
-    title: 'In office now',
-    line: 'Who is in, who is late and who is away.',
-    accent: true,
-  },
-];
-
-/** The design's own install text, from `Login.dc.html`. */
-const INSTALL = 'Open crm.homes.me in Safari or Chrome, then Share › Add to Home Screen. '
-  + 'It opens full-screen, like an app.';
+} as const;
 
 /** Dubai, in the design's own format: "Wednesday, 11 November 2026 · 14:55". */
-function stamp(now: Date): string {
-  const day = new Intl.DateTimeFormat('en-GB', {
+function stamp(now: Date, lang: Locale = 'en'): string {
+  const tag = lang === 'ar' ? 'ar-AE' : 'en-GB';
+  const day = new Intl.DateTimeFormat(tag, {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }).format(now);
-  const time = new Intl.DateTimeFormat('en-GB', {
+  const time = new Intl.DateTimeFormat(tag, {
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(now);
   /* en-GB writes "Wednesday 11 November 2026"; the design has a comma. */
-  return `${day.replace(/^(\w+) /, '$1, ')} · ${time}`;
+  return lang === 'ar' ? `${day} · ${time}` : `${day.replace(/^(\w+) /, '$1, ')} · ${time}`;
 }
 
 export function V2Login() {
@@ -106,7 +134,9 @@ export function V2Login() {
     () => typeof window !== 'undefined' && window.matchMedia(PHONE).matches,
   );
   const [guide, setGuide] = useState(false);
-  const [when] = useState(() => stamp(new Date()));
+  const [now] = useState(() => new Date());
+  const w = WORDS[lang === 'ar' ? 'ar' : 'en'];
+  const when = stamp(now, lang);
 
   /* A phone turned on its side is still a phone, and the other way round. */
   useEffect(() => {
@@ -170,7 +200,7 @@ export function V2Login() {
     } catch (err) {
       // The server deliberately does not say which of the two was wrong. It
       // does say when the account is locked, and that message is its own.
-      setError(err instanceof ApiError ? err.message : 'Could not sign in. Please try again.');
+      setError(err instanceof ApiError ? err.message : w.failed);
     } finally {
       setBusy(false);
     }
@@ -180,7 +210,7 @@ export function V2Login() {
     <div className="d-banner d-green v2-login-install" role="note">
       <Icon name="share-2" />
       <span className="d-grow">
-        <b>No app to download.</b> {INSTALL}
+        <b>{w.noApp}</b> {w.install}
       </span>
     </div>
   );
@@ -195,14 +225,11 @@ export function V2Login() {
             <b>homes<span>.</span>me</b>
             <span className="d-chip v2-login-chip">CRM</span>
           </div>
-          <h1>Every lead called.<br /><em>On time.</em></h1>
-          <p className="d-lead">
-            One screen tells you who to call now, what is late and what your team is
-            doing. Dubai off-plan, made simple.
-          </p>
+          <h1>{w.headline}<br /><em>{w.onTime}</em></h1>
+          <p className="d-lead">{w.lead}</p>
           <div className="d-preview">
-            {PREVIEW.map((card) => (
-              <div className={card.accent ? 'd-pv d-or v2-login-pv' : 'd-pv v2-login-pv'} key={card.title}>
+            {w.preview.map((card) => (
+              <div className={'accent' in card ? 'd-pv d-or v2-login-pv' : 'd-pv v2-login-pv'} key={card.title}>
                 <span className="d-label">{card.title}</span>
                 <span className="v2-login-pv-line">{card.line}</span>
               </div>
@@ -218,8 +245,8 @@ export function V2Login() {
         <section className="d-side">
           <form className={error ? 'd-form d-bad' : 'd-form'} onSubmit={onSubmit} noValidate>
             <div className="d-step1">
-              <h2>Sign in</h2>
-              <p className="d-sub">Use your work email and your password.</p>
+              <h2>{w.signIn}</h2>
+              <p className="d-sub">{w.sub}</p>
 
               {error && (
                 <div className="d-banner d-red d-form-error" role="alert">
@@ -229,7 +256,7 @@ export function V2Login() {
               )}
 
               <div className="d-field">
-                <label htmlFor="v2-login-email">Work email</label>
+                <label htmlFor="v2-login-email">{w.email}</label>
                 <div className="d-input-icon">
                   <Icon name="mail" />
                   <input
@@ -245,14 +272,14 @@ export function V2Login() {
               </div>
 
               <div className="d-field">
-                <label htmlFor="v2-login-password">Password</label>
+                <label htmlFor="v2-login-password">{w.password}</label>
                 <div className="d-input-icon">
                   <Icon name="lock" />
                   <input
                     className="d-input d-lg"
                     id="v2-login-password"
                     type={show ? 'text' : 'password'}
-                    placeholder="At least 8 letters or numbers"
+                    placeholder={w.passwordHint}
                     autoComplete="current-password"
                     value={password}
                     onChange={(event) => { setPassword(event.target.value); setError(null); }}
@@ -262,7 +289,7 @@ export function V2Login() {
                     className="d-btn d-xs d-ghost"
                     onClick={() => setShow((on) => !on)}
                   >
-                    {show ? 'Hide' : 'Show'}
+                    {show ? w.hide : w.show}
                   </button>
                 </div>
               </div>
@@ -274,7 +301,7 @@ export function V2Login() {
                     checked={rememberMe}
                     onChange={(event) => setRememberMe(event.target.checked)}
                   />
-                  Keep me signed in
+                  {w.keep}
                 </label>
                 {/*
                   * No email reset flow, by design: `CLAUDE.md` (LOGIN) puts the
@@ -285,12 +312,9 @@ export function V2Login() {
                 <button
                   type="button"
                   className="d-link d-small"
-                  onClick={() => setNote(
-                    'Ask the owner or an admin. They set a new password from Settings → '
-                    + 'Team and you choose your own the next time you sign in.',
-                  )}
+                  onClick={() => setNote(w.forgotNote)}
                 >
-                  Forgot password?
+                  {w.forgot}
                 </button>
               </div>
 
@@ -302,7 +326,7 @@ export function V2Login() {
               )}
 
               <button className="d-btn d-primary d-lg d-block" type="submit" disabled={busy}>
-                {busy ? 'Signing in…' : 'Sign in'}
+                {busy ? w.signingIn : w.signIn}
                 <Icon name="arrow-right" />
               </button>
 
@@ -315,7 +339,7 @@ export function V2Login() {
                     aria-expanded={guide}
                   >
                     <Icon name="download" />
-                    Put homes.me on your phone · install guide
+                    {w.guide}
                   </button>
                   {guide && installNote}
                 </>

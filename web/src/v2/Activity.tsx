@@ -58,6 +58,15 @@ interface LiveRow {
   where: string | null;
 }
 
+/** One person's minutes today, from `/api/activity/today`. */
+interface DayRow {
+  userId: string;
+  name: string;
+  minutes: number;
+  firstAt: string;
+  lastAt: string;
+}
+
 /** What today looked like for one person, added up from their sign-ins. */
 interface Worked {
   minutes: number;
@@ -112,6 +121,10 @@ export function V2Activity() {
   const live = useAsync<{ items: LiveRow[] }>(
     () => (forMe ? api.get('/api/activity/team') : nothing), [again, forMe],
   );
+  /* Today's minutes whatever day the sign-in began — `activity_days`. */
+  const days = useAsync<{ items: DayRow[] }>(
+    () => (forMe ? api.get('/api/activity/today') : nothing), [again, forMe],
+  );
 
   if (!forMe) {
     return (
@@ -137,7 +150,7 @@ export function V2Activity() {
   const rows = sessions.data.items;
   const liveBy = new Map((live.data?.items ?? []).map((one) => [one.name, one]));
 
-  const worked = workedToday(rows);
+  const worked = workedToday(rows, days.data?.items ?? [], liveBy);
   const everyone = people
     .map((person) => ({ person, today: worked.get(person.name) ?? null }))
     .sort((a, b) => (b.today?.minutes ?? -1) - (a.today?.minutes ?? -1));
@@ -681,7 +694,41 @@ function Review({ row, userId, onClose, onHide, onSignedOut }: {
  * the newest one. "Today" is Dubai's day: the office works to it, and Dubai
  * is UTC+4 all year with no summer time.
  */
-function workedToday(rows: SessionRow[]): Map<string, Worked> {
+function workedToday(
+  rows: SessionRow[],
+  days: DayRow[] = [],
+  liveBy: Map<string, LiveRow> = new Map(),
+): Map<string, Worked> {
+  const out = fromSignIns(rows);
+  /*
+   * A remember-me sign-in lasts for weeks, so the sessions started today
+   * miss most of a day's work: the v2 test on 16 Nov 2026 found everyone at
+   * "0 min" and "Not seen today" while Team live had them seen "now". The
+   * day's own row counts every beat today whichever session it came
+   * through; the larger of the two is today's figure (the day rows only
+   * start on the day they were added).
+   */
+  for (const day of days) {
+    const was = out.get(day.name);
+    if (was) {
+      if (day.minutes > was.minutes) was.minutes = day.minutes;
+      if (new Date(day.firstAt).getTime() < new Date(was.firstAt).getTime()) was.firstAt = day.firstAt;
+      continue;
+    }
+    out.set(day.name, {
+      minutes: day.minutes,
+      firstAt: day.firstAt,
+      /* Still signed in, from an older session: no sign-out to show, so the
+         row falls back to Team live's "seen" line. */
+      lastAt: null,
+      device: liveBy.get(day.name)?.device ?? null,
+      newDevice: false,
+    });
+  }
+  return out;
+}
+
+function fromSignIns(rows: SessionRow[]): Map<string, Worked> {
   const today = dubaiDay(Date.now());
   const out = new Map<string, Worked>();
 

@@ -112,11 +112,11 @@ export function suggestNextStep(lead: LeadForAdvice, now: Date = new Date()): Ne
       suggest: {
         type: lead.nextStepType ?? 'call',
         inDays: 0,
-        note: 'The step you promised',
+        note: 'The step that was promised',
         why:
           lateDays >= 1
-            ? `You promised this ${lateDays === 1 ? 'yesterday' : `${lateDays} days ago`} and it has not happened.`
-            : 'You promised this earlier today.',
+            ? `This step was due ${lateDays === 1 ? 'yesterday' : `${lateDays} days ago`} and has not happened.`
+            : 'This step was due earlier today.',
         urgency: 'now',
         rule: 'overdue_promise',
       },

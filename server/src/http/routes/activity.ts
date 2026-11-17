@@ -327,6 +327,45 @@ activityRouter.get(
   }),
 );
 
+/**
+ * Today's minutes per person, from `activity_days` (Dubai's day).
+ *
+ * The sign-in history alone cannot say this: a remember-me session started
+ * last week carries all its minutes on the day it began.
+ */
+activityRouter.get(
+  '/today',
+  requirePermission('reports:team'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const visible = await visibleUserIds(currentUser(req));
+    const fence = visible === null
+      ? { sql: '1 = 1', params: [] as string[] }
+      : visible.length === 0
+        ? { sql: '1 = 0', params: [] as string[] }
+        : { sql: `ad.user_id IN (${visible.map(() => '?').join(',')})`, params: visible };
+
+    const rows = await query<{
+      user_id: string; name: string; active_seconds: number; first_at: Date; last_at: Date;
+    }>(
+      `SELECT ad.user_id, u.name, ad.active_seconds, ad.first_at, ad.last_at
+         FROM activity_days ad
+         JOIN users u ON u.id = ad.user_id
+        WHERE ad.on_date = DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')) AND ${fence.sql}`,
+      fence.params,
+    );
+
+    res.json({
+      items: rows.map((row) => ({
+        userId: row.user_id,
+        name: row.name,
+        minutes: Math.round(Number(row.active_seconds) / 60),
+        firstAt: row.first_at,
+        lastAt: row.last_at,
+      })),
+    });
+  }),
+);
+
 function parseFlags(value: unknown): SessionFlag[] {
   if (!value) return [];
   if (Array.isArray(value)) return value as SessionFlag[];

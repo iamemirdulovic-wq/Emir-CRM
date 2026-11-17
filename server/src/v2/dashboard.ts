@@ -330,9 +330,9 @@ export async function fullDashboard(user: SessionUser, period: Period): Promise<
      * have; the period caps how many come back.
      */
     query<{ seconds: number }>(
-      `SELECT TIMESTAMPDIFF(SECOND, created_at, first_response_at) AS seconds
+      `SELECT TIMESTAMPDIFF(SECOND, created_at, first_touch_at) AS seconds
          FROM opportunities
-        WHERE deleted_at IS NULL AND first_response_at IS NOT NULL
+        WHERE deleted_at IS NULL AND first_touch_at IS NOT NULL
           AND created_at >= ${w.from} AND created_at < ${w.to}`,
     ),
     /* The desks the Open column measures against, named in its foot. */
