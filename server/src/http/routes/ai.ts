@@ -21,7 +21,7 @@ import {
 } from '../../ai/features.js';
 import { aiProvider } from '../../ai/index.js';
 import {
-  CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL, testClaudeKey,
+  CLAUDE_MODELS, claudeModel, testClaudeKey,
 } from '../../ai/anthropic.js';
 import { ask } from '../../ai/ask.js';
 import { AI_NAME } from '../../ai/name.js';
@@ -77,7 +77,10 @@ aiRouter.get(
         ready: (await aiProvider()).enabled,
         // Empty means "not chosen yet": the screen then offers the list from
         // Google rather than a name this codebase guessed.
-        model: (await setting('AI_MODEL')) ?? '',
+        /* What will really be called, not what is merely stored: a leftover
+           Gemini name in AI_MODEL is ignored, so the screen must not show it
+           as if it were the choice. */
+        model: claudeModel(await setting('AI_MODEL')),
         // Where the key came from, so the screen can be honest about it rather
         // than implying the owner can change one that is set in the host.
         keySource: await secretSource('CLAUDE_API_KEY'),
@@ -530,7 +533,7 @@ aiRouter.post(
       res.json({ ok: false, say: 'No Claude API key is connected yet.', detail: null });
       return;
     }
-    const model = (await setting('AI_MODEL')) || DEFAULT_CLAUDE_MODEL;
+    const model = claudeModel(await setting('AI_MODEL'));
     const tried = await testClaudeKey(apiKey, model);
     res.json(tried.ok
       ? { ok: true, say: `${model} answered.`, detail: null }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { AnthropicProvider, CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL, explain } from './anthropic.js';
+import {
+  AnthropicProvider, CLAUDE_MODELS, claudeModel, DEFAULT_CLAUDE_MODEL, explain,
+} from './anthropic.js';
 import { estimateCostMicros } from './usage.js';
 
 /**
@@ -42,6 +44,22 @@ describe('Claude provider', () => {
     // Even a Claude model nobody here has heard of is priced as a dear one.
     expect(estimateCostMicros('claude-something-new', 1_000_000, 1_000_000))
       .toBeGreaterThan(costs[costs.length - 1] as number);
+  });
+
+  it('ignores a model name left over from Gemini', () => {
+    /*
+     * This happened on the live site an hour after the move: AI_MODEL still
+     * held `gemini-3.1-flash-lite`, so the CRM asked Anthropic for a Google
+     * model and the owner was told his brand-new key was not valid.
+     */
+    expect(claudeModel('gemini-3.1-flash-lite')).toBe(DEFAULT_CLAUDE_MODEL);
+    expect(claudeModel('gpt-4o-mini')).toBe(DEFAULT_CLAUDE_MODEL);
+    expect(claudeModel('')).toBe(DEFAULT_CLAUDE_MODEL);
+    expect(claudeModel(null)).toBe(DEFAULT_CLAUDE_MODEL);
+    // A real choice is still honoured, including one newer than this list.
+    expect(claudeModel('claude-opus-5-5')).toBe('claude-opus-5-5');
+    expect(claudeModel('claude-something-newer')).toBe('claude-something-newer');
+    expect(new AnthropicProvider('k', 'gemini-3.1-flash-lite').model).toBe(DEFAULT_CLAUDE_MODEL);
   });
 
   it('says what went wrong in words a person can act on', () => {

@@ -39,6 +39,23 @@ export const CLAUDE_MODELS = [
   { name: 'claude-opus-5-5', label: 'Opus 5.5 — the most capable, ~40× the price' },
 ] as const;
 
+/**
+ * The model to actually call, given whatever is saved in Settings.
+ *
+ * This exists because of a real failure on the live site, an hour after the
+ * move to Claude: `AI_MODEL` still held `gemini-3.1-flash-lite` from the
+ * Gemini era, so the CRM asked Anthropic for a Google model and every answer
+ * came back "that model is not available to this key". The owner reads that
+ * as a bad key and goes looking for a new one.
+ *
+ * A name from another provider is not a choice, it is a leftover — so it is
+ * ignored rather than sent. Only a Claude model is honoured.
+ */
+export function claudeModel(saved: string | null | undefined): string {
+  const name = (saved ?? '').trim();
+  return name.startsWith('claude-') ? name : DEFAULT_CLAUDE_MODEL;
+}
+
 /** Where the last failure is kept, so System health can name it. */
 export const LAST_ERROR_SETTING = 'AI_LAST_ERROR';
 
@@ -142,7 +159,7 @@ export class AnthropicProvider implements AiProvider {
   /** Key and model resolved before construction, as the other providers are. */
   constructor(apiKey: string | null, model?: string | null) {
     this.apiKey = apiKey;
-    this.model = model || DEFAULT_CLAUDE_MODEL;
+    this.model = claudeModel(model);
   }
 
   get enabled(): boolean {

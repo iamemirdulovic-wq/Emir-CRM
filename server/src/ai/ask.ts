@@ -23,7 +23,7 @@ import { buildKnowledge } from './knowledge.js';
 import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
-import { DEFAULT_CLAUDE_MODEL, explain } from './anthropic.js';
+import { claudeModel, explain } from './anthropic.js';
 import { runTool, TOOLS, type Asker } from './ask-tools.js';
 import { AI_NAME, AI_SETTINGS } from './name.js';
 
@@ -82,7 +82,7 @@ export async function ask(
     throw badRequest(`This month\u2019s AI budget is used up. It can be raised in ${AI_SETTINGS}.`);
   }
 
-  const model = (await setting('AI_MODEL')) || DEFAULT_CLAUDE_MODEL;
+  const model = claudeModel(await setting('AI_MODEL'));
   const client = new Anthropic({ apiKey });
 
   /* The same declarations, in Claude's spelling. `parameters` is already a
