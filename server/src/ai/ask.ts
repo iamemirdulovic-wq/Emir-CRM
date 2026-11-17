@@ -24,14 +24,16 @@ import { setting, secret } from '../config/secrets.js';
 import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 import { claudeModel, explain } from './anthropic.js';
-import { runTool, TOOLS, type Asker } from './ask-tools.js';
+import { runTool, TOOLS, type Asker, type Draft } from './ask-tools.js';
 import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** How many times the model may call a tool before it has to answer. */
 const MAX_TOOL_ROUNDS = 4;
 
 const INSTRUCTION = `You are ${AI_NAME}, the assistant inside a Dubai and Abu Dhabi off-plan real
-estate CRM. You are talking to someone who works at the brokerage.
+estate CRM. You are talking to someone who works at the brokerage — usually a sales agent in the
+middle of their day. Be their assistant, not a search box: say what you would do next and why,
+and offer to write the message rather than waiting to be asked twice.
 
 You answer from the CRM's own data. Use the tools to look things up — you cannot know anything
 about this brokerage's leads, agents or projects except through them.
@@ -51,13 +53,21 @@ The rules, in order of importance:
 6. When you mention a specific lead, give their name and, if you have it, write the id in square
    brackets like [lead:abc-123] so the CRM can link to them.
 7. Answer in the language the question was asked in. Arabic if they wrote Arabic.
-8. Never invent a name, a number or a date to make an answer look complete.`;
+8. Never invent a name, a number or a date to make an answer look complete.
+9. When they ask you to write, draft or prepare a message for a lead, call draft_message. Do not
+   type the message into your reply as well — the CRM shows the draft as a card with a Send
+   button, so repeating it just makes them read it twice. Say one line about why you wrote it
+   that way, and stop. Write in the language that lead speaks.
+10. You never send anything. A draft goes to the agent, who reads it, changes it and sends it
+   themselves. Never say or imply that you have sent, messaged or contacted anyone.`;
 
 export type AskResult = {
   answer: string;
   /** Which tools were used, so the answer can be traced to its numbers. */
   toolsUsed: string[];
   model: string;
+  /** Messages it wrote for a person to send. Never sent by us. */
+  drafts: Draft[];
 };
 
 type Part = Record<string, unknown>;
@@ -107,6 +117,7 @@ export async function ask(
   ];
 
   const toolsUsed: string[] = [];
+  const drafts: Draft[] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     let reply: Anthropic.Message;
@@ -150,7 +161,7 @@ export async function ask(
         .join('')
         .trim();
       if (!answer) throw badRequest(`${AI_NAME} did not answer. Try asking again.`);
-      return { answer, toolsUsed, model };
+      return { answer, toolsUsed, model, drafts };
     }
 
     // What it asked for goes back in, then what the tools said.
@@ -163,6 +174,10 @@ export async function ask(
       toolsUsed.push(call.name);
       try {
         const output = await runTool(call.name, (call.input ?? {}) as Record<string, unknown>, asker);
+        /* A draft is the one tool result the page needs as well as the model:
+           it becomes a card with a Send button, not a paragraph of text. */
+        const made = (output as { draft?: Draft } | null)?.draft;
+        if (made) drafts.push(made);
         results.push({
           type: 'tool_result',
           tool_use_id: call.id,

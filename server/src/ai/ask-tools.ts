@@ -29,6 +29,25 @@ const int = (description: string) => ({ type: 'integer', description });
 
 export const TOOLS: ToolDeclaration[] = [
   {
+    name: 'draft_message',
+    description:
+      'Write a WhatsApp message or an email for one lead and hand it to the agent to send. '
+      + 'Use this whenever the person asks you to write, draft or prepare a message. '
+      + 'Find the lead with search_leads first to get their contactId, and read get_lead so the '
+      + 'message fits what they actually asked for. Write in the language that lead speaks. '
+      + 'This does NOT send anything — the agent reads it and presses send.',
+    parameters: {
+      type: 'object',
+      properties: {
+        contactId: str('The contact id, as returned by search_leads.'),
+        channel: str("Either 'whatsapp' or 'email'. Defaults to whatsapp."),
+        subject: str('Subject line. Email only.'),
+        body: str('The message itself, ready to send. No placeholders to fill in.'),
+      },
+      required: ['contactId', 'body'],
+    },
+  },
+  {
     name: 'search_leads',
     description:
       'Find leads by name, phone, project, stage or how long since they were contacted. '
@@ -135,6 +154,25 @@ const clamp = (value: unknown, fallback: number, max: number): number => {
  * what makes "and also show me Sara's leads" impossible rather than merely
  * discouraged.
  */
+/**
+ * A message Homes AI wrote, for a person to send.
+ *
+ * It is a draft and nothing else: nothing here reaches WhatsApp, an inbox or
+ * a phone. The agent opens the lead with these words in the box and presses
+ * send themselves, which is CLAUDE.md's rule that the AI never messages a
+ * client — held in the shape of the thing, not only in the prompt.
+ */
+export interface Draft {
+  contactId: string;
+  name: string | null;
+  /** So the card's button can open WhatsApp with the words already in it. */
+  phone: string | null;
+  email: string | null;
+  channel: 'whatsapp' | 'email';
+  subject: string | null;
+  body: string;
+}
+
 export async function runTool(
   name: string,
   args: Record<string, unknown>,
@@ -152,6 +190,40 @@ export async function runTool(
     };
 
   switch (name) {
+    case 'draft_message': {
+      /* Fenced like every read: an agent cannot have a message written for a
+         colleague's lead, because the lead has to be one they can see. */
+      const id = String(args.contactId ?? '');
+      const body = String(args.body ?? '').trim();
+      if (!id) return { error: 'No contact id given. Find the lead first.' };
+      if (!body) return { error: 'No message written.' };
+
+      const who = await queryOne<{ name: string | null; phone: string | null; email: string | null }>(
+        `SELECT c.full_name AS name, c.phone_e164 AS phone, c.email
+           FROM opportunities o
+           JOIN contacts c ON c.id = o.contact_id
+          WHERE o.contact_id = ?${fence.clause}
+          ORDER BY o.created_at DESC LIMIT 1`,
+        [id, ...fence.params],
+      );
+      if (!who) return { error: 'No lead by that id that you are allowed to see.' };
+
+      const channel = args.channel === 'email' ? 'email' : 'whatsapp';
+      const draft: Draft = {
+        contactId: id,
+        name: who.name,
+        phone: who.phone,
+        email: who.email,
+        channel,
+        subject: channel === 'email' && typeof args.subject === 'string'
+          ? args.subject.slice(0, 200) : null,
+        body: body.slice(0, 4000),
+      };
+      /* Returned to the model as a plain confirmation so it stops writing the
+         same words out again underneath; `ask.ts` keeps the draft itself. */
+      return { drafted: true, channel, to: who.name, draft };
+    }
+
     case 'search_leads': {
       const limit = clamp(args.limit, 10, 25);
       const where: string[] = ["o.status = 'open'"];

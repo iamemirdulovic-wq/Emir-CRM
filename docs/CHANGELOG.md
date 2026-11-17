@@ -2,6 +2,65 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Homes AI is one thing, and it writes your messages
+
+17 November. Emir typed "hello" into the glowing orb in the corner and was
+told *"the part of me that reads the CRM is still being built"*. It had been
+built for weeks. **There were two Homes AIs.** The orb held its own little
+conversation that knew eight fixed questions and said that sentence to
+everything else; the real assistant — which reads the database through
+permission-fenced tools and now answers through Claude — sat at `/v2/ai`,
+in the menu, with no way in from the header. He had never found it.
+
+So: **one Homes AI.** The orb is gone, `HomesAiOrb.tsx` with it, and a small
+star sits in the top bar of every screen instead. It breathes slowly, it does
+not blink, and it holds no answers of its own — it is a link, and
+`homes-ai-star.test.ts` fails if it ever fetches anything, because a second
+Homes AI that can answer differently from the first is the bug, not the
+rendering.
+
+**The page is now a chat, and the chat can hand you a message to send.**
+`draft_message` is a new tool: Homes AI writes a WhatsApp or an email for a
+named lead in that lead's own language, and it arrives as a card with the
+words in it, **Copy**, and **Open WhatsApp** — which opens WhatsApp with the
+message already typed, for the agent to read, change and send themselves. The
+CRM has no code path that puts those words in front of a client without a
+person pressing send on their own device. The tool reads the lead through the
+same `fence` every other tool uses, so an agent cannot have a message written
+for a colleague's lead, and `draft-message.test.ts` checks that nothing in
+`ask-tools.ts` can reach a client or write a row.
+
+Emir's three decisions, 17 November: the orb goes; a draft opens the lead's
+chat with the text ready; **an owner or admin may read any agent's Homes AI
+chats** — which reverses the note in `0010_ai_chat.sql` that said an agent's
+questions are not their manager's reading material. Reading someone else's is
+written to `audit_log`, and the screen says so where the owner can see it.
+
+The rest, in short: past chats come from the server now rather than this
+device, so a question asked on a phone is there on the office computer; the
+empty page greets you by name and offers the four things an agent opens this
+for; on a phone the typing box is at the bottom where every chat anybody uses
+keeps it, and `/v2/ai` joined `NO_BAR_ROUTES` so the floating bar is not
+sitting on top of it.
+
+Three things this cost, all of them the kind that look fine and are not:
+
+- **`--r-1`, `--r-2`, `--r-3` and `--danger` are not tokens in this
+  codebase.** The names are `--r-sm` / `--r-ctl` / `--r-card` and `--red`. A
+  `var()` that resolves to nothing takes its whole property with it, so every
+  corner came out square and nothing said a word.
+- **A flex column centres its children**, so the phone's row of extra
+  questions sized itself to its content, sat wider than the screen, and lost
+  its first chip off the left edge. `overflow-x` on an element that is itself
+  too wide does nothing.
+- **`leads-filters.test.ts` guards from its own heading to the end of the
+  file.** A phone block appended at the bottom trips it — correctly. The
+  Homes AI rules sit together above that region instead, and the guard was
+  not touched.
+
+`web/src/styles/v2-homes-ai.css` is deleted: 884 lines that were the orb's,
+imported by nothing.
+
 ## Homes AI runs on Claude
 
 16 November. `POST /api/ai/ask` had been answering **400, "API key not valid"**

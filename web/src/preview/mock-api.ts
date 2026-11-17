@@ -2127,6 +2127,52 @@ const ROUTES: Route[] = [
       asked: what, say, leads, total: 3, countedAt: 'Counted now, 17:28', startCalling: true,
     };
   } },
+  /* Homes AI's past chats, and an answer with a draft in it, so a picture
+     of this page shows what it really does rather than an empty column. */
+  { method: 'GET', pattern: /^\/api\/ai\/conversations$/, handler: () => ({
+    canSeeEveryone: true,
+    userId: 'u-1',
+    items: [
+      { id: 'c-1', title: 'Who should I call first today?', at: new Date(Date.now() - 42 * 60000).toISOString(), who: 'Emir Dulovic', mine: true },
+      { id: 'c-2', title: 'Write a WhatsApp to Ahmed about Emaar Beachfront', at: new Date(Date.now() - 5 * 3600_000).toISOString(), who: 'Emir Dulovic', mine: true },
+      { id: 'c-3', title: 'What is the payment plan on Saadiyat Lagoons?', at: new Date(Date.now() - 30 * 3600_000).toISOString(), who: 'Emir Dulovic', mine: true },
+    ],
+  }) },
+  { method: 'GET', pattern: /^\/api\/ai\/conversations\/([^/]+)$/, handler: ({ params }) => ({
+    id: params[0], title: 'Who should I call first today?', mine: true, turns: [],
+  }) },
+  { method: 'POST', pattern: /^\/api\/ai\/ask$/, handler: ({ body }) => {
+    const asked = String((body as { question?: string } | null)?.question ?? '');
+    const wantsMessage = /whatsapp|message|email|write/i.test(asked);
+    return {
+      conversationId: 'c-new',
+      model: 'claude-haiku-5-5',
+      toolsUsed: wantsMessage
+        ? ['search_leads', 'get_lead', 'draft_message']
+        : ['search_leads', 'get_pipeline_stats'],
+      answer: wantsMessage
+        ? 'Ahmed asked for the price list on Saturday and nobody has called. I kept it '
+          + 'short and asked one question, so he has something easy to reply to.'
+        : 'Ahmed Khan first [lead:l-1] — he asked for the price list yesterday and has not '
+          + 'been called. Then Priya Nair [lead:l-2], whose next step was due two days ago.\n'
+          + '- Ahmed Khan · Emaar Beachfront · asked for prices\n'
+          + '- Priya Nair · Saadiyat Lagoons · overdue 2 days\n'
+          + '- Sergey Ivanov · Dubai Creek Harbour · new, not called',
+      drafts: wantsMessage
+        ? [{
+          contactId: 'l-1',
+          name: 'Ahmed Khan',
+          phone: '+971501234567',
+          email: 'ahmed@example.com',
+          channel: 'whatsapp',
+          subject: null,
+          body: 'Hi Ahmed, it\u2019s Emir from homes.me. You asked about Emaar Beachfront on '
+            + 'Saturday \u2014 I have the current price list and the 60/40 payment plan ready '
+            + 'for you.\n\nAre you looking at a 1 or a 2 bedroom? I will send only what fits.',
+        }]
+        : [],
+    };
+  } },
   { method: 'GET', pattern: /^\/api\/v2\/team$/, handler: () => {
     const isOwner = currentUser().role !== 'agent';
     return {

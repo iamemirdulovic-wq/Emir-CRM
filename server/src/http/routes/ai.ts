@@ -351,13 +351,126 @@ aiRouter.post(
       [newId(), conversationId, 'user', body.question],
     );
     await execute(
-      'INSERT INTO ai_messages (id, conversation_id, role, body, tools_used, model) VALUES (?, ?, ?, ?, ?, ?)',
-      [newId(), conversationId, 'assistant', result.answer, JSON.stringify(result.toolsUsed), result.model],
+      `INSERT INTO ai_messages (id, conversation_id, role, body, tools_used, model, drafts)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(), conversationId, 'assistant', result.answer,
+        JSON.stringify(result.toolsUsed), result.model,
+        result.drafts.length > 0 ? JSON.stringify(result.drafts) : null,
+      ],
     );
 
     res.json({ ...result, conversationId });
   }),
 );
+
+/* ── Past chats ───────────────────────────────────────────────────────── */
+
+/**
+ * Whose chats this person may read.
+ *
+ * `0010_ai_chat.sql` was written on the opposite rule — "an agent's questions
+ * are not their manager's reading material" — and Emir reversed it on 17
+ * November: an owner or admin can read anyone's. A manager cannot, and an
+ * agent sees only their own. Reading someone else's is written to `audit_log`,
+ * so the change is visible rather than quiet.
+ */
+function mayRead(req: Request): { all: boolean } {
+  const role = currentUser(req).role;
+  return { all: role === 'owner' || role === 'admin' };
+}
+
+aiRouter.get(
+  '/conversations',
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req);
+    const { all } = mayRead(req);
+    const wanted = typeof req.query.userId === 'string' ? req.query.userId : null;
+    /* An agent asking for a colleague's id gets their own, not an error: the
+       fence is the answer, not a message telling them the id was real. */
+    const userId = all ? (wanted ?? me.id) : me.id;
+
+    const rows = await query<{
+      id: string; title: string | null; updated_at: Date; user_id: string; who: string | null;
+    }>(
+      `SELECT c.id, c.title, c.updated_at, c.user_id, u.name AS who
+         FROM ai_conversations c
+         LEFT JOIN users u ON u.id = c.user_id
+        WHERE c.user_id = ?
+        ORDER BY c.updated_at DESC
+        LIMIT 40`,
+      [userId],
+    );
+    res.json({
+      canSeeEveryone: all,
+      userId,
+      items: rows.map((row) => ({
+        id: row.id,
+        title: row.title ?? 'Untitled',
+        at: row.updated_at,
+        who: row.who,
+        mine: row.user_id === me.id,
+      })),
+    });
+  }),
+);
+
+aiRouter.get(
+  '/conversations/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req);
+    const { all } = mayRead(req);
+    const id = String(req.params.id);
+
+    const owns = await queryOne<{ user_id: string; title: string | null }>(
+      'SELECT user_id, title FROM ai_conversations WHERE id = ?',
+      [id],
+    );
+    if (!owns || (!all && owns.user_id !== me.id)) throw badRequest('That chat was not found.');
+
+    if (owns.user_id !== me.id) {
+      // Reading someone else's chat is a thing that happened, not a view.
+      await writeAudit({
+        actor: actorFrom(req),
+        action: 'ai.conversation.read',
+        entityType: 'ai_conversation',
+        entityId: id,
+        after: { ownerUserId: owns.user_id },
+      });
+    }
+
+    const rows = await query<{
+      role: 'user' | 'assistant'; body: string; tools_used: unknown; drafts: unknown;
+    }>(
+      `SELECT role, body, tools_used, drafts FROM ai_messages
+        WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 200`,
+      [id],
+    );
+    res.json({
+      id,
+      title: owns.title,
+      mine: owns.user_id === me.id,
+      turns: rows.map((row) => ({
+        who: row.role === 'user' ? 'me' : 'ai',
+        body: row.body,
+        tools: asList(row.tools_used),
+        drafts: asList(row.drafts),
+      })),
+    });
+  }),
+);
+
+/** mysql2 hands a JSON column back parsed or as text, depending on driver. */
+function asList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+}
 
 const saveSchema = z.object({
   language: z.enum(['en', 'ar']).default('en'),

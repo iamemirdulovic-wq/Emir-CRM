@@ -35,8 +35,13 @@ import {
  * opened inside the inbox, and the sign-in page is not inside this shell at
  * all. So the route list covers what it can and `useFullAttention` covers the
  * rest.
+ *
+ * Homes AI joined them on 17 November. It is a chat, and a chat keeps its
+ * typing box at the bottom of the screen; with the floating bar there too,
+ * the bar sat on top of the box and you could not see what you were typing.
+ * The header stays — this hides the bar, not the way back.
  */
-const NO_BAR_ROUTES = ['/v2/calling', '/v2/email'];
+const NO_BAR_ROUTES = ['/v2/calling', '/v2/email', '/v2/ai'];
 
 export function barIsHiddenAt(pathname: string): boolean {
   return NO_BAR_ROUTES.some((one) => pathname === one || pathname.startsWith(`${one}/`));

@@ -14,7 +14,7 @@ import {
 import { Bell } from './Bell.js';
 import { useCheckIn } from './check-in.js';
 import { Find } from './Find.js';
-import { HomesAiOrb } from './HomesAiOrb.js';
+import { HomesAiStar } from './HomesAiStar.js';
 import {
   barIsHiddenAt, FullAttentionProvider, PhoneHeadProvider, usePhoneHeadSlot,
   usePhoneSheets, useRiseIn,
@@ -284,6 +284,10 @@ function TopBar() {
         </Link>
       )}
 
+      {/* Homes AI, next to the bell, on every screen. It replaced the
+          floating orb — see `HomesAiStar.tsx` for why. */}
+      <HomesAiStar />
+
       <Bell />
       <Link to="/v2/profile" className="v2-avatar" aria-label="My profile">
         <Avatar name={user?.name ?? '?'} />
@@ -450,17 +454,15 @@ export function V2Shell() {
                 */}
               {isPhone && !oneJob && !barIsHiddenAt(pathname) && <PhoneBar />}
               {/*
-                * Homes AI, on every screen and inside no screen.
-                *
-                * Emir, 14 Nov: "A small glowing Homes AI orb sits in the
-                * corner of EVERY page, on computer and phone. It is never
-                * hidden." Mounted here, once, outside `<main>`, so a screen
-                * cannot forget it and a route change cannot remount it —
-                * which also means its breath does not restart every time
-                * somebody opens a lead. Where it sits relative to the phone's
-                * floating bar is CSS keyed off `v2-has-bar` above.
+                * The floating orb used to live here. Emir asked for it on 14
+                * November and asked for it gone on the 17th, after typing
+                * "hello" into it and being told Homes AI was still being
+                * built: it held its own conversation that knew eight fixed
+                * questions, while the real assistant — which has answered
+                * from the database the whole time — sat on a page with no
+                * way in from the header. Homes AI is now one thing, reached
+                * from `HomesAiStar` in the bar above.
                 */}
-              <HomesAiOrb />
             </div>
           )}
         </FullAttentionProvider>
@@ -538,6 +540,7 @@ function PhoneTop() {
           </Link>
         )}
         {!head.compact && <Find compact />}
+        {!head.compact && <HomesAiStar compact />}
         {!head.compact && <Bell />}
         {head.compact && !head.action && <span className="v2-pspace" />}
         {/*

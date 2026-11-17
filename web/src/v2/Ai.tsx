@@ -31,8 +31,60 @@ interface Turn {
   who: 'me' | 'ai';
   body: string;
   tools?: string[];
+  drafts?: Draft[];
   failed?: boolean;
 }
+
+/** A message Homes AI wrote for this person to send. It sends nothing. */
+export interface Draft {
+  contactId: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  channel: 'whatsapp' | 'email';
+  subject: string | null;
+  body: string;
+}
+
+/** One past conversation, as the rail lists it. */
+interface PastChat {
+  id: string;
+  title: string;
+  at: string;
+  who: string | null;
+  mine: boolean;
+}
+
+/**
+ * The four things an agent actually opens this page to do.
+ *
+ * Not a list of everything it can answer — four, big, tappable, in the order
+ * a morning goes: who first, then write to them, then the project they asked
+ * about. The long "what it can do" card this replaced told people what was
+ * possible without making any of it one tap away.
+ */
+const STARTERS = [
+  {
+    icon: 'phone', title: 'Who should I call first?',
+    sub: 'The order to work your list in, and why',
+    ask: 'Who should I call first today, and why?',
+  },
+  {
+    icon: 'message-circle', title: 'Write a WhatsApp',
+    sub: 'For a lead, in their own language',
+    ask: 'Write a WhatsApp follow-up for the lead I should call first, in the language they speak.',
+  },
+  {
+    icon: 'mail', title: 'Write an email',
+    sub: 'A follow-up you can read and send',
+    ask: 'Write a follow-up email for one of my leads who has gone quiet.',
+  },
+  {
+    icon: 'building-2', title: 'Tell me about a project',
+    sub: 'Price, payment plan, what to say',
+    ask: 'Which project do my leads ask about most, and what should I tell them about it?',
+  },
+] as const;
 
 interface DoNow {
   greeting: string;
@@ -66,9 +118,6 @@ const TRY_AGENT = [
   'What is the payment plan of the project my leads ask about most?',
 ];
 
-/** Where this person's own past questions are kept. Their device, not ours. */
-const ASKED_BEFORE = 'emir.v2.askedHomesAi';
-
 export function V2Ai() {
   const { user } = useAuth();
   const seesEveryone = user?.role !== 'agent';
@@ -79,11 +128,16 @@ export function V2Ai() {
   const [busy, setBusy] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [before, setBefore] = useState<string[]>(() => readAsked());
   const bottom = useRef<HTMLDivElement>(null);
   const [params] = useSearchParams();
 
   const tip = useAsync<DoNow>(() => api.get('/api/activity/do-now'), []);
+
+  /* Past chats, from the server rather than this device: an agent who asked
+     something on their phone should find it on the office computer. */
+  const past = useAsync<{ canSeeEveryone: boolean; items: PastChat[] }>(
+    () => api.get('/api/ai/conversations'), [],
+  );
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -114,14 +168,16 @@ export function V2Ai() {
     setAsking('');
     setEmpty(false);
     setBusy(true);
-    setBefore(rememberAsked(text));
 
     try {
-      const got = await api.post<{ answer: string; toolsUsed: string[]; conversationId: string }>(
-        '/api/ai/ask', { question: text, conversationId },
-      );
+      const got = await api.post<{
+        answer: string; toolsUsed: string[]; conversationId: string; drafts?: Draft[];
+      }>('/api/ai/ask', { question: text, conversationId });
       setConversationId(got.conversationId ?? null);
-      setThread((was) => [...was, { who: 'ai', body: got.answer, tools: got.toolsUsed }]);
+      setThread((was) => [...was, {
+        who: 'ai', body: got.answer, tools: got.toolsUsed, drafts: got.drafts ?? [],
+      }]);
+      past.reload();
     } catch (err) {
       /*
        * A failure stays in the thread rather than flashing past as a toast.
@@ -133,6 +189,33 @@ export function V2Ai() {
         failed: true,
         body: err instanceof Error ? err.message : 'That did not work.',
       }]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Open a chat from the rail.
+   *
+   * Named `openChat`, not `open`: a function called `open` inside a component
+   * resolves to `window.open` when it is missing, and TypeScript says nothing
+   * — the rail's buttons would have quietly tried to launch pop-up windows.
+   */
+  async function openChat(id: string) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const got = await api.get<{ turns: Turn[] }>(`/api/ai/conversations/${id}`);
+      setThread(got.turns.map((turn) => ({
+        who: turn.who,
+        body: turn.body,
+        tools: turn.tools ?? [],
+        drafts: turn.drafts ?? [],
+      })));
+      setConversationId(id);
+      setEmpty(false);
+    } catch {
+      setThread([{ who: 'ai', failed: true, body: 'That chat could not be opened.' }]);
     } finally {
       setBusy(false);
     }
@@ -158,88 +241,137 @@ export function V2Ai() {
     /* The page class scopes the ported stylesheet, and every design element
        has to sit inside it — `.p-homes-ai .d-ai` is a descendant rule, so the
        two cannot share one element. */
-    <div className="p-homes-ai">
-      <div className="d-ai">
-        <section className="d-card d-ai-chat d-pad-0">
-          <div className="d-ai-head">
-            <span className="d-ai-logo"><Icon name="sparkles" size={22} /></span>
-            <div className="d-grow">
-              <h2>Homes AI</h2>
-              <p className="d-small d-muted">
-                {seesEveryone
-                  ? 'Reads the whole team. It never sends a message for anyone.'
-                  : 'Reads only your own leads. It never sends a message for you.'}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="d-btn d-sm d-ghost"
-              onClick={() => { setThread([]); setConversationId(null); setEmpty(false); }}
-            >
-              <Icon name="refresh-cw" size={15} />New chat
-            </button>
-          </div>
+    <div className="p-homes-ai v2-ai2">
+      <div className="v2-ai2-wrap">
 
-          <div className="d-ai-msgs">
-            <Said>
-              Hello{firstName ? ` ${firstName}` : ''}. Ask me in simple words. I answer from
-              {seesEveryone
-                ? " the team's leads, attendance and today's numbers"
-                : ' your own leads, your calendar and the projects'}
-              , and I give you a link to the right page.
-            </Said>
+        {/* Past chats. Hidden on a phone, where the screen is the chat. */}
+        <aside className="v2-ai2-rail">
+          <button
+            type="button"
+            className="v2-ai2-new"
+            onClick={() => { setThread([]); setConversationId(null); setEmpty(false); }}
+          >
+            <Icon name="plus" size={15} />New chat
+          </button>
 
-            {thread.map((turn, i) => (
-              <div
-                key={`${turn.who}-${i}`}
-                className={turn.who === 'me' ? 'd-msg d-me' : 'd-msg d-ai'}
+          <h4 className="v2-ai2-railttl">Your chats</h4>
+          {past.data?.items.length === 0 && (
+            <p className="d-small d-muted v2-ai2-none">Nothing yet. Ask something below.</p>
+          )}
+          <div className="v2-ai2-list">
+            {(past.data?.items ?? []).map((one) => (
+              <button
+                key={one.id}
+                type="button"
+                className={one.id === conversationId ? 'v2-ai2-past v2-ai2-past-on' : 'v2-ai2-past'}
+                onClick={() => void openChat(one.id)}
               >
-                {turn.who === 'ai' && (
-                  <span className="d-who"><Icon name="sparkles" size={15} /></span>
-                )}
-                <div className={turn.failed ? 'd-bub v2-bub-bad' : 'd-bub'}>
-                  <Answer body={turn.body} />
-                  {turn.tools && turn.tools.length > 0 && (
-                    /* What it read, said out loud. An answer nobody can check is
-                       an answer nobody should act on. */
-                    <span className="d-tiny d-muted v2-bub-read">
-                      Read: {turn.tools.map((one) => one.replace(/_/g, ' ')).join(', ')}
-                    </span>
-                  )}
-                </div>
-              </div>
+                <span className="v2-ai2-pastttl">{one.title}</span>
+                <span className="d-tiny d-muted">{when(one.at)}</span>
+              </button>
             ))}
-
-            {busy && (
-              <div className="d-msg d-ai">
-                <span className="d-who"><Icon name="sparkles" size={15} /></span>
-                <div className="d-bub">
-                  <span className="d-dots"><i /><i /><i /></span>
-                </div>
-              </div>
-            )}
-
-            <div ref={bottom} />
           </div>
 
-          {thread.length === 0 && (
-            <div className="d-ai-try">
-              <h4>Try asking</h4>
-              <div className="d-chips">
-                {suggestions.map((one) => (
-                  <button key={one} type="button" className="d-chip-opt" onClick={() => void ask(one)}>
+          {/* Emir, 17 Nov: an owner or admin may read anyone's chats. An
+              agent never sees this control, and never sees the list either —
+              `/api/ai/conversations` hands them their own whatever they ask
+              for. */}
+          {past.data?.canSeeEveryone && (
+            <p className="d-tiny d-muted v2-ai2-seen">
+              You can open any agent's chats from
+              {' '}<Link to="/v2/team">Team</Link>. They are told you can.
+            </p>
+          )}
+        </aside>
+
+        {/* The chat. One column, nothing beside it competing for the eye. */}
+        <section className="v2-ai2-chat">
+          {thread.length === 0 ? (
+            <div className="v2-ai2-empty">
+              <span className="v2-ai2-mark"><Icon name="sparkles" size={30} /></span>
+              <h2 className="v2-ai2-hi">
+                {partOfDay()}{firstName ? `, ${firstName}` : ''}.
+              </h2>
+              <p className="v2-ai2-sub">What do you need?</p>
+
+              <div className="v2-ai2-cards">
+                {STARTERS.map((one) => (
+                  <button
+                    key={one.title}
+                    type="button"
+                    className="v2-ai2-card"
+                    onClick={() => void ask(one.ask)}
+                  >
+                    <span className="v2-ai2-cardi"><Icon name={one.icon} size={19} /></span>
+                    <span className="v2-ai2-cardt">{one.title}</span>
+                    <span className="v2-ai2-cards2">{one.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {urgent && (
+                <button type="button" className="v2-ai2-now" onClick={() => void ask('What needs me now?')}>
+                  <Icon name="zap" size={15} />
+                  <span>{urgent.title}. {urgent.why}</span>
+                </button>
+              )}
+
+              <div className="v2-ai2-more">
+                {suggestions.slice(0, 4).map((one) => (
+                  <button key={one} type="button" className="v2-ai2-chip" onClick={() => void ask(one)}>
                     {one}
                   </button>
                 ))}
               </div>
             </div>
+          ) : (
+            <div className="v2-ai2-msgs">
+              {thread.map((turn, i) => (
+                <div
+                  key={`${turn.who}-${i}`}
+                  className={turn.who === 'me' ? 'v2-ai2-turn v2-ai2-mine' : 'v2-ai2-turn'}
+                >
+                  {turn.who === 'ai' && (
+                    <span className="v2-ai2-who"><Icon name="sparkles" size={15} /></span>
+                  )}
+                  <div className="v2-ai2-body">
+                    <div className={turn.failed ? 'v2-ai2-bub v2-bub-bad' : 'v2-ai2-bub'}>
+                      <Answer body={turn.body} />
+                    </div>
+                    {(turn.drafts ?? []).map((draft, d) => (
+                      <DraftCard key={`${i}-${d}`} draft={draft} />
+                    ))}
+                    {turn.tools && turn.tools.length > 0 && (
+                      /* What it read, said out loud. An answer nobody can
+                         check is an answer nobody should act on. */
+                      <span className="d-tiny d-muted v2-ai2-read">
+                        Read: {turn.tools.map((one) => one.replace(/_/g, ' ')).join(', ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {busy && (
+                <div className="v2-ai2-turn">
+                  <span className="v2-ai2-who"><Icon name="sparkles" size={15} /></span>
+                  <div className="v2-ai2-bub">
+                    <span className="d-dots"><i /><i /><i /></span>
+                  </div>
+                </div>
+              )}
+              <div ref={bottom} />
+            </div>
           )}
 
+          {/* Pinned to the bottom, the way every chat anybody uses is. On the
+              phone this was below five stacked buttons and a card: you
+              scrolled to type. */}
           <form
-            className="d-ai-form"
+            className="v2-ai2-form"
             onSubmit={(e) => { e.preventDefault(); void ask(asking); }}
           >
-            <div className={empty ? 'd-ai-input d-bad' : 'd-ai-input'}>
+            <div className={empty ? 'v2-ai2-input v2-ai2-bad' : 'v2-ai2-input'}>
               <input
                 type="text"
                 maxLength={300}
@@ -247,95 +379,125 @@ export function V2Ai() {
                 aria-label="Ask Homes AI"
                 placeholder={seesEveryone
                   ? 'Ask about the team, the leads or today'
-                  : 'Ask about your leads, your day or a project'}
+                  : 'Ask, or say "write a WhatsApp to…"'}
                 value={asking}
                 onChange={(e) => { setAsking(e.target.value); setEmpty(false); }}
               />
-              {/* The word is hidden at 390px, where the button was eating
-                  the field: the arrow and the aria-label say enough. */}
-              <button type="submit" className="d-btn d-primary" disabled={busy} aria-label="Ask">
-                <Icon name="arrow-up-right" size={15} />
-                <span className="v2-c-ask-word">Ask</span>
+              <button
+                type="submit"
+                className="v2-ai2-send"
+                disabled={busy || asking.trim().length === 0}
+                aria-label="Ask"
+              >
+                <Icon name="arrow-up" size={17} />
               </button>
             </div>
-            <div className="d-row d-between">
-              {empty && <span className="d-ai-err">Write a question first.</span>}
-              <span className="d-small d-muted">
-                {seesEveryone
-                  ? 'It answers from your own data. It never sends a message.'
-                  : 'Homes AI reads only your own leads. It never sends a message for you.'}
-              </span>
-              <span className="d-small d-muted">Enter to ask</span>
-            </div>
+            <p className="d-tiny d-muted v2-ai2-foot">
+              {empty
+                ? <span className="d-ai-err">Write a question first.</span>
+                : seesEveryone
+                  ? 'Reads your own CRM only. It never sends a message to anyone.'
+                  : 'Reads only your own leads. It never sends a message for you.'}
+            </p>
           </form>
         </section>
-
-        <aside className="d-col d-gap-16">
-          <section className="d-card d-hero">
-            <span className="d-label">Homes AI tip for now</span>
-            <p className="d-ai-tip">
-              {tip.error && 'The tip needs the day’s numbers, and they did not load.'}
-              {!tip.error && !tip.data && 'Counting…'}
-              {urgent && `${urgent.title}. ${urgent.why}`}
-              {tip.data && !urgent && (tip.data.allClear?.title ?? 'Nothing is waiting on you.')}
-            </p>
-            {urgent && (
-              <div className="d-card-foot">
-                <Link className="d-btn d-sm d-on-dark" to={inV2(urgent.href)}>
-                  Open the list <Icon name="arrow-right" size={15} />
-                </Link>
-              </div>
-            )}
-          </section>
-
-          <section className="d-card">
-            <div className="d-card-head"><h4>What it can do</h4></div>
-            <div className="d-col d-gap-8 d-small d-ink-2">
-              <Can yes>Find leads that need a call, a follow-up or a next step</Can>
-              <Can yes>Explain a project: price, payment plan, pitch</Can>
-              <Can yes>Write a message draft. You read it, change it and press send yourself.</Can>
-              <Can yes>
-                Prices, payment plans and handover dates come straight from the project library.
-                It leaves a figure blank rather than guessing, and it never promises a return.
-              </Can>
-              <Can>It never sends a message, never changes a lead and never calls a client</Can>
-              {!seesEveryone && <Can>It cannot see the leads of other agents</Can>}
-            </div>
-          </section>
-
-          <section className="d-card d-flat">
-            <div className="d-card-head"><h4>You asked before</h4></div>
-            <div className="d-col d-gap-4">
-              {before.length === 0 && (
-                <p className="d-small d-muted">
-                  Nothing yet. Your own questions are kept on this device, so you can ask one again.
-                </p>
-              )}
-              {before.map((one) => (
-                <button key={one} type="button" className="d-hist" onClick={() => void ask(one)}>
-                  <Icon name="clock" size={14} />
-                  <span>{one}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
   );
 }
 
-/* ── the pieces ────────────────────────────────────────────────────────── */
+/* ── when it writes you a message ──────────────────────────────────────── */
 
-/** The opening line, in the design's own bubble. */
-function Said({ children }: { children: ReactNode }) {
+/**
+ * A draft, as a card with a way to send it.
+ *
+ * The button opens WhatsApp — or the mail app — with the words already in
+ * it, and the agent presses send there. That is the whole safety story in one
+ * sentence: the CRM never has a path that puts these words in front of a
+ * client without a person pressing send on their own device. CLAUDE.md's hard
+ * rule, held in the shape of the thing rather than only in the prompt.
+ */
+function DraftCard({ draft }: { draft: Draft }) {
+  const [copied, setCopied] = useState(false);
+  const isWa = draft.channel === 'whatsapp';
+  const digits = (draft.phone ?? '').replace(/[^\d]/g, '');
+
+  const href = isWa
+    ? (digits ? `https://wa.me/${digits}?text=${encodeURIComponent(draft.body)}` : null)
+    : (draft.email
+      ? `mailto:${draft.email}?subject=${encodeURIComponent(draft.subject ?? '')}`
+        + `&body=${encodeURIComponent(draft.body)}`
+      : null);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(draft.body);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch { /* a browser that refuses the clipboard; the text is on screen */ }
+  }
+
   return (
-    <div className="d-msg d-ai">
-      <span className="d-who"><Icon name="sparkles" size={15} /></span>
-      <div className="d-bub"><p>{children}</p></div>
+    <div className="v2-ai2-draft">
+      <div className="v2-ai2-drafthd">
+        <span className={isWa ? 'v2-ai2-dchan v2-ai2-dwa' : 'v2-ai2-dchan'}>
+          <Icon name={isWa ? 'message-circle' : 'mail'} size={14} />
+          {isWa ? 'WhatsApp' : 'Email'}
+        </span>
+        <span className="d-grow v2-ai2-dto">to {draft.name ?? 'this lead'}</span>
+        <Link className="v2-ai2-dlead" to={`/v2/leads/${draft.contactId}`}>Open lead</Link>
+      </div>
+
+      {draft.subject && <p className="v2-ai2-dsub">{draft.subject}</p>}
+      <p className="v2-ai2-dbody">{draft.body}</p>
+
+      <div className="v2-ai2-dacts">
+        <button type="button" className="v2-ai2-dcopy" onClick={() => void copy()}>
+          <Icon name={copied ? 'check' : 'copy'} size={14} />
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <span className="d-grow" />
+        {href ? (
+          <a className="v2-ai2-dsend" href={href} target="_blank" rel="noreferrer">
+            <Icon name="arrow-up-right" size={14} />
+            {isWa ? 'Open WhatsApp' : 'Open email'}
+          </a>
+        ) : (
+          <span className="d-tiny d-muted">
+            No {isWa ? 'number' : 'email address'} on this lead — copy it instead.
+          </span>
+        )}
+      </div>
+      <p className="d-tiny d-muted v2-ai2-dnote">
+        Read it, change it, and press send yourself. Homes AI never sends it.
+      </p>
     </div>
   );
 }
+
+/** "Good morning" and the rest, on Dubai's clock. */
+function partOfDay(): string {
+  /* Dubai is UTC+4 all year, so a fixed offset is right here — the same
+     assumption `v2/dubai.ts` makes, deliberately. */
+  const hour = new Date(Date.now() + 4 * 3600_000).getUTCHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** "2h ago", "Yesterday", "14 Nov" — short enough for the rail. */
+function when(at: string): string {
+  const then = new Date(at).getTime();
+  if (!Number.isFinite(then)) return '';
+  const mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`;
+  if (mins < 60 * 48) return 'Yesterday';
+  return new Date(then).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/* ── the pieces ────────────────────────────────────────────────────────── */
 
 /**
  * The model's answer, as text.
@@ -415,48 +577,4 @@ function linked(line: string, key: string): ReactNode[] {
   if (n === 0) return [line];
   out.push(line.slice(at));
   return out;
-}
-
-function Can({ yes, children }: { yes?: boolean; children: ReactNode }) {
-  return (
-    <div className="d-row d-top d-gap-8">
-      <Icon name={yes ? 'check' : 'x'} size={15} className={yes ? 'd-t-green' : 'd-t-red'} />
-      <span>{children}</span>
-    </div>
-  );
-}
-
-/* ── small things ──────────────────────────────────────────────────────── */
-
-/**
- * The tip card's link, in v2.
- *
- * `/api/activity/do-now` was written for the old screens and sends their
- * paths. The lead lists it points at exist here under `/v2`, with the same
- * tab names — except "hot", which v2's All leads does not have, so that one
- * opens the whole list rather than a tab that would silently do nothing.
- */
-const V2_TABS = ['today', 'new', 'overdue', 'no_next_step', 'vip', 'lost', 'all'];
-
-function inV2(href: string): string {
-  if (!href.startsWith('/leads')) return href;
-  const tab = /[?&]tab=([^&]+)/.exec(href)?.[1] ?? '';
-  return V2_TABS.includes(tab) ? `/v2/leads?tab=${tab}` : '/v2/leads';
-}
-
-/** The last five questions, newest first. */
-function readAsked(): string[] {
-  try {
-    const raw = localStorage.getItem(ASKED_BEFORE);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((one): one is string => typeof one === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberAsked(question: string): string[] {
-  const next = [question, ...readAsked().filter((one) => one !== question)].slice(0, 5);
-  try { localStorage.setItem(ASKED_BEFORE, JSON.stringify(next)); } catch { /* private window */ }
-  return next;
 }
