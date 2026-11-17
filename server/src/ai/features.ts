@@ -40,6 +40,14 @@ export const AI_FEATURES = {
     title: 'Answer questions in Homes AI chat',
     note: 'Agents ask about their own leads. Owners ask about the team.',
   },
+  /* The one feature here that reaches outside the CRM, and the one that
+     costs money by the search rather than by the token. It is on by default
+     like the rest, and the monthly cap stops it with everything else. */
+  web: {
+    name: 'AI_CAN_WEB' as SettingName,
+    title: 'Look things up on the web',
+    note: 'Dubai market news and transactions, always with the link. About 1 fil a search.',
+  },
 } as const;
 
 export type AiFeature = keyof typeof AI_FEATURES;

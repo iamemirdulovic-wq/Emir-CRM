@@ -1381,7 +1381,7 @@ const attendanceState = {
 
 const aiState = {
   capUsd: 100,
-  features: { summary: true, bestTime: true, voice: true, brief: true, chat: true } as Record<string, boolean>,
+  features: { summary: true, bestTime: true, voice: true, brief: true, chat: true, web: true } as Record<string, boolean>,
 };
 
 const knowledgeState = {
@@ -2144,6 +2144,18 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/api\/ai\/ask$/, handler: ({ body }) => {
     const asked = String((body as { question?: string } | null)?.question ?? '');
     const wantsMessage = /whatsapp|message|email|write/i.test(asked);
+    const wantsMarket = /market|transaction|dubai|price.*(now|month)|sold/i.test(asked) && !wantsMessage;
+    if (wantsMarket) {
+      return {
+        conversationId: 'c-new',
+        model: 'claude-haiku-5-5',
+        toolsUsed: ['the web'],
+        drafts: [],
+        answer: 'Property Monitor puts Dubai Marina at about AED 1,950 per sq ft in October 2026, '
+          + 'up roughly 4% on the quarter. That is the market, not our price list \u2014 for what '
+          + 'we are actually selling, ask me about the project and I will read it from the library.',
+      };
+    }
     return {
       conversationId: 'c-new',
       model: 'claude-haiku-5-5',
@@ -2793,6 +2805,7 @@ const ROUTES: Route[] = [
       { key: 'voice', name: 'AI_CAN_VOICE', title: 'Turn voice notes into text', note: 'And find fields like budget and unit: "Save 4 to lead"' },
       { key: 'brief', name: 'AI_CAN_BRIEF', title: 'Write the morning brief for owners', note: 'One short text on the dashboard at 08:30' },
       { key: 'chat', name: 'AI_CAN_CHAT', title: 'Answer questions in Homes AI chat', note: 'Agents ask about their own leads. Owners ask about the team.' },
+      { key: 'web', name: 'AI_CAN_WEB', title: 'Look things up on the web', note: 'Dubai market news and transactions, always with the link. About 1 fil a search.' },
     ],
   }) },
   { method: 'PUT', pattern: /^\/api\/ai\/limits$/, handler: ({ body }) => {

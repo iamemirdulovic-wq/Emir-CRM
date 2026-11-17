@@ -73,6 +73,7 @@ export type SettingName =
   | 'AI_CAN_VOICE'
   | 'AI_CAN_BRIEF'
   | 'AI_CAN_CHAT'
+  | 'AI_CAN_WEB'
   /* The office's own rules — see `v2/office-rules.ts`. The take-back clock
      first, because it is the one rule that takes a lead off an agent. */
   | 'TAKEBACK_ENABLED'

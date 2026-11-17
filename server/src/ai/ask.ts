@@ -25,6 +25,7 @@ import { badRequest } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 import { claudeModel, explain } from './anthropic.js';
 import { runTool, TOOLS, type Asker, type Draft } from './ask-tools.js';
+import { aiFeatureOn } from './features.js';
 import { AI_NAME, AI_SETTINGS } from './name.js';
 
 /** How many times the model may call a tool before it has to answer. */
@@ -40,9 +41,11 @@ about this brokerage's leads, agents or projects except through them.
 
 The rules, in order of importance:
 
-1. NEVER state a price, a handover date, a payment plan or an availability that did not come back
-   from the get_projects tool. Not one you remember, not one that sounds right. If the tool does
-   not have it, say the project's details are not filled in yet.
+1. NEVER state a price, a handover date, a payment plan or an availability for one of OUR projects
+   that did not come back from the get_projects tool. Not one you remember, not one that sounds
+   right, and NEVER one you found on the web. If the tool does not have it, say the project's
+   details are not filled in yet. The web is for what the market is doing; get_projects is the
+   only source for what we are selling and at what price.
 2. NEVER promise or imply a return, a yield, a rental figure or that a price will rise. That is
    regulated in the UAE and the brokerage carries the liability.
 3. If the tools do not answer the question, say so plainly. "I could not find that" is a good
@@ -59,7 +62,16 @@ The rules, in order of importance:
    button, so repeating it just makes them read it twice. Say one line about why you wrote it
    that way, and stop. Write in the language that lead speaks.
 10. You never send anything. A draft goes to the agent, who reads it, changes it and sends it
-   themselves. Never say or imply that you have sent, messaged or contacted anyone.`;
+   themselves. Never say or imply that you have sent, messaged or contacted anyone.
+11. web_search is for the market outside this CRM: what is selling in Dubai and Abu Dhabi,
+   developer news, area trends, rules and fees. Use it when the question is about the market
+   rather than about us, and when you genuinely do not know — not to check something the tools
+   already answered.
+12. Anything you got from the web, say so in the same sentence and name the source: "Property
+   Monitor says…", "according to Bayut…". Say the date it refers to. A market figure with no
+   source is worse than no answer, because an agent will repeat it to a buyer as ours.
+13. Never put a web figure into a message you draft for a client. Drafts may carry our own
+   project's numbers from get_projects, and nothing else.`;
 
 export type AskResult = {
   answer: string;
@@ -98,11 +110,34 @@ export async function ask(
   /* The same declarations, in Claude's spelling. `parameters` is already a
      JSON Schema object, which is exactly what `input_schema` wants, so the
      tools themselves did not have to change when the provider did. */
-  const tools: Anthropic.Tool[] = TOOLS.map((tool) => ({
+  const tools: Anthropic.ToolUnion[] = TOOLS.map((tool) => ({
     name: tool.name,
     description: tool.description,
     input_schema: tool.parameters as Anthropic.Tool.InputSchema,
   }));
+
+  /*
+   * The web, when the owner leaves it on.
+   *
+   * `web_search_20250305` on purpose rather than a newer variant: from
+   * `web_search_20260209` onwards the tool defaults to being callable only
+   * from inside code execution, and a model without that returns a 400. The
+   * basic one is the one that works on every model this setting can name.
+   *
+   * It runs on Anthropic's side — nothing here fetches a page — and it costs
+   * about a fil a search, counted below against the owner's monthly cap.
+   */
+  const onTheWeb = await aiFeatureOn('web');
+  if (onTheWeb) {
+    tools.push({
+      type: 'web_search_20250305',
+      name: 'web_search',
+      /* Three is enough for "what sold in Marina last month" and is the
+         difference between a question and an afternoon's browsing. */
+      max_uses: 3,
+      user_location: { type: 'approximate', country: 'AE', city: 'Dubai', timezone: 'Asia/Dubai' },
+    });
+  }
 
   // The brokerage's own words, so the answers sound like them.
   const knowledge = await buildKnowledge('ask');
@@ -147,12 +182,32 @@ export async function ask(
       model,
       inputTokens: reply.usage.input_tokens,
       outputTokens: reply.usage.output_tokens,
+      /* Billed per search, not per token, so the cap has to be told. */
+      searches: reply.usage.server_tool_use?.web_search_requests ?? 0,
       ok: true,
     });
+
+    /*
+     * A long search can pause the turn. The answer is not finished and there
+     * is nothing for us to do: hand the same content straight back and let it
+     * carry on. Treating this as "no tool calls, so it must be the answer"
+     * would cut it off mid-search and show the half of it that exists.
+     */
+    if (reply.stop_reason === 'pause_turn') {
+      messages.push({ role: 'assistant', content: reply.content });
+      continue;
+    }
 
     const calls = reply.content.filter(
       (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
     );
+
+    /* "Read: the web" under the answer, the same as every other source. An
+       answer from outside the CRM must never look like one from inside it. */
+    if (reply.content.some((block) => block.type === 'web_search_tool_result')
+      && !toolsUsed.includes('the web')) {
+      toolsUsed.push('the web');
+    }
 
     if (calls.length === 0) {
       const answer = reply.content

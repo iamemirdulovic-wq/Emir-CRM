@@ -2,6 +2,45 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Homes AI can look outside the CRM
+
+17 November, later. Emir asked whether it was finished, and listed what he
+wanted it to answer: the leads, the company, our projects — and *"something
+Dubai, latest transaction"*. The first three were built. The fourth was not,
+and could not be: Homes AI reads our own database and nothing else, so a
+question about the Dubai market got "I could not find that". Told to pick,
+the choice was web search over leaving it — the alternative was not building
+the thing he asked for.
+
+`web_search_20250305`, declared on the request, run on Anthropic's side. The
+basic variant on purpose: from `web_search_20260209` onwards the tool is
+callable only from inside code execution unless told otherwise, and a model
+without that answers 400 — and the model here is a setting, so the tool has
+to be the one that works on all of them.
+
+**The seam between the two sources is the whole risk**, and it is where the
+work went. A figure off a portal that an agent repeats to a buyer is the
+brokerage's word. So: rule 1 now says the web is never a price of ours —
+`get_projects` is the only source for what we sell and at what price, and the
+web is only for what the market is doing. Rule 12 makes it name its source in
+the same sentence. Rule 13 keeps a web figure out of any message it drafts
+for a client. The answer carries **Read: the web** underneath, beside the
+tools it read, so an answer from outside the CRM never looks like one from
+inside it. `web-search.test.ts` holds all of that.
+
+Two things that would otherwise have gone wrong quietly:
+
+- **A search costs $10 per thousand, billed whatever comes back** — more than
+  a whole Haiku answer. The monthly cap counted tokens, so it would not have
+  seen this spend at all. `recordUsage` takes a `searches` count now and
+  prices it at a cent each, which puts it in the same ledger, the same cap
+  and the same per-feature bar as everything else.
+- **"Reads your own CRM only"**, under the typing box, stopped being true the
+  moment this shipped. It is the one sentence everybody on that screen reads.
+
+It is a switch — *Look things up on the web* — beside the other five in
+Settings → Homes AI, on by default like the rest, and off is one tap.
+
 ## Homes AI is one thing, and it writes your messages
 
 17 November. Emir typed "hello" into the glowing orb in the corner and was

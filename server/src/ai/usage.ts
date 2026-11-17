@@ -16,6 +16,9 @@ import { logger } from '../lib/logger.js';
 
 const MICROS_PER_DOLLAR = 1_000_000;
 
+/** $10 per 1,000 web searches — one cent each, whatever comes back. */
+const SEARCH_MICROS = 10_000;
+
 /**
  * Price per million tokens, in micro-dollars.
  *
@@ -123,10 +126,19 @@ export async function recordUsage(
     inputTokens: number;
     outputTokens: number;
     ok?: boolean;
+    /**
+     * Web searches this call made.
+     *
+     * Priced apart from the tokens because Anthropic bills them apart: $10
+     * per thousand, whatever the answer was. A cap that counted only tokens
+     * would not see this spend at all.
+     */
+    searches?: number;
   },
   exec: Executor = getPool(),
 ): Promise<void> {
-  const cost = estimateCostMicros(input.model, input.inputTokens, input.outputTokens);
+  const cost = estimateCostMicros(input.model, input.inputTokens, input.outputTokens)
+    + (input.searches ?? 0) * SEARCH_MICROS;
   await execute(
     `INSERT INTO ai_usage (id, user_id, feature, model, input_tokens, output_tokens, cost_micros, ok)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

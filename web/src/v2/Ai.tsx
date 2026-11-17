@@ -95,6 +95,7 @@ interface DoNow {
 /** The design's own suggested questions, one set per role. */
 const TRY_OWNER = [
   'What needs me now?',
+  'What is happening in the Dubai market this month?',
   'Which VIP leads are not called?',
   'Who has too many leads?',
   'How is today against yesterday?',
@@ -110,6 +111,7 @@ const TRY_OWNER = [
  */
 const TRY_AGENT = [
   'Who should I call first?',
+  'What are prices doing in Dubai Marina right now?',
   'Which of my leads have no next step?',
   'What is my day today?',
   'Which of my leads are going cold?',
@@ -393,11 +395,15 @@ export function V2Ai() {
               </button>
             </div>
             <p className="d-tiny d-muted v2-ai2-foot">
+              {/* "Reads your own CRM only" stopped being true the moment it
+                  could search the web. The line under the box is the one
+                  sentence everybody on this screen reads, so it is the one
+                  that most has to be right. */}
               {empty
                 ? <span className="d-ai-err">Write a question first.</span>
                 : seesEveryone
-                  ? 'Reads your own CRM only. It never sends a message to anyone.'
-                  : 'Reads only your own leads. It never sends a message for you.'}
+                  ? 'Reads your own CRM, and the web for market questions. It never sends a message.'
+                  : 'Reads only your own leads, and the web for market questions. It never sends a message for you.'}
             </p>
           </form>
         </section>
