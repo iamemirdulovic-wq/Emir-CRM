@@ -759,10 +759,12 @@
 .v2-walk-bar a{ text-decoration:none; }
 .v2-walk-bar a:hover{ text-decoration:none; }
 .v2-next-lead{ white-space:nowrap; }
-.v2-next-lead .v2-walk-name{ max-width:180px; overflow:hidden; text-overflow:ellipsis; display:inline-block; vertical-align:bottom; }
+.v2-next-lead .v2-walk-name{ max-width:260px; overflow:hidden; text-overflow:ellipsis; display:inline-block; vertical-align:bottom; }
+.v2-next-lead .v2-walk-short{ display:none; }
 @media (max-width:767px){
   .v2-walk-bar{ position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; }
   .v2-next-lead .v2-walk-name{ display:none; }
+  .v2-next-lead .v2-walk-short{ display:inline; }
 }
 .v2-back-row{ margin:4px 0 0; }
 .v2-back-row a{ font-size:13px; color:var(--accent-ink); text-decoration:none; font-weight:600; }

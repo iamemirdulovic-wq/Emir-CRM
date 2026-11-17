@@ -364,7 +364,10 @@ export function V2Lead() {
                 to={`/v2/leads/${encodeURIComponent(place.next.id)}`}
                 title={place.next.name ? `Next: ${place.next.name}` : 'Next lead'}
               >
-                Next lead<span className="v2-walk-name">{place.next.name ? `: ${place.next.name}` : ''}</span>
+                {/* One text run, so the button's flex gap cannot open a space
+                    before the colon; the phone shows the short label. */}
+                <span className="v2-walk-name">{place.next.name ? `Next lead: ${place.next.name}` : 'Next lead'}</span>
+                <span className="v2-walk-short">Next lead</span>
                 <Icon name="arrow-right" />
               </Link>
             )
