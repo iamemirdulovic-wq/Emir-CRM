@@ -125,6 +125,21 @@ export async function heartbeat(
     exec,
   );
 
+  /*
+   * The same capped gap, credited to today's row as well (Dubai's day,
+   * `activity_days`). Read before `session_log` moves its `last_seen_at`
+   * on, so both totals grow by the same seconds. A beat that crosses
+   * midnight puts its gap on the new day, which is at most two minutes.
+   */
+  const gap = await queryOne<{ user_id: string; seconds: number }>(
+    `SELECT user_id, LEAST(GREATEST(TIMESTAMPDIFF(SECOND, last_seen_at, NOW(3)), 0), ?) AS seconds
+       FROM session_log
+      WHERE session_id = ? AND signed_out_at IS NULL
+      ORDER BY signed_in_at DESC LIMIT 1`,
+    [HEARTBEAT_MAX_GAP_SECONDS, sessionId],
+    exec,
+  );
+
   await execute(
     `UPDATE session_log
         SET active_seconds = active_seconds + LEAST(
@@ -134,6 +149,17 @@ export async function heartbeat(
     [HEARTBEAT_MAX_GAP_SECONDS, sessionId],
     exec,
   );
+
+  if (gap) {
+    await execute(
+      `INSERT INTO activity_days (user_id, on_date, active_seconds, first_at, last_at)
+       VALUES (?, DATE(CONVERT_TZ(NOW(3), '+00:00', '+04:00')), ?, NOW(3), NOW(3))
+       ON DUPLICATE KEY UPDATE active_seconds = active_seconds + VALUES(active_seconds),
+                               last_at = NOW(3)`,
+      [gap.user_id, Number(gap.seconds) || 0],
+      exec,
+    ).catch((err: unknown) => logger.warn('could not record the day\'s activity', errorContext(err)));
+  }
 }
 
 export async function recordSignOut(sessionId: string, exec: Executor = getPool()): Promise<void> {

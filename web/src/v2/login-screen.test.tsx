@@ -139,7 +139,8 @@ describe('the brand panel', () => {
   it('builds the cards from a constant, not from a request', () => {
     /* The DOM check above passes just as well on a screen that fetches and
        renders nothing yet. This is what pins the cards to fixed text. */
-    expect(CODE).toMatch(/const PREVIEW: Array<\{ title: string; line: string; accent\?: boolean \}>/);
+    /* Fixed text in both languages, in the one words table (`WORDS`). */
+    expect(CODE).toMatch(/const WORDS = \{[\s\S]*preview: \[[\s\S]*\} as const;/);
     expect(CODE).not.toMatch(/useAsync|\/api\/v2\//);
   });
 });

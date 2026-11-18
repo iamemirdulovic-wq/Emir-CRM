@@ -138,3 +138,6 @@
 }
 
 .v2 .d-panel-foot.v2-qp-foot .d-btn { flex: none; }
+
+/* Next lead in the panel head (Emir, 17 Nov 2026). */
+.v2-qp-next-lead{ white-space:nowrap; }

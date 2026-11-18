@@ -2885,11 +2885,10 @@ const ROUTES: Route[] = [
   }) },
 
   { method: 'GET', pattern: /^\/api\/v2\/badges$/, handler: () => {
-    const rows = myLeadRows();
-    const now = Date.now();
     return {
       incoming: 6,
-      followups: rows.filter((r) => r.next_step_at !== null && new Date(r.next_step_at).getTime() < now).length,
+      /* What the Follow-ups tab lists: open tasks against a lead, overdue. */
+      followups: TASKS.filter((t) => t.leadId && !t.completed && t.dueMinutesFromNow < 0).length,
       transfers: 1,
       tasks: 3,
       leave: currentUser().role === 'agent' ? 0 : 2,

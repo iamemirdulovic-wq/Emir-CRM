@@ -33,6 +33,7 @@ const KEPT = new Map([
   ['pipelines', 'seeded once by prepareTestDatabase; every test needs the default pipeline'],
   ['pipeline_stages', 'seeded with it — a test with no stages cannot move a lead anywhere'],
   ['first_touch_repair', 'a one-off record of what migration 0026 changed, so the repair can be undone'],
+  ['reopened_status_repair', 'a one-off record of what migration 0042 changed, so the repair can be undone'],
 ]);
 
 function tablesInMigrations(): string[] {

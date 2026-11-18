@@ -19,13 +19,12 @@ import {
 } from '../../v2/incoming.js';
 import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
-import { leadTabCounts } from '../../leads/counts.js';
 import { isLeadTab, type LeadTab } from '../../leads/tabs.js';
 import {
   allLeave, answerLeave, askForLeave, cancelLeave, LEAVE_KINDS, leaveTakenThisYear, myLeave,
 } from '../../v2/leave.js';
 import { attendanceMonth, dayState, dubaiDate } from '../../attendance/attendance.js';
-import { tasksInRange } from '../../services/tasks.js';
+import { OPEN_TASK, tasksInRange } from '../../services/tasks.js';
 import { ownerPredicate } from '../../auth/scope.js';
 import { execute } from '../../db/client.js';
 import {
@@ -330,9 +329,20 @@ v2Router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
     const isAgent = user.role === 'agent';
-    const visible = await visibleUserIds(user);
-    const [counts, free, transfers, tasks, leave] = await Promise.all([
-      leadTabCounts(visible),
+    const [followups, free, transfers, tasks, leave] = await Promise.all([
+      /*
+       * Follow-ups opens the Tasks page's Follow-ups tab, which lists the
+       * caller's own open tasks against a lead, Overdue first. The badge used
+       * to be the leads list's Overdue tab (leads whose next step had passed),
+       * so it said 136 over a page that said 0 — the v2 test, 16 Nov 2026.
+       * Same rows as `FollowUps` in Tasks.tsx: mine, against a lead, overdue.
+       */
+      queryOne<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM tasks t
+          WHERE t.assigned_user_id = ? AND t.opportunity_id IS NOT NULL
+            AND ${OPEN_TASK} AND t.due_at < NOW(3)`,
+        [user.id],
+      ),
       queryOne<{ n: number }>(
         `SELECT COUNT(*) AS n FROM opportunities
           WHERE status = 'open' AND owner_user_id IS NULL AND deleted_at IS NULL`,
@@ -344,8 +354,8 @@ v2Router.get(
         isAgent ? [user.id] : [],
       ),
       queryOne<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM tasks
-          WHERE assigned_user_id = ? AND completed_at IS NULL AND due_at < NOW(3)`,
+        `SELECT COUNT(*) AS n FROM tasks t
+          WHERE t.assigned_user_id = ? AND ${OPEN_TASK} AND t.due_at < NOW(3)`,
         [user.id],
       ),
       isAgent
@@ -357,7 +367,7 @@ v2Router.get(
 
     res.json({
       incoming: Number(free?.n ?? 0),
-      followups: counts.overdue,
+      followups: Number(followups?.n ?? 0),
       transfers: Number(transfers?.n ?? 0),
       tasks: Number(tasks?.n ?? 0),
       leave: Number(leave?.n ?? 0),

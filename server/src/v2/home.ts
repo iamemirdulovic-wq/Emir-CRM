@@ -866,9 +866,9 @@ export async function ownerHome(
     ),
     /* How long the first answer took, over the window's new leads. */
     query<{ seconds: number }>(
-      `SELECT TIMESTAMPDIFF(SECOND, created_at, first_response_at) AS seconds
+      `SELECT TIMESTAMPDIFF(SECOND, created_at, first_touch_at) AS seconds
          FROM opportunities
-        WHERE deleted_at IS NULL AND first_response_at IS NOT NULL
+        WHERE deleted_at IS NULL AND first_touch_at IS NOT NULL
           AND created_at >= ${w.from} AND created_at < ${w.to}`,
     ),
     /* The free leads, oldest first: the Incoming row names the first three. */

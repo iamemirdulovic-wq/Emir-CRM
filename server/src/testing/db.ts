@@ -220,6 +220,7 @@ export const TRUNCATE_ORDER = [
   'login_links',
   'sessions',
   'session_log',
+  'activity_days',
   'notifications',
   'audit_log',
   // Step 10 — email, children first.

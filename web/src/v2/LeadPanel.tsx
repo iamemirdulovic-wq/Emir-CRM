@@ -81,8 +81,10 @@ interface Brief {
  * optional, and until the list wires them the keys simply do nothing.
  */
 export function LeadPanel({
-  row, book, onClose, onGive, dial, onPrev, onNext, onChanged,
+  row, book, onClose, onGive, dial, onPrev, onNext, onChanged, isLast = false,
 }: {
+  /** This is the bottom lead in the list, so Next lead has nowhere to go. */
+  isLast?: boolean;
   row: Row;
   book: boolean;
   onClose: () => void;
@@ -268,6 +270,19 @@ export function LeadPanel({
           <Link className="d-btn d-sm" to={to}>
             <Icon name="external-link" />Open full page
           </Link>
+          {/* Emir, 17 Nov 2026: a button for the next lead, so nobody has to
+              know about the arrow keys or go back out to the list. */}
+          {onNext && (
+            <button
+              type="button"
+              className="d-btn d-sm d-primary v2-qp-next-lead"
+              disabled={isLast}
+              title={isLast ? 'This is the last lead in the list' : 'Next lead (↓)'}
+              onClick={onNext}
+            >
+              Next lead<Icon name="arrow-right" />
+            </button>
+          )}
           <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
             <Icon name="x" />
           </button>
@@ -561,7 +576,7 @@ function InShort({ lead, brief, loading }: {
   const what = [lead.project_name, lead.unit_type, budget(lead)].filter(Boolean).join(' · ');
   const spoke = lead.last_contact_at
     ? `Last spoken to ${moment(lead.last_contact_at).toLowerCase()}`
-    : 'Not called yet';
+    : lead.stage_key === 'new_lead' ? 'Not called yet' : 'Not reached yet';
 
   return (
     <div className="v2-qp-short">
