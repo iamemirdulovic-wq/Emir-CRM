@@ -69,6 +69,29 @@ describe('the web', () => {
     expect(src).toContain("reply.stop_reason === 'pause_turn'");
   });
 
+  it('never lets the web tool take the whole chat down', async () => {
+    /*
+     * The first hour this shipped, every question came back "Claude refused
+     * that request (error 400)" -- including the ones that had nothing to do
+     * with the market. Which models accept which search variant is
+     * Anthropic's to change and ours to survive: the tool comes off and the
+     * question is asked again without it.
+     */
+    const src = await read('./ask.ts');
+    expect(src).toContain('err instanceof Anthropic.BadRequestError && onTheWeb');
+    expect(src).toContain('dropTheWeb()');
+    /* And it is remembered, or every later question pays the same failed
+       round trip before working. */
+    expect(src).toContain('webSearchRefused.add(model)');
+    expect(src).toContain('!webSearchRefused.has(model)');
+  });
+
+  it('tells an owner what the API actually said, and an agent nothing of the sort', async () => {
+    const src = await read('./ask.ts');
+    expect(src).toContain("asker.role === 'owner' || asker.role === 'admin'");
+    expect(src).toContain('canFixIt ? `${failure.say} ${failure.detail}` : failure.say');
+  });
+
   it('says "the web" under an answer that used it', async () => {
     const src = await read('./ask.ts');
     expect(src).toContain("toolsUsed.push('the web')");

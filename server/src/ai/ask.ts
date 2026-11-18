@@ -31,6 +31,16 @@ import { AI_NAME, AI_SETTINGS } from './name.js';
 /** How many times the model may call a tool before it has to answer. */
 const MAX_TOOL_ROUNDS = 4;
 
+/**
+ * Models that answered 400 with the web search tool on the request.
+ *
+ * Without this the retry below fixes each question and none of the next
+ * ones: every single ask would pay a failed round trip first. Kept in memory
+ * rather than in the database on purpose — the owner's switch is the owner's,
+ * and a deploy or a model change should let it try again.
+ */
+const webSearchRefused = new Set<string>();
+
 const INSTRUCTION = `You are ${AI_NAME}, the assistant inside a Dubai and Abu Dhabi off-plan real
 estate CRM. You are talking to someone who works at the brokerage — usually a sales agent in the
 middle of their day. Be their assistant, not a search box: say what you would do next and why,
@@ -127,7 +137,7 @@ export async function ask(
    * It runs on Anthropic's side — nothing here fetches a page — and it costs
    * about a fil a search, counted below against the owner's monthly cap.
    */
-  const onTheWeb = await aiFeatureOn('web');
+  let onTheWeb = await aiFeatureOn('web') && !webSearchRefused.has(model);
   if (onTheWeb) {
     tools.push({
       type: 'web_search_20250305',
@@ -135,9 +145,16 @@ export async function ask(
       /* Three is enough for "what sold in Marina last month" and is the
          difference between a question and an afternoon's browsing. */
       max_uses: 3,
-      user_location: { type: 'approximate', country: 'AE', city: 'Dubai', timezone: 'Asia/Dubai' },
+      user_location: { type: 'approximate', country: 'AE', timezone: 'Asia/Dubai' },
     });
   }
+
+  /** Take the web tool back out, leaving the CRM's own tools alone. */
+  const dropTheWeb = () => {
+    onTheWeb = false;
+    const at = tools.findIndex((one) => 'type' in one && String(one.type).startsWith('web_search'));
+    if (at >= 0) tools.splice(at, 1);
+  };
 
   // The brokerage's own words, so the answers sound like them.
   const knowledge = await buildKnowledge('ask');
@@ -169,11 +186,34 @@ export async function ask(
         tools,
       });
     } catch (err) {
-      /* Plain English, every time. The owner can read the exact error under
-         Settings → Homes AI → Test the key; nobody is shown raw JSON here. */
       const failure = explain(err, model);
+
+      /*
+       * A bad request with the web tool on it takes the whole chat down, and
+       * that is exactly what happened the first hour this shipped: every
+       * question came back "Claude refused that request (error 400)",
+       * including the ones that never needed the web. Which models accept
+       * which search variant is Anthropic's to change and ours to survive,
+       * so the tool comes off and the question is asked again without it.
+       * Losing market answers is a worse product; losing Homes AI is no
+       * product.
+       */
+      if (err instanceof Anthropic.BadRequestError && onTheWeb) {
+        logger.warn('Homes AI: dropping web search after a 400 and retrying', {
+          model, error: failure.detail,
+        });
+        webSearchRefused.add(model);
+        dropTheWeb();
+        round -= 1; // this round did not happen
+        continue;
+      }
+
+      /* Plain English for an agent; an owner also gets what the API said,
+         because they are the one who can act on it and "error 400" on its
+         own has already cost an afternoon. */
       logger.warn('Homes AI call failed', { error: failure.detail });
-      throw badRequest(failure.say);
+      const canFixIt = asker.role === 'owner' || asker.role === 'admin';
+      throw badRequest(canFixIt ? `${failure.say} ${failure.detail}` : failure.say);
     }
 
     await recordUsage({
