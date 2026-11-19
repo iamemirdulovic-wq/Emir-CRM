@@ -96,9 +96,9 @@ describe('the reasons a lead can be closed or flagged', () => {
     expect(PROBLEM_REASONS).not.toContain('bought_elsewhere');
   });
 
-  it('has the nine buttons an agent presses', () => {
+  it('has the nine buttons an agent presses, and the undo of Lost', () => {
     expect([...LEAD_ACTIONS].sort()).toEqual([
-      'call', 'call_back', 'interested', 'lost', 'meeting', 'no_answer', 'problem', 'whatsapp', 'won',
+      'call', 'call_back', 'interested', 'lost', 'meeting', 'no_answer', 'problem', 'reopen', 'whatsapp', 'won',
     ]);
   });
 });
