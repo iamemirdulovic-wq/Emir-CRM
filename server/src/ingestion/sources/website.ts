@@ -34,6 +34,8 @@ export const websiteFormSchema = z
     utm_source: z.string().optional(),
     utm_medium: z.string().optional(),
     utm_campaign: z.string().optional(),
+    /** The campaign's name when the site knows it (homes.me names its Google Ads campaign IDs). */
+    campaign_name: z.string().optional(),
     utm_term: z.string().optional(),
     utm_content: z.string().optional(),
     gclid: z.string().optional(),
@@ -126,6 +128,10 @@ export async function normalizeWebsiteLead(payload: WebsiteFormPayload, clientIp
       utmSource: cleanText(payload.utm_source, 160),
       utmMedium: cleanText(payload.utm_medium, 160),
       utmCampaign: cleanText(payload.utm_campaign, 160),
+      // The CRM's Campaign field. A Google Ads click carries only the campaign's ID in utm_campaign, so
+      // homes.me sends the name beside it; without one the ID still shows rather than nothing.
+      campaignId: cleanText(payload.utm_campaign, 64),
+      campaignName: cleanText(payload.campaign_name, 255) ?? cleanText(payload.utm_campaign, 160),
       utmTerm: cleanText(payload.utm_term, 160),
       utmContent: cleanText(payload.utm_content, 160),
       landingPage: cleanText(payload.page_url, 1024),

@@ -310,6 +310,15 @@ describeWithDb('ingestion (integration)', () => {
     expect(opp?.utm_source).toBe('google');
   });
 
+  it("names the campaign when the site sends its name beside the Google Ads campaign ID", async () => {
+    const base = (await fixture('website_form.json')) as Record<string, unknown>;
+    const named = await normalizeWebsiteLead(websiteFormSchema.parse({ ...base, utm_campaign: '24487331931', campaign_name: 'Villas | Search - 11-26 | UAE' }), null, null);
+    expect(named.attribution.campaignId).toBe('24487331931');
+    expect(named.attribution.campaignName).toBe('Villas | Search - 11-26 | UAE');
+    const bare = await normalizeWebsiteLead(websiteFormSchema.parse({ ...base, utm_campaign: '24487331931' }), null, null);
+    expect(bare.attribution.campaignName).toBe('24487331931');
+  });
+
   it('replays the Google Ads lead fixture', async () => {
     const payload = googleLeadSchema.parse(await fixture('google_lead_form.json'));
     const lead = await normalizeGoogleLead(payload);
