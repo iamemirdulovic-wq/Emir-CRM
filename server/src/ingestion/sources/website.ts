@@ -36,6 +36,8 @@ export const websiteFormSchema = z
     utm_campaign: z.string().optional(),
     /** The campaign's name when the site knows it (homes.me names its Google Ads campaign IDs). */
     campaign_name: z.string().optional(),
+    /** The ad group's name when the site knows it (homes.me names its Google Ads ad group IDs). */
+    adgroup_name: z.string().optional(),
     utm_term: z.string().optional(),
     utm_content: z.string().optional(),
     gclid: z.string().optional(),
@@ -132,6 +134,9 @@ export async function normalizeWebsiteLead(payload: WebsiteFormPayload, clientIp
       // homes.me sends the name beside it; without one the ID still shows rather than nothing.
       campaignId: cleanText(payload.utm_campaign, 64),
       campaignName: cleanText(payload.campaign_name, 255) ?? cleanText(payload.utm_campaign, 160),
+      // A Google Ads ad group is what Meta calls an ad set: utm_content carries its ID, homes.me its name.
+      adsetId: cleanText(payload.utm_content, 64),
+      adsetName: cleanText(payload.adgroup_name, 255),
       utmTerm: cleanText(payload.utm_term, 160),
       utmContent: cleanText(payload.utm_content, 160),
       landingPage: cleanText(payload.page_url, 1024),
