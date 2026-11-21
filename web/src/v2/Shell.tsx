@@ -60,7 +60,7 @@ function useIsPhone(): boolean {
  * it open (S-31). A wide window may still show the rail because the person
  * asked for it; a narrow one shows the rail whatever they asked for.
  */
-function useRail(): [boolean, () => void] {
+function useRail(): { folded: boolean; toggle: () => void; over: boolean; close: () => void } {
   const [chosen, setChosen] = useState(() => {
     try {
       return window.localStorage.getItem(RAIL_KEY) === '1';
@@ -78,7 +78,20 @@ function useRail(): [boolean, () => void] {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  /*
+   * Below AUTO_FOLD the rail is forced, so "Open the menu" used to change
+   * the remembered choice and nothing on screen: on a tablet the button did
+   * nothing at all (Nov 19, 2026). There it opens the full menu over the
+   * page instead, for this one look, and remembers nothing.
+   */
+  const [over, setOver] = useState(false);
+  useEffect(() => { if (!tooNarrow) setOver(false); }, [tooNarrow]);
+
   const toggle = useCallback(() => {
+    if (tooNarrow) {
+      setOver((open) => !open);
+      return;
+    }
     setChosen((on) => {
       const next = !on;
       try {
@@ -88,9 +101,10 @@ function useRail(): [boolean, () => void] {
       }
       return next;
     });
-  }, []);
+  }, [tooNarrow]);
+  const close = useCallback(() => setOver(false), []);
 
-  return [chosen || tooNarrow, toggle];
+  return { folded: tooNarrow ? !over : chosen, toggle, over: tooNarrow && over, close };
 }
 
 /**
@@ -166,12 +180,15 @@ function rowIsOn(to: string, at: { pathname: string; search: string }): boolean 
 /** Every row that is a tab of another row's page. */
 const TAB_ROWS = new Set(['/v2/tasks?tab=follow-ups']);
 
-function Sidebar({ folded, onToggle }: { folded: boolean; onToggle: () => void }) {
+function Sidebar({ folded, onToggle, over = false }: { folded: boolean; onToggle: () => void; over?: boolean }) {
   const { user } = useAuth();
   const role = user?.role ?? 'agent';
 
   return (
-    <nav className={folded ? 'v2-side v2-side-rail' : 'v2-side'} aria-label="Main">
+    <nav
+      className={['v2-side', folded ? 'v2-side-rail' : '', over ? 'v2-side-over' : ''].filter(Boolean).join(' ')}
+      aria-label="Main"
+    >
       <div className="v2-brand">
         <Link to="/v2" className="v2-mark" aria-label="homes.me">
           <span className="v2-mark-box"><Icon name="building" /></span>
@@ -382,8 +399,16 @@ function titleFor(pathname: string, role: string): string {
 export function V2Shell() {
   const { user: shellUser } = useAuth();
   const isPhone = useIsPhone();
-  const [folded, toggleRail] = useRail();
+  const { folded, toggle: toggleRail, over: menuOver, close: closeMenu } = useRail();
   const { pathname } = useLocation();
+  /* The menu opened over the page closes on the way to a page, and on Escape. */
+  useEffect(() => { closeMenu(); }, [pathname, closeMenu]);
+  useEffect(() => {
+    if (!menuOver) return undefined;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMenu(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOver, closeMenu]);
   /* Re-read when the screen changes: taking a lead, answering a transfer or
      finishing a task all change a number, and all of them change the route. */
   const badges = useAsync<Record<string, number>>(() => api.get('/api/v2/badges'), [pathname]);
@@ -446,7 +471,16 @@ export function V2Shell() {
                 isPhone && !oneJob && !barIsHiddenAt(pathname) ? 'v2-has-bar' : '',
               ].filter(Boolean).join(' ')}
             >
-              {!isPhone && <Sidebar folded={folded} onToggle={toggleRail} />}
+              {!isPhone && !menuOver && <Sidebar folded={folded} onToggle={toggleRail} />}
+              {/* Narrow screen, menu open: the rail's space stays in place
+                  and the full menu lies over the page, so nothing reflows. */}
+              {!isPhone && menuOver && (
+                <>
+                  <div className="v2-side-spacer" aria-hidden />
+                  <div className="v2-side-scrim" onClick={closeMenu} aria-hidden />
+                  <Sidebar folded={false} onToggle={toggleRail} over />
+                </>
+              )}
               <div className="v2-main">
                 {!isPhone && <TopBar />}
                 {/* A chat replaces the screen: `Chat.dc.html` draws its own

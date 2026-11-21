@@ -3206,8 +3206,17 @@ const ROUTES: Route[] = [
       callGoal: 40,
     };
   } },
-  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body }) => {
+  { method: 'POST', pattern: /^\/api\/my-leads\/([^/]+)\/action$/, handler: ({ body, params }) => {
     const action = (body as { action?: string }).action ?? 'call';
+    const held = LEADS.find((l) => l.id === params[0]);
+    /* Lost and its undo stick, so the preview can show Lost lit and restored. */
+    if (held && action === 'lost') { held.stage = 'lost'; held.status = 'lost'; }
+    if (action === 'reopen') {
+      if (held?.status !== 'lost') throw { status: 400, code: 'bad_request', message: 'Only a Lost lead can be restored.' };
+      held.stage = 'attempted_contact';
+      held.status = 'open';
+      return { stageKey: 'attempted_contact', status: 'open', nextStepAt: null, needsNextStep: false, said: 'Lead restored' };
+    }
     const stage = action === 'won' ? 'won'
       : action === 'lost' ? 'lost'
         : action === 'meeting' ? 'appointment_scheduled'
@@ -4661,9 +4670,12 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^\/api\/my-leads\/([^/]+)$/, handler: ({ params }) => {
     const row = myLeadRows().find((r) => r.id === params[0]) ?? myLeadRows()[0]!;
     const lead = LEADS.find((l) => l.id === row.id) ?? LEADS[0]!;
+    /* A Lost (or its undo) on this lead sticks, so Lost and Restore show. */
+    const closed = lead.id === row.id && lead.status === 'lost';
     return {
       lead: {
         ...row,
+        ...(closed ? { status: 'lost', stage_key: 'lost' } : {}),
         is_vip: row.id === LEADS[0]!.id ? 1 : 0,
         returned_at: null,
         unit_type: lead.unitType ?? '2 bedroom',

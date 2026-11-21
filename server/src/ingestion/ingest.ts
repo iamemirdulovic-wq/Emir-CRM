@@ -459,6 +459,8 @@ function describeLead(lead: LeadDTO): string {
   if (lead.realEstate.timeline !== 'unknown') parts.push(`Timeline: ${lead.realEstate.timeline}`);
   if (lead.realEstate.purpose !== 'unknown') parts.push(`Purpose: ${lead.realEstate.purpose}`);
   if (lead.attribution.campaignName) parts.push(`Campaign: ${lead.attribution.campaignName}`);
+  // Google calls it an ad group, Meta an ad set; a gclid says which one this lead came through.
+  if (lead.attribution.adsetName) parts.push(`${lead.attribution.gclid ? 'Ad group' : 'Ad set'}: ${lead.attribution.adsetName}`);
   if (lead.notes) parts.push(lead.notes);
   return parts.join('\n') || 'No additional details provided.';
 }

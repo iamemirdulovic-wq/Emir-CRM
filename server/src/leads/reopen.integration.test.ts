@@ -51,4 +51,24 @@ describeWithDb('a closed lead moved back to an open stage', () => {
     );
     expect(row).toMatchObject({ stage_key: 'engaged_qualified', status: 'open', closed_at: null });
   });
+
+  it('pressing Lost again restores the lead to the stage it had before (Nov 19, 2026)', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    const id = await lostLead(agent.id);
+    await execute(
+      "UPDATE opportunities SET stage_key = 'engaged_qualified', status = 'open', closed_at = NULL WHERE id = ?",
+      [id],
+    );
+    const actor = { userId: agent.id, role: 'agent', label: 'Agent' } as const;
+
+    await runLeadAction(actor, { opportunityId: id, action: 'lost', reason: 'not_interested' });
+    const result = await runLeadAction(actor, { opportunityId: id, action: 'reopen' });
+
+    expect(result).toMatchObject({ stageKey: 'engaged_qualified', status: 'open' });
+    const row = await queryOne<{ stage_key: string; status: string; closed_at: Date | null }>(
+      'SELECT stage_key, status, closed_at FROM opportunities WHERE id = ?', [id],
+    );
+    expect(row).toMatchObject({ stage_key: 'engaged_qualified', status: 'open', closed_at: null });
+    await expect(runLeadAction(actor, { opportunityId: id, action: 'reopen' })).rejects.toThrow(/Only a Lost lead/);
+  });
 });

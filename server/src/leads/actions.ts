@@ -21,6 +21,8 @@ import { badRequest, notFound } from '../lib/errors.js';
 
 export const LEAD_ACTIONS = [
   'call', 'whatsapp', 'no_answer', 'call_back', 'interested', 'meeting', 'problem', 'lost', 'won',
+  /* Undo a Lost: Emir, 19 Nov 2026, "allow click Lost again to restore a lead". */
+  'reopen',
 ] as const;
 export type LeadAction = (typeof LEAD_ACTIONS)[number];
 
@@ -145,7 +147,29 @@ const MOVES: Record<LeadAction, { stage: string | null; sub?: string; status?: '
   problem: { stage: 'attempted_contact', sub: 'wrong_number' },
   lost: { stage: 'lost', status: 'lost' },
   won: { stage: 'won', status: 'won' },
+  /* Worked out per lead in `runLeadAction`: the stage it had before Lost. */
+  reopen: { stage: null },
 };
+
+/** Open stages a restored lead may go back to. */
+const OPEN_STAGES = new Set([
+  'new_lead', 'attempted_contact', 'engaged_qualified', 'appointment_scheduled', 'deal_sent',
+]);
+
+/**
+ * Where a Lost lead goes back to: the stage it was in when it was marked
+ * Lost, read from that Lost's own audit entry. Called, if nothing says.
+ */
+async function stageBeforeLost(opportunityId: string): Promise<string> {
+  const row = await queryOne<{ stage: string | null }>(
+    `SELECT JSON_UNQUOTE(JSON_EXTRACT(before_json, '$.stageKey')) AS stage
+       FROM audit_log
+      WHERE entity_type = 'opportunity' AND entity_id = ? AND action = 'lead.lost'
+      ORDER BY created_at DESC LIMIT 1`,
+    [opportunityId],
+  );
+  return row?.stage && OPEN_STAGES.has(row.stage) ? row.stage : 'attempted_contact';
+}
 
 /** Which actions are a real outbound touch, for `last_contact_at`. */
 const REACHED_OUT = new Set<LeadAction>(['call', 'whatsapp', 'no_answer', 'meeting', 'interested']);
@@ -233,7 +257,12 @@ export async function runLeadAction(
   );
   if (!before) throw notFound('That lead no longer exists.');
 
-  const move = MOVES[input.action];
+  let move = MOVES[input.action];
+  if (input.action === 'reopen') {
+    if (before.status !== 'lost') throw badRequest('Only a Lost lead can be restored.');
+    /* An open stage on a Lost lead makes the update below reopen it. */
+    move = { stage: await stageBeforeLost(before.id) };
+  }
   const noAnswerCount = input.action === 'no_answer' ? before.no_answer_count + 1 : before.no_answer_count;
 
   const chosen = input.nextStep
@@ -456,6 +485,7 @@ const ACTIVITY_TYPE: Record<LeadAction, string> = {
   problem: 'problem',
   lost: 'lost',
   won: 'won',
+  reopen: 'stage_change',
 };
 
 const TITLE: Record<LeadAction, (input: ActionInput) => string> = {
@@ -474,6 +504,7 @@ const TITLE: Record<LeadAction, (input: ActionInput) => string> = {
     input.wonPaidAed != null ? `paid now AED ${input.wonPaidAed.toLocaleString('en-US')}` : null,
     input.wonSigned ? input.wonSigned.replace(/_/g, ' ') : null,
   ].filter(Boolean).join(' — '),
+  reopen: () => 'Restored from Lost',
 };
 
 /**
@@ -495,6 +526,7 @@ const SAID: Record<LeadAction, (input: ActionInput) => string> = {
   problem: () => 'Flagged as a problem',
   lost: () => 'Marked Lost',
   won: () => 'Deal won',
+  reopen: () => 'Lead restored',
 };
 
 function human(value: string | null | undefined): string {

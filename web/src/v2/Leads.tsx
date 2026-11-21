@@ -2513,6 +2513,7 @@ export function V2Leads({ fixedTab }: { fixedTab?: TabKey } = {}) {
           onPrev={() => setPanelFor(stepTo(drawn, panelFor, -1))}
           onNext={() => setPanelFor(stepTo(drawn, panelFor, 1))}
           isLast={drawn.length === 0 || drawn[drawn.length - 1]?.id === panelFor.id}
+          isFirst={drawn.length === 0 || drawn[0]?.id === panelFor.id}
           /* After a Won, a Lost, a transfer or a note, the row behind the
              panel is stale and the list does not know. */
           onChanged={() => { leads.reload(); counts.reload(); facets.reload(); }}

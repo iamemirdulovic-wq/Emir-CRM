@@ -220,6 +220,8 @@ export function V2Lead() {
         : null,
   );
   const [said, setSaid] = useState<string | null>(null);
+  /* Pressing Lost again on a Lost lead restores it (Emir, 19 Nov 2026). */
+  const [restoring, setRestoring] = useState(false);
   /*
    * The tap the result bar is waiting on an answer for — a call or a message.
    * `whatsapp()` hands back the id of the row it wrote, which is what
@@ -352,26 +354,40 @@ export function V2Lead() {
         <nav className="v2-walk-bar" aria-label="Leads in this list">
           <Link className="d-btn d-sm d-ghost" to={place.list}>← Back to the list</Link>
           <span className="d-muted d-small v2-walk-at">{place.at} of {place.total}</span>
-          {place.prev && (
-            <Link className="d-btn d-sm" to={`/v2/leads/${encodeURIComponent(place.prev.id)}`}>
-              Previous
-            </Link>
-          )}
+          {/* Emir, 19 Nov 2026: "< >" arrows, no words; the name is in
+              the tooltip. At either end the arrow stays, greyed. */}
+          {place.prev
+            ? (
+              <Link
+                className="d-btn d-icon d-sm"
+                to={`/v2/leads/${encodeURIComponent(place.prev.id)}`}
+                aria-label="Previous lead"
+                title={place.prev.name ? `Previous: ${place.prev.name}` : 'Previous lead'}
+              >
+                <Icon name="chevron-left" />
+              </Link>
+            )
+            : (
+              <span className="d-btn d-icon d-sm d-disabled" aria-disabled="true" title="This is the first lead in the list">
+                <Icon name="chevron-left" />
+              </span>
+            )}
           {place.next
             ? (
               <Link
-                className="d-btn d-sm d-primary v2-next-lead"
+                className="d-btn d-icon d-sm"
                 to={`/v2/leads/${encodeURIComponent(place.next.id)}`}
+                aria-label="Next lead"
                 title={place.next.name ? `Next: ${place.next.name}` : 'Next lead'}
               >
-                {/* One text run, so the button's flex gap cannot open a space
-                    before the colon; the phone shows the short label. */}
-                <span className="v2-walk-name">{place.next.name ? `Next lead: ${place.next.name}` : 'Next lead'}</span>
-                <span className="v2-walk-short">Next lead</span>
-                <Icon name="arrow-right" />
+                <Icon name="chevron-right" />
               </Link>
             )
-            : <span className="d-muted d-small">Last lead in the list</span>}
+            : (
+              <span className="d-btn d-icon d-sm d-disabled" aria-disabled="true" title="This is the last lead in the list">
+                <Icon name="chevron-right" />
+              </span>
+            )}
         </nav>
       )}
       <div className="d-lead-grid">
@@ -538,11 +554,24 @@ export function V2Lead() {
               >
                 <Icon name="trophy" />Won
               </button>
+              {/* Emir, 19 Nov 2026: on a Lost lead the button stays lit and
+                  pressing it again restores the lead. */}
               <button
                 type="button"
-                className={closed ? 'd-btn d-danger d-disabled' : 'd-btn d-danger'}
-                disabled={closed}
-                onClick={() => setDoing('lost')}
+                className={lead.status === 'lost'
+                  ? 'd-btn d-danger d-solid'
+                  : lead.status === 'won' ? 'd-btn d-danger d-disabled' : 'd-btn d-danger'}
+                disabled={lead.status === 'won' || restoring}
+                aria-pressed={lead.status === 'lost'}
+                title={lead.status === 'lost' ? 'Lost. Press again to restore this lead' : undefined}
+                onClick={() => {
+                  if (lead.status !== 'lost') { setDoing('lost'); return; }
+                  setRestoring(true);
+                  api.post<{ said: string }>(`/api/my-leads/${lead.id}/action`, { action: 'reopen' })
+                    .then((result) => afterEdit(result.said))
+                    .catch((err: unknown) => setSaid(err instanceof Error ? err.message : 'Could not restore this lead.'))
+                    .finally(() => setRestoring(false));
+                }}
               >
                 <Icon name="x" />Lost
               </button>

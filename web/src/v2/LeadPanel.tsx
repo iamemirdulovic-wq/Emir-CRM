@@ -81,8 +81,10 @@ interface Brief {
  * optional, and until the list wires them the keys simply do nothing.
  */
 export function LeadPanel({
-  row, book, onClose, onGive, dial, onPrev, onNext, onChanged, isLast = false,
+  row, book, onClose, onGive, dial, onPrev, onNext, onChanged, isLast = false, isFirst = false,
 }: {
+  /** This is the top lead in the list, so Previous has nowhere to go. */
+  isFirst?: boolean;
   /** This is the bottom lead in the list, so Next lead has nowhere to go. */
   isLast?: boolean;
   row: Row;
@@ -239,6 +241,21 @@ export function LeadPanel({
     setDoing('follow_up');
   }
 
+  /* Undo a Lost: the server puts it back in the stage it had before. */
+  const [restoring, setRestoring] = useState(false);
+  async function restore() {
+    setRestoring(true);
+    try {
+      const result = await api.post<{ said: string }>(`/api/my-leads/${row.id}/action`, { action: 'reopen' });
+      await afterAction(result.said);
+      onChanged?.();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not restore this lead. Please try again.');
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   async function afterAction(said: string) {
     const was = doneStep;
     setDoneStep(null);
@@ -272,15 +289,30 @@ export function LeadPanel({
           </Link>
           {/* Emir, 17 Nov 2026: a button for the next lead, so nobody has to
               know about the arrow keys or go back out to the list. */}
+          {/* Emir, 19 Nov 2026: "< >" arrows for the previous and next
+              lead, no words. */}
+          {onPrev && (
+            <button
+              type="button"
+              className="d-btn d-icon d-sm"
+              disabled={isFirst}
+              aria-label="Previous lead"
+              title={isFirst ? 'This is the first lead in the list' : 'Previous lead (↑)'}
+              onClick={onPrev}
+            >
+              <Icon name="chevron-left" />
+            </button>
+          )}
           {onNext && (
             <button
               type="button"
-              className="d-btn d-sm d-primary v2-qp-next-lead"
+              className="d-btn d-icon d-sm"
               disabled={isLast}
+              aria-label="Next lead"
               title={isLast ? 'This is the last lead in the list' : 'Next lead (↓)'}
               onClick={onNext}
             >
-              Next lead<Icon name="arrow-right" />
+              <Icon name="chevron-right" />
             </button>
           )}
           <button type="button" className="d-btn d-icon d-sm d-ghost" aria-label="Close" onClick={onClose}>
@@ -475,11 +507,15 @@ export function LeadPanel({
           >
             <Icon name="trophy" />Won
           </button>
+          {/* Emir, 19 Nov 2026: Lost could not be undone. On a Lost lead the
+              button stays lit and pressing it again restores the lead. */}
           <button
             type="button"
-            className="d-btn d-danger"
-            disabled={closed}
-            onClick={() => setDoing('lost')}
+            className={lead.status === 'lost' ? 'd-btn d-danger d-solid' : 'd-btn d-danger'}
+            disabled={lead.status === 'won' || restoring}
+            aria-pressed={lead.status === 'lost'}
+            title={lead.status === 'lost' ? 'Lost. Press again to restore this lead' : undefined}
+            onClick={() => (lead.status === 'lost' ? void restore() : setDoing('lost'))}
           >
             <Icon name="circle-x" />Lost
           </button>
