@@ -67,6 +67,25 @@ export const RULE_GROUPS: Array<{ key: string; title: string; rules: Rule[] }> =
     title: 'Leads',
     rules: [
       {
+        /*
+         * The same `ROUTING_AUTO_ASSIGN` the old settings page has always
+         * shown, and which nothing read until 21 November. One setting, two
+         * screens: an owner who turns it off here and looks there sees it
+         * off, because there is no second copy to disagree.
+         *
+         * Worded as the setting really is rather than inverted. "Give new
+         * leads out myself" as a switch that writes `0` when it is ON is the
+         * kind of cleverness that reads wrong in six months.
+         */
+        key: 'autoAssign',
+        name: 'ROUTING_AUTO_ASSIGN',
+        title: 'Give new leads to an agent automatically',
+        note: 'Off means every new lead waits in Incoming for you. The client still gets the instant reply.',
+        countSql: `SELECT COUNT(*) AS n FROM unassigned_queue
+                    WHERE resolved_at IS NULL`,
+        countNote: (n: number) => `${n} waiting now`,
+      },
+      {
         key: 'warnBeforeBack',
         name: 'AUTO_WARN_BEFORE_BACK',
         title: 'Warn the agent before a lead goes back',

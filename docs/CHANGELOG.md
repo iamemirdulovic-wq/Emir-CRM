@@ -2,6 +2,46 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## The owner hands out every lead
+
+21 November. Emir asked for a new lead to go nowhere until he gives it to
+somebody. The switch for that — *Assign new leads automatically* — has been
+on the settings page since the start. **It was wired to nothing.** It saved,
+it displayed, and `assignLead` never read it: every lead went round-robin to
+an agent whatever the switch said. One more of this repository's "looks
+built, isn't".
+
+It means what it says now. Off, and a new lead is assigned to no one, waits
+in Incoming, and the owner places it. Two things decided that day, both his:
+
+- **Owner and admin only.** Incoming is normally manager-and-above, because
+  it is the exception queue and a manager placing a bounced lead is the point
+  of it. While this mode is on it is owner and admin, since a manager placing
+  a lead before the owner has seen it would undo the whole reason for it.
+  Checked per request, not at mount: the switch can be turned off at 4pm and
+  middleware chosen at boot would not notice until a restart.
+- **Returning leads wait too.** Sticky owner is the one rule that would
+  otherwise route around the mode, and a returning buyer is exactly who trips
+  it. "To you first, like every other lead."
+
+**The client still gets the welcome inside thirty seconds.** `sendWelcome`
+already took a null agent and simply does not name one, so holding leads back
+costs nothing in speed-to-lead. That was the thing worth checking before
+building any of it.
+
+One bug caught on the way, which would have been invisible: the new-lead
+alert was queued with `audience: 'owners'`, and `push.send` knew only
+`managers` and a single user. TypeScript was happy — the payload is loosely
+typed — and the job would have thrown on a missing `userId`, so the owner
+would have been told nothing at all about the leads he had just made himself
+responsible for. `pushToOwners` exists now, and it is owner and admin rather
+than `pushToManagers`'s manager-and-above, for the same reason the screen is.
+
+The switch is in v2 at last, in Automations under Leads, reading the same
+`ROUTING_AUTO_ASSIGN` the old page writes — one setting, two screens, nothing
+to disagree. It carries a live count of what is waiting, as the other rules
+there do.
+
 ## Homes AI can look outside the CRM
 
 17 November, later. Emir asked whether it was finished, and listed what he

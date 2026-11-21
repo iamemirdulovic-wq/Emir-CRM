@@ -28,6 +28,33 @@ import { logger, errorContext } from '../../lib/logger.js';
 export const incomingRouter = Router();
 incomingRouter.use(requireAuth, blockUntilPasswordChanged);
 
+/**
+ * Who may see and place the leads waiting here.
+ *
+ * Normally a manager and above: Incoming is the exception queue and a manager
+ * placing a bounced lead is the point of it. But when the owner hands out
+ * every lead — the switch on the settings page, real since 21 November —
+ * every new lead lands here first, and letting a manager place one before the
+ * owner has seen it would undo the whole reason for the mode. Emir chose
+ * owner and admin that day.
+ *
+ * Checked per request rather than at mount: the switch can be turned off at
+ * 4pm and middleware chosen at boot would not notice until a restart.
+ */
+const whoMayPlace = asyncHandler(async (req: Request, _res: Response, next) => {
+  const { role } = currentUser(req);
+  const ownerHandsOut = !(await routingSettings()).autoAssign;
+  const allowed = ownerHandsOut
+    ? role === 'owner' || role === 'admin'
+    : role === 'owner' || role === 'admin' || role === 'manager';
+  if (!allowed) {
+    throw badRequest(ownerHandsOut
+      ? 'New leads go to the owner first. Ask an owner or admin to give you one.'
+      : 'Only a manager and above can place a lead.');
+  }
+  next();
+});
+
 interface IncomingRow {
   id: string;
   contact_id: string;
@@ -48,7 +75,7 @@ interface IncomingRow {
 /** Everything waiting for an owner, oldest first — the ones going coldest. */
 incomingRouter.get(
   '/',
-  requireManager,
+  whoMayPlace,
   asyncHandler(async (req: Request, res: Response) => {
     const me = currentUser(req).id;
     /*
@@ -209,7 +236,7 @@ const assignSchema = z.object({
  */
 incomingRouter.post(
   '/assign',
-  requireManager,
+  whoMayPlace,
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = assignSchema.safeParse(req.body);
     if (!parsed.success) throw badRequest('Choose at least one lead and an agent.', parsed.error.issues);

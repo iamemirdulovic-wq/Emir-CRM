@@ -161,6 +161,18 @@ type AssignmentOutcome = { userId: string | null; reason: string };
  * handed to the same agent and skew the split.
  */
 export async function assignLead(opportunityId: string, contactId: string): Promise<AssignmentOutcome> {
+  /*
+   * The owner may want to hand out every lead himself.
+   *
+   * Emir, 21 November: a new lead goes nowhere until he gives it to someone.
+   * The switch for this has been on the settings page since the start and was
+   * wired to nothing — it saved, it displayed, and the round-robin below
+   * never read it. Read outside the transaction because it is a cached
+   * settings lookup and the row locks below should be held for as short a
+   * time as a lead arriving at the same moment can bear.
+   */
+  const handPicked = !(await routingSettings()).autoAssign;
+
   return withRetryingTransaction(async (tx) => {
     const opportunity = await queryOne<{
       id: string;
@@ -176,22 +188,36 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
       tx,
     );
 
-    // Sticky owner first: a returning lead stays with their agent.
-    const sticky = opportunity.owner_user_id ?? contact?.owner_user_id ?? null;
+    /*
+     * Sticky owner first: a returning lead stays with their agent — unless
+     * the owner hands out every lead, which he asked to include the people
+     * who have been here before. Emir, 21 November: "to you first, like
+     * every other lead".
+     */
+    const sticky = handPicked ? null : (opportunity.owner_user_id ?? contact?.owner_user_id ?? null);
     if (sticky) {
       await applyAssignment(tx, { opportunityId, contactId, userId: sticky, reason: 'sticky_owner' });
       return { userId: sticky, reason: 'sticky_owner' };
     }
 
-    // Serialize the round-robin on a single row.
-    await queryOne('SELECT id FROM assignment_state WHERE id = ? FOR UPDATE', ['round_robin'], tx);
-
-    const candidates = await loadCandidates(tx);
-    const choice = chooseAgent(candidates, {
-      language: contact?.language ?? null,
-      projectName: opportunity.project_name,
-      dubaiMinutes: dubaiMinutesNow(),
-    });
+    /*
+     * Hand-picked: no agent is chosen at all. The lead waits in Incoming for
+     * the owner, and the client still gets the welcome inside thirty seconds
+     * — `sendWelcome` takes a null agent and simply does not name one, so
+     * holding leads back costs the brokerage nothing in speed-to-lead.
+     */
+    const choice = handPicked
+      ? { assigned: false as const, reason: 'owner_hands_out' }
+      : await (async () => {
+        // Serialize the round-robin on a single row.
+        await queryOne('SELECT id FROM assignment_state WHERE id = ? FOR UPDATE', ['round_robin'], tx);
+        const candidates = await loadCandidates(tx);
+        return chooseAgent(candidates, {
+          language: contact?.language ?? null,
+          projectName: opportunity.project_name,
+          dubaiMinutes: dubaiMinutesNow(),
+        });
+      })();
 
     if (!choice.assigned) {
       // Nobody available: queue it and alert the managers rather than dropping it.
@@ -206,16 +232,33 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
         contactId,
         opportunityId,
         type: 'lead.unassigned',
-        title: 'No agent was available; added to the unassigned queue',
+        title: handPicked
+          ? 'Waiting for the owner to give it to an agent'
+          : 'No agent was available; added to the unassigned queue',
         meta: { reason: choice.reason },
       });
       await writeAudit(
         { actor: SYSTEM_ACTOR, action: 'lead.unassigned', entityType: 'opportunity', entityId: opportunityId, after: { reason: choice.reason } },
         tx,
       );
+      /* Whoever can act on it is who hears about it: when the owner hands
+         out every lead, telling the managers would be telling the people
+         this mode deliberately keeps out of it. */
       await enqueue(
         'push.send',
-        { audience: 'managers', title: 'Unassigned lead', body: 'A new lead could not be assigned to any agent.', link: '/unassigned' },
+        handPicked
+          ? {
+            audience: 'owners',
+            title: 'New lead waiting',
+            body: 'A new lead is waiting for you to give it to an agent.',
+            link: '/v2/incoming',
+          }
+          : {
+            audience: 'managers',
+            title: 'Unassigned lead',
+            body: 'A new lead could not be assigned to any agent.',
+            link: '/unassigned',
+          },
         { priority: 1, dedupeKey: `unassigned-alert:${opportunityId}` },
         tx,
       );

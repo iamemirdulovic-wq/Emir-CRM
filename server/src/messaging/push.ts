@@ -275,6 +275,23 @@ export async function pushToUserDetailed(userId: string, message: PushMessage): 
 }
 
 /** Alert every manager and admin — used for SLA breaches and the unassigned queue. */
+/**
+ * The people who hand out leads, when the owner hands out every lead.
+ *
+ * Narrower than `pushToManagers` on purpose: that one includes managers, and
+ * the whole point of the hand-out mode is that a manager does not place a
+ * lead before the owner has seen it. Emir chose owner and admin on 21
+ * November.
+ */
+export async function pushToOwners(message: PushMessage): Promise<number> {
+  const owners = await query<{ id: string }>(
+    `SELECT id FROM users WHERE is_active = 1 AND role IN ('owner','admin')`,
+  );
+  let total = 0;
+  for (const owner of owners) total += await pushToUser(owner.id, message);
+  return total;
+}
+
 export async function pushToManagers(message: PushMessage): Promise<number> {
   const managers = await query<{ id: string }>(
     `SELECT id FROM users WHERE is_active = 1 AND role IN ('manager','admin','owner')`,

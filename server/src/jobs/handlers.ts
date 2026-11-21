@@ -10,7 +10,7 @@ import { runWorkflowBStep, type Step } from '../workflows/workflow-b.js';
 import { runWorkflowC } from '../workflows/workflow-c.js';
 import { sendWhatsApp } from '../messaging/send.js';
 import { sendEmail } from '../messaging/email/send.js';
-import { pushToManagers, pushToUser } from '../messaging/push.js';
+import { pushToManagers, pushToOwners, pushToUser } from '../messaging/push.js';
 import { syncTemplates } from '../messaging/templates/sync.js';
 import { pollInbox } from '../messaging/email/imap.js';
 import { detectSpamSignals, scoreLead } from '../scoring/score.js';
@@ -191,6 +191,7 @@ export const HANDLERS: Record<JobType, JobHandler> = {
       ...(optionalStr(payload, 'tel') ? { tel: optionalStr(payload, 'tel') as string } : {}),
     };
     if (payload.audience === 'managers') return { delivered: await pushToManagers(message) };
+    if (payload.audience === 'owners') return { delivered: await pushToOwners(message) };
     return { delivered: await pushToUser(str(payload, 'userId'), message) };
   },
 
