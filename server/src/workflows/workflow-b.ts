@@ -46,21 +46,27 @@ export type WorkflowBResult = {
 
 /** Should this sequence still be running? */
 export async function shouldContinue(contactId: string, opportunityId: string): Promise<{ ok: boolean; reason?: string }> {
-  const opportunity = await queryOne<{ status: string; stage_key: string }>(
-    'SELECT status, stage_key FROM opportunities WHERE id = ?',
+  const opportunity = await queryOne<{ status: string; stage_key: string; deleted_at: Date | null }>(
+    'SELECT status, stage_key, deleted_at FROM opportunities WHERE id = ?',
     [opportunityId],
   );
   if (!opportunity) return { ok: false, reason: 'opportunity_gone' };
+  /* A deleted lead is a soft delete: the row stays, still open, still in New
+     Lead. Without this the sequence kept running on it and every step put a
+     fresh "call" task, and so an Overdue email, in front of the agent for a
+     lead nobody could see any more (Yuliia, Nov 2026). */
+  if (opportunity.deleted_at) return { ok: false, reason: 'lead_deleted' };
   if (opportunity.status !== 'open') return { ok: false, reason: 'opportunity_closed' };
   if (opportunity.stage_key !== 'new_lead' && opportunity.stage_key !== 'attempted_contact') {
     return { ok: false, reason: 'stage_moved_past_attempted_contact' };
   }
 
-  const contact = await queryOne<{ dnc: number; last_inbound_at: Date | null }>(
-    'SELECT dnc, last_inbound_at FROM contacts WHERE id = ?',
+  const contact = await queryOne<{ dnc: number; last_inbound_at: Date | null; deleted_at: Date | null }>(
+    'SELECT dnc, last_inbound_at, deleted_at FROM contacts WHERE id = ?',
     [contactId],
   );
   if (!contact) return { ok: false, reason: 'contact_gone' };
+  if (contact.deleted_at) return { ok: false, reason: 'lead_deleted' };
   if (contact.dnc === 1) return { ok: false, reason: 'opted_out' };
   // Any reply at all cancels the sequence.
   if (contact.last_inbound_at) return { ok: false, reason: 'lead_replied' };
