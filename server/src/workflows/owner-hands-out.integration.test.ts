@@ -82,6 +82,13 @@ describeWithDb('when the owner hands out every lead', () => {
     const out = await assignLead(opportunityId, contactId);
     expect(out.reason).toBe('owner_hands_out');
     expect(out.userId).toBeNull();
+
+    /* The answer said nobody while the row still said the old agent: ingestion
+       had written them on, and the lead never reached Incoming (Nov 23, 2026). */
+    const row = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?', [opportunityId],
+    );
+    expect(row?.owner_user_id).toBeNull();
   });
 
   it('still hands out by itself when the switch is back on', async () => {

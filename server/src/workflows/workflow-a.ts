@@ -195,6 +195,21 @@ export async function assignLead(opportunityId: string, contactId: string): Prom
      * every other lead".
      */
     const sticky = handPicked ? null : (opportunity.owner_user_id ?? contact?.owner_user_id ?? null);
+
+    /*
+     * Ingestion writes the contact's previous agent onto a returning buyer's
+     * new enquiry before this runs, so in hand-picked mode the lead arrived
+     * already owned and never reached Incoming: Emir's own test and George's
+     * both went straight to Nelson on Nov 21 and 23, 2026, marked "owner
+     * hands out". Taken off here, so it waits like every other lead.
+     */
+    if (handPicked && opportunity.owner_user_id) {
+      await execute(
+        'UPDATE opportunities SET owner_user_id = NULL, assigned_at = NULL, accepted_at = NULL WHERE id = ?',
+        [opportunityId],
+        tx,
+      );
+    }
     if (sticky) {
       await applyAssignment(tx, { opportunityId, contactId, userId: sticky, reason: 'sticky_owner' });
       return { userId: sticky, reason: 'sticky_owner' };
@@ -888,8 +903,10 @@ export async function runSlaCheck(input: {
     return { breached: true, reassignedTo: giver.id };
   }
 
-  const { bounceToOwner } = await routingSettings();
-  if (bounceToOwner) {
+  const { bounceToOwner, autoAssign } = await routingSettings();
+  /* With automatic assignment off the CRM never picks the next agent itself,
+     here either: the lead goes back to Incoming for the owner. */
+  if (bounceToOwner || !autoAssign) {
     const agent = await queryOne<{ name: string }>('SELECT name FROM users WHERE id = ?', [input.assignedUserId]);
     await withRetryingTransaction(async (tx) => {
       await bounceLead(tx, {
