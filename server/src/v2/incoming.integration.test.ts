@@ -10,6 +10,7 @@ import { resetRateLimits } from '../http/middleware/rate-limit.js';
 import { setEnvForTesting } from '../config/env.js';
 import { createApp } from '../http/app.js';
 import { signIn } from '../testing/http.js';
+import { saveSetting } from '../config/secrets.js';
 
 /**
  * Incoming: taking a free lead, and giving them out.
@@ -109,6 +110,23 @@ describeWithDb('incoming', () => {
       'SELECT owner_user_id FROM opportunities WHERE id = ?', [lead],
     );
     expect([one.id, two.id]).toContain(after?.owner_user_id);
+  });
+
+  it('an agent cannot take a lead while the owner hands them out', async () => {
+    await saveSetting({ userId: null, role: 'automation' }, 'ROUTING_AUTO_ASSIGN', '0');
+    const agent = await createTestUser({ role: 'agent' });
+    const lead = await freeLead();
+    const cookie = await signIn(base, agent);
+
+    const list = await send('GET', '/api/v2/incoming', cookie);
+    expect(((await list.json()) as { canTake?: boolean }).canTake, 'no Take button').toBe(false);
+
+    const res = await send('POST', `/api/v2/incoming/${lead}/take`, cookie);
+    expect(res.status, await res.clone().text()).toBe(403);
+    const row = await queryOne<{ owner_user_id: string | null }>(
+      'SELECT owner_user_id FROM opportunities WHERE id = ?', [lead],
+    );
+    expect(row?.owner_user_id, 'the lead still waits for the owner').toBeNull();
   });
 
   it('taking a lead moves the contact and the conversation too', async () => {
