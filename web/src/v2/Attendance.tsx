@@ -1218,7 +1218,14 @@ function TeamToday({ team }: { team: Team }) {
             const sum = [late && `${late} late`, abs && `${abs} absent`, lv && `${lv} leave`]
               .filter(Boolean).join(' · ') || 'All on time';
             return (
-              <Row8 key={person.userId} person={person} cells={cells} sum={sum} bad={abs > 0 || late > 1} />
+              <Row8
+                key={person.userId}
+                person={person}
+                cells={cells}
+                sum={sum}
+                bad={abs > 0 || late > 1}
+                period={{ from: team.from, to: team.to }}
+              />
             );
           })}
         </div>
@@ -1235,18 +1242,26 @@ const CELL: Record<string, { cls: string; letter: string }> = {
   abs: { cls: 'd-abs', letter: 'A' },
 };
 
-function Row8({ person, cells, sum, bad }: {
+function Row8({ person, cells, sum, bad, period }: {
   person: Team['people'][number];
   cells: Array<{ date: string; mark: Mark }>;
   sum: string;
   bad: boolean;
+  period: { from: string; to: string };
 }) {
   return (
     <>
-      <span className="d-person">
+      {/* The name is the way to that person's report for the month on screen.
+          A button would need a grid column of its own and this register has
+          one per day already. */}
+      <Link
+        className="d-person v2-rep-link"
+        to={`/v2/team/${person.userId}/report?from=${period.from}&to=${period.to}`}
+        title={`Report for ${person.name}`}
+      >
         <Avatar name={person.name} src={person.photoUrl ?? undefined} size={26} />
         <b className="d-truncate">{person.name}</b>
-      </span>
+      </Link>
       {cells.map((cell) => {
         const look = CELL[cell.mark] ?? CELL.ok!;
         return (

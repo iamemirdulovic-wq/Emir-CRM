@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import { agentReport } from '../../v2/agent-report.js';
 import { schemaState } from '../../db/migration-state.js';
 import { asyncHandler } from '../middleware/error.js';
 import { ASKS, ask, type Ask } from '../../v2/ask.js';
@@ -1258,6 +1259,56 @@ v2Router.patch(
  * The take-back rule's own receipts. A rule with a number beside it is a rule
  * somebody can judge; a switch on its own is a leap of faith.
  */
+/**
+ * One agent's month, as a page a person can print.
+ *
+ * Emir asked for this on 25 November, and for who may pull one: owner,
+ * admin, and a manager for their own team. An agent cannot pull their own —
+ * his call, not an oversight.
+ *
+ * The fence is `visibleUserIds`, the same one every lead query uses, so a
+ * manager's reach here is exactly their reach everywhere else and there is no
+ * second rule to drift out of step with the first.
+ */
+v2Router.get(
+  '/agent-report/:userId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const me = currentUser(req);
+    if (me.role === 'agent') {
+      throw badRequest('Only an owner, an admin or a manager can open a report.');
+    }
+
+    const wanted = String(req.params.userId);
+    const visible = await visibleUserIds({ id: me.id, role: me.role });
+    if (visible !== null && !visible.includes(wanted)) {
+      /* Not "forbidden": a manager guessing ids should not learn which of
+         them are real people. */
+      throw badRequest('That person is not on your team.');
+    }
+
+    const period = z.object({
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }).parse({ from: req.query.from, to: req.query.to });
+
+    if (period.to < period.from) throw badRequest('That period ends before it starts.');
+
+    const report = await agentReport(wanted, period.from, period.to);
+    if (!report) throw badRequest('That person was not found.');
+
+    /* Reading a report on a colleague is a thing that happened, not a view. */
+    await writeAudit({
+      actor: actorFrom(req),
+      action: 'agent.report.read',
+      entityType: 'user',
+      entityId: wanted,
+      after: { from: period.from, to: period.to },
+    });
+
+    res.json(report);
+  }),
+);
+
 v2Router.get(
   '/rules/taken-back',
   requireRole('owner', 'admin', 'manager'),

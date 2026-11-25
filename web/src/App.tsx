@@ -52,6 +52,7 @@ import { V2Notifications } from './v2/Bell.js';
 import { V2Find } from './v2/Find.js';
 import { V2Ai } from './v2/Ai.js';
 import { V2Automations } from './v2/Automations.js';
+import { V2AgentReport } from './v2/AgentReport.js';
 import { V2Offers } from './v2/Offers.js';
 import { V2ManageProjects } from './v2/ManageProjects.js';
 import { V2Card } from './v2/Card.js';
@@ -253,6 +254,9 @@ export function App() {
           {/* The old address kept working, since it is in the nav of every
               screen already shipped. */}
           <Route path="/v2/automations" element={<OwnerOnly><V2Automations /></OwnerOnly>} />
+          {/* A manager may open one for their own team, so this is not
+              OwnerOnly; the fence that matters is on the server. */}
+          <Route path="/v2/team/:id/report" element={<V2AgentReport />} />
           {/* `design/web/profile.html`: the hero, the shortcuts and the two
               tabs, inside the settings shell the design draws around them.
               On a phone the three prototypes behind this keep their own

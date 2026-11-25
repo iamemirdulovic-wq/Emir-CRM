@@ -2185,6 +2185,67 @@ const ROUTES: Route[] = [
         : [],
     };
   } },
+  /* One agent's month, so the report can be looked at before it is believed. */
+  { method: 'GET', pattern: /^\/api\/v2\/agent-report\/([^/]+)$/, handler: () => {
+    const days = [];
+    for (let d = 1; d <= 30; d += 1) {
+      const date = `2026-11-${String(d).padStart(2, '0')}`;
+      const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+      const closed = dow === 0;
+      const kind = closed ? null
+        : d === 9 || d === 17 || d === 23 ? null
+          : d === 5 || d === 19 ? 'outside' : 'office';
+      const late = kind === 'office' && (d === 4 || d === 11 || d === 12 || d === 26);
+      days.push({
+        date,
+        kind,
+        at: kind ? `2026-11-${String(d).padStart(2, '0')}T0${late ? '5' : '5'}:${late ? '48' : '09'}:00.000Z` : null,
+        late,
+        note: kind === 'outside' ? (d === 5 ? 'Viewing at Emaar Beachfront' : 'Developer meeting, Aldar') : null,
+        lastSeen: closed || !kind ? null : d % 3 === 0 ? '19:10' : '18:35',
+        closed,
+      });
+    }
+    return {
+      person: { id: 'u-2', name: 'Shan Ali', role: 'agent', photoUrl: null },
+      from: '2026-11-01',
+      to: '2026-11-30',
+      generatedAt: new Date().toISOString(),
+      attendance: {
+        openDays: 26, inOffice: 20, outside: 2, late: 4, absent: 3, leave: 1,
+        usualArrival: '09:09', usualLastSeen: '18:35', days,
+      },
+      calls: {
+        total: 312,
+        byOutcome: [
+          { outcome: 'no_answer', n: 141 }, { outcome: 'interested', n: 68 },
+          { outcome: 'call_back', n: 47 }, { outcome: 'not_interested', n: 31 },
+          { outcome: 'busy', n: 19 }, { outcome: 'wrong_number', n: 6 },
+        ],
+        noOutcome: 12, notCheckedIn: 6, perOpenDay: 12,
+      },
+      leads: {
+        open: 96, neverCalled: 11, overdue: 7, noNextStep: 23, goingCold: 14, takenBack: 2,
+      },
+      results: { meetingsBooked: 9, showed: 6, noShow: 2, won: 2 },
+      score: {
+        total: 71,
+        band: 'fine',
+        parts: [
+          { key: 'here', label: 'Being here', got: 25, outOf: 30, why: '22 of 26 working days' },
+          { key: 'calling', label: 'Calling', got: 30, outOf: 30, why: "312 calls · the team's middle is 198" },
+          { key: 'following', label: 'Following through', got: 21, outOf: 25, why: '18 of 96 leads never called or overdue' },
+          { key: 'results', label: 'Results', got: 9, outOf: 15, why: "8 viewings and deals · the team's middle is 13" },
+        ],
+      },
+      note: {
+        kind: 'steady',
+        headline: 'A solid month, Shan.',
+        body: 'The one to lift is results — 8 viewings and deals · the team\u2019s middle is 13. '
+          + 'Fix that and you move into the top group, which is where the best leads go.',
+      },
+    };
+  } },
   { method: 'GET', pattern: /^\/api\/v2\/team$/, handler: () => {
     const isOwner = currentUser().role !== 'agent';
     return {

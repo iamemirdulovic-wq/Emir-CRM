@@ -517,6 +517,156 @@
   .v2-ai2-dcopy{ min-height:var(--tap); }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   THE AGENT REPORT — a page that is meant to be printed
+   ════════════════════════════════════════════════════════════════════════
+   Above the phone block on purpose: the bottom of this file is inside
+   `@media (max-width:767px)`, where a rule written for the computer does
+   nothing and says nothing about it.                                     */
+
+.v2-rep{ max-width:860px; margin:0 auto; padding-bottom:40px; }
+
+/* The name in the attendance register, which opens that person's report. */
+.v2-rep-link{ text-decoration:none; color:inherit; }
+.v2-rep-link:hover b{ color:var(--accent); text-decoration:underline; }
+
+.v2-rep-bar{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+
+.v2-rep-page{
+  background:#FFFFFF; color:#16181B;
+  border:1px solid var(--line); border-radius:var(--r-card);
+  padding:34px 38px;
+}
+
+.v2-rep-head{ display:flex; align-items:flex-start; gap:16px; margin-bottom:22px; }
+.v2-rep-logo{ height:26px; width:auto; display:block; margin-bottom:10px; }
+
+/* The score, and the line written to the agent. Its colour is the verdict,
+   so it is the first thing read and it is never ambiguous. */
+.v2-rep-note-card{
+  display:flex; align-items:center; gap:18px;
+  padding:16px 18px; border-radius:var(--r-ctl); margin-bottom:18px;
+  border:1px solid transparent;
+}
+.v2-rep-congratulate{ background:#E9F6EC; border-color:#BFE3C8; }
+.v2-rep-steady{ background:#FDF4E3; border-color:#F0DCB4; }
+.v2-rep-warn{ background:#FBEBE7; border-color:#F0C8BF; }
+
+.v2-rep-score{ flex:0 0 auto; text-align:center; min-width:76px; }
+.v2-rep-scoren{ display:block; font-size:36px; font-weight:700; line-height:1; letter-spacing:-.03em; }
+.v2-rep-scorel{ display:block; font-size:10.5px; color:#5F656D; margin-top:3px; }
+.v2-rep-noteh{ margin:0 0 4px; font-size:15.5px; }
+.v2-rep-noteb{ margin:0; font-size:13px; line-height:1.5; color:#333942; }
+
+.v2-rep-parts{
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px 22px; margin-bottom:24px; break-inside:avoid;
+}
+.v2-rep-part{ min-width:0; }
+.v2-rep-partt{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; }
+.v2-rep-partt b{ font-weight:700; }
+.v2-rep-partt small{ color:#5F656D; font-weight:400; }
+.v2-rep-meter{ height:6px; border-radius:3px; background:#EFEDE9; overflow:hidden; }
+.v2-rep-meter i{ display:block; height:100%; background:var(--accent); border-radius:3px; }
+.v2-rep-partw{ display:block; font-size:11px; color:#5F656D; margin-top:4px; }
+.v2-rep-name{ margin:0; font-size:27px; line-height:1.1; letter-spacing:-.02em; }
+.v2-rep-when{ margin:4px 0 0; font-size:13.5px; color:#5F656D; }
+.v2-rep-face{ width:62px; height:62px; border-radius:50%; object-fit:cover; flex:0 0 auto; }
+
+/* the four numbers */
+.v2-rep-strip{
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px;
+  background:#E7E3DD; border:1px solid #E7E3DD; border-radius:var(--r-ctl);
+  overflow:hidden; margin-bottom:26px;
+}
+.v2-rep-big{ background:#FFFFFF; padding:14px 12px; text-align:center; }
+.v2-rep-bign{ display:block; font-size:23px; font-weight:700; letter-spacing:-.02em; }
+.v2-rep-bigl{ display:block; font-size:11.5px; color:#5F656D; margin-top:2px; }
+
+.v2-rep-block{ margin-bottom:24px; }
+.v2-rep-h2{
+  margin:0 0 10px; font-size:12px; letter-spacing:.09em; text-transform:uppercase;
+  color:#5F656D; border-bottom:1px solid #E7E3DD; padding-bottom:6px;
+}
+
+/* the month, one square a day */
+.v2-rep-squares{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px; }
+.v2-rep-sq{
+  width:26px; height:26px; border-radius:6px; display:grid; place-items:center;
+  font-size:10.5px; font-weight:600; color:#16181B;
+}
+.v2-rep-in{ background:#D6F0DE; }
+.v2-rep-late{ background:#FDE7C4; }
+.v2-rep-out{ background:#D7E6FA; }
+.v2-rep-leave{ background:#E6DCF7; }
+.v2-rep-abs{ background:#FAD9D5; }
+.v2-rep-shut{ background:#F0EEEA; color:#9AA0A6; }
+
+.v2-rep-key{ display:flex; flex-wrap:wrap; gap:12px; margin:0 0 12px; font-size:11.5px; color:#5F656D; }
+.v2-rep-keyi{ display:inline-flex; align-items:center; gap:5px; }
+.v2-rep-dot{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+.v2-rep-kv{ margin:0 0 10px; }
+.v2-rep-row{
+  display:flex; justify-content:space-between; gap:16px;
+  padding:6px 0; border-bottom:1px solid #F0EEEA; font-size:13.5px;
+}
+.v2-rep-row dt{ color:#4C5157; }
+.v2-rep-row dd{ margin:0; font-weight:600; }
+.v2-rep-warn{ color:#C2341F; }
+
+.v2-rep-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px; }
+.v2-rep-table th{
+  text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+  color:#5F656D; padding:5px 8px 5px 0; border-bottom:1px solid #E7E3DD;
+}
+.v2-rep-table td{ padding:6px 8px 6px 0; border-bottom:1px solid #F0EEEA; vertical-align:top; }
+
+.v2-rep-note{ margin:8px 0 0; font-size:11.5px; color:#5F656D; line-height:1.45; }
+.v2-rep-foot{
+  margin-top:26px; padding-top:10px; border-top:1px solid #E7E3DD;
+  font-size:11px; color:#5F656D;
+}
+
+/*
+ * Printing.
+ *
+ * Everything but the sheet goes: the shell's sidebar and header, the bar of
+ * buttons, and the orange star. A report with a navigation menu printed down
+ * the left of it is the thing that makes people stop using the button.
+ */
+@media print{
+  @page{ size:A4; margin:12mm; }
+  body{ background:#FFFFFF; }
+  .v2-side, .v2-top, .v2-ptop, .v2-bar-wrap, .v2-rep-bar, .v2-aistar{ display:none !important; }
+  .v2-page, .v2-main, .v2-shell{ padding:0 !important; margin:0 !important; }
+  .v2-rep{ max-width:none; padding:0; }
+  .v2-rep-page{ border:0; border-radius:0; padding:0; }
+  /* A long table may split; its heading repeats on the next page and the
+     heading never sits alone at the foot of one. Keeping whole blocks
+     together left half of page one empty. */
+  .v2-rep-h2{ break-after:avoid; }
+  .v2-rep-note-card, .v2-rep-parts, .v2-rep-strip{ break-inside:avoid; }
+  .v2-rep-table thead{ display:table-header-group; }
+  .v2-rep-table tr{ break-inside:avoid; }
+  .v2-rep-sq{ print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .v2-rep-strip, .v2-rep-dot, .v2-rep-note-card, .v2-rep-meter i{
+    print-color-adjust:exact; -webkit-print-color-adjust:exact;
+  }
+}
+
+@media (max-width:767px){
+  /* The report on a phone: it is still a document, just narrower. Printing
+     from a phone goes through the same Save as PDF. */
+  .v2-rep-page{ padding:20px 16px; }
+  .v2-rep-strip{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .v2-rep-parts{ grid-template-columns:minmax(0,1fr); }
+  .v2-rep-note-card{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .v2-rep-name{ font-size:22px; }
+  .v2-rep-table{ font-size:11.5px; }
+  .v2-rep-sq{ width:23px; height:23px; }
+}
+
 /* Every tap target on a phone is at least 44px (prompt §0.2). */
 @media (max-width:767px){
   .v2-tab,.v2-dial,.v2-row{ min-height:var(--tap); }
