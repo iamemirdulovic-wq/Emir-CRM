@@ -1092,6 +1092,22 @@ const COUNTERS: Array<{ key: Mark; label: string; dot: string }> = [
   { key: 'abs', label: 'Absent', dot: 'd-red' },
 ];
 
+/**
+ * The month the report covers.
+ *
+ * Not `team.from`/`team.to`: the register above shows the last eight open
+ * days, and a name linked to that range would hand out an eight-day report
+ * when what was asked for is a month.
+ */
+function thisMonth(): { from: string; to: string } {
+  const now = new Date();
+  const two = (n: number) => String(n).padStart(2, '0');
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return { from: `${y}-${two(m + 1)}-01`, to: `${y}-${two(m + 1)}-${two(last)}` };
+}
+
 function TeamToday({ team }: { team: Team }) {
   const [only, setOnly] = useState<Mark | ''>('');
 
@@ -1224,7 +1240,7 @@ function TeamToday({ team }: { team: Team }) {
                 cells={cells}
                 sum={sum}
                 bad={abs > 0 || late > 1}
-                period={{ from: team.from, to: team.to }}
+                period={thisMonth()}
               />
             );
           })}
