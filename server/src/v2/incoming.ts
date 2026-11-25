@@ -4,6 +4,7 @@ import { writeAudit, type AuditActor } from '../audit/audit.js';
 import { notify } from '../messaging/notify.js';
 import type { SessionUser } from '../auth/sessions.js';
 import { countedAgentSql } from '../users/counting.js';
+import { routingSettings } from '../routing/settings.js';
 
 /**
  * Incoming: the leads nobody is working on.
@@ -117,6 +118,18 @@ export async function agentsWithLoad(): Promise<Array<{
 }
 
 /**
+ * May this person take a free lead for themselves?
+ *
+ * Owners and admins always may. Everyone else only while the CRM hands leads
+ * out by itself; when the owner hands them out, a free lead waits for the
+ * owner's choice, the same rule as `whoMayPlace` on the old Incoming.
+ */
+export async function mayTakeFreeLeads(role: string): Promise<boolean> {
+  if (role === 'owner' || role === 'admin') return true;
+  return (await routingSettings()).autoAssign;
+}
+
+/**
  * "Take this lead."
  *
  * The UPDATE carries `owner_user_id IS NULL` in its WHERE, so two agents
@@ -136,6 +149,17 @@ export async function takeLead(
   if (!before) throw notFound('That lead is no longer there.');
   if (before.status !== 'open') throw badRequest('That lead is closed.');
   if (before.owner_user_id === user.id) return { taken: true };
+
+  /*
+   * With "Give new leads to an agent automatically" off, the owner hands out
+   * every lead. George, 24 Nov: "Nelson is getting all the leads" — he was
+   * pressing Take on each one the moment it landed, which is the automatic
+   * hand-out by another name. The old Incoming already refused this
+   * (`whoMayPlace`); this screen did not.
+   */
+  if (!(await mayTakeFreeLeads(user.role))) {
+    throw forbidden('New leads go to the owner first. Ask an owner or admin to give you one.');
+  }
 
   const result = await withTransaction(async (tx) => {
     const changed = await execute(

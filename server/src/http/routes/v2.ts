@@ -16,7 +16,7 @@ import {
   answerTap, callQueue, CALL_OUTCOMES, finishCall, logTap, startCall, TAP_RESULTS,
 } from '../../v2/calls.js';
 import {
-  agentsWithLoad, cameBack, freeLeads, shareLeads, takeLead,
+  agentsWithLoad, cameBack, freeLeads, mayTakeFreeLeads, shareLeads, takeLead,
 } from '../../v2/incoming.js';
 import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
@@ -282,7 +282,9 @@ v2Router.get(
     const user = currentUser(req);
     const free = await freeLeads();
     if (user.role === 'agent') {
-      res.json({ role: 'agent', free });
+      /* `canTake` false: the owner hands out new leads, so the screen shows
+         them without a Take button (the server refuses the take anyway). */
+      res.json({ role: 'agent', free, canTake: await mayTakeFreeLeads(user.role) });
       return;
     }
     const [agents, back] = await Promise.all([agentsWithLoad(), cameBack(user.id)]);

@@ -64,7 +64,7 @@ interface Agent {
 }
 
 type Incoming =
-  | { role: 'agent'; free: FreeLead[] }
+  | { role: 'agent'; free: FreeLead[]; canTake?: boolean }
   | { role: 'owner'; free: FreeLead[]; agents: Agent[]; cameBack: FreeLead[] };
 
 /** The design's rules card, a different set for each role. */
@@ -88,8 +88,70 @@ export function V2Incoming() {
   if (!data.data) return <Spinner />;
 
   return data.data.role === 'agent'
-    ? <AgentView free={data.data.free} reload={data.reload} />
+    ? (data.data.canTake === false
+      ? <AgentWaitView free={data.data.free} />
+      : <AgentView free={data.data.free} reload={data.reload} />)
     : <OwnerView data={data.data} reload={data.reload} />;
+}
+
+/* ── the agent's screen while the owner hands out every lead ──────────── */
+
+/*
+ * "Give new leads to an agent automatically" is off, so nobody takes a lead
+ * for themselves: the owner gives each one. The agent still sees what is
+ * waiting, without a Take button, and is told where a lead given to them
+ * will show up.
+ */
+function AgentWaitView({ free }: { free: FreeLead[] }) {
+  usePhoneHead({ sub: 'The owner gives out new leads', compact: true });
+  return (
+    <div className="p-incoming v2-incoming">
+      <div className="d-inc-grid">
+        <div>
+          <div className="d-sumline">
+            <b className="d-num">{free.length}</b>
+            <span className="d-label">
+              {free.length === 1 ? 'lead waits' : 'leads wait'} for the owner to give it to an agent
+            </span>
+          </div>
+          {free.length === 0 ? (
+            <div className="d-card">
+              <div className="d-empty">
+                <span className="d-ic"><Icon name="inbox" size={26} /></span>
+                <b>Incoming is empty</b>
+                <p>Every lead has an agent.</p>
+                <Link className="d-btn d-sm" to="/v2/leads">Open My leads</Link>
+              </div>
+            </div>
+          ) : free.map((lead) => (
+            <Row key={lead.id} lead={lead} showPhone={false}>
+              <span className="d-chip d-line">
+                <Icon name="lock" size={13} />The owner gives it
+              </span>
+            </Row>
+          ))}
+        </div>
+        <aside className="d-col d-gap-16 v2-inc-side">
+          <section className="d-card v2-inc-rules">
+            <h3>The rules</h3>
+            <div className="d-rule">
+              <Icon name="crown" size={16} />
+              <span>The owner gives every new lead to an agent. Nobody takes one for themselves.</span>
+            </div>
+            <div className="d-rule">
+              <Icon name="check" size={16} />
+              <span>A lead given to you shows up in <b>My leads</b>.</span>
+            </div>
+          </section>
+          <Link className="d-shortcut v2-inc-shortcut" to="/v2/leads">
+            <Icon name="users" />
+            <span className="d-grow">My leads</span>
+            <Icon name="arrow-right" size={15} />
+          </Link>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
 /* ── the agent's screen ────────────────────────────────────────────────── */

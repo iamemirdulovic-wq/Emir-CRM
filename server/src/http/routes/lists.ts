@@ -10,6 +10,7 @@ import { ownerPredicate, visibleUserIds } from '../../auth/scope.js';
 import { newId } from '../../lib/ids.js';
 import { badRequest, forbidden } from '../../lib/errors.js';
 import { writeAudit } from '../../audit/audit.js';
+import { stopSequence } from '../../workflows/workflow-b.js';
 import { toCsvRow } from '../../imports/csv.js';
 import { describeFilter, listFilterSchema } from '../../lists/filters.js';
 import { addToList, listMembers, removeFromList, runBulkAction } from '../../lists/store.js';
@@ -308,6 +309,18 @@ listsRouter.post(
         WHERE contact_id IN (${marks}) AND deleted_at IS NULL`,
       [user.id, ...body.contactIds],
     );
+
+    /* And so does the work queued for them. An open task on a deleted lead
+       kept sending its agent "Overdue" emails for a lead they could no longer
+       open, and the no-reply sequence kept adding new ones. Cancelled, not
+       completed, so nobody's numbers move; a restore leaves them cancelled,
+       which is the honest state for calls nobody was asked to make. */
+    await execute(
+      `UPDATE tasks SET cancelled_at = NOW(3), cancelled_reason = 'lead_deleted'
+        WHERE contact_id IN (${marks}) AND completed_at IS NULL AND cancelled_at IS NULL`,
+      body.contactIds,
+    );
+    for (const row of before) await stopSequence(row.id, 'lead_deleted');
 
     await writeAudit({
       actor: actorFrom(req),

@@ -2,6 +2,21 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Agents can no longer take leads from the new Incoming
+
+24 November. George: "Nelson is getting all the leads." Nothing was assigning
+them automatically: the audit log showed Nelson pressing **Take this lead** on
+the v2 Incoming screen within minutes of each lead landing (9 takes from the
+evening of 23 Nov to midday 24 Nov, Sultan 1). The old Incoming already
+refused agents while *Give new leads to an agent automatically* is off
+(`whoMayPlace`); the v2 screen and `POST /api/v2/incoming/:id/take` did not.
+
+Now, with the switch off, only an owner or admin can place a free lead. The
+server refuses an agent's take with "New leads go to the owner first", and
+`GET /api/v2/incoming` tells the agent screen `canTake: false`, which shows
+the waiting leads with "The owner gives it" instead of a Take button. With the
+switch on, agents take leads as before. Leads Nelson already took stay his.
+
 ## The owner hands out every lead
 
 21 November. Emir asked for a new lead to go nowhere until he gives it to

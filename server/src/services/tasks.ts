@@ -70,7 +70,12 @@ export interface TaskCounts {
  * earlier — permanently overdue, because nothing would ever complete them.
  * Written once here so a new query cannot quietly forget the second half.
  */
-export const OPEN_TASK = 't.completed_at IS NULL AND t.cancelled_at IS NULL';
+export const OPEN_TASK =
+  't.completed_at IS NULL AND t.cancelled_at IS NULL' +
+  /* A third half since Nov 2026: a deleted lead's tasks. Deleting is a soft
+     delete, so its tasks stayed in the agent's list and badge for a lead they
+     could no longer open. */
+  ' AND NOT EXISTS (SELECT 1 FROM contacts dc WHERE dc.id = t.contact_id AND dc.deleted_at IS NOT NULL)';
 
 export async function listTasks(
   viewerId: string,
