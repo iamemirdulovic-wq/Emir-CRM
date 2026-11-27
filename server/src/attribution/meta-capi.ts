@@ -11,6 +11,16 @@ import { logger } from '../lib/logger.js';
  * which ads produce real buyers rather than just cheap form fills.
  */
 
+/**
+ * The name Meta shows for where these events come from.
+ *
+ * Required on every Conversion Leads event. Meta's own examples use the
+ * product name — "Salesforce", "HubSpot", "In-house CRM" — and it appears in
+ * Events Manager, so it is the brokerage's own CRM by name rather than a
+ * generic word.
+ */
+export const LEAD_EVENT_SOURCE = 'homes.me CRM';
+
 export const CAPI_EVENT_NAMES = ['valid_lead', 'contacted', 'qualified', 'appointment', 'show', 'reservation'] as const;
 export type CapiEventName = (typeof CAPI_EVENT_NAMES)[number];
 
@@ -92,6 +102,15 @@ export async function sendCapiEvent(input: {
     return { sent: false, skipped: 'no_identifiers' };
   }
 
+  /*
+   * `lead_event_source` and `event_source` are REQUIRED on every Conversion
+   * Leads event, not only the ones carrying a value — Meta's payload
+   * specification for the CRM integration lists both as required, under
+   * `custom_data`. They were on the reservation alone, so every other event
+   * went up missing both, and an event Meta does not recognise as a CRM
+   * conversion is an event that optimises nothing. The whole point of this
+   * feature is the stages before the sale.
+   */
   const payload = {
     data: [
       {
@@ -101,9 +120,13 @@ export async function sendCapiEvent(input: {
         // One id per (opportunity, event) so Meta deduplicates retries for us.
         event_id: `${input.opportunityId}:${input.eventName}`,
         user_data: userData,
-        ...(row.deal_value_aed && input.eventName === 'reservation'
-          ? { custom_data: { value: Number(row.deal_value_aed), currency: 'AED' } }
-          : {}),
+        custom_data: {
+          lead_event_source: LEAD_EVENT_SOURCE,
+          event_source: 'crm',
+          ...(row.deal_value_aed && input.eventName === 'reservation'
+            ? { value: Number(row.deal_value_aed), currency: 'AED' }
+            : {}),
+        },
       },
     ],
     ...(cfg.META_CAPI_TEST_EVENT_CODE ? { test_event_code: cfg.META_CAPI_TEST_EVENT_CODE } : {}),
