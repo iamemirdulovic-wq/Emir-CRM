@@ -342,7 +342,77 @@ const DESKS = [
 const BANNER_LABELS = ['From Emir', 'Office', 'Project', 'Best of Homes', 'Training'];
 const BANNER_OPENS = ['Project page', 'Best of Homes', 'Team wall', 'A web link'];
 
+/* ── connections ───────────────────────────────────────────────────────── */
+
+/**
+ * A deliberately mixed set, as this file's header demands: two working, one
+ * refused by Meta, two switched on with nothing through them yet, and three
+ * never connected. A demo where everything is green teaches the wrong thing.
+ */
+const CONNECTIONS = [
+  {
+    key: 'meta_lead_ads', group: 'Leads coming in',
+    title: 'Facebook & Instagram lead forms',
+    what: 'A person fills in your ad form and lands here within seconds.',
+    state: 'live', detail: '31 this week · last one 12 min ago', todo: null,
+  },
+  {
+    key: 'whatsapp_in', group: 'Leads coming in', title: 'WhatsApp',
+    what: 'Messages and click-to-WhatsApp ads become leads and conversations.',
+    state: 'live', detail: '58 this week · last one just now', todo: null,
+  },
+  {
+    key: 'website', group: 'Leads coming in', title: 'Your website forms',
+    what: 'Anyone who fills a form on your site becomes a lead here.',
+    state: 'quiet',
+    detail: 'Nothing for two weeks · last one 19 days ago',
+    todo: 'Nothing for two weeks. Check the connection is still live at their end.',
+  },
+  {
+    key: 'google_forms', group: 'Leads coming in', title: 'Google lead forms',
+    what: 'Lead forms on Google Ads arrive here too.',
+    state: 'off', detail: 'Not connected yet',
+    todo: 'Add GOOGLE_LEAD_FORM_KEY and set the same key in Google Ads.',
+  },
+  {
+    key: 'property_investment', group: 'Leads coming in', title: 'property-investment.ae',
+    what: 'Their leads come in, and your stage changes go back to them.',
+    state: 'live', detail: '7 this week · last one 3 hours ago', todo: null,
+  },
+  {
+    key: 'meta_capi', group: 'Reporting back', title: 'Facebook Conversions API',
+    what: 'Tells Meta which leads turned into real buyers, so the ads find more of them.',
+    state: 'failing',
+    detail: '14 refused by Meta in 30 days · Invalid OAuth access token',
+    todo: 'Meta is refusing these. Usually the token expired or the dataset id is wrong.',
+  },
+  {
+    key: 'google_offline', group: 'Reporting back', title: 'Google offline conversions',
+    what: 'The same thing for Google Ads: which clicks became real deals.',
+    state: 'off', detail: 'Not connected yet',
+    todo: 'Needs a Google Ads developer token.',
+  },
+  {
+    key: 'email', group: 'Talking to clients', title: 'Email',
+    what: 'Sends from your own address, and replies come back into the inbox.',
+    state: 'live', detail: 'Sending through smtp.hostinger.com', todo: null,
+  },
+  {
+    key: 'push', group: 'Talking to clients', title: 'Phone alerts',
+    what: 'A new lead buzzes the agent’s phone within seconds.',
+    state: 'quiet', detail: '1 of 14 people have a phone registered',
+    todo: 'Most of the team will not be buzzed. They each need to open the '
+      + 'CRM on their phone once and allow notifications.',
+  },
+  {
+    key: 'homes_ai', group: 'The assistant', title: 'Homes AI',
+    what: 'Answers questions about your own leads, and writes messages for your agents.',
+    state: 'live', detail: 'Claude connected', todo: null,
+  },
+];
+
 export const SETTINGS_ROUTES: MockRoute[] = [
+  { method: 'GET', pattern: /^\/api\/v2\/integrations$/, handler: () => ({ items: CONNECTIONS }) },
   { method: 'GET', pattern: /^\/api\/v2\/health$/, handler: () => healthReport() },
   { method: 'POST', pattern: /^\/api\/v2\/health\/check$/, handler: () => healthReport() },
 

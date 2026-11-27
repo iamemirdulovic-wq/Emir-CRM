@@ -238,6 +238,7 @@ export const EXTRA_SCREENS: Screen[] = [
   { to: '/v2/settings/banners', label: 'Home banners', icon: 'megaphone', words: 'my day slides news', ownerOnly: true },
   { to: '/v2/settings/feedback', label: 'Feedback inbox', icon: 'inbox', words: 'bugs ideas reported', ownerOnly: true },
   { to: '/v2/settings/health', label: 'System health', icon: 'activity', words: 'keys whatsapp email push setup', ownerOnly: true },
+  { to: '/v2/settings/integrations', label: 'Connections', icon: 'link', words: 'facebook meta instagram website whatsapp google integration connected capi', ownerOnly: true },
 ];
 
 /**

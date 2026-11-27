@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { agentReport } from '../../v2/agent-report.js';
+import { integrations } from '../../v2/integrations.js';
 import { schemaState } from '../../db/migration-state.js';
 import { asyncHandler } from '../middleware/error.js';
 import { ASKS, ask, type Ask } from '../../v2/ask.js';
@@ -1272,6 +1273,22 @@ v2Router.patch(
  * manager's reach here is exactly their reach everywhere else and there is no
  * second rule to drift out of step with the first.
  */
+/**
+ * What the CRM is connected to. Owner and admin only: it names the pieces of
+ * the business's plumbing, and a few of the `todo` lines name the setting to
+ * change.
+ */
+v2Router.get(
+  '/integrations',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { role } = currentUser(req);
+    if (role !== 'owner' && role !== 'admin') {
+      throw badRequest('Only an owner or an admin can see the connections.');
+    }
+    res.json({ items: await integrations() });
+  }),
+);
+
 v2Router.get(
   '/agent-report/:userId',
   asyncHandler(async (req: Request, res: Response) => {

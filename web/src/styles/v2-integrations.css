@@ -1,0 +1,77 @@
+/*
+ * Settings → Connections.
+ *
+ * There is no design file for this page: Emir asked for it after the design
+ * package was drawn. So it borrows System health's shapes — the big status
+ * circle, then grouped rows — and uses only tokens that exist in
+ * `v2-tokens.css`. A `var()` that resolves to nothing kills its whole
+ * property, which is how a previous page lost every rounded corner at once.
+ *
+ * Classes are `v2-int-*` throughout. `css-collisions.test.ts` fails the build
+ * if two stylesheets define the same bare class, and that check exists because
+ * a duplicate `.unread` once broke the pipeline board.
+ */
+
+/* `.d-card` is itself `display:flex;flex-direction:column` at the same
+   specificity, and won — the status circle sat above its own heading, both
+   centred, on every width. Naming both classes puts the row back. */
+.v2 .d-card.v2-int-top {flex-direction:row;align-items:center;gap:16px}
+.v2 .v2-int-top h2 {margin:0;font-size:19px;font-weight:650;letter-spacing:-.2px}
+.v2 .v2-int-top p {margin:3px 0 0;font-size:13px;color:var(--ink-3)}
+
+.v2 .v2-int-big {
+  width:48px;height:48px;border-radius:50%;flex:none;
+  display:grid;place-items:center;
+}
+.v2 .v2-int-big svg {width:24px;height:24px}
+.v2 .v2-int-big-ok {background:var(--green-soft);color:var(--green-ink)}
+.v2 .v2-int-big-bad {background:var(--red-soft);color:var(--red-ink)}
+
+.v2 .v2-int-rule {margin:-6px 0 0;line-height:1.5}
+
+.v2 .v2-int-group > h3 {
+  margin:0 0 4px;font-size:12px;font-weight:650;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--ink-3);
+}
+
+.v2 .v2-int-list {display:flex;flex-direction:column}
+.v2 .v2-int-row {
+  display:flex;gap:13px;align-items:flex-start;
+  padding:15px 0;border-top:1px solid var(--line-2);
+}
+.v2 .v2-int-row:first-child {border-top:0}
+
+.v2 .v2-int-ico {
+  width:34px;height:34px;border-radius:var(--r-ctl);flex:none;
+  display:grid;place-items:center;
+  background:var(--surface-2);color:var(--ink-3);
+}
+.v2 .v2-int-ico svg {width:17px;height:17px}
+.v2 .v2-int-is-live .v2-int-ico {background:var(--green-soft);color:var(--green-ink)}
+.v2 .v2-int-is-quiet .v2-int-ico {background:var(--amber-soft);color:var(--amber-ink)}
+.v2 .v2-int-is-failing .v2-int-ico {background:var(--red-soft);color:var(--red-ink)}
+
+.v2 .v2-int-head {display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.v2 .v2-int-head b {font-size:14.5px;font-weight:600}
+
+.v2 .v2-int-what {margin:3px 0 0;font-size:13px;color:var(--ink-3);line-height:1.45}
+.v2 .v2-int-detail {margin:5px 0 0;font-size:12.5px;color:var(--ink-2);font-weight:550}
+
+.v2 .v2-int-todo {
+  display:flex;gap:7px;align-items:flex-start;
+  margin:8px 0 0;padding:9px 11px;border-radius:var(--r-sm);
+  background:var(--surface-2);font-size:12.5px;line-height:1.45;color:var(--ink-2);
+}
+.v2 .v2-int-todo svg {width:14px;height:14px;flex:none;margin-top:2px;color:var(--ink-3)}
+.v2 .v2-int-is-failing .v2-int-todo {background:var(--red-soft);color:var(--red-ink)}
+.v2 .v2-int-is-failing .v2-int-todo svg {color:var(--red-ink)}
+
+.v2 .v2-int-foot {margin:0 0 8px;line-height:1.5}
+
+@media (max-width:767px) {
+  .v2 .d-card.v2-int-top {gap:13px}
+  .v2 .v2-int-top h2 {font-size:17px}
+  .v2 .v2-int-big {width:42px;height:42px}
+  .v2 .v2-int-big svg {width:21px;height:21px}
+  .v2 .v2-int-row {gap:11px;padding:14px 0}
+}

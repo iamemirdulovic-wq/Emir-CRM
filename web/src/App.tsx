@@ -67,6 +67,7 @@ import { V2SettingsCompany } from './v2/settings/Company.js';
 import { V2SettingsAttendance } from './v2/settings/Attendance.js';
 import { V2SettingsAi } from './v2/settings/Ai.js';
 import { V2SettingsHealth } from './v2/settings/Health.js';
+import { V2SettingsIntegrations } from './v2/settings/Integrations.js';
 import { V2SettingsDesks } from './v2/settings/Desks.js';
 import { V2SettingsTeam } from './v2/settings/Team.js';
 import { V2SettingsPhoneApp } from './v2/settings/PhoneApp.js';
@@ -247,6 +248,7 @@ export function App() {
           <Route path="/v2/settings/ai" element={<OwnerOnly><V2SettingsAi /></OwnerOnly>} />
           <Route path="/v2/settings/desks" element={<OwnerOnly><V2SettingsDesks /></OwnerOnly>} />
           <Route path="/v2/settings/health" element={<OwnerOnly><V2SettingsHealth /></OwnerOnly>} />
+          <Route path="/v2/settings/integrations" element={<OwnerOnly><V2SettingsIntegrations /></OwnerOnly>} />
           <Route path="/v2/settings/feedback" element={<OwnerOnly><V2FeedbackInbox /></OwnerOnly>} />
           <Route path="/v2/settings/banners" element={<OwnerOnly><V2SettingsBanners /></OwnerOnly>} />
           <Route path="/v2/settings/security" element={<V2SettingsSecurity />} />

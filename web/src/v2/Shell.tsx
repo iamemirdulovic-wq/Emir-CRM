@@ -658,7 +658,7 @@ const MENU_BLOCKS: { label: string; ownerOnly?: boolean; routes: (string | NavIt
          own tile, so they belong in the owner's block rather than in the
          leftovers at the foot. */
       '/v2/automations', '/v2/settings/attendance', '/v2/settings/company',
-      '/v2/settings/ai', '/v2/settings/health',
+      '/v2/settings/ai', '/v2/settings/health', '/v2/settings/integrations',
     ],
   },
   {

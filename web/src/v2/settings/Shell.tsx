@@ -41,6 +41,7 @@ const OFFICE: Section[] = [
   { to: '/v2/settings/company', icon: 'building', label: 'Company', ownerOnly: true },
   { to: '/v2/settings/banners', icon: 'megaphone', label: 'Home banners', ownerOnly: true },
   { to: '/v2/settings/ai', icon: 'sparkles', label: 'Homes AI', ownerOnly: true },
+  { to: '/v2/settings/integrations', icon: 'link', label: 'Connections', ownerOnly: true },
   { to: '/v2/settings/health', icon: 'shield', label: 'System health', ownerOnly: true },
   { to: '/v2/settings/feedback', icon: 'inbox', label: 'Feedback inbox', ownerOnly: true },
 ];

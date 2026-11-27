@@ -100,6 +100,7 @@ const ROUTES = [
   ['/v2/settings/feedback', 'v2-settings-feedback'],
   ['/v2/settings/banners', 'v2-settings-banners'],
   ['/v2/settings/health', 'v2-settings-health'],
+  ['/v2/settings/integrations', 'v2-settings-integrations'],
   ['/v2/settings/phone-app', 'v2-settings-phone-app'],
   ['/v2/team/u-2', 'v2-team-member'],
 ];

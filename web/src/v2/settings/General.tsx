@@ -175,6 +175,10 @@ function PhoneSettings({ inOffice }: { inOffice: boolean }) {
       note: 'Lead assign, take-back rule, chasing',
     },
     {
+      to: '/v2/settings/integrations', icon: 'link', title: 'Connections',
+      note: 'Facebook, website, WhatsApp, Google',
+    },
+    {
       to: '/v2/settings/health', icon: 'shield', title: 'System health',
       note: 'Push, email, background jobs',
     },
@@ -627,6 +631,10 @@ const SHORTCUTS: Shortcut[] = [
   {
     to: '/v2/settings/ai', icon: 'sparkles', label: 'Homes AI',
     detail: (s) => `$${s.ai.spentUsd} of $${s.ai.capUsd} used this month`,
+  },
+  {
+    to: '/v2/settings/integrations', icon: 'link', label: 'Connections',
+    detail: () => 'Facebook, website, WhatsApp, Google',
   },
   {
     to: '/v2/settings/health', icon: 'shield', label: 'System health',

@@ -2,6 +2,43 @@
 
 All notable changes to the homes.me CRM, newest first. One entry per build phase.
 
+## Settings → Connections
+
+27 November. Emir, straight after connecting Meta: *"we can see our CRM is
+connected with Facebook, our CRM is connected with our website, all this kind
+of things."* There was no way to see it. System health answers "is the CRM
+itself up"; nothing answered "is anything actually coming in, and is anything
+going back out".
+
+The data had been there since the first week. `inbound_events` holds every
+webhook that ever arrived, with its source and the minute it landed;
+`conversion_events` holds everything we ever reported to Meta and Google, with
+the status and the refusal text. **No screen had ever read either table.**
+
+`/v2/settings/integrations` reads both. Ten connections in four groups — leads
+coming in (Facebook forms, WhatsApp, the website, Google forms,
+property-investment.ae), reporting back (Meta CAPI, Google offline
+conversions), talking to clients (email, phone alerts) and Homes AI. Each row
+says what it does for the business in one line, then what is true right now:
+how many arrived this week and when the last one did, or how many Meta
+accepted in 30 days, or Meta's own words for why it refused them.
+
+The rule the page is built on is the one System health learned the hard way:
+**a key being set is not the same as a thing working.** A connection that is
+switched on but has never done anything is amber and says so, rather than
+showing a green tick and letting somebody find out in a month. A connection
+with nothing for two weeks is amber too — that is what a broken Meta webhook
+looks like, and it is indistinguishable from working if all a screen checks is
+whether the key is present. Every row that is not green carries one line of
+what to do about it.
+
+`META_CAPI_TEST_EVENT_CODE` makes the Meta row say TEST MODE and explain that
+those events land in Events Manager → Test events and do not count. A refusal
+beats that notice: a wrong token in test mode is still a wrong token.
+
+Owner and admin only, on the server as well as in the nav. No key, token or
+secret appears on the page — only whether one is set.
+
 ## Agents can no longer take leads from the new Incoming
 
 24 November. George: "Nelson is getting all the leads." Nothing was assigning

@@ -663,3 +663,65 @@ database's own words on the owner's screen rather than reasoning again.
 - [x] The dialler scheduled its own follow-ups, ignoring the ladder entirely
 - [x] A test that failed **every Saturday** and passed the rest of the week
 - [x] Times printed in the reader's timezone beside a Dubai day
+
+## 21–27 November 2026 — the assistant, the owner's hand, and seeing the plumbing
+
+Not a phase. Six things Emir asked for over a week, each small on its own.
+
+**Homes AI is Claude now, and it is a real page**
+
+- [x] **Gemini out, Claude in** — the official Anthropic SDK behind the same
+      provider interface, the model a setting rather than a constant. The key
+      is entered in Settings → Homes AI, stored encrypted, shown as last four
+      only, and never appears in browser code, logs or git
+- [x] **A "Test the key" button** that says in plain words what is wrong,
+      never the raw error. The spend cap, the 80% and 100% alerts, and the
+      per-feature counters all read Claude's own usage figures
+- [x] **The orb is gone.** It was a floating stand-in that held its own
+      conversation, answered eight fixed questions and told everybody Homes AI
+      was "still being built" — while the real assistant sat on a page with no
+      way in from the header. Replaced by a star in the header that is a link
+      and nothing else
+- [x] **`/v2/ai` is a proper chat**: history, starters, and drafts that open
+      the lead's own thread with the text ready. It never sends
+- [x] **It can look things up on the web** for market questions, and says
+      where a figure came from. Never a web figure inside a client draft.
+      Switchable in Settings → Homes AI
+- [x] **Owner and admin can read every agent's chats.** Emir's decision
+
+**The owner hands out every lead**
+
+- [x] With *assign automatically* off, a new lead goes to nobody, waits in
+      Incoming and is visible to the owner and admins only. A returning lead
+      waits too, rather than going back to its old agent. Both Emir's choice
+
+**Per-agent report**
+
+- [x] **A printable report per team member** — attendance squares, the days
+      they were not in, when they normally arrive and leave, calls made,
+      leads given and what came of them, with the company logo
+- [x] **A score out of 100** and a line written to the person by name:
+      a warning for somebody rarely in, congratulations for somebody doing
+      well. Owner, admin and managers only
+
+**Meta Conversions API**
+
+- [x] **Stage changes report back to Meta** as lead-quality events, with
+      `lead_event_source` and `event_source` on every one — both required, and
+      both were missing on everything but a reservation
+- [ ] **Emir to test it**: move a demo lead to Appointment, check Events
+      Manager → Test events, then delete `META_CAPI_TEST_EVENT_CODE` and
+      redeploy
+- [ ] **Jasser to map the funnel** in Events Manager: `valid_lead`,
+      `contacted`, `qualified`, `appointment`, `show`, `reservation`
+
+**Settings → Connections (27 Nov)**
+
+- [x] **A page that says what the CRM is plugged into and whether anything is
+      coming through it.** Ten connections in four groups, counted from
+      `inbound_events` and `conversion_events` — two tables written since the
+      first week that no screen had ever read
+- [x] **Switched on but silent is amber, not green.** A key being set is not
+      the same as a thing working; that was the whole point of asking
+- [x] Owner and admin only, on the server as well as in the nav. No key,
+      token or secret is shown — only whether one is set
