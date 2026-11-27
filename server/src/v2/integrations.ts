@@ -141,6 +141,42 @@ function metaCapi(
   };
 }
 
+/**
+ * Meta said it delivered. Did a lead actually land?
+ *
+ * Arriving and landing are two different things here, done by two different
+ * credentials, and only the first one leaves a mark that `inbound_events`
+ * can see. A row that counts arrivals alone is the exact mistake this whole
+ * page was built to stop, one level further in.
+ */
+function metaForms(
+  row: Integration,
+  stuck: { n: number; error: string | null; lastAt: Date | null },
+  hasToken: boolean,
+): Integration {
+  if (row.state === 'off') return row;
+  if (stuck.n > 0) {
+    return {
+      ...row,
+      state: 'failing',
+      detail: `${stuck.n} lead${stuck.n === 1 ? '' : 's'} arrived in 7 days but could not be read`
+        + ` \u00b7 ${stuck.error ?? 'no reason given'}`,
+      todo: 'Meta delivered these and the CRM could not fetch the answers, so they are '
+        + 'not in your leads. Usually the page access token expired.',
+    };
+  }
+  if (!hasToken) {
+    return {
+      ...row,
+      state: 'failing',
+      detail: 'No Meta access token \u00b7 nothing can be read even when Meta delivers',
+      todo: 'Add META_SYSTEM_USER_TOKEN (or META_PAGE_ACCESS_TOKEN) in your hosting '
+        + 'settings, or every lead Meta sends is lost.',
+    };
+  }
+  return row;
+}
+
 export async function integrations(exec: Executor = getPool()): Promise<Integration[]> {
   const cfg = env();
 
@@ -176,6 +212,31 @@ export async function integrations(exec: Executor = getPool()): Promise<Integrat
   const toMeta = backTo('meta');
   const toGoogle = backTo('google');
 
+  /*
+   * The Meta webhook carries only ids. The answers are fetched afterwards by
+   * a `meta.fetch_lead` job, with a different token from the one that signs
+   * the webhook. So Meta can be delivering perfectly while every lead dies in
+   * that job, and the webhook's own count says "working" the whole time.
+   *
+   * Jasser asked the right question before a launch -- "are you sure leads
+   * are going to the CRM?" -- and nothing on any screen could answer it. This
+   * is the answer: the job's own failures, in Meta's own words.
+   */
+  const stuck = await queryOne<{ n: number; last_error: string | null; last_at: Date | null }>(
+    `SELECT COUNT(*) AS n,
+            SUBSTRING_INDEX(GROUP_CONCAT(last_error ORDER BY updated_at DESC SEPARATOR '|~|'), '|~|', 1) AS last_error,
+            MAX(updated_at) AS last_at
+       FROM jobs
+      WHERE type = 'meta.fetch_lead' AND status = 'failed'
+        AND updated_at >= DATE_SUB(NOW(3), INTERVAL 7 DAY)`,
+    [],
+    exec,
+  ).then((row) => ({
+    n: Number(row?.n ?? 0),
+    error: row?.last_error ?? null,
+    lastAt: row?.last_at ?? null,
+  }));
+
   const capiOn = Boolean(cfg.META_DATASET_ID && cfg.META_CAPI_ACCESS_TOKEN);
   const fcm = Boolean(cfg.FCM_PROJECT_ID && cfg.FCM_CLIENT_EMAIL);
   const phones = await queryOne<{ registered: number; people: number }>(
@@ -190,16 +251,20 @@ export async function integrations(exec: Executor = getPool()): Promise<Integrat
   const aiKey = Boolean(await secret('CLAUDE_API_KEY', exec).catch(() => null));
 
   const rows: Integration[] = [
-    fromInbound(
-      {
-        key: 'meta_lead_ads',
-        group: 'Leads coming in',
-        title: 'Facebook & Instagram lead forms',
-        what: 'A person fills in your ad form and lands here within seconds.',
-      },
-      Boolean(cfg.META_APP_SECRET),
-      meta,
-      'Add META_APP_SECRET and the page token, then point the webhook at this CRM.',
+    metaForms(
+      fromInbound(
+        {
+          key: 'meta_lead_ads',
+          group: 'Leads coming in',
+          title: 'Facebook & Instagram lead forms',
+          what: 'A person fills in your ad form and lands here within seconds.',
+        },
+        Boolean(cfg.META_APP_SECRET),
+        meta,
+        'Add META_APP_SECRET and the page token, then point the webhook at this CRM.',
+      ),
+      stuck,
+      Boolean(cfg.META_SYSTEM_USER_TOKEN ?? cfg.META_PAGE_ACCESS_TOKEN),
     ),
     fromInbound(
       {

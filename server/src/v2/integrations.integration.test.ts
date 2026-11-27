@@ -3,6 +3,7 @@ import {
   closeTestDatabase, describeWithDb, prepareTestDatabase, resetTables,
 } from '../testing/db.js';
 import { execute, queryOne } from '../db/client.js';
+import { env, setEnvForTesting } from '../config/env.js';
 import { newId } from '../lib/ids.js';
 import { integrations } from './integrations.js';
 
@@ -86,6 +87,78 @@ describeWithDb('what the CRM is connected to', () => {
     /* Off in the test environment, since no dataset is configured -- the
        point is that the grouped read over a real row did not throw. */
     expect(capi?.state).toBe('off');
+  });
+
+  it('calls Facebook broken when leads arrive and cannot be read', async () => {
+    /*
+     * The question this page was built to answer, asked by the marketing
+     * agency the day before a launch: "are you sure leads are going to the
+     * CRM?" The webhook carries only ids; a second token fetches the answers.
+     * When that token is wrong, Meta gets its 200, the arrival is recorded,
+     * and no lead exists. Counting arrivals alone would call that working,
+     * which is the one answer that costs money.
+     */
+    setEnvForTesting({
+      ...env(),
+      META_APP_SECRET: 'test-secret',
+      META_SYSTEM_USER_TOKEN: 'test-token',
+    });
+    try {
+      await execute(
+        `INSERT INTO inbound_events (id, source, external_id, signature_valid, raw_payload)
+         VALUES (?, 'meta_lead_ads', ?, 1, '{}')`,
+        [newId(), `lead-${newId()}`],
+      );
+      await execute(
+        `INSERT INTO jobs (id, type, payload, status, last_error, updated_at)
+         VALUES (?, 'meta.fetch_lead', '{}', 'failed', ?, NOW(3))`,
+        [newId(), 'Error validating access token: Session has expired'],
+      );
+      const forms = (await integrations()).find((one) => one.key === 'meta_lead_ads');
+      expect(forms?.state).toBe('failing');
+      expect(forms?.detail).toContain('Session has expired');
+      expect(forms?.todo).toContain('not in your leads');
+    } finally {
+      setEnvForTesting(null);
+    }
+  });
+
+  it('does not call Facebook broken when the fetch is working', async () => {
+    setEnvForTesting({
+      ...env(),
+      META_APP_SECRET: 'test-secret',
+      META_SYSTEM_USER_TOKEN: 'test-token',
+    });
+    try {
+      await execute(
+        `INSERT INTO inbound_events (id, source, external_id, signature_valid, raw_payload)
+         VALUES (?, 'meta_lead_ads', ?, 1, '{}')`,
+        [newId(), `lead-${newId()}`],
+      );
+      const forms = (await integrations()).find((one) => one.key === 'meta_lead_ads');
+      expect(forms?.state).toBe('live');
+      expect(forms?.todo).toBeNull();
+    } finally {
+      setEnvForTesting(null);
+    }
+  });
+
+  it('says so when Meta can deliver but nothing can read the answers', async () => {
+    /* The app secret signs the webhook; a different token fetches the lead.
+       With only the first, every lead Meta sends is lost on arrival. */
+    setEnvForTesting({ ...env(), META_APP_SECRET: 'test-secret' });
+    try {
+      await execute(
+        `INSERT INTO inbound_events (id, source, external_id, signature_valid, raw_payload)
+         VALUES (?, 'meta_lead_ads', ?, 1, '{}')`,
+        [newId(), `lead-${newId()}`],
+      );
+      const forms = (await integrations()).find((one) => one.key === 'meta_lead_ads');
+      expect(forms?.state).toBe('failing');
+      expect(forms?.todo).toContain('META_SYSTEM_USER_TOKEN');
+    } finally {
+      setEnvForTesting(null);
+    }
   });
 
   it('counts the phones that really registered', async () => {
