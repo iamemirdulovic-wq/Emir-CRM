@@ -63,9 +63,20 @@ interface Agent {
   availability: string; markedToday: string | null;
 }
 
+/**
+ * `free` is what somebody sent us; `imported` is the CSV piles. They are two
+ * lists on purpose -- see `server/src/v2/incoming.ts` for the morning that
+ * made them two. `counts` is the real total of each, because both queries
+ * stop at 200 and a list's length is not its count.
+ */
+interface Counts { fresh: number; imported: number }
+
 type Incoming =
-  | { role: 'agent'; free: FreeLead[]; canTake?: boolean }
-  | { role: 'owner'; free: FreeLead[]; agents: Agent[]; cameBack: FreeLead[] };
+  | { role: 'agent'; free: FreeLead[]; imported: FreeLead[]; counts: Counts; canTake?: boolean }
+  | {
+    role: 'owner'; free: FreeLead[]; imported: FreeLead[]; counts: Counts;
+    agents: Agent[]; cameBack: FreeLead[];
+  };
 
 /** The design's rules card, a different set for each role. */
 const OWNER_RULES: Array<{ icon: IconName; text: ReactNode }> = [
@@ -87,11 +98,15 @@ export function V2Incoming() {
   if (data.error) return <ErrorNote>{data.error}</ErrorNote>;
   if (!data.data) return <Spinner />;
 
-  return data.data.role === 'agent'
-    ? (data.data.canTake === false
-      ? <AgentWaitView free={data.data.free} />
-      : <AgentView free={data.data.free} reload={data.reload} />)
-    : <OwnerView data={data.data} reload={data.reload} />;
+  if (data.data.role === 'owner') return <OwnerView data={data.data} reload={data.reload} />;
+
+  /* An agent sees one list, as before. The split is the owner's tool for
+     handing leads out; an agent taking work off the pile does not care which
+     pile it came from, only that the fresh ones come first. */
+  const forAgent = [...data.data.free, ...data.data.imported];
+  return data.data.canTake === false
+    ? <AgentWaitView free={forAgent} />
+    : <AgentView free={forAgent} reload={data.reload} />;
 }
 
 /* ── the agent's screen while the owner hands out every lead ──────────── */
@@ -275,7 +290,10 @@ function AgentView({ free, reload }: { free: FreeLead[]; reload: () => void }) {
 /* ── the owner's screen ────────────────────────────────────────────────── */
 
 function OwnerView({ data, reload }: {
-  data: { free: FreeLead[]; agents: Agent[]; cameBack: FreeLead[] };
+  data: {
+    free: FreeLead[]; imported: FreeLead[]; counts: Counts;
+    agents: Agent[]; cameBack: FreeLead[];
+  };
   reload: () => void;
 }) {
   const [tab, setTab] = useState<'waiting' | 'back'>('waiting');
@@ -283,20 +301,36 @@ function OwnerView({ data, reload }: {
   const [said, setSaid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [giving, setGiving] = useState<FreeLead | null>(null);
+  const [showImported, setShowImported] = useState(false);
   const { user } = useAuth();
   const me = user?.name ?? 'You';
   usePhoneHead({ sub: 'Owner view · give each lead a home', compact: true });
 
   const normal = useMemo(() => data.free.filter((lead) => !lead.isVip), [data.free]);
+  const importedNormal = useMemo(
+    () => data.imported.filter((lead) => !lead.isVip),
+    [data.imported],
+  );
   /* The people a lead can actually go to: everyone not marked unavailable,
      fewest open leads first — which is the order the endpoint already sends. */
   const working = useMemo(
     () => data.agents.filter((agent) => agent.availability !== 'off'),
     [data.agents],
   );
-  const oldest = data.free.reduce((most, lead) => Math.max(most, lead.waitingMinutes), 0);
+  /* Newest first now, so the head of the list is the freshest thing waiting
+     and that is the number worth printing. */
+  const newest = data.free.reduce(
+    (least, lead) => Math.min(least, lead.waitingMinutes),
+    Number.POSITIVE_INFINITY,
+  );
 
-  async function share() {
+  /**
+   * @param what which list to share. The two are never shared together: five
+   *   leads somebody sent us this morning and two hundred rows off a
+   *   spreadsheet are not one decision, and a button that did both would make
+   *   the small, urgent one invisible inside the big one.
+   */
+  async function share(what: FreeLead[]) {
     if (!confirming) {
       /* Two taps, as every risky action in this product has. */
       setConfirming(true);
@@ -308,7 +342,7 @@ function OwnerView({ data, reload }: {
       const result = await api.post<{ given: number; vipSkipped: number }>(
         '/api/v2/incoming/share',
         {
-          opportunityIds: normal.map((lead) => lead.id),
+          opportunityIds: what.map((lead) => lead.id),
           agentUserIds: working.map((agent) => agent.id),
         },
       );
@@ -360,10 +394,10 @@ function OwnerView({ data, reload }: {
         <div className="d-inc-grid">
           <div>
             <div className="d-sumline">
-              <b className="d-num">{data.free.length}</b>
+              <b className="d-num">{data.counts.fresh}</b>
               <span className="d-label">
-                {data.free.length === 1 ? 'lead waits' : 'leads wait'} for an agent
-                {data.free.length > 0 && ` · the oldest waits ${waited(oldest)}`}
+                {data.counts.fresh === 1 ? 'lead waits' : 'leads wait'} for an agent
+                {data.free.length > 0 && ` · the newest came ${waited(newest)} ago`}
               </span>
             </div>
 
@@ -371,8 +405,11 @@ function OwnerView({ data, reload }: {
               <div className="d-card">
                 <div className="d-empty">
                   <span className="d-ic v2-inc-ic-ok"><Icon name="check" size={26} /></span>
-                  <b>Incoming is empty</b>
-                  <p>Every lead has an agent. New free leads show up here first.</p>
+                  <b>Nobody is waiting</b>
+                  <p>
+                    Every lead sent to us has an agent. A new one from the website,
+                    Facebook or WhatsApp shows up here first.
+                  </p>
                   <Link className="d-btn d-sm" to="/v2/leads/new">Add a lead</Link>
                 </div>
               </div>
@@ -387,6 +424,60 @@ function OwnerView({ data, reload }: {
                 </button>
               </Row>
             ))}
+
+            {data.counts.imported > 0 && (
+              <section className="v2-inc-old">
+                <button
+                  type="button"
+                  className="v2-inc-old-head"
+                  aria-expanded={showImported}
+                  onClick={() => setShowImported((open) => !open)}
+                >
+                  <Icon name={showImported ? 'chevron-down' : 'chevron-right'} size={16} />
+                  <span className="d-grow">
+                    <b>From imported lists</b>
+                    <span className="v2-inc-old-note">
+                      {data.counts.imported} waiting · not urgent, a pile to work down
+                    </span>
+                  </span>
+                  <span className="d-chip">{data.counts.imported}</span>
+                </button>
+
+                {showImported && (
+                  <>
+                    {importedNormal.length > 0 && working.length > 0 && (
+                      <button
+                        type="button"
+                        className="d-btn d-block v2-inc-old-share"
+                        disabled={busy}
+                        onClick={() => share(importedNormal)}
+                      >
+                        {busy ? 'Sharing…' : confirming
+                          ? `Tap again to share ${importedNormal.length}`
+                          : `Share these ${importedNormal.length} equally`}
+                      </button>
+                    )}
+                    {data.imported.map((lead) => (
+                      <Row key={lead.id} lead={lead} showPhone>
+                        <button
+                          type="button"
+                          className={lead.isVip ? 'd-btn d-primary' : 'd-btn d-dark'}
+                          onClick={() => setGiving(lead)}
+                        >
+                          {lead.isVip ? 'Give again' : 'Give to an agent'}
+                        </button>
+                      </Row>
+                    ))}
+                    {data.counts.imported > data.imported.length && (
+                      <p className="d-small d-muted v2-inc-old-more">
+                        Showing the oldest {data.imported.length} of {data.counts.imported}.
+                        Share or give some, and the rest appear.
+                      </p>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
           </div>
 
           <aside className="d-col d-gap-16 v2-inc-side">
@@ -396,15 +487,21 @@ function OwnerView({ data, reload }: {
                 <span className="d-card-icon"><Icon name="users" /></span>
               </div>
               <p className="d-small d-muted">
-                Gives the <b className="d-ink-2">{normal.length} normal {normal.length === 1 ? 'lead' : 'leads'}</b> to
+                Gives the <b className="d-ink-2">{normal.length} normal {normal.length === 1 ? 'lead' : 'leads'}</b> above to
                 the working agents with the fewest open leads.
                 {' '}<b className="d-ink-2">A VIP lead is never shared</b>: you choose the agent.
+                {data.counts.imported > 0 && (
+                  <>
+                    {' '}The {data.counts.imported} imported ones are shared from their own
+                    list, not this button.
+                  </>
+                )}
               </p>
               <button
                 type="button"
                 className={normal.length === 0 || working.length === 0 ? 'd-btn d-block d-mt-16 d-disabled' : 'd-btn d-block d-mt-16'}
                 disabled={normal.length === 0 || working.length === 0 || busy}
-                onClick={share}
+                onClick={() => share(normal)}
               >
                 {busy ? 'Sharing…'
                   : confirming

@@ -2975,10 +2975,30 @@ const ROUTES: Route[] = [
       bounceCount: i === 2 ? 1 : 0,
       reason: i === 4 ? 'no_agent_available' : null,
     }));
-    if (currentUser().role === 'agent') return { role: 'agent', free };
+    /* The pile this screen was fixed for: a CSV import from an agent who
+       left, far more rows than the 200 the query returns, so the preview
+       shows the truncation line rather than hiding it. */
+    const imported = Array.from({ length: 12 }, (_, i) => ({
+      ...free[i % free.length],
+      id: `old-${i}`,
+      name: ['Meraj Meraj', 'Ehsan rehmani', 'Saudi arabia Fahad', 'Shahzad Arshad',
+        'Thambu MC', 'Nadia K', 'Omar Said', 'Priya R', 'Hassan Ali', 'Lina M',
+        'Yusuf B', 'Dana S'][i] as string,
+      source: 'csv_import',
+      project: 'Al Seef by Alef',
+      isVip: false,
+      returnedAt: null,
+      bounceCount: 0,
+      reason: null,
+      waitingMinutes: 24_480 + i * 10,
+    }));
+    const counts = { fresh: free.length, imported: 207 };
+    if (currentUser().role === 'agent') return { role: 'agent', free, imported, counts };
     return {
       role: 'owner',
       free,
+      imported,
+      counts,
       cameBack: free.slice(2, 3),
       agents: USERS.filter((u) => u.role === 'agent' || u.role === 'manager').map((u, i) => ({
         id: u.id,

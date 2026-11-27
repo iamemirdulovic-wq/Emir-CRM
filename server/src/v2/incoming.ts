@@ -66,15 +66,64 @@ const row = (r: Record<string, unknown>): FreeLead => ({
   reason: (r.reason as string | null) ?? null,
 });
 
-/** Everything waiting, oldest first — the ones going coldest. */
+const WAITING = `o.status = 'open' AND o.owner_user_id IS NULL AND o.deleted_at IS NULL`;
+
+/**
+ * Everything waiting that somebody actually sent us, newest first.
+ *
+ * It used to be one list of everything, oldest first, capped at 200. On 27
+ * November that list held 200 CSV rows from an agent who left seventeen days
+ * earlier, and 207 leads were waiting -- so a website lead that had arrived a
+ * minute before was not on the screen at all, cut off past the end of a page
+ * of dead imports. The owner could see the count and could not find the lead.
+ *
+ * An import is a pile of work to get through; a lead somebody sent us today
+ * needs a call within five minutes. They do not belong in one list, and the
+ * fresh one must never be the half that gets cut. So they are two lists now,
+ * each with its own order: this one newest first, because the newest is the
+ * most urgent, and the imported one oldest first, because that one is a
+ * queue to work down.
+ *
+ * Age is deliberately not the test. A website lead still unplaced after three
+ * days is more urgent than a CSV row, not less -- splitting on "today" would
+ * bury exactly the lead this exists to surface.
+ */
 export async function freeLeads(): Promise<FreeLead[]> {
   const rows = await query<Record<string, unknown>>(
     `${SELECT}
-      WHERE o.status = 'open' AND o.owner_user_id IS NULL AND o.deleted_at IS NULL
+      WHERE ${WAITING} AND (o.source IS NULL OR o.source <> 'csv_import')
+      ORDER BY o.created_at DESC
+      LIMIT 200`,
+  );
+  return rows.map(row);
+}
+
+/** The imported lists, oldest first — a backlog to work down, not an alarm. */
+export async function importedLeads(): Promise<FreeLead[]> {
+  const rows = await query<Record<string, unknown>>(
+    `${SELECT}
+      WHERE ${WAITING} AND o.source = 'csv_import'
       ORDER BY o.created_at ASC
       LIMIT 200`,
   );
   return rows.map(row);
+}
+
+/**
+ * How many are really waiting in each list.
+ *
+ * Both queries above stop at 200, and the screen must never print the length
+ * of a truncated list as though it were the total: that is what let 207 read
+ * as 200 while the seven that mattered were the ones missing.
+ */
+export async function waitingCounts(): Promise<{ fresh: number; imported: number }> {
+  const got = await queryOne<{ fresh: number; imported: number }>(
+    `SELECT SUM(o.source <=> 'csv_import') AS imported,
+            SUM(NOT (o.source <=> 'csv_import')) AS fresh
+       FROM opportunities o
+      WHERE ${WAITING}`,
+  );
+  return { fresh: Number(got?.fresh ?? 0), imported: Number(got?.imported ?? 0) };
 }
 
 /** The owner's extra list: leads that bounced back to them. */

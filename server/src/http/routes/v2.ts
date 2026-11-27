@@ -17,7 +17,8 @@ import {
   answerTap, callQueue, CALL_OUTCOMES, finishCall, logTap, startCall, TAP_RESULTS,
 } from '../../v2/calls.js';
 import {
-  agentsWithLoad, cameBack, freeLeads, mayTakeFreeLeads, shareLeads, takeLead,
+  agentsWithLoad, cameBack, freeLeads, importedLeads, mayTakeFreeLeads, shareLeads,
+  takeLead, waitingCounts,
 } from '../../v2/incoming.js';
 import { query, queryOne } from '../../db/client.js';
 import { visibleUserIds } from '../../auth/scope.js';
@@ -281,15 +282,22 @@ v2Router.get(
   '/incoming',
   asyncHandler(async (req: Request, res: Response) => {
     const user = currentUser(req);
-    const free = await freeLeads();
+    /* Two lists, not one: see `freeLeads` for why a fresh lead must never
+       share a capped list with a pile of imports. `counts` is the real total
+       of each, since both queries stop at 200. */
+    const [free, imported, counts] = await Promise.all([
+      freeLeads(), importedLeads(), waitingCounts(),
+    ]);
     if (user.role === 'agent') {
       /* `canTake` false: the owner hands out new leads, so the screen shows
          them without a Take button (the server refuses the take anyway). */
-      res.json({ role: 'agent', free, canTake: await mayTakeFreeLeads(user.role) });
+      res.json({
+        role: 'agent', free, imported, counts, canTake: await mayTakeFreeLeads(user.role),
+      });
       return;
     }
     const [agents, back] = await Promise.all([agentsWithLoad(), cameBack(user.id)]);
-    res.json({ role: 'owner', free, agents, cameBack: back });
+    res.json({ role: 'owner', free, imported, counts, agents, cameBack: back });
   }),
 );
 

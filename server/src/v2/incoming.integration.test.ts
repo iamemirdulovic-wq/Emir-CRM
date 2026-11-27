@@ -38,7 +38,7 @@ describeWithDb('incoming', () => {
   beforeEach(async () => { await resetTables(); resetRateLimits(); });
   afterEach(() => resetRateLimits());
 
-  async function freeLead(over: { vip?: boolean } = {}) {
+  async function freeLead(over: { vip?: boolean; source?: string; daysAgo?: number } = {}) {
     const stage = await queryOne<{ id: string; pipeline_id: string; key: string }>(
       'SELECT id, pipeline_id, `key` FROM pipeline_stages ORDER BY position LIMIT 1',
     );
@@ -51,9 +51,13 @@ describeWithDb('incoming', () => {
     await execute(
       `INSERT INTO opportunities
          (id, contact_id, pipeline_id, stage_id, stage_key, owner_user_id, status, title,
-          source, is_vip)
-       VALUES (?, ?, ?, ?, ?, NULL, 'open', 'x', 'manual', ?)`,
-      [id, contactId, stage!.pipeline_id, stage!.id, stage!.key, over.vip ? 1 : 0],
+          source, is_vip, created_at)
+       VALUES (?, ?, ?, ?, ?, NULL, 'open', 'x', ?, ?,
+               DATE_SUB(NOW(3), INTERVAL ? DAY))`,
+      [
+        id, contactId, stage!.pipeline_id, stage!.id, stage!.key,
+        over.source ?? 'manual', over.vip ? 1 : 0, over.daysAgo ?? 0,
+      ],
     );
     return id;
   }
@@ -64,6 +68,71 @@ describeWithDb('incoming', () => {
       headers: { cookie, 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+
+  it('never lets an import bury a lead somebody just sent', async () => {
+    /*
+     * 27 November, the morning this was found. Incoming held 200 CSV rows
+     * from an agent who had left seventeen days before, the list was sorted
+     * oldest first and capped at 200, and a website lead that had arrived a
+     * minute earlier was not on the screen at all -- cut off past the end.
+     * The owner could see the count say 207 and could not find the lead.
+     *
+     * 210 imports here, more than the cap, so the fresh one can only be
+     * visible if the two lists really are separate queries.
+     */
+    const boss = await createTestUser({ role: 'owner' });
+    for (let i = 0; i < 210; i += 1) {
+      await freeLead({ source: 'csv_import', daysAgo: 17 });
+    }
+    const fresh = await freeLead({ source: 'website' });
+
+    const res = await send('GET', '/api/v2/incoming', await signIn(base, boss));
+    const body = await res.json() as {
+      free: Array<{ id: string }>;
+      imported: Array<{ id: string }>;
+      counts: { fresh: number; imported: number };
+    };
+
+    expect(body.free.map((one) => one.id), 'the fresh lead is in the fresh list')
+      .toContain(fresh);
+    expect(body.free, 'and no import is in it with it').toHaveLength(1);
+    expect(body.imported.map((one) => one.id), 'the imports are their own list')
+      .not.toContain(fresh);
+
+    /* The count is of everything waiting, not of the truncated page: 200
+       rows printed as "200 waiting" while 210 waited is the lie that hid
+       the lead in the first place. */
+    expect(body.counts.imported).toBe(210);
+    expect(body.counts.fresh).toBe(1);
+    expect(body.imported.length).toBeLessThan(body.counts.imported);
+  });
+
+  it('puts the newest lead at the top of the fresh list', async () => {
+    /* Oldest first is right for a backlog and wrong for an alarm. The lead
+       that needs a call in five minutes is the one that just arrived. */
+    const boss = await createTestUser({ role: 'owner' });
+    await freeLead({ source: 'website', daysAgo: 3 });
+    await freeLead({ source: 'website', daysAgo: 1 });
+    const newest = await freeLead({ source: 'website' });
+
+    const res = await send('GET', '/api/v2/incoming', await signIn(base, boss));
+    const body = await res.json() as { free: Array<{ id: string }> };
+    expect(body.free[0]?.id).toBe(newest);
+  });
+
+  it('gives an agent one list, freshest first', async () => {
+    const agent = await createTestUser({ role: 'agent' });
+    await freeLead({ source: 'csv_import', daysAgo: 17 });
+    const fresh = await freeLead({ source: 'website' });
+
+    const res = await send('GET', '/api/v2/incoming', await signIn(base, agent));
+    const body = await res.json() as {
+      free: Array<{ id: string }>; imported: Array<{ id: string }>;
+    };
+    /* The screen concatenates them, fresh first; both halves must be sent. */
+    expect(body.free.map((one) => one.id)).toEqual([fresh]);
+    expect(body.imported).toHaveLength(1);
+  });
 
   it('shows an agent the free leads and nothing about the team', async () => {
     const agent = await createTestUser({ role: 'agent' });
