@@ -349,6 +349,10 @@ function Colleague({ one, onClose }: { one: Person; onClose: () => void }) {
   const now = presence(one);
   const mine = one.id === user?.id;
   const owner = user?.role === 'owner' || user?.role === 'admin';
+  /* The report is open to managers too, so it follows this rather than
+     `owner` -- the server fences it either way, and a manager who may read
+     their team's report should be able to find it. */
+  const boss = owner || user?.role === 'manager';
   const away = now.kind === 'leave';
   const first = one.name.split(' ')[0] ?? one.name;
   const stats = got.data?.stats;
@@ -459,10 +463,16 @@ function Colleague({ one, onClose }: { one: Person; onClose: () => void }) {
           {mine && (
             <Link className="d-btn" to="/v2/profile"><Icon name="user" />Open my profile</Link>
           )}
-          {!mine && owner && (
+          {!mine && boss && (
             <>
               <Link className="d-btn" to={`/v2/team/${one.id}`}>
                 <Icon name="user" />{first}&apos;s page
+              </Link>
+              {/* The report had a page and a route and nothing anywhere that
+                  led to it: the only way in was to type the address. This is
+                  where Emir looked for it. */}
+              <Link className="d-btn" to={`/v2/team/${one.id}/report`}>
+                <Icon name="file-text" />{first}&apos;s report
               </Link>
               <Link className="d-btn" to="/v2/attendance"><Icon name="pin" />Attendance</Link>
             </>
@@ -515,6 +525,7 @@ export function V2Person() {
   const { user } = useAuth();
   const isPhone = useIsPhone();
   const mine = !id || id === user?.id;
+  const canSeeReport = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
   const got = useAsync<Profile>(
     () => api.get(mine ? '/api/profiles/me' : `/api/profiles/${id}`), [id, mine],
   );
@@ -622,6 +633,14 @@ export function V2Person() {
           <span className="d-grow">{mine ? 'My attendance' : 'The team'}</span>
           <Icon name="arrow-right" />
         </Link>
+        {/* The second way in, for whoever opens the person before the list. */}
+        {!mine && canSeeReport && (
+          <Link className="d-shortcut" to={`/v2/team/${id}/report`}>
+            <Icon name="file-text" />
+            <span className="d-grow">{name.split(' ')[0]}&apos;s report</span>
+            <Icon name="arrow-right" />
+          </Link>
+        )}
       </div>
 
       {/*

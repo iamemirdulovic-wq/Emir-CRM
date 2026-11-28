@@ -228,6 +228,9 @@ export const EXTRA_SCREENS: Screen[] = [
   { to: '/v2/attendance', label: 'Check in', icon: 'clock', words: 'office outside late attendance', agentOnly: true },
   { to: '/v2/dashboard', label: 'The full dashboard', icon: 'bar-chart-3', words: 'totals stages sources going cold', ownerOnly: true },
   { to: '/v2/team-live', label: 'Team live', icon: 'activity', words: 'right now online clicks', ownerOnly: true },
+  /* Points at the list rather than at one report, because a report needs a
+     person: pick them on the Team page and the button is on their panel. */
+  { to: '/v2/team', label: 'Reports on each person', icon: 'file-text', words: 'report pdf print download attendance calls score agent performance', ownerOnly: true },
   { to: '/v2/messaging', label: 'Messaging report', icon: 'message-circle', words: 'whatsapp taps replied', ownerOnly: true },
   { to: '/v2/projects/manage', label: 'Manage projects', icon: 'building', words: 'add project brochure prices', ownerOnly: true },
   { to: '/v2/settings/team', label: 'Team and roles', icon: 'users-round', words: 'invite agent deactivate', ownerOnly: true },
