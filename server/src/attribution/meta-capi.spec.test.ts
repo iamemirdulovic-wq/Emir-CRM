@@ -42,9 +42,22 @@ describe('the Conversion Leads payload', () => {
     expect(await read()).toContain('userData.lead_id = Number(row.meta_lead_id)');
   });
 
-  it('keeps the six stages the brief names', () => {
+  it('keeps the stages the brief names, plus the one it asks for elsewhere', () => {
+    /*
+     * The brief's PIPELINE section lists six. Its INTELLIGENCE section then
+     * asks for confirmed junk to be fed back as a lead-quality event too, and
+     * for a year nothing did: a lead marked invalid reported nothing at all,
+     * so Meta could not tell junk from a lead nobody had worked yet.
+     *
+     * `invalid_lead` is that seventh. The list is pinned here because every
+     * name in it has to exist in Events Manager's own funnel mapping as well
+     * -- Meta accepts an unmapped event and quietly ignores it -- so adding
+     * one is never only a code change, and this test is where that gets
+     * noticed.
+     */
     expect([...CAPI_EVENT_NAMES]).toEqual([
-      'valid_lead', 'contacted', 'qualified', 'appointment', 'show', 'reservation',
+      'valid_lead', 'invalid_lead', 'contacted', 'qualified', 'appointment',
+      'show', 'reservation',
     ]);
   });
 
