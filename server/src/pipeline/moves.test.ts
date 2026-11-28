@@ -77,11 +77,45 @@ describe('qualityEventFor', () => {
     expect(qualityEventFor('appointment_scheduled', 'no_show')).toBe('appointment');
   });
 
-  it('never reports an invalid lead as a valid one', () => {
-    expect(qualityEventFor('new_lead', 'invalid')).toBeNull();
+  it('tells Meta a junk lead was junk, instead of saying nothing', () => {
+    /*
+     * This used to return null for all of these, which sounds harmless and
+     * is not: a lead Meta hears nothing about looks exactly like a lead
+     * nobody has worked yet, so it keeps buying more of the same. Silence is
+     * the expensive answer.
+     */
+    expect(qualityEventFor('new_lead', 'invalid')).toBe('invalid_lead');
+    expect(qualityEventFor('new_lead', 'duplicate')).toBe('invalid_lead');
+    expect(qualityEventFor('attempted_contact', 'wrong_number')).toBe('invalid_lead');
   });
 
-  it('reports nothing for Lost', () => {
+  it('reports the lost reasons Emir chose as bad', () => {
+    expect(qualityEventFor('lost', null, 'invalid')).toBe('invalid_lead');
+    expect(qualityEventFor('lost', null, 'unresponsive')).toBe('invalid_lead');
+    expect(qualityEventFor('lost', null, 'not_interested')).toBe('invalid_lead');
+  });
+
+  it('never calls a real buyer a bad lead', () => {
+    /*
+     * The two that must stay out, and the reason this is a list rather than
+     * "anything lost is bad". Someone who bought elsewhere had money and
+     * bought a property: Meta found precisely who it was asked to find, and
+     * telling it that person was junk teaches it to stop finding buyers. A
+     * budget mismatch is a real buyer at the wrong price -- a targeting
+     * problem to fix in the campaign, not a fault in the person.
+     */
+    expect(qualityEventFor('lost', null, 'bought_elsewhere')).toBeNull();
+    expect(qualityEventFor('lost', null, 'budget_mismatch')).toBeNull();
+  });
+
+  it('reports nothing for a Lost with no reason given', () => {
+    /* The reason decides, so without one it guesses nothing. */
     expect(qualityEventFor('lost', null)).toBeNull();
+  });
+
+  it('lets bad news outrank the stage the card sits in', () => {
+    /* A card parked in Engaged and then marked a wrong number is a wrong
+       number, whatever column it is in. */
+    expect(qualityEventFor('engaged_qualified', 'wrong_number')).toBe('invalid_lead');
   });
 });

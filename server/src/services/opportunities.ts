@@ -6,7 +6,9 @@ import { addActivity } from '../ingestion/ingest.js';
 import { cancelTasksForClosedLead } from './tasks.js';
 import { cancelJobs, enqueue } from '../jobs/queue.js';
 import { isPastAttemptedContact, type StageKey } from '../pipeline/stages.js';
-import { qualityEventFor, validateMove, type MoveRequest } from '../pipeline/moves.js';
+import {
+  INVALID_LEAD_EVENT, qualityEventFor, validateMove, type MoveRequest,
+} from '../pipeline/moves.js';
 import type { Role } from '../auth/rbac.js';
 import { LIVE_CONTACT, LIVE_OPPORTUNITY } from '../auth/deleted.js';
 
@@ -198,7 +200,7 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
       );
     }
 
-    const qualityEvent = qualityEventFor(move.to, move.subStatus);
+    const qualityEvent = qualityEventFor(move.to, move.subStatus, move.lostReason);
     if (qualityEvent) {
       await enqueue(
         'capi.send_event',
@@ -212,16 +214,22 @@ export async function moveStage(input: MoveStageInput): Promise<MoveStageResult>
         },
         tx,
       );
-      await enqueue(
-        'google.upload_conversion',
-        { opportunityId: input.opportunityId, contactId: current.contact_id, eventName: qualityEvent },
-        {
-          priority: 6,
-          dedupeKey: `gads:${input.opportunityId}:${qualityEvent}`,
-          contactId: current.contact_id,
-        },
-        tx,
-      );
+      /* Meta's CRM funnel takes bad news; Google's offline conversion import
+         does not -- it uploads conversions, and there is no negative one to
+         upload. Sending `invalid_lead` there would either be rejected or,
+         worse, counted as a conversion. */
+      if (qualityEvent !== INVALID_LEAD_EVENT) {
+        await enqueue(
+          'google.upload_conversion',
+          { opportunityId: input.opportunityId, contactId: current.contact_id, eventName: qualityEvent },
+          {
+            priority: 6,
+            dedupeKey: `gads:${input.opportunityId}:${qualityEvent}`,
+            contactId: current.contact_id,
+          },
+          tx,
+        );
+      }
     }
 
     logger.info('opportunity stage changed', {

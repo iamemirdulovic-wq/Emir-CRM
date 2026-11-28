@@ -21,7 +21,15 @@ import { logger } from '../lib/logger.js';
  */
 export const LEAD_EVENT_SOURCE = 'homes.me CRM';
 
-export const CAPI_EVENT_NAMES = ['valid_lead', 'contacted', 'qualified', 'appointment', 'show', 'reservation'] as const;
+/*
+ * The funnel reported to Meta. `invalid_lead` is the one that costs nothing
+ * and saves the most: it is how Meta is told to stop finding people like
+ * this one. Every name here has to exist in Events Manager's own funnel
+ * mapping too, or Meta accepts the event and ignores it.
+ */
+export const CAPI_EVENT_NAMES = [
+  'valid_lead', 'invalid_lead', 'contacted', 'qualified', 'appointment', 'show', 'reservation',
+] as const;
 export type CapiEventName = (typeof CAPI_EVENT_NAMES)[number];
 
 /** Meta expects normalized values, hashed with SHA-256. */

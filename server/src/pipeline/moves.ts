@@ -106,10 +106,49 @@ const SUB_STATUS_QUALITY_EVENTS: Record<string, string> = {
   commission_received: 'reservation',
 };
 
-export function qualityEventFor(stage: StageKey, subStatus: string | null): string | null {
+/**
+ * The bad news, which is the half that saves money.
+ *
+ * Until 28 November a lead marked invalid, or lost for any reason, reported
+ * nothing at all: the CRM told Meta every piece of good news and never once
+ * said "that one was junk". To Meta a junk lead then looks exactly like a
+ * lead nobody has worked yet, so it keeps buying more of the same.
+ *
+ * Two lost reasons are deliberately left out, and leaving them out is the
+ * point of having a list rather than "anything lost is bad":
+ *
+ *   - `bought_elsewhere` -- that person had money and bought a property.
+ *     Meta found exactly who it was asked to find. Calling them a bad lead
+ *     teaches it to stop finding buyers.
+ *   - `budget_mismatch` -- a real buyer at the wrong price. That is a
+ *     targeting problem, to fix in the campaign, not a fault in the person.
+ *
+ * Emir chose the rest -- fake, never answered, not interested -- knowing the
+ * risk on the last of those, which is that a real buyer who said no today is
+ * reported as one not worth finding.
+ */
+const BAD_LEAD_SUB_STATUSES = new Set(['invalid', 'duplicate', 'wrong_number']);
+const BAD_LEAD_LOST_REASONS = new Set(['invalid', 'unresponsive', 'not_interested']);
+
+/** What Meta is told about a lead that was never worth having. */
+export const INVALID_LEAD_EVENT = 'invalid_lead';
+
+/**
+ * @param lostReason only set when the card is being moved to Lost. The reason
+ *   is what decides whether Meta hears about it, so a Lost move that does not
+ *   pass it reports nothing rather than guessing.
+ */
+export function qualityEventFor(
+  stage: StageKey,
+  subStatus: string | null,
+  lostReason: string | null = null,
+): string | null {
+  /* Bad news first: "this was never real" outranks whatever stage the card
+     happens to be sitting in. */
+  if (subStatus && BAD_LEAD_SUB_STATUSES.has(subStatus)) return INVALID_LEAD_EVENT;
+  if (stage === 'lost') {
+    return lostReason && BAD_LEAD_LOST_REASONS.has(lostReason) ? INVALID_LEAD_EVENT : null;
+  }
   if (subStatus && SUB_STATUS_QUALITY_EVENTS[subStatus]) return SUB_STATUS_QUALITY_EVENTS[subStatus] as string;
-  // A lead marked invalid is not a valid lead, whatever stage it sits in.
-  if (stage === 'new_lead' && subStatus === 'invalid') return null;
-  if (stage === 'lost') return null;
   return STAGE_QUALITY_EVENTS[stage] ?? null;
 }
